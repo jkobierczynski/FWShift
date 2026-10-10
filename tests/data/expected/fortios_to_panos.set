@@ -1,0 +1,251 @@
+set address lan-net ip-netmask 10.10.0.0/15
+set address lan-net description "Office \"LAN\" networks"
+set address web-1 ip-netmask 10.20.0.10/32
+set address mail-1 ip-netmask 10.20.0.25/32
+set address admin-range ip-range 10.10.5.10-10.10.5.20
+set address updates.example.com fqdn updates.example.com
+set address geo-blocked ip-netmask 0.0.0.0/32
+set address geo-blocked description "FWSHIFT PLACEHOLDER, matches nothing: FortiOS address type 'geography'"
+set address 10.99.0.0_16 ip-netmask 10.99.0.0/16
+set address scada-server ip-netmask 10.10.7.15/32
+set address plc-net ip-netmask 10.30.1.0/24
+set address lan6-net ip-netmask 2001:db8:10::/48
+set address vip-web ip-netmask 203.0.113.10/32
+set address vip-mail ip-netmask 203.0.113.25/32
+set address dmz-pool ip-range 198.51.100.20-198.51.100.23
+set address dmz-pool description "FortiOS IP pool dmz-pool"
+set address-group dmz-servers static [ web-1 mail-1 ]
+set address-group internal-all static [ lan-net dmz-servers ]
+set address-group internal-all description "Nested group"
+set service HTTP protocol tcp port 80
+set service HTTPS protocol tcp port 443
+set service DNS-tcp protocol tcp port 53
+set service DNS-udp protocol udp port 53
+set service-group DNS members [ DNS-tcp DNS-udp ]
+set service SMTP protocol tcp port 25
+set service SSH protocol tcp port 22
+set service MODBUS protocol tcp port 502
+set service app-ports protocol tcp port 8080,8443,9000-9010
+set service app-ports description "Application server"
+set service syslog-from-high protocol udp port 514
+set service syslog-from-high protocol udp source-port 1024-65535
+set service vip-web-port protocol tcp port 443
+set service vip-web-port description "external port of VIP vip-web"
+set service-group "Web Access" members [ HTTP HTTPS ]
+set service-group basic-net members DNS
+set rulebase security rules "LAN to Internet" from lan
+set rulebase security rules "LAN to Internet" to wan1
+set rulebase security rules "LAN to Internet" source lan-net
+set rulebase security rules "LAN to Internet" destination any
+set rulebase security rules "LAN to Internet" source-user any
+set rulebase security rules "LAN to Internet" category any
+set rulebase security rules "LAN to Internet" application any
+set rulebase security rules "LAN to Internet" service [ "Web Access" DNS ]
+set rulebase security rules "LAN to Internet" action allow
+set rulebase security rules "LAN to Internet" log-end yes
+set rulebase security rules "LAN basics" from lan
+set rulebase security rules "LAN basics" to wan1
+set rulebase security rules "LAN basics" source 0.0.0.0/0
+set rulebase security rules "LAN basics" destination any
+set rulebase security rules "LAN basics" source-user any
+set rulebase security rules "LAN basics" category any
+set rulebase security rules "LAN basics" application any
+set rulebase security rules "LAN basics" service basic-net
+set rulebase security rules "LAN basics" action allow
+set rulebase security rules "LAN basics" log-end no
+set rulebase security rules "LAN basics-apps" from lan
+set rulebase security rules "LAN basics-apps" to wan1
+set rulebase security rules "LAN basics-apps" source 0.0.0.0/0
+set rulebase security rules "LAN basics-apps" destination any
+set rulebase security rules "LAN basics-apps" source-user any
+set rulebase security rules "LAN basics-apps" category any
+set rulebase security rules "LAN basics-apps" application ping
+set rulebase security rules "LAN basics-apps" service application-default
+set rulebase security rules "LAN basics-apps" action allow
+set rulebase security rules "LAN basics-apps" log-end no
+set rulebase security rules "Inbound web" from wan1
+set rulebase security rules "Inbound web" to dmz
+set rulebase security rules "Inbound web" source any
+set rulebase security rules "Inbound web" destination vip-web
+set rulebase security rules "Inbound web" source-user any
+set rulebase security rules "Inbound web" category any
+set rulebase security rules "Inbound web" application any
+set rulebase security rules "Inbound web" service app-ports
+set rulebase security rules "Inbound web" action allow
+set rulebase security rules "Inbound web" log-start yes
+set rulebase security rules "Inbound web" log-end yes
+set rulebase security rules "Inbound mail" from wan1
+set rulebase security rules "Inbound mail" to dmz
+set rulebase security rules "Inbound mail" source any
+set rulebase security rules "Inbound mail" destination vip-mail
+set rulebase security rules "Inbound mail" source-user any
+set rulebase security rules "Inbound mail" category any
+set rulebase security rules "Inbound mail" application any
+set rulebase security rules "Inbound mail" service SMTP
+set rulebase security rules "Inbound mail" action allow
+set rulebase security rules "Inbound mail" log-end no
+set rulebase security rules "Admins to DMZ" from lan
+set rulebase security rules "Admins to DMZ" to dmz
+set rulebase security rules "Admins to DMZ" source admin-range
+set rulebase security rules "Admins to DMZ" destination dmz-servers
+set rulebase security rules "Admins to DMZ" source-user any
+set rulebase security rules "Admins to DMZ" category any
+set rulebase security rules "Admins to DMZ" application any
+set rulebase security rules "Admins to DMZ" service SSH
+set rulebase security rules "Admins to DMZ" action allow
+set rulebase security rules "Admins to DMZ" log-end no
+set rulebase security rules "Admins to DMZ" disabled yes
+set rulebase security rules "Admins to DMZ" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Block geo" from any
+set rulebase security rules "Block geo" to wan1
+set rulebase security rules "Block geo" source any
+set rulebase security rules "Block geo" destination geo-blocked
+set rulebase security rules "Block geo" source-user any
+set rulebase security rules "Block geo" category any
+set rulebase security rules "Block geo" application any
+set rulebase security rules "Block geo" service any
+set rulebase security rules "Block geo" action drop
+set rulebase security rules "Block geo" log-end yes
+set rulebase security rules "Block geo" disabled yes
+set rulebase security rules "Block geo" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "DMZ out via pool" from dmz
+set rulebase security rules "DMZ out via pool" to wan1
+set rulebase security rules "DMZ out via pool" source dmz-servers
+set rulebase security rules "DMZ out via pool" destination updates.example.com
+set rulebase security rules "DMZ out via pool" source-user any
+set rulebase security rules "DMZ out via pool" category any
+set rulebase security rules "DMZ out via pool" application any
+set rulebase security rules "DMZ out via pool" service HTTPS
+set rulebase security rules "DMZ out via pool" action allow
+set rulebase security rules "DMZ out via pool" log-end no
+set rulebase security rules "SCADA to PLCs" from lan
+set rulebase security rules "SCADA to PLCs" to ot
+set rulebase security rules "SCADA to PLCs" source scada-server
+set rulebase security rules "SCADA to PLCs" destination plc-net
+set rulebase security rules "SCADA to PLCs" source-user any
+set rulebase security rules "SCADA to PLCs" category any
+set rulebase security rules "SCADA to PLCs" application any
+set rulebase security rules "SCADA to PLCs" service MODBUS
+set rulebase security rules "SCADA to PLCs" action allow
+set rulebase security rules "SCADA to PLCs" log-end yes
+set rulebase security rules "SCADA to PLCs" description "Engineering access to the controllers"
+set rulebase security rules "OT no internet" from ot
+set rulebase security rules "OT no internet" to wan1
+set rulebase security rules "OT no internet" source 0.0.0.0/0
+set rulebase security rules "OT no internet" destination any
+set rulebase security rules "OT no internet" source-user any
+set rulebase security rules "OT no internet" category any
+set rulebase security rules "OT no internet" application any
+set rulebase security rules "OT no internet" service any
+set rulebase security rules "OT no internet" action drop
+set rulebase security rules "OT no internet" log-end yes
+set rulebase security rules "Partner tunnel" from lan
+set rulebase security rules "Partner tunnel" to wan1
+set rulebase security rules "Partner tunnel" source lan-net
+set rulebase security rules "Partner tunnel" destination 10.99.0.0_16
+set rulebase security rules "Partner tunnel" source-user any
+set rulebase security rules "Partner tunnel" category any
+set rulebase security rules "Partner tunnel" application any
+set rulebase security rules "Partner tunnel" service syslog-from-high
+set rulebase security rules "Partner tunnel" action allow
+set rulebase security rules "Partner tunnel" log-end no
+set rulebase security rules "Partner tunnel-apps" from lan
+set rulebase security rules "Partner tunnel-apps" to wan1
+set rulebase security rules "Partner tunnel-apps" source lan-net
+set rulebase security rules "Partner tunnel-apps" destination 10.99.0.0_16
+set rulebase security rules "Partner tunnel-apps" source-user any
+set rulebase security rules "Partner tunnel-apps" category any
+set rulebase security rules "Partner tunnel-apps" application gre
+set rulebase security rules "Partner tunnel-apps" service application-default
+set rulebase security rules "Partner tunnel-apps" action allow
+set rulebase security rules "Partner tunnel-apps" log-end no
+set rulebase security rules "LAN v6 out" from lan
+set rulebase security rules "LAN v6 out" to wan1
+set rulebase security rules "LAN v6 out" source lan6-net
+set rulebase security rules "LAN v6 out" destination any
+set rulebase security rules "LAN v6 out" source-user any
+set rulebase security rules "LAN v6 out" category any
+set rulebase security rules "LAN v6 out" application any
+set rulebase security rules "LAN v6 out" service HTTPS
+set rulebase security rules "LAN v6 out" action allow
+set rulebase security rules "LAN v6 out" log-end no
+set rulebase security rules policy-12 from lan
+set rulebase security rules policy-12 to dmz
+set rulebase security rules policy-12 source lan-net
+set rulebase security rules policy-12 destination web-1
+set rulebase security rules policy-12 source-user any
+set rulebase security rules policy-12 category any
+set rulebase security rules policy-12 application any
+set rulebase security rules policy-12 service HTTP
+set rulebase security rules policy-12 action allow
+set rulebase security rules policy-12 log-end no
+set rulebase security rules policy-12 disabled yes
+set rulebase security rules policy-12 description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Not web" from dmz
+set rulebase security rules "Not web" to wan1
+set rulebase security rules "Not web" source web-1
+set rulebase security rules "Not web" destination any
+set rulebase security rules "Not web" source-user any
+set rulebase security rules "Not web" category any
+set rulebase security rules "Not web" application any
+set rulebase security rules "Not web" service "Web Access"
+set rulebase security rules "Not web" action allow
+set rulebase security rules "Not web" log-end no
+set rulebase security rules "Not web" disabled yes
+set rulebase security rules "Not web" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Timestamp probes" from lan
+set rulebase security rules "Timestamp probes" to dmz
+set rulebase security rules "Timestamp probes" source admin-range
+set rulebase security rules "Timestamp probes" destination dmz-servers
+set rulebase security rules "Timestamp probes" source-user any
+set rulebase security rules "Timestamp probes" category any
+set rulebase security rules "Timestamp probes" application icmp
+set rulebase security rules "Timestamp probes" service application-default
+set rulebase security rules "Timestamp probes" action allow
+set rulebase security rules "Timestamp probes" log-end no
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules vip-web from wan1
+set rulebase nat rules vip-web to wan1
+set rulebase nat rules vip-web source any
+set rulebase nat rules vip-web destination vip-web
+set rulebase nat rules vip-web service vip-web-port
+set rulebase nat rules vip-web destination-translation translated-address 10.20.0.10
+set rulebase nat rules vip-web destination-translation translated-port 8443
+set rulebase nat rules vip-mail from wan1
+set rulebase nat rules vip-mail to wan1
+set rulebase nat rules vip-mail source any
+set rulebase nat rules vip-mail destination vip-mail
+set rulebase nat rules vip-mail service any
+set rulebase nat rules vip-mail destination-translation translated-address 10.20.0.25
+set rulebase nat rules snat-1 from lan
+set rulebase nat rules snat-1 to wan1
+set rulebase nat rules snat-1 source lan-net
+set rulebase nat rules snat-1 destination any
+set rulebase nat rules snat-1 service any
+set rulebase nat rules snat-1 source-translation dynamic-ip-and-port translated-address 198.51.100.1
+set rulebase nat rules snat-1 description "from FortiOS policy 1 (LAN to Internet)"
+set rulebase nat rules snat-2 from lan
+set rulebase nat rules snat-2 to wan1
+set rulebase nat rules snat-2 source any
+set rulebase nat rules snat-2 destination any
+set rulebase nat rules snat-2 service any
+set rulebase nat rules snat-2 source-translation dynamic-ip-and-port translated-address 198.51.100.1
+set rulebase nat rules snat-2 description "from FortiOS policy 2 (LAN basics)"
+set rulebase nat rules snat-7 from dmz
+set rulebase nat rules snat-7 to wan1
+set rulebase nat rules snat-7 source dmz-servers
+set rulebase nat rules snat-7 destination updates.example.com
+set rulebase nat rules snat-7 service any
+set rulebase nat rules snat-7 source-translation dynamic-ip-and-port translated-address dmz-pool
+set rulebase nat rules snat-7 description "from FortiOS policy 7 (DMZ out via pool)"

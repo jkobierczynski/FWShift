@@ -1,0 +1,55 @@
+FWShift conversion report
+  source: fortios
+  target: panos
+
+Summary
+  Security rules:     14   exact 5, approximated 4, needs review 5 (4 emitted disabled), skipped 0
+  NAT rules:           5   exact 2, approximated 1, needs review 2, skipped 0
+  Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): lan, wan1, dmz, ot
+  [info] INTRAZONE_DENY_ADDED: appended 'fwshift-intrazone-deny': PAN-OS allows traffic inside a zone by default, the source denies it
+
+Security rules
+  LAN to Internet  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
+  LAN basics  ->  approximated  (emitted as LAN basics, LAN basics-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  Inbound web  ->  needs-review
+      [needs-review] NAT_PORT_TRANSLATION: virtual IP 'vip-web' forwards port 443 to 8443; FortiOS policies name the mapped port, the neutral model the original one. Check the service of this rule
+  Admins to DMZ  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
+  Block geo  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Partner tunnel  ->  approximated  (emitted as Partner tunnel, Partner tunnel-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: gre. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  policy-12  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  Not web  ->  needs-review, emitted disabled
+      [needs-review] SERVICE_NEGATE: a negated service match does not exist on PAN-OS.
+  Timestamp probes  ->  approximated
+      [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
+      [approximated] ICMP_TYPE: service 'TIMESTAMP' matches ICMP type 13; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+
+NAT rules
+  vip-mail  ->  approximated
+      [approximated] VIP_REVERSE_NAT: FortiOS also source-translates sessions the mapped host opens (to the external IP) when the outgoing policy has NAT enabled; that reverse direction is not converted
+  snat-1  ->  needs-review
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [approximated] NAT_INTERFACE_ADDRESS: translates to 198.51.100.1, the address interface 'wan1' has today; use --interface-map wan1=<PAN-OS interface> to follow the interface instead
+  snat-2  ->  needs-review
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [approximated] NAT_INTERFACE_ADDRESS: translates to 198.51.100.1, the address interface 'wan1' has today; use --interface-map wan1=<PAN-OS interface> to follow the interface instead
+
+Addresses
+  geo-blocked  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: FortiOS address type 'geography' cannot be converted
+  10.99.0.0/16  ->  exact  (emitted as 10.99.0.0_16)
+      [info] RENAMED: renamed to '10.99.0.0_16' to fit the target's naming rules
