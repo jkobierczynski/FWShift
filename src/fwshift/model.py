@@ -81,6 +81,8 @@ class Address:
     raw: str = ""  # for UNSUPPORTED: what it was in the source
     # FQDN only: 4 or 6 when the source resolves the name for one IP version only, 0 for both.
     fqdn_family: int = 0
+    # Vendor on which this object exists without a conversion creating it: predefined, or a gateway.
+    builtin: str = ""
 
 
 @dataclass
@@ -91,6 +93,7 @@ class AddressGroup:
     tags: List[str] = field(default_factory=list)
     dynamic_filter: str = ""  # non-empty: tag-based dynamic group
     unsupported: str = ""  # non-empty: reason the group cannot be converted
+    builtin: str = ""
 
 
 @dataclass
@@ -119,6 +122,7 @@ class ServiceGroup:
     members: List[str] = field(default_factory=list)
     description: str = ""
     tags: List[str] = field(default_factory=list)
+    builtin: str = ""
 
 
 @dataclass
@@ -185,6 +189,11 @@ class NatRule:
     tags: List[str] = field(default_factory=list)
     unsupported: List[str] = field(default_factory=list)
     origin: str = ""
+    # NAT rules are first match: one rule applies to a connection. Where the source applies a
+    # rule that translates the destination together with one that translates the source
+    # (iptables PREROUTING and POSTROUTING, FortiOS virtual IPs and central SNAT, Check Point
+    # automatic rules), both rules carry this flag.
+    combines: bool = False
 
 
 @dataclass
@@ -201,6 +210,10 @@ class Policy:
     # What happens to traffic no rule matches, inside one zone and between zones.
     default_intrazone: Action = Action.DENY
     default_interzone: Action = Action.DENY
+    # True when the source platform looks rules up after destination NAT. The rules
+    # here are already normalised to pre-NAT addresses; an emitter for a platform of
+    # the same kind uses this to tell that their services still name post-NAT ports.
+    lookup_after_dnat: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return dataclasses.asdict(self)

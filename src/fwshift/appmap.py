@@ -141,7 +141,7 @@ FORTIOS_FACTORY_SERVICE_NAMES = frozenset(
     TRACEROUTE UUCP VDOLIVE VNC WAIS WINFRAME WINS X-WINDOWS webproxy""".split()
 ) | frozenset(FORTIOS_DEFAULT_SERVICES) | frozenset({"Email Access", "Web Access", "Windows AD", "Exchange Server"})
 
-_PORTS = re.compile(r"\d{1,5}(-\d{1,5})?(,\d{1,5}(-\d{1,5})?)*")
+_PORTS = re.compile(r"[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?)*")
 
 
 def valid_ports(text: str) -> bool:
@@ -169,7 +169,7 @@ def parse_spec(spec: str) -> ServiceEntry:
         if proto == "ip":
             raise FwshiftError(f"invalid port spec '{spec}': that would match every protocol")
         number = None
-    elif value.isdigit() and int(value) <= 255 and (proto != "ip" or int(value) > 0):
+    elif value.isascii() and value.isdigit() and int(value) <= 255 and (proto != "ip" or int(value) > 0):
         number = int(value)
     else:
         raise FwshiftError(f"invalid port spec '{spec}': expected a number up to 255" + ("" if proto == "ip" else " or 'any'"))

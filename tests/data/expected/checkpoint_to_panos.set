@@ -1,0 +1,268 @@
+set tag Infrastructure
+set tag Outbound
+set tag Inbound
+set address lan-net ip-netmask 10.10.0.0/16
+set address dmz-net ip-netmask 10.20.0.0/24
+set address dns-1 ip-netmask 192.0.2.53/32
+set address admin-range ip-range 10.10.5.10-10.10.5.20
+set address web-1 ip-netmask 10.20.0.10/32
+set address web-1 description "Web server in the DMZ"
+set address web-1_valid_address ip-netmask 203.0.113.10/32
+set address web-1_valid_address description "address automatic NAT gives web-1"
+set address mail-1 ip-netmask 10.20.0.25/32
+set address guest-net ip-netmask 10.10.200.0/24
+set address netadmins ip-netmask 0.0.0.0/32
+set address netadmins description "FWSHIFT PLACEHOLDER, matches nothing: object of type 'access-role'"
+set address plc-net ip-netmask 10.30.1.0/24
+set address x.updates.example.com fqdn updates.example.com
+set address lan-without-guests ip-netmask 0.0.0.0/32
+set address lan-without-guests description "FWSHIFT PLACEHOLDER, matches nothing: object of type 'group-with-exclusion'"
+set address lan6-net ip-netmask 2001:db8:10::/48
+set address gw-edge ip-netmask 198.51.100.1/32
+set address mail-public ip-netmask 203.0.113.25/32
+set address nat-out ip-netmask 198.51.100.20/32
+set address h-192.0.2.54 ip-netmask 192.0.2.54
+set address h-2001_db8_53__54 ip-netmask 2001:db8:53::54
+set address-group dns-2 static [ h-192.0.2.54 h-2001_db8_53__54 ]
+set address-group dns-servers static [ dns-1 dns-2 ]
+set address-group dmz-servers static [ web-1 web-1_valid_address mail-1 ]
+set address-group dmz-servers description "Everything in the DMZ"
+set service domain-udp protocol udp port 53
+set service domain-tcp protocol tcp port 53
+set service ssh protocol tcp port 22
+set service http protocol tcp port 80
+set service https protocol tcp port 443
+set service Facebook protocol tcp port 1
+set service Facebook description "FWSHIFT PLACEHOLDER, matches nothing: object of type 'application-site'"
+set service syslog-from-high protocol udp port 514
+set service syslog-from-high protocol udp source-port 1024-65535
+set service tcp-high protocol tcp port 9000-9010
+set service tcp-high description "Application ports"
+set service smtp protocol tcp port 25
+set service ident protocol tcp port 113
+set service tcp-2525 protocol tcp port 2525
+set service-group app-ports members [ https tcp-high ]
+set rulebase security rules DNS from any
+set rulebase security rules DNS to any
+set rulebase security rules DNS source [ lan-net dmz-net ]
+set rulebase security rules DNS destination dns-servers
+set rulebase security rules DNS source-user any
+set rulebase security rules DNS category any
+set rulebase security rules DNS application any
+set rulebase security rules DNS service [ domain-udp domain-tcp ]
+set rulebase security rules DNS action allow
+set rulebase security rules DNS log-end yes
+set rulebase security rules DNS description "Name resolution"
+set rulebase security rules DNS tag Infrastructure
+set rulebase security rules rule-2 from any
+set rulebase security rules rule-2 to any
+set rulebase security rules rule-2 source admin-range
+set rulebase security rules rule-2 destination dmz-servers
+set rulebase security rules rule-2 source-user any
+set rulebase security rules rule-2 category any
+set rulebase security rules rule-2 application any
+set rulebase security rules rule-2 service ssh
+set rulebase security rules rule-2 action allow
+set rulebase security rules rule-2 log-end yes
+set rulebase security rules rule-2 tag Infrastructure
+set rulebase security rules "Web out" from InternalZone
+set rulebase security rules "Web out" to ExternalZone
+set rulebase security rules "Web out" source any
+set rulebase security rules "Web out" destination any
+set rulebase security rules "Web out" source-user any
+set rulebase security rules "Web out" category any
+set rulebase security rules "Web out" application any
+set rulebase security rules "Web out" service [ http https ]
+set rulebase security rules "Web out" action allow
+set rulebase security rules "Web out" log-end yes
+set rulebase security rules "Web out" tag Outbound
+set rulebase security rules "Guests stay out" from any
+set rulebase security rules "Guests stay out" to any
+set rulebase security rules "Guests stay out" source guest-net
+set rulebase security rules "Guests stay out" destination dns-servers
+set rulebase security rules "Guests stay out" source-user any
+set rulebase security rules "Guests stay out" category any
+set rulebase security rules "Guests stay out" application any
+set rulebase security rules "Guests stay out" service any
+set rulebase security rules "Guests stay out" action drop
+set rulebase security rules "Guests stay out" negate-destination yes
+set rulebase security rules "Guests stay out" log-end yes
+set rulebase security rules "Guests stay out" tag Outbound
+set rulebase security rules Social from any
+set rulebase security rules Social to any
+set rulebase security rules Social source lan-net
+set rulebase security rules Social destination any
+set rulebase security rules Social source-user any
+set rulebase security rules Social category any
+set rulebase security rules Social application any
+set rulebase security rules Social service Facebook
+set rulebase security rules Social action allow
+set rulebase security rules Social log-end yes
+set rulebase security rules Social disabled yes
+set rulebase security rules Social description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules Social tag Outbound
+set rulebase security rules Admins from any
+set rulebase security rules Admins to any
+set rulebase security rules Admins source netadmins
+set rulebase security rules Admins destination plc-net
+set rulebase security rules Admins source-user any
+set rulebase security rules Admins category any
+set rulebase security rules Admins application any
+set rulebase security rules Admins service any
+set rulebase security rules Admins action allow
+set rulebase security rules Admins log-end yes
+set rulebase security rules Admins disabled yes
+set rulebase security rules Admins description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules Admins tag Outbound
+set rulebase security rules Updates from any
+set rulebase security rules Updates to any
+set rulebase security rules Updates source dmz-servers
+set rulebase security rules Updates destination x.updates.example.com
+set rulebase security rules Updates source-user any
+set rulebase security rules Updates category any
+set rulebase security rules Updates application any
+set rulebase security rules Updates service https
+set rulebase security rules Updates action allow
+set rulebase security rules Updates log-end yes
+set rulebase security rules Updates disabled yes
+set rulebase security rules Updates description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules Updates tag Outbound
+set rulebase security rules "Old rule" from any
+set rulebase security rules "Old rule" to any
+set rulebase security rules "Old rule" source lan-without-guests
+set rulebase security rules "Old rule" destination any
+set rulebase security rules "Old rule" source-user any
+set rulebase security rules "Old rule" category any
+set rulebase security rules "Old rule" application any
+set rulebase security rules "Old rule" service syslog-from-high
+set rulebase security rules "Old rule" action allow
+set rulebase security rules "Old rule" log-end yes
+set rulebase security rules "Old rule" disabled yes
+set rulebase security rules "Old rule" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Old rule" tag Outbound
+set rulebase security rules Partners from any
+set rulebase security rules Partners to any
+set rulebase security rules Partners source lan-net
+set rulebase security rules Partners destination plc-net
+set rulebase security rules Partners source-user any
+set rulebase security rules Partners category any
+set rulebase security rules Partners application any
+set rulebase security rules Partners service any
+set rulebase security rules Partners action allow
+set rulebase security rules Partners log-end yes
+set rulebase security rules Partners disabled yes
+set rulebase security rules Partners description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules Partners tag Outbound
+set rulebase security rules "IPv6 out" from any
+set rulebase security rules "IPv6 out" to any
+set rulebase security rules "IPv6 out" source lan6-net
+set rulebase security rules "IPv6 out" destination any
+set rulebase security rules "IPv6 out" source-user any
+set rulebase security rules "IPv6 out" category any
+set rulebase security rules "IPv6 out" application any
+set rulebase security rules "IPv6 out" service https
+set rulebase security rules "IPv6 out" action allow
+set rulebase security rules "IPv6 out" log-end no
+set rulebase security rules "IPv6 out" tag Outbound
+set rulebase security rules "Public web" from any
+set rulebase security rules "Public web" to any
+set rulebase security rules "Public web" source any
+set rulebase security rules "Public web" destination [ web-1 web-1_valid_address ]
+set rulebase security rules "Public web" source-user any
+set rulebase security rules "Public web" category any
+set rulebase security rules "Public web" application any
+set rulebase security rules "Public web" service https
+set rulebase security rules "Public web" action allow
+set rulebase security rules "Public web" log-end yes
+set rulebase security rules "Public web" description "web-1 has automatic static NAT"
+set rulebase security rules "Public web" tag Inbound
+set rulebase security rules "DMZ access _ Web in" from any
+set rulebase security rules "DMZ access _ Web in" to any
+set rulebase security rules "DMZ access _ Web in" source any
+set rulebase security rules "DMZ access _ Web in" destination 10.20.0.10/32
+set rulebase security rules "DMZ access _ Web in" source-user any
+set rulebase security rules "DMZ access _ Web in" category any
+set rulebase security rules "DMZ access _ Web in" application any
+set rulebase security rules "DMZ access _ Web in" service app-ports
+set rulebase security rules "DMZ access _ Web in" action allow
+set rulebase security rules "DMZ access _ Web in" log-end yes
+set rulebase security rules "DMZ access _ Web in" tag Inbound
+set rulebase security rules "DMZ access _ Mail in" from any
+set rulebase security rules "DMZ access _ Mail in" to any
+set rulebase security rules "DMZ access _ Mail in" source any
+set rulebase security rules "DMZ access _ Mail in" destination mail-1
+set rulebase security rules "DMZ access _ Mail in" source-user any
+set rulebase security rules "DMZ access _ Mail in" category any
+set rulebase security rules "DMZ access _ Mail in" application any
+set rulebase security rules "DMZ access _ Mail in" service smtp
+set rulebase security rules "DMZ access _ Mail in" action allow
+set rulebase security rules "DMZ access _ Mail in" log-end yes
+set rulebase security rules "DMZ access _ Mail in" tag Inbound
+set rulebase security rules "DMZ access _ Ping from LAN" from any
+set rulebase security rules "DMZ access _ Ping from LAN" to any
+set rulebase security rules "DMZ access _ Ping from LAN" source lan-net
+set rulebase security rules "DMZ access _ Ping from LAN" destination dmz-net
+set rulebase security rules "DMZ access _ Ping from LAN" source-user any
+set rulebase security rules "DMZ access _ Ping from LAN" category any
+set rulebase security rules "DMZ access _ Ping from LAN" application ping
+set rulebase security rules "DMZ access _ Ping from LAN" service application-default
+set rulebase security rules "DMZ access _ Ping from LAN" action allow
+set rulebase security rules "DMZ access _ Ping from LAN" log-end no
+set rulebase security rules "DMZ access _ Ping from LAN" tag Inbound
+set rulebase security rules "DMZ access _cleanup of DMZ-Layer_" from any
+set rulebase security rules "DMZ access _cleanup of DMZ-Layer_" to any
+set rulebase security rules "DMZ access _cleanup of DMZ-Layer_" source any
+set rulebase security rules "DMZ access _cleanup of DMZ-Layer_" destination dmz-net
+set rulebase security rules "DMZ access _cleanup of DMZ-Layer_" source-user any
+set rulebase security rules "DMZ access _cleanup of DMZ-Layer_" category any
+set rulebase security rules "DMZ access _cleanup of DMZ-Layer_" application any
+set rulebase security rules "DMZ access _cleanup of DMZ-Layer_" service any
+set rulebase security rules "DMZ access _cleanup of DMZ-Layer_" action drop
+set rulebase security rules "DMZ access _cleanup of DMZ-Layer_" log-end no
+set rulebase security rules "DMZ access _cleanup of DMZ-Layer_" description "implicit cleanup of inline layer DMZ-Layer"
+set rulebase security rules "DMZ access _cleanup of DMZ-Layer_" tag Inbound
+set rulebase security rules Tunnels from any
+set rulebase security rules Tunnels to any
+set rulebase security rules Tunnels source any
+set rulebase security rules Tunnels destination gw-edge
+set rulebase security rules Tunnels source-user any
+set rulebase security rules Tunnels category any
+set rulebase security rules Tunnels application gre
+set rulebase security rules Tunnels service application-default
+set rulebase security rules Tunnels action allow
+set rulebase security rules Tunnels log-end yes
+set rulebase security rules Tunnels tag Inbound
+set rulebase security rules "No ident" from any
+set rulebase security rules "No ident" to any
+set rulebase security rules "No ident" source any
+set rulebase security rules "No ident" destination any
+set rulebase security rules "No ident" source-user any
+set rulebase security rules "No ident" category any
+set rulebase security rules "No ident" application any
+set rulebase security rules "No ident" service ident
+set rulebase security rules "No ident" action reset-client
+set rulebase security rules "No ident" log-end yes
+set rulebase security rules "No ident" tag Inbound
+set rulebase security rules "Cleanup rule" from any
+set rulebase security rules "Cleanup rule" to any
+set rulebase security rules "Cleanup rule" source any
+set rulebase security rules "Cleanup rule" destination any
+set rulebase security rules "Cleanup rule" source-user any
+set rulebase security rules "Cleanup rule" category any
+set rulebase security rules "Cleanup rule" application any
+set rulebase security rules "Cleanup rule" service any
+set rulebase security rules "Cleanup rule" action drop
+set rulebase security rules "Cleanup rule" log-end yes
+set rulebase security rules "Cleanup rule" tag Inbound
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."

@@ -23,6 +23,11 @@ PANOS = NameRules(63, re.compile(r"[^A-Za-z0-9 ._-]"), True)
 # FortiOS: most printable characters, but not quotes, brackets, hash or backslash.
 FORTIOS = NameRules(79, re.compile(r"[\"'<>()#\\\x00-\x1f]"), False)
 FORTIOS_POLICY = NameRules(35, FORTIOS.invalid, False)
+# Check Point: kept to letters, digits, underscore, hyphen and period, which every release accepts.
+CHECKPOINT = NameRules(100, re.compile(r"[^A-Za-z0-9._-]"), True)
+# Names that come from Check Point itself are valid there: only what would break the script is replaced,
+# control characters and a leading hyphen (which mgmt_cli would read as a switch).
+CHECKPOINT_NATIVE = NameRules(255, re.compile(r"[\x00-\x1f\x7f]|^-+"), False)
 
 
 def clean(name: str, rules: NameRules) -> str:

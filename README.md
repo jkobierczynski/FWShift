@@ -9,17 +9,27 @@ what was approximated and what a person has to look at.
 |---|---|---|
 | Palo Alto PAN-OS / Panorama | XML configuration export | `set` commands |
 | Fortinet FortiOS | configuration backup (CLI text) | CLI configuration |
-| Check Point | planned | planned |
+| Check Point | Management API export (JSON) | shell script of `mgmt_cli` calls |
+| Linux iptables / ip6tables | `iptables-save` output | `iptables-restore` file |
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.1).** The converter is tested against synthetic
-> configurations and its own parsers, and went through three rounds of
-> adversarial review. The emitted configuration has **not yet been loaded on
-> real PAN-OS or FortiOS devices**, and several conversion rules rest on vendor
-> behaviour taken from documentation rather than from a lab. Treat the output
-> as a draft for a lab, read the report, and never paste it into production
-> unreviewed.
+> **Status: alpha (0.2).** The converter is tested against synthetic
+> configurations and went through several rounds of adversarial review.
+>
+> * **iptables** is checked against the real thing: generated rulesets are
+>   loaded into a Linux kernel, and real packets forwarded through it are
+>   compared with the model, in both directions. That covers the IPv4 filter
+>   rules on one kernel (iptables 1.8.10, nf_tables backend); NAT rules and
+>   IPv6 rulesets are loaded but no packets are sent through them.
+> * **PAN-OS, FortiOS and Check Point** output has **not been loaded on a
+>   device or management server**, and the Check Point input format is taken
+>   from the API documentation, not from a real export. Several conversion
+>   rules rest on vendor behaviour taken from documentation rather than from a
+>   lab.
+>
+> Treat the output as a draft for a lab, read the report, and never load it in
+> production unreviewed.
 
 ## Documentation
 
@@ -49,9 +59,11 @@ means something different on each platform. FWShift's rule is:
   example) is listed as *approximated* with what was lost.
 * Objects that cannot be converted become placeholders that match nothing, so
   the output still loads and every reference stays visible.
-* Nothing missing or unknown is read as "any": a rule without a source, a
-  FortiOS policy attribute the converter does not know, a port list it cannot
-  read, all end up in the report instead of in a wider rule.
+* Nothing missing or unknown is read as "any": a rule without a source, an
+  object that is not in the export, a port list or a match module the
+  converter cannot read, all end up as a disabled rule in the report instead
+  of as a wider rule. A rule attribute the converter does not know is reported
+  for review on that rule.
 
 ## Install
 
@@ -72,9 +84,23 @@ fwshift convert running-config.xml --to fortios -o fortigate.conf --report repor
 fwshift convert fgt-backup.conf --to panos -o panos.set --report report.txt \
     --zone-map wan1=untrust --zone-map lan=trust --interface-map wan1=ethernet1/1
 
+# Check Point to PAN-OS (NAT rules need a destination zone there)
+fwshift convert checkpoint.json --to panos -o panos.set --report report.txt --target-nat-zone untrust
+
+# PAN-OS to iptables: one file per IP version, zones mapped to interfaces
+fwshift convert running-config.xml --to iptables  -o rules.v4 --zone-map trust=eth1 --zone-map untrust=eth0
+fwshift convert running-config.xml --to ip6tables -o rules.v6 --zone-map trust=eth1 --zone-map untrust=eth0
+
+# iptables to Check Point: a script of mgmt_cli calls that publishes nothing
+fwshift convert rules.v4 --to checkpoint -o checkpoint.sh --report report.txt --target-prefix mig_
+
 # What did the parser read?
 fwshift inspect fgt-backup.conf
 ```
+
+The [manual](docs/MANUAL.md#3-getting-the-source-configuration) shows how to
+get the input for each platform; for Check Point that is three `mgmt_cli show`
+calls.
 
 The report starts with a summary and then lists every rule that is not exact:
 
@@ -89,8 +115,9 @@ Security rules
       [needs-review] USER_MATCH: source user match example\netadmins is not converted.
 ```
 
-Two synthetic configurations to try it on are in [`tests/data`](tests/data),
-with their conversions in [`tests/data/expected`](tests/data/expected).
+Four synthetic configurations to try it on, one per format, are in
+[`tests/data`](tests/data), with their conversions in
+[`tests/data/expected`](tests/data/expected).
 
 ## What is converted
 
@@ -104,21 +131,35 @@ with their conversions in [`tests/data/expected`](tests/data/expected).
 | NAT | source (interface, pool, static, bi-directional), destination with port, no-NAT | per-policy NAT, IP pools, virtual IPs with port forwarding, central SNAT |
 | Scope | vsys, `shared`, Panorama device-group hierarchy with pre/post rulebases | single VDOM or one VDOM of a multi-VDOM backup |
 
+| | Check Point | iptables |
+|---|---|---|
+| Address objects | host, network, address range, DNS domain; gateways by their main address | none: addresses are written into the rules |
+| Address groups | group, nested | read: none. Written: one chain per list |
+| Services | TCP, UDP, SCTP with source ports, ICMP, ICMPv6, IP protocol | protocol, port lists, ICMP type and code |
+| Service groups | yes | none |
+| Security rules | one ordered layer with its inline layers flattened; zones in cells, negation, action, track, disabled, install-on reported | `FORWARD` chain with the chains it jumps to flattened; interfaces as zones, negation, connection state |
+| NAT | manual and automatic rules: hide, static, port translation, no-NAT | `DNAT`, `SNAT`, `MASQUERADE` and exemptions of the `nat` table (IPv4) |
+| Scope | one access layer and the NAT rulebase of one policy package | one IP version per file |
+
 Not converted, and reported where a rule depends on it: security profiles,
 schedules, user and group matches, URL categories, HIP profiles, application
 filters, wildcard-mask and geography addresses, external dynamic lists,
 internet-service (ISDB) policies, load-balancing virtual IPs, NAT64/NAT46,
-routing, interfaces, VPN, and everything else outside the policy.
+Check Point access roles, application objects, VPN communities and implied
+rules, iptables match modules beyond addresses, ports and state, the `INPUT`
+and `OUTPUT` chains, routing, interfaces, VPN, and everything else outside the
+policy.
 
 ## Roadmap
 
-1. Validation of the output on PAN-OS and FortiOS lab devices.
-2. Check Point (Management API export in, `mgmt_cli` or API calls out).
-3. FortiOS output with per-policy NAT as an alternative to central NAT.
-4. Service correction for port-translating NAT; schedules; user and group mapping.
-5. PAN-OS `set`-format input.
-6. Differential check: evaluate source and converted policy against sample
-   flows and report every flow whose verdict changed.
+1. Validation of the output on PAN-OS and FortiOS lab devices, a Check Point
+   management server and a Linux host.
+2. FortiOS output with per-policy NAT as an alternative to central NAT.
+3. Service correction for port-translating NAT; schedules; user and group mapping.
+4. PAN-OS `set`-format input; nftables.
+5. Differential check for every format: evaluate source and converted policy
+   against sample flows and report every flow whose verdict changed. The test
+   suite does this today for iptables and Check Point.
 
 ## Licence
 

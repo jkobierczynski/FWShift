@@ -21,10 +21,9 @@ import ipaddress
 from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 
 from .. import transform
-from ..appmap import FORTIOS_FACTORY_SERVICE_NAMES, entries_for
+from ..appmap import FORTIOS_FACTORY_SERVICE_NAMES
 from ..model import (
     ANY,
-    APP_DEFAULT,
     L4_PROTOCOLS,
     Action,
     AddressKind,
@@ -84,7 +83,7 @@ def emit(policy: Policy, report: Report, options: Options) -> str:
         if nat_problem(p, nat, taint_a, taint_s) is None
         and (nat.destination_translation is not None or _reverse_pair(p, nat) is not None)
     }
-    transform.rewrite_destinations(p, report, to_post_nat=True, only=emitted)
+    transform.to_post_nat_lookup(p, report, emitted)
     return _Emitter(p, report, options).run()
 
 
@@ -104,20 +103,7 @@ def _port_forward(p: Policy, nat: NatRule) -> Optional[ServiceEntry]:
     return entry
 
 
-def _reverse_pair(p: Policy, nat: NatRule) -> Optional[Tuple[Interval, Interval]]:
-    """(inside, outside) address of a bi-directional static NAT whose inbound half can be a virtual IP."""
-    translation = nat.source_translation
-    if translation is None or translation.kind != SnatKind.STATIC or not translation.bidirectional:
-        return None
-    if len(nat.sources) != 1 or len(translation.addresses) != 1:
-        return None
-    inside = transform.address_intervals(p, nat.sources[0])
-    outside = transform.address_intervals(p, translation.addresses[0])
-    if not inside or not outside or len(inside) != 1 or len(outside) != 1:
-        return None
-    if inside[0][0] != 4 or outside[0][0] != 4 or size(inside[0]) != size(outside[0]) or inside[0] == FULL_V4:
-        return None
-    return inside[0], outside[0]
+_reverse_pair = transform.bidirectional_pair
 
 
 def _pool_member(nat: NatRule, member: str, p: Policy) -> str:
@@ -233,6 +219,8 @@ class _Emitter:
         self._services()
         for nat in self.p.nat_rules:
             self._nat(nat)
+        written = {nat.origin for nat in self.p.nat_rules if not self.report.item("nat", nat.origin).skipped}
+        transform.note_nat_order(self.p, self.report, written, "per-direction")
         for rule in self.p.rules:
             self._rule(rule)
         self._notes()
@@ -282,8 +270,8 @@ class _Emitter:
             self.report.note(
                 Severity.REVIEW,
                 "INTERZONE_DEFAULT",
-                "the source overrides its default rule to allow traffic between zones; FortiOS has an implicit "
-                "deny, so add an explicit final allow policy if that was intended",
+                "the source allows traffic between zones that no rule matches; FortiOS has an implicit deny, so "
+                "add an explicit final allow policy if that was intended",
             )
 
     def _zones(self) -> List[str]:
@@ -462,63 +450,10 @@ class _Emitter:
         return self.app_services[app]
 
     def _rule_services(self, rule: Rule, reasons: List[transform.Reason]) -> List[str]:
-        apps, services = rule.applications, rule.services
-        named = ["ALL" if s == ANY else s for s in services]
-        deny = rule.action != Action.ALLOW
-        if apps == [ANY]:
-            if services == [APP_DEFAULT]:
-                reasons.append(
-                    ("APP_DEFAULT_ANY", "'any' application on its default ports has no layer-4 equivalent")
-                )
-                return ["ALL"]
-            return named
-        if services in ([APP_DEFAULT], [ANY]):
-            names: List[str] = []
-            unknown: List[str] = []
-            for app in apps:
-                entries = entries_for(app, self.options.app_ports)
-                if entries is None:
-                    unknown.append(app)
-                else:
-                    names.append(self._app_service(app, entries))
-            if unknown:
-                reasons.append(
-                    (
-                        "APP_UNKNOWN",
-                        "no port mapping for application(s) " + ", ".join(unknown) + "; supply one with --app-map",
-                    )
-                )
-            if names:
-                known = ", ".join(a for a in apps if a not in unknown)
-                if not deny:
-                    extra = " (the source matched them on any port)" if services == [ANY] else ""
-                    text = (
-                        f"applications {known} reduced to their well-known ports{extra}; layer-7 identification "
-                        "is lost, add application control if it is needed"
-                    )
-                elif services == [ANY]:
-                    text = (
-                        f"the source blocked applications {known} on every port; only their well-known ports are "
-                        "blocked now, so the same applications on other ports are no longer stopped by this rule"
-                    )
-                else:
-                    text = (
-                        f"the source blocked applications {known}; everything on their well-known ports is "
-                        "blocked now, which is more than the source rule did"
-                    )
-                self.report.add("rule", rule.origin, Severity.REVIEW if deny else Severity.APPROX, "APP_TO_PORTS", text)
-            return names or ["ALL"]
-        self.report.add(
-            "rule",
-            rule.origin,
-            Severity.REVIEW if deny else Severity.APPROX,
-            "APP_FILTER_DROPPED",
-            "application match "
-            + ", ".join(apps)
-            + " dropped; the rule now matches everything on its services"
-            + (" and so blocks more than the source rule" if deny else ""),
-        )
-        return named
+        lowered = transform.lower_applications(rule, self.options.app_ports, self.report, reasons)
+        if lowered is None:
+            return ["ALL" if s == ANY else s for s in rule.services]
+        return [self._app_service(app, entries) for app, entries in lowered] or ["ALL"]
 
     # -- security rules ---------------------------------------------------
 
@@ -690,10 +625,31 @@ class _Emitter:
 
     def _snat(self, nat: NatRule, destinations: List[str]) -> None:
         translation = nat.source_translation
+        dst_zones = nat.dst_zones
+        if nat.destination_translation is not None and dst_zones != [ANY]:
+            # Central SNAT sees the session after the virtual IP: it leaves towards the mapped address.
+            dst_zones = [ANY]
+            self.report.add(
+                "nat",
+                nat.origin,
+                Severity.APPROX,
+                "NAT_OUTPUT_INTERFACE",
+                "the rule also translates the destination, so the traffic does not leave by "
+                + ", ".join(nat.dst_zones) + "; its source translation is written for every outgoing interface",
+            )
+        if nat.destination_translation is not None and translation is not None:
+            self.report.add(
+                "nat",
+                nat.origin,
+                Severity.APPROX,
+                "NAT_AFTER_DNAT",
+                "the source translation of this rule is matched after its destination translation; it also "
+                "applies to traffic from the same sources that is sent to the translated address directly",
+            )
         lines = [
             "edit 0",
             f"set srcintf {ql(nat.src_zones)}",
-            f"set dstintf {ql(nat.dst_zones)}",
+            f"set dstintf {ql(dst_zones)}",
             f"set orig-addr {ql(self._refs(nat.sources, 4))}",
             f"set dst-addr {ql(destinations)}",
         ]

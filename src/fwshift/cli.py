@@ -12,38 +12,72 @@ from typing import Callable, Dict, List, Optional, Sequence, TextIO
 
 from . import __version__, transform
 from .appmap import load_app_map
+from .emitters import checkpoint as emit_checkpoint
 from .emitters import fortios as emit_fortios
+from .emitters import iptables as emit_iptables
 from .emitters import panos as emit_panos
 from .errors import FwshiftError
 from .model import Policy
 from .options import Options
+from .parsers import checkpoint as parse_checkpoint
 from .parsers import fortios as parse_fortios
+from .parsers import iptables as parse_iptables
 from .parsers import panos as parse_panos
 from .report import Report, Severity
 
 EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "panos": emit_panos.emit,
     "fortios": emit_fortios.emit,
+    "iptables": emit_iptables.emit,
+    "ip6tables": emit_iptables.emit_v6,
+    "checkpoint": emit_checkpoint.emit,
 }
-VENDORS = ("panos", "fortios")
+VENDORS = ("panos", "fortios", "checkpoint", "iptables", "ip6tables")
 
 
 def detect_format(data: bytes) -> str:
-    """PAN-OS exports are XML; FortiOS backups are CLI text."""
-    return "panos" if data.lstrip(b"\xef\xbb\xbf \t\r\n").startswith(b"<") else "fortios"
+    """PAN-OS exports are XML, Check Point API output is JSON, iptables-save output starts with a table;
+    anything else is taken as FortiOS."""
+    head = data.lstrip(b"\xef\xbb\xbf \t\r\n")
+    if head.startswith(b"<"):
+        return "panos"
+    if head.startswith((b"{", b"[")):
+        return "checkpoint"
+    for line in head.splitlines()[:50]:
+        line = line.strip()
+        if line.startswith(b"*") or (line.startswith(b"#") and b"tables-save" in line):
+            return "iptables"  # the parser tells IPv4 from IPv6
+        if line and not line.startswith(b"#"):
+            break
+    return "fortios"
 
 
-def load(data: bytes, source: str, report: Report, vsys: str = "", device_group: str = "", vdom: str = "") -> Policy:
+def load(
+    data: bytes, source: str, report: Report, vsys: str = "", device_group: str = "", vdom: str = "", layer: str = ""
+) -> Policy:
     if source == "panos":
         return parse_panos.parse(data, report, vsys=vsys, device_group=device_group)
     if source == "fortios":
         return parse_fortios.parse(data, report, vdom=vdom)
+    if source == "checkpoint":
+        return parse_checkpoint.parse(data, report, layer=layer)
+    if source in ("iptables", "ip6tables"):
+        return parse_iptables.parse(data, report, family=6 if source == "ip6tables" else 0)
     raise FwshiftError(f"unknown source format '{source}'")
 
 
 def convert(policy: Policy, target: str, report: Report, options: Optional[Options] = None) -> str:
     """Convert a parsed policy; the report is filled in as a side effect."""
     report.target = target
+    options = options or Options()
+    words = {"--zone-map": " ".join(list(options.zone_map) + list(options.zone_map.values())),
+             "--interface-map": " ".join(list(options.interface_map) + list(options.interface_map.values())),
+             "target scope": options.target_scope, "--target-vdom": options.target_vdom,
+             "--target-nat-zone": options.nat_zone, "--target-layer": options.target_layer,
+             "--target-package": options.target_package, "--target-gateway": options.target_gateway,
+             "--target-prefix": options.object_prefix}  # fmt: skip
+    transform.check_words(words)
+    transform.harden(policy, report)
     if target == "json":
         return policy.to_json()
     report.register("service-group", list(policy.service_groups))
@@ -54,7 +88,7 @@ def convert(policy: Policy, target: str, report: Report, options: Optional[Optio
     report.register("rule", [rule.origin for rule in policy.rules])
     if target not in EMITTERS:
         raise FwshiftError(f"unknown target format '{target}'")
-    return EMITTERS[target](policy, report, options or Options())
+    return EMITTERS[target](policy, report, options)
 
 
 def _pairs(values: Sequence[str], option: str) -> Dict[str, str]:
@@ -102,11 +136,12 @@ def _source_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--vsys", default="", help="PAN-OS source: virtual system to read")
     parser.add_argument("--device-group", default="", help="Panorama source: device group to read")
     parser.add_argument("--vdom", default="", help="FortiOS source: VDOM to read")
+    parser.add_argument("--layer", default="", help="Check Point source: access layer to read")
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="fwshift", description="Convert firewall policies between PAN-OS and FortiOS, with a lossiness report."
+        prog="fwshift", description="Convert firewall policies between PAN-OS, FortiOS, Check Point and iptables, with a lossiness report."
     )
     parser.add_argument("--version", action="version", version=f"fwshift {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -127,9 +162,25 @@ def build_parser() -> argparse.ArgumentParser:
     target.add_argument("--target-vsys", metavar="NAME", help="PAN-OS target: write into this virtual system")
     target.add_argument("--target-device-group", metavar="NAME", help="Panorama target: write into this device group")
     target.add_argument("--target-shared", action="store_true", help="Panorama target: write into shared")
+    conv.add_argument(
+        "--target-nat-zone", default="", metavar="ZONE",
+        help="PAN-OS target: destination zone for NAT rules of a source that names none",
+    )  # fmt: skip
     conv.add_argument("--target-vdom", default="", metavar="NAME", help="FortiOS target: write into this VDOM")
     conv.add_argument(
         "--policy-id-start", type=int, default=0, metavar="N", help="FortiOS target: first policy id (default: automatic)"
+    )
+    conv.add_argument(
+        "--target-layer", default="Network", metavar="NAME", help="Check Point target: access layer (default: Network)"
+    )
+    conv.add_argument(
+        "--target-package", default="Standard", metavar="NAME", help="Check Point target: policy package of the NAT rules"
+    )
+    conv.add_argument(
+        "--target-gateway", default="", metavar="NAME", help="Check Point target: gateway object that hide NAT uses"
+    )
+    conv.add_argument(
+        "--target-prefix", default="", metavar="TEXT", help="Check Point target: prefix for the names of created objects"
     )
     conv.add_argument("--strict", action="store_true", help="exit with status 2 when anything needs review")
     conv.add_argument("-q", "--quiet", action="store_true", help="do not print the report or the summary")
@@ -143,7 +194,7 @@ def _run_convert(args: argparse.Namespace) -> int:
     data = _read(args.input)
     source = args.source or detect_format(data)
     report = Report()
-    policy = load(data, source, report, args.vsys, args.device_group, args.vdom)
+    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer)
     report.source = source + (f" ({policy.scope})" if policy.scope else "")
     if args.prune_unused:
         dropped = transform.prune_unused(policy)
@@ -160,8 +211,13 @@ def _run_convert(args: argparse.Namespace) -> int:
         interface_map=_pairs(args.interface_map, "--interface-map"),
         app_ports=load_app_map(args.app_map) if args.app_map else {},
         target_scope=scope,
+        nat_zone=args.target_nat_zone,
         target_vdom=args.target_vdom,
         policy_id_start=max(args.policy_id_start, 0),
+        target_layer=args.target_layer,
+        target_package=args.target_package,
+        target_gateway=args.target_gateway,
+        object_prefix=args.target_prefix,
     )
     output = convert(policy, args.target, report, options)
     if args.output:
@@ -188,7 +244,8 @@ def _run_inspect(args: argparse.Namespace) -> int:
     data = _read(args.input)
     source = args.source or detect_format(data)
     report = Report()
-    policy = load(data, source, report, args.vsys, args.device_group, args.vdom)
+    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer)
+    transform.harden(policy, report)
     lines: List[str] = [
         f"format:          {source}",
         f"scope:           {policy.scope or '-'}",

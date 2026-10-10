@@ -34,7 +34,7 @@ from ..model import (
     SnatKind,
 )
 from ..names import PANOS, unique
-from ..netutil import parse_literal
+from ..netutil import is_number, parse_literal
 from ..options import Options
 from ..report import Report, Severity
 
@@ -125,6 +125,8 @@ class _Emitter:
         self._intrazone_tail()
         for nat in self.p.nat_rules:
             self._nat(nat)
+        written = {nat.origin for nat in self.p.nat_rules if not self.report.item("nat", nat.origin).skipped}
+        transform.note_nat_order(self.p, self.report, written, "first-match")
         self._notes()
         return "\n".join(self.lines) + "\n"
 
@@ -141,11 +143,13 @@ class _Emitter:
                     "the rules name these zones, which must exist on the target (or be renamed with "
                     "--zone-map): " + ", ".join(zones),
                 )
-        elif self.p.default_interzone == Action.ALLOW:
+        if self.p.default_interzone == Action.ALLOW:
             self.report.note(
                 Severity.REVIEW,
                 "INTERZONE_DEFAULT",
-                "the source overrides interzone-default to allow; that override is not carried over",
+                "the source allows traffic between zones that no rule matches; PAN-OS denies it unless "
+                "interzone-default is overridden. That default is not carried over: add a final allow rule if it "
+                "was intended",
             )
 
     # -- objects ----------------------------------------------------------
@@ -349,7 +353,7 @@ class _Emitter:
         reasons = transform.blocking_reasons(rule, self.taint_a, self.taint_s)
         if rule.negate_service:
             reasons.append(("SERVICE_NEGATE", "a negated service match does not exist on PAN-OS"))
-        self._fqdn_families(rule)
+        transform.note_fqdn_families(self.p, rule, self.report, "PAN-OS")
         variants = self._variants(rule, reasons)
         if len(variants) > 1:
             self.report.add(
@@ -365,48 +369,6 @@ class _Emitter:
             name = unique(rule.name if index == 0 else f"{rule.name[:58]}-apps", self.rule_names, PANOS)
             item.emitted_as.append(name)
             self._emit_rule(rule, name, apps, services, disabled=bool(reasons) or not rule.enabled, flagged=bool(reasons))
-
-    def _fqdn_families(self, rule: Rule) -> None:
-        """Report an FQDN the source resolved for one IP version where the rule can match the other."""
-
-        def single_family(members: List[str], seen: Tuple[str, ...] = ()) -> Dict[str, int]:
-            out: Dict[str, int] = {}
-            for member in members:
-                address = self.p.addresses.get(member)
-                if address is not None and address.kind == AddressKind.FQDN and address.fqdn_family:
-                    out[member] = address.fqdn_family
-                elif member in self.p.address_groups and member not in seen:
-                    out.update(single_family(self.p.address_groups[member].members, seen + (member,)))
-            return out
-
-        def versions_here(member: str, seen: Tuple[str, ...] = ()) -> Set[int]:
-            """IP versions a member matches on PAN-OS, where every FQDN is resolved for both."""
-            address = self.p.addresses.get(member)
-            if address is not None and address.kind == AddressKind.FQDN:
-                return {4, 6}
-            if member in self.p.address_groups and member not in seen:
-                out: Set[int] = set()
-                for inner in self.p.address_groups[member].members:
-                    out |= versions_here(inner, seen + (member,))
-                return out
-            return transform.families(self.p, member)
-
-        sides = (
-            (rule.sources, rule.destinations, rule.negate_destination),
-            (rule.destinations, rule.sources, rule.negate_source),
-        )
-        for side, other, other_negated in sides:
-            for name, family in single_family(side).items():
-                opposite = 6 if family == 4 else 4
-                if other_negated or any(opposite in versions_here(m) for m in other):
-                    self.report.add(
-                        "rule",
-                        rule.origin,
-                        Severity.APPROX,
-                        "FQDN_FAMILY",
-                        f"'{name}' was resolved for IPv{family} only on the source; PAN-OS resolves an FQDN for "
-                        f"both IP versions and this rule can match IPv{opposite}",
-                    )
 
     def _emit_rule(
         self, rule: Rule, name: str, apps: List[str], services: List[str], disabled: bool, flagged: bool
@@ -440,29 +402,7 @@ class _Emitter:
         self._describe(base, description.strip(), rule.tags)
 
     def _intrazone_allow_zones(self) -> List[str]:
-        """Target names of the zones that allow traffic between their own interfaces.
-
-        A zone that --zone-map merges with another zone or interface is left out:
-        an intrazone allow on the merged zone would open traffic between the two.
-        """
-        sources: Dict[str, Set[str]] = {}
-        for name in list(self.p.zones) + list(self.options.zone_map) + sorted(self.source_zones):
-            sources.setdefault(self.options.zone_map.get(name, name), set()).add(name)
-        out: List[str] = []
-        for zone in self.p.zones.values():
-            if not zone.intrazone_allow:
-                continue
-            target = self.options.zone_map.get(zone.name, zone.name)
-            if len(sources.get(target, set())) > 1:
-                self.report.note(
-                    Severity.REVIEW,
-                    "INTRAZONE_ALLOW_MERGED",
-                    f"zone '{zone.name}' allows traffic between its interfaces on the source, but --zone-map merges "
-                    f"it with other zones into '{target}'; no intrazone allow rule was written for it",
-                )
-            elif target not in out:
-                out.append(target)
-        return out
+        return transform.intrazone_allow_zones(self.p, self.options.zone_map, self.source_zones, self.report)
 
     def _intrazone_tail(self) -> None:
         """Reproduce an implicit intrazone deny, which PAN-OS does not have by default."""
@@ -512,7 +452,7 @@ class _Emitter:
             problems.append(f"references '{nat.service}': {self.taint_s[nat.service]}")
         if nat.service != ANY and not self.l4.get(nat.service):
             problems.append(f"service '{nat.service}' has no TCP/UDP definition")
-        if destination and destination.port and not destination.port.isdigit():
+        if destination and destination.port and not is_number(destination.port):
             problems.append(f"translated port '{destination.port}' is not a single port")
         translation: List[str] = []
         if source is not None and not problems:
@@ -538,10 +478,14 @@ class _Emitter:
                         f"translates to {address}, the address interface '{source.interface}' has today; use "
                         f"--interface-map {source.interface}=<PAN-OS interface> to follow the interface instead",
                     )
-                else:
-                    name = source.interface or "the outgoing interface"
+                elif source.interface:
                     problems.append(
-                        f"source NAT to the address of {name}, which is unknown; map it with --interface-map"
+                        f"source NAT to the address of {source.interface}, which is unknown; map it with --interface-map"
+                    )
+                else:
+                    problems.append(
+                        "source NAT to the address of the outgoing interface, which the source does not name: "
+                        "write this rule by hand"
                     )
             elif kind == SnatKind.STATIC:
                 translation.append(f"source-translation static-ip translated-address {q(source.addresses[0])}")
@@ -549,6 +493,23 @@ class _Emitter:
                     translation.append("source-translation static-ip bi-directional yes")
             else:
                 translation.append(f"source-translation {kind.value} translated-address {lst(source.addresses)}")
+        dst_zones = nat.dst_zones
+        if dst_zones == [ANY] and not problems:
+            if self.options.nat_zone:
+                dst_zones = [self.options.nat_zone]
+                self.report.add(
+                    "nat",
+                    nat.origin,
+                    Severity.APPROX,
+                    "NAT_ZONE_ASSUMED",
+                    f"the source rule names no destination zone and PAN-OS needs one: '{dst_zones[0]}' "
+                    "(--target-nat-zone) was used; check that the pre-NAT destination of this rule lies there",
+                )
+            else:
+                problems.append(
+                    "a PAN-OS NAT rule needs a destination zone and the source rule names none; give the zone "
+                    "the traffic is routed to before translation with --target-nat-zone"
+                )
         if problems:
             self.report.skip("nat", nat.origin, "NAT_NOT_CONVERTED", "not converted: " + "; ".join(problems))
             return
@@ -556,16 +517,16 @@ class _Emitter:
             translation.append(f"destination-translation translated-address {q(destination.address)}")
             if destination.port:
                 translation.append(f"destination-translation translated-port {destination.port}")
-        if len(nat.dst_zones) > 1:
+        if len(dst_zones) > 1:
             self.report.add(
                 "nat",
                 nat.origin,
                 Severity.INFO,
                 "RULE_SPLIT",
-                f"written as {len(nat.dst_zones)} rules: a PAN-OS NAT rule has one destination zone",
+                f"written as {len(dst_zones)} rules: a PAN-OS NAT rule has one destination zone",
             )
         service = ANY if nat.service == ANY else (self.l4.get(nat.service) or nat.service)
-        for zone in nat.dst_zones:
+        for zone in dst_zones:
             name = unique(nat.name, self.nat_names, PANOS)
             item.emitted_as.append(name)
             base = f"{self.rulebase} nat rules {q(name)}"

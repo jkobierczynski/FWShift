@@ -43,7 +43,8 @@ from ..model import (
     SourceNat,
     Zone,
 )
-from ..netutil import FULL_V4, Interval, is_network, is_range, netmask_to_cidr, overlaps, parse_literal, range_text
+from ..netutil import FULL_V4, Interval, is_network, is_number, is_range, netmask_to_cidr, overlaps, parse_literal
+from ..netutil import range_text
 from ..report import Report, Severity
 
 # -- generic configuration tree -------------------------------------------
@@ -401,6 +402,7 @@ class _Builder:
         self.global_scope = global_scope
         self.report = report
         self.p = Policy(vendor="fortios", scope=vdom, default_intrazone=Action.DENY, default_interzone=Action.DENY)
+        self.p.lookup_after_dnat = True
         self.names: Set[str] = set()  # address namespace of the neutral model
         self.address_names: Dict[str, str] = {}  # IPv4-table name -> neutral name, where they differ
         self.v6_names: Dict[str, str] = {}  # IPv6-table name -> neutral name
@@ -432,8 +434,10 @@ class _Builder:
             combined, snat = self._policy_nat_rules(infos)
         # PAN-OS style first-match order: the most specific translations first.
         self.p.nat_rules = combined + dnat + snat
+        for nat in self.p.nat_rules:
+            nat.combines = True  # a virtual IP and a source NAT apply to the same session
         self._default_services()
-        transform.rewrite_destinations(self.p, self.report, to_post_nat=False)
+        transform.rewrite_destinations(self.p, self.report, to_post_nat=False, report_deny=False)
         self._deny_and_vips(infos)
         for table in _UNCONVERTED_TABLES:
             if self.section(table).entries:
@@ -591,20 +595,26 @@ class _Builder:
                     service.entries.append(ServiceEntry(proto, ",".join(ports), src))
             elif protocol in ("ICMP", "ICMP6"):
                 icmp_type, icmp_code = block.get("icmptype"), block.get("icmpcode")
-                service.entries.append(
-                    ServiceEntry(
-                        Protocol.ICMP if protocol == "ICMP" else Protocol.ICMP6,
-                        icmp_type=int(icmp_type) if icmp_type.isdigit() else None,
-                        icmp_code=int(icmp_code) if icmp_code.isdigit() else None,
+                if any(value and not (is_number(value) and int(value) < 256) for value in (icmp_type, icmp_code)):
+                    # Set, but not a number: not the same as unset, which is every type.
+                    service.unsupported = f"ICMP type or code '{icmp_type}/{icmp_code}' that could not be read"
+                else:
+                    service.entries.append(
+                        ServiceEntry(
+                            Protocol.ICMP if protocol == "ICMP" else Protocol.ICMP6,
+                            icmp_type=int(icmp_type) if icmp_type else None,
+                            icmp_code=int(icmp_code) if icmp_code else None,
+                        )
                     )
-                )
             elif protocol == "IP":
                 number = block.get("protocol-number", "0")
-                if number.isdigit() and int(number) > 0:
+                if is_number(number) and 0 < int(number) < 256:
                     service.entries.append(ServiceEntry(Protocol.IP, ip_protocol=int(number)))
-                else:
+                elif number == "0":
                     service.entries.append(ServiceEntry(Protocol.IP))
                     self.any_services.add(source_name)
+                else:
+                    service.unsupported = f"protocol number '{number}' that could not be read"
             else:
                 service.unsupported = f"service protocol '{protocol}'"
             if block.get("fqdn") or block.list("iprange") not in ([], ["0.0.0.0"]):
@@ -1109,7 +1119,7 @@ class _Builder:
                 destination_translation=DestNat(vip.mapped, port),
             )
             nat.origin = nat.name
-            if port and not port.isdigit():
+            if port and not is_number(port):
                 nat.unsupported.append(f"translation of port range {vip.extport} to {vip.mappedport}")
             if not vip.portforward:
                 self.report.add(

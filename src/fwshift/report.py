@@ -7,9 +7,10 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Any, Dict, List, Tuple
+from typing import AbstractSet, Any, Dict, List, Tuple
 
 
 class Severity(IntEnum):
@@ -19,6 +20,17 @@ class Severity(IntEnum):
 
 
 _LABEL = {Severity.INFO: "info", Severity.APPROX: "approximated", Severity.REVIEW: "needs-review"}
+_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def _name(text: str) -> str:
+    """A name as the conversion writes it: control characters replaced (see transform.harden)."""
+    return _CONTROL.sub("_", text)
+
+
+def _line(text: str) -> str:
+    """A message on one line: text taken from the input cannot start a line of its own in the report."""
+    return _CONTROL.sub(" ", text)
 
 _KIND_TITLES = [
     ("rule", "Security rules"),
@@ -65,20 +77,26 @@ class Report:
         self.notes: List[Finding] = []
 
     def item(self, kind: str, name: str) -> Item:
+        name = _name(name)
         key = (kind, name)
         if key not in self.items:
             self.items[key] = Item(kind, name)
         return self.items[key]
 
+    def discard(self, kind: str, name: str) -> None:
+        """Forget an item, with its findings: what it stood for is reported under another name."""
+        self.items.pop((kind, _name(name)), None)
+
     def register(self, kind: str, names: List[str]) -> None:
         """Make the report list these items first, in this order (the order of the source)."""
+        names = [_name(name) for name in names]
         ordered = {(kind, name): self.items.get((kind, name)) or Item(kind, name) for name in names}
         for key, item in self.items.items():
             ordered.setdefault(key, item)
         self.items = ordered
 
     def add(self, kind: str, name: str, severity: Severity, code: str, message: str) -> None:
-        item = self.item(kind, name)
+        item, message = self.item(kind, name), _line(message)
         if not any(f.code == code and f.message == message for f in item.findings):
             item.findings.append(Finding(severity, code, message))
 
@@ -90,7 +108,16 @@ class Report:
         self.add(kind, name, severity, code, message)
         self.item(kind, name).skipped = True
 
+    def retract(self, kind: str, codes: AbstractSet[str]) -> None:
+        """Withdraw findings that a later step has made moot; kind "note" withdraws notes for the whole policy."""
+        if kind == "note":
+            self.notes = [note for note in self.notes if note.code not in codes]
+        for item in self.items.values():
+            if item.kind == kind:
+                item.findings = [f for f in item.findings if f.code not in codes]
+
     def note(self, severity: Severity, code: str, message: str) -> None:
+        message = _line(message)
         if not any(f.code == code and f.message == message for f in self.notes):
             self.notes.append(Finding(severity, code, message))
 

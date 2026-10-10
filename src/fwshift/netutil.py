@@ -16,11 +16,35 @@ FULL_V4: Interval = (4, 0, 2**32 - 1)
 FULL_V6: Interval = (6, 0, 2**128 - 1)
 
 
+def mask_length(mask: str) -> Optional[int]:
+    """Prefix length of an IPv4 netmask such as ``255.255.0.0``; None unless its one bits are all at the front."""
+    try:
+        value = int(ipaddress.IPv4Address(mask.strip()))
+    except ValueError:
+        return None
+    inverted = value ^ 0xFFFFFFFF
+    if inverted & (inverted + 1):
+        return None  # not contiguous: a wildcard mask, or a host mask
+    return 32 - inverted.bit_length()
+
+
+def is_number(text: str) -> bool:
+    """True for ASCII digits only: ``str.isdigit`` also accepts characters ``int`` cannot read."""
+    return text.isascii() and text.isdigit()
+
+
 def parse_literal(text: str) -> Optional[Interval]:
     """Parse ``10.0.0.1``, ``10.0.0.0/24`` or ``10.0.0.1-10.0.0.9``; None if it is none of these."""
     text = text.strip()
-    if not text:
+    if not text or "%" in text:  # an IPv6 zone index ("fe80::1%eth0") is not part of an address object
         return None
+    address, slash, mask = text.partition("/")
+    if slash and not is_number(mask):
+        # A mask written as an address. ipaddress would also take 0.0.255.255 (a "host mask") for /16.
+        length = mask_length(mask)
+        if length is None:
+            return None
+        text = f"{address}/{length}"
     try:
         if "-" in text and "/" not in text:
             first_text, last_text = text.split("-", 1)
@@ -89,7 +113,10 @@ def within(inner: Sequence[Interval], outer: Sequence[Interval]) -> bool:
 
 def netmask_to_cidr(address: str, mask: str) -> Optional[str]:
     """``10.0.0.0`` + ``255.255.255.0`` -> ``10.0.0.0/24``; None for a non-contiguous mask."""
+    length = mask_length(mask)
+    if length is None:
+        return None
     try:
-        return str(ipaddress.ip_network(f"{address}/{mask}", strict=False))
+        return str(ipaddress.ip_network(f"{address}/{length}", strict=False))
     except ValueError:
         return None

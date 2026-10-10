@@ -87,3 +87,92 @@ class FortiConfig:
             out[block.get("name")] = block
         return out
 
+
+
+class CheckPointScript:
+    """Emitted mgmt_cli script, replayed call by call the way a management server would take it.
+
+    Every reference must name something created earlier in the script (or passed
+    in as existing), names must be unique, and a numbered position must exist.
+    """
+
+    def __init__(self, text: str, existing: Tuple[str, ...] = ("Network",), layer: str = "Network") -> None:
+        self.text = text
+        self.layer = layer
+        self.calls: List[List[str]] = []
+        self.objects: Dict[str, Dict[str, object]] = {name: {"kind": "existing"} for name in existing}
+        self.layers: Dict[str, List[Dict[str, object]]] = {layer: []}
+        self.nat: List[Dict[str, object]] = []
+        for line in text.splitlines():
+            if line.startswith("zone "):
+                words = shlex.split(line)
+                self.objects.setdefault(words[1], {"kind": "security-zone"})
+            elif line.startswith("m "):
+                words = shlex.split(line)[1:]
+                self.calls.append(words)
+                self._apply(words)
+
+    @staticmethod
+    def _fields(words: List[str]) -> Dict[str, object]:
+        """``key value`` pairs; ``key.N value`` collects a list."""
+        assert len(words) % 2 == 0, words
+        out: Dict[str, object] = {}
+        for key, value in zip(words[0::2], words[1::2]):
+            base, dot, index = key.rpartition(".")
+            if dot and index.isdigit():
+                listed = out.setdefault(base, [])
+                assert isinstance(listed, list) and len(listed) == int(index) - 1, words
+                listed.append(value)
+            else:
+                assert key not in out, words
+                out[key] = value
+        return out
+
+    def _known(self, names: object) -> None:
+        for name in names if isinstance(names, list) else [names]:
+            assert name in self.objects, f"'{name}' is used before it is created"
+
+    def _apply(self, words: List[str]) -> None:
+        assert words[0] == "add", words
+        kind, fields = words[1], self._fields(words[2:])
+        if kind == "access-rule":
+            layer = str(fields["layer"])
+            assert layer in self.layers, f"layer '{layer}' does not exist"
+            for column in ("source", "destination", "service"):
+                self._known(fields.get(column, []))
+            if "inline-layer" in fields:
+                assert fields["action"] == "Apply Layer" and fields["inline-layer"] in self.layers, words
+            position = str(fields["position"])
+            rules = self.layers[layer]
+            if position == "bottom":
+                rules.append(fields)
+            else:
+                assert 1 <= int(position) <= len(rules) + 1, words
+                rules.insert(int(position) - 1, fields)
+            return
+        if kind == "nat-rule":
+            for column in ("original-source", "original-destination", "original-service", "translated-source",
+                           "translated-destination", "translated-service"):  # fmt: skip
+                if column in fields:
+                    self._known(fields[column])
+            self.nat.append(fields)
+            return
+        name = str(fields["name"])
+        assert name not in self.objects, f"'{name}' is created twice"
+        self._known(fields.get("members", []))
+        fields["kind"] = kind
+        self.objects[name] = fields
+        if kind == "access-layer":
+            assert fields.get("add-default-rule") == "false", words
+            self.layers[name] = []
+
+    def names(self, kind: str) -> List[str]:
+        return [name for name, fields in self.objects.items() if fields["kind"] == kind]
+
+    def rules(self, layer: str = "") -> List[Dict[str, object]]:
+        return self.layers[layer or self.layer]
+
+    def rule(self, name: str, layer: str = "") -> Dict[str, object]:
+        found = [rule for rule in self.rules(layer) if rule["name"] == name]
+        assert len(found) == 1, (name, layer, [rule["name"] for rule in self.rules(layer)])
+        return found[0]
