@@ -1,0 +1,53 @@
+FWShift conversion report
+  source: sophos (API version 2000.1)
+  target: sophos
+
+Summary
+  Security rules:     17   exact 13, approximated 0, needs review 3 (3 emitted disabled), skipped 1
+  NAT rules:           6   exact 6, approximated 0, needs review 0, skipped 0
+  Addresses:          14   exact 13, approximated 0, needs review 1, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SOPHOS_LOAD: the output is an Entities.xml. Put it in a tar archive under that name (or let FWShift do it: give -o a name that ends in .tar) and import it under Backup & firmware > Import export. Rules are added below the rules the firewall has: a firewall rule or NAT rule that is there already, such as the default source NAT rule of a new firewall, comes first. An import can stop at the first object the firewall does not take: compare the number of rules and objects with this report, on a firewall that is not in production
+  [info] EXISTING_OBJECTS: an import overwrites what the firewall has under the same name: a host, a service or a rule that is in this output replaces the one on the target. --target-prefix gives every object that is created a name of its own
+
+Security rules
+  Block countries  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocked countries': country group. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to Internet web  ->  exact
+      [info] PROFILES_BY_NAME: policies of the rule are referenced by name and must exist on the target: IntrusionPrevention=generalpolicy, ScanVirus=Enable, WebFilter=Default Policy
+  Admins to DMZ  ->  exact
+      [info] PROFILES_BY_NAME: policies of the rule are referenced by name and must exist on the target: IntrusionPrevention=generalpolicy
+  LAN to DMZ web not mail  ->  exact
+      [info] PROFILES_BY_NAME: policies of the rule are referenced by name and must exist on the target: IntrusionPrevention=generalpolicy
+  LAN SSH out  ->  exact
+      [info] RULE_SPLIT: the rule has exclusions of 2 kinds, which Sophos Firewall applies together (the rule is skipped only for traffic that matches all of them): written as 2 rule(s), one per kind, that match the same traffic between them: 'LAN SSH out-2'
+      [info] PROFILES_BY_NAME: policies of the rule are referenced by name and must exist on the target: IntrusionPrevention=generalpolicy
+  LAN SSH out-2  ->  exact
+      [info] EXCLUSION_AS_ADDRESSES: source lan-net without the excluded admin-range: written as the addresses that are left (10.10.0.0-10.10.5.9, 10.10.5.21-10.11.255.255)
+      [info] PROFILES_BY_NAME: policies of the rule are referenced by name and must exist on the target: IntrusionPrevention=generalpolicy
+  Internet to web  ->  exact
+      [info] PROFILES_BY_NAME: policies of the rule are referenced by name and must exist on the target: IntrusionPrevention=WAN TO DMZ
+  Internet to mail  ->  exact
+      [info] PROFILES_BY_NAME: policies of the rule are referenced by name and must exist on the target: IntrusionPrevention=WAN TO DMZ, ScanSMTP=Enable
+  DMZ updates  ->  exact
+      [info] PROFILES_BY_NAME: policies of the rule are referenced by name and must exist on the target: WebFilter=Default Policy
+  Finance to app  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match Finance is not converted.
+  DNS in office hours  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Work hours (5 Day week)' is not converted; the rule would apply at all times.
+  LAN6 to Internet  ->  exact
+      [info] PROFILES_BY_NAME: policies of the rule are referenced by name and must exist on the target: IntrusionPrevention=generalpolicy
+  Web shop  ->  skipped
+      [needs-review] WAF_RULE: web server protection rule: the firewall answers for the web server itself (a reverse proxy), which is not a forwarding rule and is not converted. Publish the server on the target in its own way
+
+NAT rules
+  NAT of LAN to Internet web  ->  exact
+      [info] NAT_LINKED: linked NAT rule of firewall rule 'LAN to Internet web': it has no match of its own and is written with the zones, addresses and services of that rule
+
+Addresses
+  Blocked countries  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: country group cannot be converted

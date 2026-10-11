@@ -1,0 +1,69 @@
+FWShift conversion report
+  source: sophos (API version 2000.1)
+  target: panos
+
+Summary
+  Security rules:     17   exact 4, approximated 10, needs review 2 (2 emitted disabled), skipped 1
+  NAT rules:           6   exact 3, approximated 0, needs review 2, skipped 1
+  Addresses:          14   exact 12, approximated 0, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): WAN, LAN, DMZ, OT
+  [info] INTRAZONE_DENY_ADDED: appended 'fwshift-intrazone-deny': PAN-OS allows traffic inside a zone by default, the source denies it
+
+Security rules
+  Block countries  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocked countries': country group. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to Internet web  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy, ScanVirus=Enable, WebFilter=Default Policy); attach equivalent inspection on the target
+  Admins to DMZ  ->  approximated  (emitted as Admins to DMZ, Admins to DMZ-apps)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  LAN to DMZ web not mail  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN SSH out  ->  approximated
+      [info] RULE_SPLIT: the rule has exclusions of 2 kinds, which Sophos Firewall applies together (the rule is skipped only for traffic that matches all of them): written as 2 rule(s), one per kind, that match the same traffic between them: 'LAN SSH out-2'
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN SSH out-2  ->  approximated
+      [info] EXCLUSION_AS_ADDRESSES: source lan-net without the excluded admin-range: written as the addresses that are left (10.10.0.0-10.10.5.9, 10.10.5.21-10.11.255.255)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  Internet to web  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ); attach equivalent inspection on the target
+  Internet to mail  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ, ScanSMTP=Enable); attach equivalent inspection on the target
+  DMZ updates  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (WebFilter=Default Policy); attach equivalent inspection on the target
+  DNS in office hours  ->  needs-review, emitted disabled  (emitted as DNS in office hours, DNS in office hours-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+      [needs-review] SCHEDULE: schedule 'Work hours (5 Day week)' is not converted; the rule would apply at all times.
+  Old test rule  ->  approximated
+      [approximated] ICMP_TYPE: service 'TIMESTAMP' matches ICMP type 13; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: gre, icmp. Verify these names against the App-ID release in use
+  LAN6 to Internet  ->  approximated  (emitted as LAN6 to Internet, LAN6 to Internet-apps)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping6. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  Web shop  ->  skipped
+      [needs-review] WAF_RULE: web server protection rule: the firewall answers for the web server itself (a reverse proxy), which is not a forwarding rule and is not converted. Publish the server on the target in its own way
+
+NAT rules
+  No NAT to partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a PAN-OS NAT rule needs a destination zone and the source rule names none; give the zone the traffic is routed to before translation with --target-nat-zone
+  NAT of LAN to Internet web  ->  needs-review
+      [info] NAT_LINKED: linked NAT rule of firewall rule 'LAN to Internet web': it has no match of its own and is written with the zones, addresses and services of that rule
+      [approximated] NAT_INTERFACE_ADDRESS: translates to 198.51.100.1, the address interface 'Port2' has today; use --interface-map Port2=<PAN-OS interface> to follow the interface instead
+      [needs-review] NAT_ORDER: NAT rule 'No NAT to partner' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+  Default SNAT IPv4  ->  needs-review
+      [approximated] NAT_INTERFACE_ADDRESS: translates to 198.51.100.1, the address interface 'Port2' has today; use --interface-map Port2=<PAN-OS interface> to follow the interface instead
+      [needs-review] NAT_ORDER: NAT rule 'No NAT to partner' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+
+Addresses
+  any-example-org  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard host name '*.example.org' cannot be converted
+  Blocked countries  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: country group cannot be converted

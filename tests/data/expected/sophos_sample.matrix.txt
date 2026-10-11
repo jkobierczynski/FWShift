@@ -1,0 +1,48 @@
+FWShift zone matrix
+  source: sophos (API version 2000.1)
+  security rules: 16 (1 disabled, 1 never match)
+
+What each zone may reach (rows: from, columns: to)
+       LAN               WAN               DMZ               OT                VPN
+  LAN  -                 tcp/53 tcp/80 +3  icmp type 8 +6    tcp/22            -
+  WAN  -                 -                 tcp/443 tcp/2525  -                 -
+  DMZ  -                 tcp/443~          -                 -                 -
+  OT   icmp type 8 +4    -                 -                 -                 -
+  VPN  -                 -                 -                 -                 -
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+LAN -> WAN
+  allowed: tcp/53, tcp/80, tcp/443, udp/53, icmp6 type 128
+  rule 'LAN to Internet web': lan-net -> 0.0.0.0/0: tcp/53, tcp/80, tcp/443, udp/53
+  rule 'LAN6 to Internet': lan6-net -> ::/0: tcp/80, tcp/443, icmp6 type 128
+LAN -> DMZ
+  allowed: icmp type 8, tcp/22, tcp/80, tcp/443, tcp/8080, tcp/8443, tcp/9000-9010
+  rule 'Admins to DMZ': admin-range -> dmz-servers: icmp type 8, tcp/22
+  rule 'LAN to DMZ web not mail': lan-net -> not mail-1: tcp/80, tcp/443
+  rule 'LAN SSH out-2': 10.10.0.0-10.10.5.9, 10.10.5.21-10.11.255.255 -> 0.0.0.0/0: tcp/22
+  rule 'Finance to app': 0.0.0.0/0 -> web-1: tcp/8080, tcp/8443, tcp/9000-9010 (users Finance)
+LAN -> OT
+  allowed: tcp/22
+  rule 'LAN SSH out': lan-net -> 0.0.0.0/0: tcp/22
+  rule 'LAN SSH out-2': 10.10.0.0-10.10.5.9, 10.10.5.21-10.11.255.255 -> 0.0.0.0/0: tcp/22
+WAN -> DMZ
+  allowed: tcp/443, tcp/2525
+  rule 'Internet to web': 0.0.0.0/0 -> web-public: tcp/443
+  rule 'Internet to mail': 0.0.0.0/0 -> mail-public: tcp/2525
+DMZ -> WAN
+  allowed: tcp/443 ~
+  rule 'DMZ updates': dmz-servers -> update-sites: tcp/443 ~
+OT -> LAN
+  allowed: icmp type 8, tcp/53, tcp/502, udp/53, udp/514 from port 1024-65535
+  industrial protocols: modbus (rule 'OT to SCADA')
+  rule 'OT to SCADA': plc-net -> scada-server: tcp/502, udp/514 from port 1024-65535
+  rule 'DNS in office hours': 0.0.0.0/0 -> dns-servers: icmp type 8, tcp/53, udp/53 (schedule Work hours (5 Day week))
+
+Not in the matrix
+  1 rule(s) of the source could not be read; what they allow is not shown: 'Web shop'
+
+Notes
+  1 rule(s) never match and are left out; 'fwshift audit' names them.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

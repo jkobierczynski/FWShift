@@ -30,9 +30,12 @@ The first step of each release is to confirm them against the vendor's
 documentation, and to find out which export an administrator can actually
 produce.
 
+Done: **0.6.0, Sophos Firewall** (SFOS 18 and later; the `.tar` of *Import
+export* or its `Entities.xml`, read and written). What it rests on and what
+nobody has checked on a device is in the development log.
+
 | Release | Brand | Read (expected) | Write (expected) | What will need care |
 |---|---|---|---|---|
-| 0.6.0 | **Sophos** Firewall (SFOS, the XG and XGS series) | the archive of *Backup & firmware > Import export* (a `.tar` that holds `Entities.xml`): firewall rules, NAT rules, hosts, services, zones | the same archive, for import | Before v18 the NAT was part of the firewall rule; since v18 NAT rules are a table of their own, with "linked" NAT rules that take their match from a firewall rule next to the standalone ones. User, web and application policies on a rule have no counterpart. Sophos UTM (SG) is another product with another configuration and is not part of this release |
 | 0.7.0 | **Cisco Secure Firewall** (formerly Firepower Threat Defense), managed by FMC or FDM | access control policy, NAT policy and objects as JSON from the FMC and FDM REST API; the prefilter policy from the FMC (FDM has none) | a script of API calls, as for Check Point: nothing is deployed | FWShift already reads the `show running-config` of an FTD through the ASA parser; this release is about the policy as the manager has it: zones, applications, URL categories, intrusion and file policies, the prefilter in front of the access rules |
 | 0.8.0 | **pfSense** (with OPNsense, its relative, where the two agree) | `config.xml`: rules per interface, floating rules, aliases, port forwards, 1:1 and outbound NAT | a `config.xml` fragment | Floating rules that are not "quick" are last match, not first, and can be for several interfaces and for outgoing traffic. Interface rules are bound to the interface traffic arrives on, like ASA access lists. Port forwards are applied before the filter, so rules name the translated address (the model's `lookup_after_dnat`), and come with linked filter rules |
 | 0.9.0 | **SonicWall** (SonicOS 6.5 and 7) | the exported settings file (`.exp`, an encoded list of keys and values) or the output of the API or CLI (SonicOS 6.5 and 7 have both) | CLI commands | Access rules live in a matrix of zone pairs with a priority each. NAT policies are a separate table with original and translated source, destination and service |
@@ -85,6 +88,11 @@ MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
 5. iptables `NETMAP`, read and written: it is what maps a network address
    for address, where `DNAT` to a range picks an address per connection.
 6. Interface networks in the model (see *Audit and matrix* 3).
+7. Sophos Firewall: users and schedules written back for a Sophos target
+   (the element names are known, the objects must exist); linked NAT rules
+   kept linked, and interface names of NAT rules kept as they are, Sophos to
+   Sophos; IP lists written as IP lists. Find out whether a firewall rule
+   sees the original or the translated service of a port translation.
 
 ## Validation
 
@@ -93,11 +101,17 @@ MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
    ASAv; record what each CLI rejects and correct the emitters. Work through
    the assumptions table of DEVELOPMENT.md. Compare `asa_sample.cfg` and the
    FTD text in `test_asa.py` with what real devices print.
-2. Run `*_to_checkpoint.sh` against a management server in a lab, and export
+2. Import `tests/data/expected/panos_to_sophos.xml` (as a `.tar`) on a Sophos
+   Firewall in a lab: which entity does it stop at, if any, and what does the
+   web console say then? Export a configuration with NAT rules and compare
+   the element names of their match (`OriginalSourceNetworks`,
+   `InboundInterfaces`, ...) and the first line of the file with what FWShift
+   reads and writes; check exclusions of two kinds with a packet.
+3. Run `*_to_checkpoint.sh` against a management server in a lab, and export
    a real rulebase with automatic NAT to compare with the sample. Extend
    `kernel_check.py` to NAT and IPv6, and run it on the legacy iptables
    backend.
-3. The reviewer's oracles as tests: every pre-image of a real packet through
+4. The reviewer's oracles as tests: every pre-image of a real packet through
    a destination NAT (pre-NAT model to a post-NAT target, with several NAT
    rules for one address); same-kind round trips for FortiOS and iptables
    with rules that name both sides of a translation; `disable` across the

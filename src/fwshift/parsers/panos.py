@@ -9,6 +9,7 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional, Set, Tuple
 
+from .. import xmlread
 from ..appmap import valid_ports
 from ..errors import ParseError
 from ..model import (
@@ -69,12 +70,7 @@ def _unique(name: str, taken: Set[str]) -> str:
 
 
 def parse(data: bytes, report: Report, vsys: str = "", device_group: str = "") -> Policy:
-    if b"<!DOCTYPE" in data or b"<!ENTITY" in data:
-        raise ParseError("the XML contains a DOCTYPE or entity declaration; PAN-OS exports never do, refusing to read it")
-    try:
-        root = ET.fromstring(data)
-    except (ET.ParseError, LookupError, ValueError) as exc:  # bad syntax, unknown or broken encoding
-        raise ParseError(f"not well-formed XML: {exc}") from None
+    root = xmlread.fromstring(data, "PAN-OS exports")
     config = root if root.tag == "config" else root.find(".//config")
     if config is None:
         raise ParseError("no <config> element found; expected a PAN-OS or Panorama configuration export")

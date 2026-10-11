@@ -20,6 +20,7 @@ from .emitters import checkpoint as emit_checkpoint
 from .emitters import fortios as emit_fortios
 from .emitters import iptables as emit_iptables
 from .emitters import panos as emit_panos
+from .emitters import sophos as emit_sophos
 from .errors import FwshiftError
 from .model import ANY, Policy
 from .netutil import parse_literal
@@ -29,6 +30,7 @@ from .parsers import checkpoint as parse_checkpoint
 from .parsers import fortios as parse_fortios
 from .parsers import iptables as parse_iptables
 from .parsers import panos as parse_panos
+from .parsers import sophos as parse_sophos
 from .report import Report, Severity
 
 EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
@@ -38,13 +40,21 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "ip6tables": emit_iptables.emit_v6,
     "checkpoint": emit_checkpoint.emit,
     "asa": emit_asa.emit,
+    "sophos": emit_sophos.emit,
 }
-VENDORS = ("panos", "fortios", "checkpoint", "asa", "iptables", "ip6tables")
+VENDORS = ("panos", "fortios", "checkpoint", "asa", "sophos", "iptables", "ip6tables")
 
 
 def detect_format(data: bytes) -> str:
-    """PAN-OS exports are XML, Check Point API output is JSON, iptables-save output starts with a table,
-    an ASA configuration has lines only an ASA writes; anything else is taken as FortiOS."""
+    """A Sophos export is a tar archive or XML that starts with <Configuration>, other XML is PAN-OS, Check Point
+    API output is JSON, iptables-save output starts with a table, an ASA configuration has lines only an ASA
+    writes; anything else is taken as FortiOS."""
+    if data[:2] == b"\x1f\x8b" or data[:3] == b"BZh" or data[:6] == b"\xfd7zXZ\x00" or data[:4] == b"PK\x03\x04":
+        raise FwshiftError("the input is compressed (gzip, bzip2, xz or zip); unpack it and give FWShift the file inside")
+    if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        data = data[:65536].decode("utf-16", errors="replace").encode("utf-8")  # the start is enough to tell
+    if parse_sophos.looks_like_sophos(data):
+        return "sophos"
     head = data.lstrip(b"\xef\xbb\xbf \t\r\n")
     if head.startswith(b"<"):
         return "panos"
@@ -72,6 +82,8 @@ def load(
         return parse_checkpoint.parse(data, report, layer=layer)
     if source == "asa":
         return parse_asa.parse(data, report)
+    if source == "sophos":
+        return parse_sophos.parse(data, report)
     if source in ("iptables", "ip6tables"):
         return parse_iptables.parse(data, report, family=6 if source == "ip6tables" else 0)
     raise FwshiftError(f"unknown source format '{source}'")
@@ -222,6 +234,14 @@ def _write(path: str, text: str) -> None:
         raise FwshiftError(f"cannot write {path}: {exc.strerror}") from None
 
 
+def _write_bytes(path: str, data: bytes) -> None:
+    try:
+        with open(path, "wb") as handle:
+            handle.write(data)
+    except OSError as exc:
+        raise FwshiftError(f"cannot write {path}: {exc.strerror}") from None
+
+
 def _print(stream: TextIO, text: str) -> None:
     """Write UTF-8 whatever the console encoding is (a redirected Windows console is not UTF-8)."""
     buffer = getattr(stream, "buffer", None)
@@ -248,7 +268,8 @@ def _source_options(parser: argparse.ArgumentParser, optional: bool = False) -> 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="fwshift",
-        description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA and iptables, with a lossiness report.",
+        description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Sophos Firewall and iptables, "
+        "with a lossiness report.",
     )
     parser.add_argument("--version", action="version", version=f"fwshift {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -256,7 +277,8 @@ def build_parser() -> argparse.ArgumentParser:
     conv = commands.add_parser("convert", help="convert a configuration to another vendor's format")
     _source_options(conv)
     conv.add_argument("--to", dest="target", required=True, choices=VENDORS + ("json",), help="target format")
-    conv.add_argument("-o", "--output", help="write the converted configuration here (default: standard output)")
+    conv.add_argument("-o", "--output", help="write the converted configuration here (default: standard output). Sophos target: "
+                      "a name that ends in .tar gives the archive an import takes")
     conv.add_argument("--report", help="write the text report here (default: standard error)")
     conv.add_argument("--report-json", help="also write the report as JSON")
     conv.add_argument("--zone-map", action="append", default=[], metavar="SRC=DST", help="rename a zone or interface")
@@ -293,7 +315,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--target-gateway", default="", metavar="NAME", help="Check Point target: gateway object that hide NAT uses"
     )
     conv.add_argument(
-        "--target-prefix", default="", metavar="TEXT", help="Check Point and ASA targets: prefix for the names of created objects"
+        "--target-prefix", default="", metavar="TEXT", help="Check Point, ASA and Sophos targets: prefix for the names of created objects"
     )
     conv.add_argument("--strict", action="store_true", help="exit with status 2 when anything needs review")
     conv.add_argument("-q", "--quiet", action="store_true", help="do not print the report or the summary")
@@ -372,7 +394,9 @@ def _run_convert(args: argparse.Namespace) -> int:
     output = convert(policy, args.target, report, dataclasses.replace(options, written=kept))
     if audited is not None:
         _audit_after(policy, audited, config, report, kept[-1] if kept else None)
-    if args.output:
+    if args.output and args.target == "sophos" and args.output.lower().endswith(".tar"):
+        _write_bytes(args.output, emit_sophos.archive(output))
+    elif args.output:
         _write(args.output, output)
     else:
         _print(sys.stdout, output)

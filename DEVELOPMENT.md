@@ -8,11 +8,11 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.5.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
-| Tests | 1652, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA or a Check Point management server |
-| Next | Lab validation of the sample conversions |
+| Version | 0.6.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
+| Tests | 1813, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall or a Check Point management server |
+| Next | 0.7.0: Cisco Secure Firewall (see `TODO.md`); lab validation of the sample conversions |
 
 ## Layout
 
@@ -24,12 +24,14 @@ src/fwshift/
         fortios.py    FortiOS configuration  -> model
         checkpoint.py Management API JSON    -> model (inline layers flattened)
         asa.py        ASA running-config     -> model (bound access lists, NAT sections)
+        sophos.py     Sophos Entities.xml    -> model (exclusions, a rulebase per IP version)
         iptables.py   iptables-save output   -> model (chains flattened)
     emitters/
         panos.py      model -> PAN-OS set commands
         fortios.py    model -> FortiOS CLI configuration
         checkpoint.py model -> shell script of mgmt_cli calls
         asa.py        model -> ASA commands (access lists per interface, twice NAT)
+        sophos.py     model -> Entities.xml (a rule per IP version, flat groups)
         iptables.py   model -> iptables-restore / ip6tables-restore file
     transform.py      passes shared by the emitters: hardening of names,
                       references, placeholders, names, application lowering,
@@ -41,6 +43,7 @@ src/fwshift/
                       zones given as networks
     appmap.py         application/port table, protocol tables, reserved names
     netutil.py        IP intervals
+    xmlread.py        XML from outside: no document type, whatever the encoding
     names.py          naming rules of the targets
     report.py         findings, item status, text and JSON report
     options.py        conversion options
@@ -50,7 +53,7 @@ tests/
     data/expected/    their conversions and reports, byte for byte
     tools/            the script that writes the Check Point sample
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
-                      Check Point and ASA output
+                      Check Point, ASA and Sophos output
     test_parsers.py   netutil, FortiOS syntax, PAN-OS and FortiOS parsers
     test_emitters.py  PAN-OS and FortiOS emitters
     test_semantics.py one small configuration per semantic trap
@@ -59,6 +62,8 @@ tests/
                       and for an emitted script
     test_asa.py       Cisco ASA both ways, with a random ASA that judges
                       packets itself and a strict reader of emitted commands
+    test_sophos.py    Sophos Firewall both ways, against a strict reader of
+                      Entities.xml that shares no code with the parser
     test_audit.py     the audit, against a walk through every packet of a
                       small world
     test_matrix.py    the zone matrix, against the same walk: every packet
@@ -270,6 +275,22 @@ python -m mypy
   on the rule that decides. None of this
   replaces an ASA: the lab and the reader are both written from the same
   reading of Cisco's documentation as the code they check.
+  For Sophos Firewall, `helpers.SophosConfig` reads an `Entities.xml` the
+  way an import would and decides about packets as the firewall would:
+  entities in the order of the file, each name defined before it is used and
+  only once whatever its case, a host of the IP version of what uses it,
+  only element names and values that the API documentation or Sophos's SDK
+  show, a rulebase per IP version with each rule placed by its `Position`,
+  first match, exclusions that apply together. It is the judge in both
+  directions: for random models written by the emitter (with every
+  combination of negated fields), and for random files (`random_entities`,
+  with exclusions of one to three kinds and rules placed at the top, the
+  bottom, before and after others) read by the parser. NAT has an oracle
+  too, small as it is: the first rule that matches and what it translates
+  to, for random NAT models and random NAT files. A mutation check (38 ways
+  to break the parser and the emitter, among them the defects of review
+  round 14) is not part of the suite; all were caught when it was run. As with the ASA, the reader is written
+  from the same reading of the documentation as the code it checks.
 * **The kernel** (`test_iptables.py`, the tests marked `needs_kernel`). Where
   the test host allows it (root, `unshare`, iptables), emitted rulesets and
   the converted samples are loaded with `iptables-restore` into a network
@@ -305,7 +326,7 @@ to 3.13, and on Windows and macOS for 3.12.
 
 | Decision | Reason |
 |---|---|
-| Neutral model with parsers and emitters | Five formats need ten components instead of twenty pairwise converters; a sixth adds two. |
+| Neutral model with parsers and emitters | Six formats need twelve components instead of thirty pairwise converters; a seventh adds two. |
 | Model follows PAN-OS for NAT and matching | PAN-OS and Check Point both match pre-NAT; FortiOS is the exception and is handled at its edges. |
 | Disabled rule instead of best guess | A disabled rule is visible and safe; a guessed rule is neither. |
 | Central NAT for FortiOS output | It is the FortiOS model that maps one-to-one onto a NAT rulebase. Per-policy NAT would need NAT rules to be merged into security policies, which is lossy in the general case. Cost: it must be enabled on the FortiGate. |
@@ -327,7 +348,12 @@ to 3.13, and on Windows and macOS for 3.12.
 | Reserved names are renamed | An object called `all` or `HTTP` from another platform would otherwise redefine a FortiOS built-in. |
 | Audit: a rule is called dead only when that is proven, and unknowns count against the claim | The finding has an action, `disable`, that people will use without reading each rule. A wrong "redundant" removes a rule that was needed; a missed one costs nothing. |
 | Audit: `reorder` is carried out but always needs review | Moving a shadowed rule up flips verdicts, and which of the two rules was the mistake is not in the configuration. The tool can do the edit; it cannot make the decision. |
-| Audit after a conversion works on the model, not on the output read back | Three of the five targets have no parser for what is written. It shows what the conversion knows it changed, which is where a lost deny rule shows. |
+| Audit after a conversion works on the model, not on the output read back | Two of the six targets have no parser for what is written (PAN-OS `set` commands, the Check Point script), and what is read back is not always what was meant (a Sophos NAT rule names interfaces, not zones). It shows what the conversion knows it changed, which is where a lost deny rule shows. |
+| Sophos: a rule with exclusions of N kinds becomes N rules | Exclusions are one condition for the whole rule ("skip where all of them hold"); the model negates per field. "Not (A and B)" is "not A, or not B": two rules, each with one field cut down, say exactly that, and every target can write them. |
+| Sophos output: of several negated fields, all but one are written as address ranges | The other way round. Two exclusions would skip the rule only where both hold, which is a wider rule than the source had. A complement of addresses is exact; a host name has none, and then the rule is disabled. |
+| Sophos output: zones are not written | A zone entity carries the device access of the zone (which services of the firewall itself answer there). An import overwrites what has the same name: writing `LAN` would change who can reach the admin console. |
+| Sophos output: every rule stands after the one before it | With `Bottom` for each, the order would hang on the order in which the firewall takes the entities, and a rule it does not take would let the rules after it move up. |
+| Sophos output: a placeholder is a host name under `.invalid` | It has to be an object every firewall takes and that matches nothing; `0.0.0.0` may be refused, and a refused entity can end an import. A name under `.invalid` never resolves. |
 | Standard library only | Runs on a bare RHEL box and is easy to audit. |
 | GPL-3.0-or-later | Copyleft: changes to a tool that rewrites security policy stay open to inspection. |
 
@@ -364,6 +390,18 @@ policy behaves unexpectedly.
 | ASA: `fqdn` without `v4`/`v6` resolves IPv4; running-config always prints the `(real,mapped)` pair of a NAT rule; the port, protocol and ICMP names in `parsers/asa.py` | ASA parser |
 | An ASA accepts what the emitter writes and has not been loaded anywhere: `range` objects for IPv6 and from `0.0.0.0`, `network-object ::/0`, `service 255`, host `192.0.0.8`, `lt`/`gt` in service objects used by NAT, `pat-pool` with an object group, `nat (any,any)`, `unidirectional` on `source static any any destination static`, `no-proxy-arp` with interface `any`, `fqdn v6`, names that start with a digit | ASA emitter |
 | An ASA refuses a NAT rule that names one of its own interface addresses as an object (the keyword `interface` is wanted), and an object group with IPv4 and IPv6 members in NAT. (Both confirmed from Cisco sources in review.) | ASA emitter |
+| Sophos: firewall rules are first match with an implicit drop, IPv4 and IPv6 in rulebases of their own; a rule matches the destination address before destination NAT and the destination zone after it. (A third-party knowledge base and a Sophos community article; not found in Sophos's own reference.) Whether the *service* of a rule is the one before or after a port translation is not known: FWShift takes the original, as the model does | Sophos parser and emitter |
+| Sophos: a list that is absent is "Any" (the templates of Sophos's SDK leave the element out for Any) | Sophos parser and emitter |
+| Sophos: exclusions apply together, a rule is skipped only for traffic that matches every kind of exclusion it has. (A third-party knowledge base; a community report of a Drop rule with two exclusions "not working" fits it. Not found in Sophos's documentation.) | `_exclusions`, `_variants` |
+| Sophos: traffic between two interfaces of one zone needs a rule (from memory) | Sophos parser (`default_intrazone`), `INTRAZONE_ALLOW_ADDED` |
+| Sophos: Security Heartbeat on a rule limits who the rule is for (not confirmed) | Sophos parser |
+| Sophos NAT: one table, first match; a rule can translate source and destination; it matches original source, destination and service and the inbound and outbound interface; "Any" is the outbound interface of a rule that publishes an address; a linked rule is source NAT only, takes all criteria of its firewall rule, and an independent rule above it wins. (Sophos help and API documentation.) Not known: what an outbound interface on a destination NAT rule matches | Sophos parser and emitter |
+| Sophos: the element names of a NAT rule's match, `OriginalSourceNetworks`, `OriginalDestinationNetworks` (child `Network`), `OriginalServices` (child `Service`), `InboundInterfaces` (child `Interface`). **From memory of exports.** The API page names the parameters Network, Service and Interface without their containers; `OutboundInterfaces/Interface` is read by a community script. A file that names them otherwise is not misread: an unknown element that looks like a criterion makes the NAT rule unsupported | Sophos parser and emitter |
+| Sophos: the root `<Configuration APIVersion="..." IPS_CAT_VER="1">` (seen quoted from an export of 19.5 as `1905.1`; `1800.1` for 18.0 is by that pattern), entities with `transactionid=""`, IPv6 `Subnet` as a prefix length (not found), `HostType` `IPList` with `ListOfIPAddresses` and `System Host` (API documentation) | Sophos parser and emitter |
+| Sophos services: ICMP types and codes as numbers, -1 for any, from the lists of the API page (the web console shows names; both are read); IP protocols by the keyword of the IANA registry, of which the API page shows some (`HOPOPT`, `IPv6-ICMP`, `OSPFIGP`, `IPProto143` to `IPProto255`); port 0 is not taken | `appmap.py`, Sophos emitter |
+| Sophos names: 60 characters for a host or rule, 50 for a service, no comma (API documentation). Whether names differ by case is not known: names of another platform are kept apart whatever their case. The list of services a firewall comes with (`SOPHOS_FACTORY_SERVICE_NAMES`) is from memory and not complete | `names.py`, Sophos emitter |
+| Sophos import: takes a `.tar` that holds `Entities.xml`, of its own version or an older one; overwrites entities of the same name; can stop at an entity it does not take (a community log shows "IMPORT Failed ... Exiting"; another source describes other settings still being imported). What the web console says then is not known | Sophos emitter, manual |
+| A Sophos Firewall accepts what the emitter writes and has not been imported anywhere: an FQDN host under `.invalid`, IP ranges as what a NAT rule translates to, `Position` `After` with an anchor of the same IP version, `NATMethod` `OnetoOne` and `Round-robin` as written, rule names with spaces, a firewall rule without `WebFilter` and the other policy elements | Sophos emitter |
 | FTD: the device shows its access rules as `access-list CSM_FW_ACL_ advanced` with `ifc`, `rule-id` and remarks `rule-id N: L4 RULE: name` / `L7 RULE: name`; an L7 rule appears as `permit` whatever its action. From documentation and memory, no device output was available | ASA parser |
 
 ## Development log
@@ -922,6 +960,123 @@ traceback.
   rules on fifty zones are 280 MB of JSON and a gigabyte of memory.
 * A conversion with `--audit-action ...=disable` converts twice (once on
   trial) and takes about twice as long as `--audit` alone.
+
+### 2026-10-11: version 0.6.0
+
+**Built**
+
+* Sophos Firewall (SFOS 18 and later), read and written: `parsers/sophos.py`
+  and `emitters/sophos.py`. The input is the export of *Backup & firmware >
+  Import export*, as the `.tar` it comes in or as the `Entities.xml` inside,
+  or what the XML API answers to a `Get`. The output is an `Entities.xml`,
+  or the archive itself when `-o` names a `.tar`.
+* `xmlread.py`: XML from outside is refused when it declares a document
+  type, whatever its encoding. The PAN-OS parser uses it too; its check was
+  on the bytes of the file, which a UTF-16 file passes.
+* The audit takes logging and profiles of a Sophos rule into account
+  (`NO_LOG`, `NO_PROFILE`); the matrix reads a Sophos policy like any other.
+* Compressed input (gzip, bzip2, xz, zip) is refused with a message that
+  says so, for every format.
+
+**What the format made necessary**
+
+* *Exclusions.* A Sophos rule is skipped for traffic that matches all the
+  kinds of exclusion it has. The model negates per field. Read: one model
+  rule per kind of exclusion, each with that field cut down (zones by set
+  difference, addresses out of "any" as a negation, addresses out of a list
+  as the ranges that are left, services out of "any" as a negated service).
+  Written: one negated field is an exclusion; of several, all but one are
+  written as complement ranges, and where that cannot be done (a host name)
+  the rule is disabled. A negated service always stays the exclusion.
+* *IP versions.* Two rulebases. "Any" of an IPv4 rule is `0.0.0.0/0` in the
+  model. Written, a rule that matches both versions is two rules, hosts and
+  groups are of one version, and a group of the model becomes up to three
+  (`name`, `name_v6`, `name_fqdn`): groups are flat on a Sophos Firewall.
+* *NAT rules match interfaces.* Read, an interface becomes its zone where
+  the export holds the interfaces. Written, the interfaces come from
+  `--interface-map`; without it the rule is for any interface and says so.
+* *Linked NAT rules* take their match from a firewall rule. They are read as
+  rules of their own, with a finding where that is more than they were.
+* *An import overwrites by name and can stop midway.* So: no zones are
+  written, names of services a firewall comes with are avoided, names of
+  another platform are kept apart whatever their case, every rule stands
+  after the one before it, and a placeholder is something no firewall
+  refuses and nothing matches (a host name under `.invalid`).
+
+**Sources**
+
+Sophos Firewall help (firewall rules, NAT rules, import and export), the XML
+API reference (IP host, services, NAT rule, interface), the templates of
+Sophos's Python SDK (`sophosfirewall-python`: firewall rule, IP host,
+service, groups, zone), a community script that reads NAT rules from the
+API, and a third-party knowledge base for how exclusions combine and which
+side of a translation a rule sees. What comes from where, and what from
+none of them, is in the table *Vendor behaviour the code relies on*.
+
+**Review**
+
+*Round 14* by the independent reviewer. Its own oracles, written without
+the project's test reader: random `Entities.xml` against the parser (4,500
+files, 36,000 rules, 1.8 million packets), random models of all six vendors
+against the emitter (5,000 models, 1.5 million packets), Sophos to Sophos
+(4,500 files), Sophos to iptables, ip6tables, FortiOS, Check Point and ASA
+(800 files each), and the audit's `disable` and `reorder` with a Sophos
+source or target (6,000 policies). No packet was decided differently
+without a finding on the rule that decides. The findings came from NAT and
+from hand-built cases:
+
+| | Finding | Fix |
+|---|---|---|
+| high | A destination NAT rule was given the zone it arrives in as the zone of its original destination. For a rule that redirects ("DNS from the LAN to the resolver", destination any) that made a PAN-OS rule "from LAN to LAN", which redirects nothing that leaves; in the other direction a PAN-OS rule for traffic towards one zone became a Sophos rule for all of it, without a word | the zone is taken from the networks of the interfaces where they tell, and is "none" otherwise (PAN-OS then asks for `--target-nat-zone`); `NAT_DESTINATION_ZONE` when a rule loses that limit and names no address, or many |
+| medium | A zone or interface called `Any` (from PAN-OS, iptables or an ASA, or through `--zone-map`) was written as `<Zone>Any</Zone>`: every zone | the conversion stops and asks for another name |
+| medium | A NAT rule linked to a disabled or blocking firewall rule became an active rule of its own | converted disabled (`NAT_LINKED_INACTIVE`); a link to a name two rules have is not followed |
+| medium | Port ranges that start at 0 were written as they were; a Sophos service starts at 1, and a refused entity can end an import | port 0 is left out (`PORT_ZERO`) |
+| medium | Security Heartbeat on a rule was reported as an inspection profile; it says who the rule is for | a condition: the rule is unsupported, for every target |
+| low | Read too kindly: a status that is neither Enable nor Disable, a list or action given twice, text next to list members, a position FWShift does not know, a `<UserPolicy>` next to a `<NetworkPolicy>`, entities in a namespace (ignored, also blocking rules), group membership given on the IP host, a network with mask 0.0.0.0, an IPv4 address in an IPv6 host, ICMPv6 elements in an ICMP service, `*` inside a host name | each makes its rule or object unsupported, or is read as what it says; namespaces are stripped |
+| low | Severity: "any zone except" on a blocking rule (a zone the file does not hold is no longer blocked), an interface that was all that limited a NAT rule, load balancing methods and health checks, shaping and gateways of a rule | REVIEW for the first two; `NAT_LOAD_BALANCING`; `HANDLING_NOT_CONVERTED` |
+| low | The emitter wrote "ICMP code N of every type", which nothing reads; `NAT_STATIC_RANGE` was missed for addresses without an object; a NAT rule translated to a network object | unsupported; fixed; what a rule translates to is written as an address or a range |
+| low | API answers: "No. of records Zero." became a rule called "unnamed"; a failed login was an empty policy; a second `<Configuration>` was ignored | skipped; an error; an error |
+| low | The check for a document type was on bytes: a UTF-16 file passed it and had its entities expanded | `xmlread.py`, also for PAN-OS |
+| low | 20,000 rules in export style took 76 s, a rule with 200,000 members 267 s | 8 s and 10 s through the command: the search for a rule's place and a list without duplicates were quadratic |
+| nits | Two `Entities.xml` in one archive; a `.tar.gz` gave an error about quotes; a zone called `local` taken for the firewall itself; ICMPv6 type 0; `SOPHOS_LOAD` only informational although imported rules land below existing ones; a placeholder sharing its host name with an object of the policy | all fixed |
+
+The reviewer also went through `SophosConfig`, the reader the tests stand
+on. It found it strict where it matters and named four gaps: it took `Any`
+as a zone name and a network as what a rule translates to (both closed), no
+generator produces port 0 (a test does now), and it ignores ICMP codes,
+because the packets of the tests have none (open).
+
+The fixes were not reviewed again. They have tests at the end of
+`test_sophos.py`, and the reviewer's scripts were rerun on them: the parser
+oracle (1,500 files, 600,000 packets), the emitter oracle (600 models), the
+round trips (900 files), the five other targets (150 files each), the
+audit (1,100 policies), its reproductions of the findings and its hostile
+inputs (about fifty archives and XML files, no traceback). Every difference had a
+finding, as before.
+
+**Not done, known**
+
+* Nothing has been imported on a Sophos Firewall. The reader of the tests
+  and the code share one reading of the documentation.
+* The element names of a NAT rule's match and the first line of the file
+  are from memory of exports. If they are wrong, FWShift reads such a NAT
+  rule as unsupported (not as a wider rule), and writes NAT rules a firewall
+  will not take: the import would stop at the first of them.
+* How exclusions combine is from a third-party source. If they did not
+  apply together, rules with exclusions of several kinds would be read too
+  wide: the split writes "skipped only where all hold".
+* Whether a rule sees the original or the translated service of a port
+  translation is not known.
+* Users and schedules are not written, also Sophos to Sophos. Linked NAT
+  rules come out as rules of their own, IP lists as host groups. A file
+  FWShift wrote names interfaces without saying which zone they are in:
+  read again, its NAT rules are for any zone, and say so.
+* The NAT oracle of the tests knows first match and what a rule translates
+  to. It does not send a packet through a translation and on to the firewall
+  rules; that is what the reviewer's NAT oracle of round 12 did, for other
+  platforms.
+* SFOS before 18, Sophos UTM, web server protection, device access and VPN
+  are not read.
 
 ## To do
 

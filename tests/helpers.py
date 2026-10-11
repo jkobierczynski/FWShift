@@ -448,3 +448,431 @@ class AsaConfig:
             return False  # an ASA does not send traffic back out of the interface it came in on
         entry = self.verdict(pkt)
         return entry is not None and bool(entry["permit"])
+
+
+class SophosConfig:
+    """An Entities.xml read the way an import would take it, with nothing of fwshift's own parser.
+
+    Strict where a firewall is: every name that is used must have been defined above it (or be passed
+    in as existing), names are unique whatever their case, a host is of the IP version of what uses
+    it, and only elements and values that the documentation of the XML API shows are accepted.
+    Rules are kept in the order the firewall evaluates them: each IP version has its own rulebase,
+    and Position (Top, Bottom, After, Before) is carried out entity by entity.
+    """
+
+    PROTOCOLS = {"tcp": 6, "udp": 17, "icmp": 1, "icmp6": 58, "sctp": 132}
+    ICMP_TYPES = {0, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18} | set(range(30, 41))
+    ICMP6_TYPES = {0, 1, 2, 3, 4, 100, 101, 200, 201} | set(range(128, 159))
+    RULE_HEAD = ["Name", "Description", "IPFamily", "Status", "Position", "PolicyType", "After", "Before", "NetworkPolicy"]
+    MATCH = ["Action", "LogTraffic", "SkipLocalDestined", "SourceZones", "DestinationZones", "Schedule", "SourceNetworks",
+             "DestinationNetworks", "Services", "Exclusions"]  # fmt: skip
+    PROFILES = {"WebFilter", "ApplicationControl", "IntrusionPrevention", "ScanVirus", "ZeroDayProtection", "ProxyMode",
+                "DecryptHTTPS", "ScanSMTP", "ScanSMTPS", "ScanIMAP", "ScanIMAPS", "ScanPOP3", "ScanPOP3S", "ScanFTP",
+                "MinimumSourceHBPermitted", "MinimumDestHBPermitted"}  # fmt: skip
+    NAT_HEAD = ["Name", "Description", "IPFamily", "Status", "Position", "After", "Before", "LinkedFirewallrule",
+                "TranslatedDestination", "TranslatedService", "OriginalSourceNetworks", "OriginalDestinationNetworks",
+                "OriginalServices", "InboundInterfaces", "OutboundInterfaces", "OverrideInterfaceNATPolicy",
+                "TranslatedSource", "NATMethod"]  # fmt: skip
+
+    def __init__(self, text: str, existing_hosts: Tuple[str, ...] = (), zones: Optional[Tuple[str, ...]] = None,
+                 interfaces: Optional[Tuple[str, ...]] = None, resolved: Optional[Dict[str, List[str]]] = None) -> None:  # fmt: skip
+        import xml.etree.ElementTree as ET
+
+        self.text = text
+        self.zones, self.interfaces = zones, interfaces
+        self.resolved = resolved or {}  # what a host name stands for, for a test that wants one to match
+        self.hosts: Dict[str, Dict[str, Any]] = {name: {"kind": "existing"} for name in existing_hosts}
+        self.services: Dict[str, Dict[str, Any]] = {}
+        self.rules: Dict[int, List[Dict[str, Any]]] = {4: [], 6: []}
+        self.nat: Dict[int, List[Dict[str, Any]]] = {4: [], 6: []}
+        self._names: Dict[str, set] = {"host": {name.lower() for name in existing_hosts}, "service": set(), "rule": set(),
+                                       "nat": set()}  # fmt: skip
+        assert text.startswith('<?xml version="1.0" encoding="UTF-8"?>\n'), text[:60]
+        root = ET.fromstring(text.encode("utf-8"))
+        assert root.tag == "Configuration" and root.get("APIVersion"), root.attrib
+        self.api_version = root.get("APIVersion")
+        handlers = {"IPHost": self._ip_host, "IPHostGroup": self._host_group, "FQDNHost": self._fqdn_host,
+                    "FQDNHostGroup": self._fqdn_group, "Services": self._service, "ServiceGroup": self._service_group,
+                    "FirewallRule": self._rule, "NATRule": self._nat_rule, "Zone": self._zone, "Interface": self._interface}  # fmt: skip
+        self.defined_zones: List[str] = []  # what a file written by hand for a test defines; fwshift writes neither
+        self.interface_zone: Dict[str, str] = {}
+        for entity in root:
+            assert entity.tag in handlers, f"entity <{entity.tag}> is not one this reader knows"
+            assert entity.get("transactionid") == "", entity.tag
+            handlers[entity.tag](entity)
+
+    # -- reading ----------------------------------------------------------
+
+    @staticmethod
+    def _text(element: Any, tag: str) -> str:
+        found = element.findall(tag)
+        assert len(found) == 1, f"<{element.tag}> needs one <{tag}>, has {len(found)}"
+        assert len(found[0]) == 0, f"<{tag}> holds elements"
+        return (found[0].text or "").strip()
+
+    def _name(self, element: Any, space: str, limit: int = 60) -> str:
+        name = self._text(element, "Name")
+        assert name and len(name) <= limit and "," not in name and name == name.strip(), f"name '{name}'"
+        # Words the format uses where a name of this kind can stand.
+        words = {"host": ("any", "original", "masq", "none"), "service": ("any", "original", "none"), "rule": ("none",)}
+        assert name.lower() not in words.get(space, ()), f"'{name}' is a word of the format"
+        assert name.lower() not in self._names[space], f"{space} '{name}' is defined twice"
+        self._names[space].add(name.lower())
+        return name
+
+    @staticmethod
+    def _only(element: Any, allowed: List[str]) -> None:
+        tags = [child.tag for child in element]
+        assert all(tag in allowed for tag in tags), f"<{element.tag}> holds {[t for t in tags if t not in allowed]}"
+        assert len(tags) == len(set(tags)), f"<{element.tag}> holds an element twice: {tags}"
+
+    def _family(self, element: Any) -> int:
+        family = self._text(element, "IPFamily")
+        assert family in ("IPv4", "IPv6"), family
+        return 4 if family == "IPv4" else 6
+
+    def _zone(self, element: Any) -> None:
+        self.defined_zones.append(self._text(element, "Name"))
+
+    def _interface(self, element: Any) -> None:
+        self.interface_zone[self._text(element, "Name")] = self._text(element, "NetworkZone")
+
+    def _ip_host(self, element: Any) -> None:
+        import ipaddress
+
+        name, version = self._name(element, "host"), self._family(element)
+        kind = self._text(element, "HostType")
+
+        def address(tag: str) -> int:
+            parsed = ipaddress.ip_address(self._text(element, tag))
+            assert parsed.version == version, f"host '{name}': {parsed} in an IPv{version} host"
+            return int(parsed)
+
+        if kind == "IP":
+            self._only(element, ["Name", "IPFamily", "HostType", "IPAddress"])
+            first = last = address("IPAddress")
+            assert first != 0, f"host '{name}' is the unspecified address"
+        elif kind == "Network":
+            self._only(element, ["Name", "IPFamily", "HostType", "IPAddress", "Subnet"])
+            subnet = self._text(element, "Subnet")
+            if version == 4:
+                assert subnet.count(".") == 3, f"IPv4 subnet '{subnet}' is not a mask"
+            else:
+                assert subnet.isdigit(), f"IPv6 subnet '{subnet}' is not a prefix length"
+            network = ipaddress.ip_network(f"{self._text(element, 'IPAddress')}/{subnet}", strict=True)
+            assert network.version == version and network.prefixlen > 0, f"host '{name}' is every address"
+            assert network.num_addresses > 1, f"network '{name}' of one address"
+            first, last = int(network.network_address), int(network.broadcast_address)
+        else:
+            assert kind == "IPRange", f"host type '{kind}'"
+            self._only(element, ["Name", "IPFamily", "HostType", "StartIPAddress", "EndIPAddress"])
+            first, last = address("StartIPAddress"), address("EndIPAddress")
+            assert first < last, f"range '{name}' is not a range"
+        self.hosts[name] = {"kind": "ip", "version": version, "first": first, "last": last, "type": kind}
+
+    def _members(self, element: Any, path: str, child: str) -> List[str]:
+        holders = element.findall(path)
+        assert len(holders) == 1, f"<{element.tag}> needs one <{path}>"
+        assert all(member.tag == child for member in holders[0]), f"<{path}> holds something else than <{child}>"
+        names = [(member.text or "").strip() for member in holders[0]]
+        assert names and all(names), f"<{path}> is empty"
+        assert len(names) == len(set(names)), f"<{path}> lists a name twice: {names}"
+        return names
+
+    def _host_group(self, element: Any) -> None:
+        self._only(element, ["Name", "IPFamily", "Description", "HostList"])
+        name, version = self._name(element, "host"), self._family(element)
+        members = self._members(element, "HostList", "Host")
+        for member in members:
+            assert member in self.hosts, f"group '{name}': host '{member}' is used before it is created"
+            held = self.hosts[member]
+            assert held["kind"] in ("ip", "existing"), f"group '{name}' holds '{member}', which is no IP host"
+            assert held.get("version", version) == version, f"group '{name}' holds a host of the other IP version"
+        self.hosts[name] = {"kind": "group", "version": version, "members": members}
+
+    def _fqdn_host(self, element: Any) -> None:
+        self._only(element, ["Name", "Description", "FQDN"])
+        name, fqdn = self._name(element, "host"), self._text(element, "FQDN")
+        assert fqdn and " " not in fqdn and "." in fqdn, fqdn
+        self.hosts[name] = {"kind": "fqdn", "fqdn": fqdn}
+
+    def _fqdn_group(self, element: Any) -> None:
+        self._only(element, ["Name", "Description", "FQDNHostList"])
+        name = self._name(element, "host")
+        members = self._members(element, "FQDNHostList", "FQDNHost")
+        for member in members:
+            assert self.hosts.get(member, {}).get("kind") == "fqdn", f"group '{name}': '{member}' is no host name"
+        self.hosts[name] = {"kind": "fqdngroup", "members": members}
+
+    @staticmethod
+    def _ports(text: str) -> Tuple[int, int]:
+        first, _, last = text.partition(":")
+        assert first.isdigit() and (last.isdigit() or ":" not in text), f"ports '{text}'"
+        low, high = int(first), int(last or first)
+        assert 1 <= low <= high <= 65535, f"ports '{text}'"
+        return low, high
+
+    def _service(self, element: Any) -> None:
+        from fwshift.appmap import SOPHOS_PROTOCOL_NAMES
+
+        self._only(element, ["Name", "Type", "ServiceDetails"])
+        name, kind = self._name(element, "service", 50), self._text(element, "Type")
+        holders = element.findall("ServiceDetails")
+        assert len(holders) == 1 and len(holders[0]) and all(d.tag == "ServiceDetail" for d in holders[0]), name
+        details: List[Dict[str, Any]] = []
+        for detail in holders[0]:
+            if kind == "TCPorUDP":
+                self._only(detail, ["SourcePort", "DestinationPort", "Protocol"])
+                protocol = self._text(detail, "Protocol")
+                assert protocol in ("TCP", "UDP"), protocol
+                details.append({"protocol": protocol.lower(), "src": self._ports(self._text(detail, "SourcePort")),
+                                "dst": self._ports(self._text(detail, "DestinationPort"))})  # fmt: skip
+            elif kind == "IP":
+                self._only(detail, ["ProtocolName"])
+                named = self._text(detail, "ProtocolName")
+                numbers = {value: key for key, value in SOPHOS_PROTOCOL_NAMES.items()}
+                if named.startswith("IPProto"):
+                    assert named[7:].isdigit() and 143 <= int(named[7:]) <= 255, named
+                    numbers[named] = int(named[7:])
+                assert named in numbers, f"protocol name '{named}'"
+                details.append({"number": numbers[named]})
+            else:
+                assert kind in ("ICMP", "ICMPv6"), f"service type '{kind}'"
+                self._only(detail, [f"{kind}Type", f"{kind}Code"])
+                icmp_type, code = int(self._text(detail, f"{kind}Type")), int(self._text(detail, f"{kind}Code"))
+                assert icmp_type == -1 or icmp_type in (self.ICMP_TYPES if kind == "ICMP" else self.ICMP6_TYPES), icmp_type
+                assert -1 <= code <= 15 and (icmp_type != -1 or code == -1), code
+                details.append({"icmp": "icmp" if kind == "ICMP" else "icmp6", "type": icmp_type, "code": code})
+        assert len({repr(sorted(d.items())) for d in details}) == len(details), f"service '{name}' has a detail twice"
+        self.services[name] = {"kind": "service", "type": kind, "details": details}
+
+    def _service_group(self, element: Any) -> None:
+        self._only(element, ["Name", "Description", "ServiceList"])
+        name = self._name(element, "service", 50)
+        members = self._members(element, "ServiceList", "Service")
+        for member in members:
+            assert self.services.get(member, {}).get("kind") == "service", f"service group '{name}': '{member}' is no service"
+        self.services[name] = {"kind": "group", "members": members}
+
+    def _networks(self, element: Any, path: str, version: int, where: str) -> Optional[List[str]]:
+        if element.find(path) is None:
+            return None  # any
+        names = self._members(element, path, "Network")
+        for name in names:
+            assert name in self.hosts, f"{where}: host '{name}' is used before it is created"
+            assert self.hosts[name].get("version", version) == version, f"{where}: '{name}' is of the other IP version"
+        return names
+
+    def _service_list(self, element: Any, path: str, where: str) -> Optional[List[str]]:
+        if element.find(path) is None:
+            return None
+        names = self._members(element, path, "Service")
+        for name in names:
+            assert name in self.services, f"{where}: service '{name}' is used before it is created"
+        return names
+
+    def _zone_list(self, element: Any, path: str, where: str) -> Optional[List[str]]:
+        if element.find(path) is None:
+            return None
+        names = self._members(element, path, "Zone")
+        assert self.zones is None or all(name in self.zones for name in names), f"{where}: zone of {names} does not exist"
+        assert not [name for name in names if name.lower() in ("any", "none")], f"{where}: {names} holds a word of the format"
+        return names
+
+    def _place(self, element: Any, rules: List[Dict[str, Any]], rule: Dict[str, Any]) -> None:
+        position = self._text(element, "Position")
+        anchors = {"After": element.findall("After"), "Before": element.findall("Before")}
+        assert position in ("Top", "Bottom", "After", "Before"), position
+        for word, found in anchors.items():
+            assert len(found) == (1 if position == word else 0), f"<{word}> with position {position}"
+        if position == "Top":
+            rules.insert(0, rule)
+        elif position == "Bottom":
+            rules.append(rule)
+        else:
+            anchor = self._text(anchors[position][0], "Name")
+            index = [other["name"] for other in rules].index(anchor)  # ValueError: no such rule of this IP version
+            rules.insert(index + (1 if position == "After" else 0), rule)
+
+    def _rule(self, element: Any) -> None:
+        self._only(element, self.RULE_HEAD)
+        tags = [child.tag for child in element]
+        assert tags == sorted(tags, key=self.RULE_HEAD.index), f"order of {tags}"
+        name, version = self._name(element, "rule"), self._family(element)
+        where = f"rule '{name}'"
+        status = self._text(element, "Status")
+        assert status in ("Enable", "Disable") and self._text(element, "PolicyType") == "Network", where
+        assert len(self._text(element, "Description")) <= 255
+        block = element.find("NetworkPolicy")
+        assert block is not None
+        self._only(block, self.MATCH + sorted(self.PROFILES))
+        action = self._text(block, "Action")
+        assert action in ("Accept", "Drop", "Reject"), action
+        assert self._text(block, "LogTraffic") in ("Enable", "Disable")
+        assert self._text(block, "Schedule") == "All The Time"
+        rule: Dict[str, Any] = {
+            "name": name, "version": version, "enabled": status == "Enable", "action": action,
+            "log": self._text(block, "LogTraffic") == "Enable", "description": self._text(element, "Description"),
+            "src_zones": self._zone_list(block, "SourceZones", where), "dst_zones": self._zone_list(block, "DestinationZones", where),
+            "sources": self._networks(block, "SourceNetworks", version, where),
+            "destinations": self._networks(block, "DestinationNetworks", version, where),
+            "services": self._service_list(block, "Services", where), "exclusions": {},
+            "profiles": {child.tag: (child.text or "") for child in block if child.tag in self.PROFILES},
+        }  # fmt: skip
+        exclusions = block.find("Exclusions")
+        if exclusions is not None:
+            self._only(exclusions, ["SourceZones", "DestinationZones", "SourceNetworks", "DestinationNetworks", "Services"])
+            assert len(exclusions), f"{where}: empty <Exclusions>"
+            for child in exclusions:
+                if child.tag.endswith("Zones"):
+                    rule["exclusions"][child.tag] = self._zone_list(exclusions, child.tag, where)
+                elif child.tag == "Services":
+                    rule["exclusions"][child.tag] = self._service_list(exclusions, child.tag, where)
+                else:
+                    rule["exclusions"][child.tag] = self._networks(exclusions, child.tag, version, where)
+        self._place(element, self.rules[version], rule)
+
+    def _nat_rule(self, element: Any) -> None:
+        self._only(element, self.NAT_HEAD)
+        name, version = self._name(element, "nat"), self._family(element)
+        where = f"NAT rule '{name}'"
+        assert self._text(element, "Status") in ("Enable", "Disable")
+        assert self._text(element, "LinkedFirewallrule") == "None" and self._text(element, "OverrideInterfaceNATPolicy") == "Disable"
+        source, destination = self._text(element, "TranslatedSource"), self._text(element, "TranslatedDestination")
+        service = self._text(element, "TranslatedService")
+        # What a rule translates to is an address, a range or (a destination) a host name: not a network.
+        if source not in ("Original", "MASQ"):
+            held = self.hosts.get(source, {})
+            assert held.get("kind") in ("ip", "existing") and held.get("version", version) == version, f"{where}: source '{source}'"
+            assert held.get("type") != "Network", f"{where}: translated source '{source}' is a network"
+        if destination != "Original":
+            held = self.hosts.get(destination, {})
+            assert held.get("kind") in ("ip", "fqdn", "existing") and held.get("version", version) == version, f"{where}: '{destination}'"
+            assert held.get("type") != "Network", f"{where}: translated destination '{destination}' is a network"
+        if service != "Original":
+            assert destination != "Original" and self.services.get(service, {}).get("kind") == "service", f"{where}: '{service}'"
+        interfaces: Dict[str, Optional[List[str]]] = {}
+        for tag in ("InboundInterfaces", "OutboundInterfaces"):
+            interfaces[tag] = None
+            if element.find(tag) is not None:
+                interfaces[tag] = self._members(element, tag, "Interface")
+                assert self.interfaces is None or all(i in self.interfaces for i in interfaces[tag] or []), f"{where}: {tag}"
+                assert not [i for i in interfaces[tag] or [] if i.lower() in ("any", "none")], f"{where}: {tag} holds a word"
+        method = element.find("NATMethod")
+        if method is not None:
+            assert (method.text or "") in ("Round-robin", "First_alive", "Random", "StickyIP", "OnetoOne"), method.text
+            assert destination != "Original"
+        if destination != "Original":
+            assert interfaces["OutboundInterfaces"] is None, f"{where}: an outbound interface with destination NAT"
+        rule = {
+            "name": name, "version": version, "enabled": self._text(element, "Status") == "Enable",
+            "sources": self._networks(element, "OriginalSourceNetworks", version, where),
+            "destinations": self._networks(element, "OriginalDestinationNetworks", version, where),
+            "services": self._service_list(element, "OriginalServices", where),
+            "inbound": interfaces["InboundInterfaces"], "outbound": interfaces["OutboundInterfaces"],
+            "source": source, "destination": destination, "service": service, "method": method.text if method is not None else "",
+            "description": self._text(element, "Description"),
+        }  # fmt: skip
+        self._place(element, self.nat[version], rule)
+
+    # -- what the firewall would do ---------------------------------------
+
+    def _host_matches(self, name: str, address: str) -> bool:
+        held = self.hosts[name]
+        probe = parse_literal(address)
+        assert probe is not None
+        if held["kind"] == "ip":
+            return held["version"] == probe[0] and held["first"] <= probe[1] <= held["last"]
+        if held["kind"] in ("group", "fqdngroup"):
+            return any(self._host_matches(member, address) for member in held["members"])
+        for literal in self.resolved.get(name, []):
+            interval = parse_literal(literal)
+            assert interval is not None
+            if interval[0] == probe[0] and interval[1] <= probe[1] <= interval[2]:
+                return True
+        return False
+
+    def _service_matches(self, name: str, pkt: Any) -> bool:
+        held = self.services[name]
+        if held["kind"] == "group":
+            return any(self._service_matches(member, pkt) for member in held["members"])
+        number = self.PROTOCOLS.get(pkt.proto) or int(pkt.proto)
+        for detail in held["details"]:
+            if "protocol" in detail:
+                if detail["protocol"] == pkt.proto and detail["dst"][0] <= pkt.dport <= detail["dst"][1] \
+                        and detail["src"][0] <= pkt.sport <= detail["src"][1]:
+                    return True
+            elif "number" in detail:
+                if detail["number"] == number:
+                    return True
+            elif detail["icmp"] == pkt.proto and detail["type"] in (-1, pkt.icmp_type):
+                return True
+        return False
+
+    @staticmethod
+    def _version(pkt: Any) -> int:
+        probe = parse_literal(pkt.src)
+        assert probe is not None
+        return probe[0]
+
+    def _criteria(self, rule: Dict[str, Any], pkt: Any) -> Dict[str, bool]:
+        """Whether each criterion of a rule (or of its exclusions) holds for a packet; None in the rule is any."""
+
+        def holds(kind: str, listed: Optional[List[str]]) -> bool:
+            if listed is None:
+                return True
+            if kind == "SourceZones":
+                return pkt.in_if in listed
+            if kind == "DestinationZones":
+                return pkt.out_if in listed
+            if kind == "Services":
+                return any(self._service_matches(name, pkt) for name in listed)
+            return any(self._host_matches(name, pkt.src if kind == "SourceNetworks" else pkt.dst) for name in listed)
+
+        return {"match": all(holds(kind, rule[key]) for kind, key in (
+            ("SourceZones", "src_zones"), ("DestinationZones", "dst_zones"), ("SourceNetworks", "sources"),
+            ("DestinationNetworks", "destinations"), ("Services", "services"))),
+            # A rule is skipped only for traffic that matches every kind of exclusion it has.
+            "excluded": bool(rule["exclusions"]) and all(holds(kind, listed) for kind, listed in rule["exclusions"].items())}  # fmt: skip
+
+    def deciding(self, pkt: Any) -> Optional[Dict[str, Any]]:
+        """The rule that decides about a packet: first match in the rulebase of its IP version."""
+        for rule in self.rules[self._version(pkt)]:
+            if rule["enabled"]:
+                found = self._criteria(rule, pkt)
+                if found["match"] and not found["excluded"]:
+                    return rule
+        return None
+
+    def allows(self, pkt: Any) -> bool:
+        rule = self.deciding(pkt)
+        return rule is not None and rule["action"] == "Accept"  # what no rule matches is dropped
+
+    def translating(self, pkt: Any) -> Optional[Dict[str, Any]]:
+        """The NAT rule that applies to a packet: the first that matches, whatever it translates."""
+        for rule in self.nat[self._version(pkt)]:
+            if not rule["enabled"]:
+                continue
+            if rule["inbound"] is not None and pkt.in_if not in rule["inbound"]:
+                continue
+            if rule["outbound"] is not None and pkt.out_if not in rule["outbound"]:
+                continue
+            if rule["sources"] is not None and not any(self._host_matches(name, pkt.src) for name in rule["sources"]):
+                continue
+            if rule["destinations"] is not None and not any(self._host_matches(name, pkt.dst) for name in rule["destinations"]):
+                continue
+            if rule["services"] is not None and not any(self._service_matches(name, pkt) for name in rule["services"]):
+                continue
+            return rule
+        return None
+
+    def span(self, name: str) -> str:
+        """The addresses of an IP host as fwshift writes a literal: ``first-last``, or the one address."""
+        import ipaddress
+
+        held = self.hosts[name]
+        if held["kind"] != "ip":
+            return name
+        make = ipaddress.IPv4Address if held["version"] == 4 else ipaddress.IPv6Address
+        first, last = str(make(held["first"])), str(make(held["last"]))
+        return first if first == last else f"{first}-{last}"

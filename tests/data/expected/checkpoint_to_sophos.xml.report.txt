@@ -1,0 +1,69 @@
+FWShift conversion report
+  source: checkpoint (Network)
+  target: sophos
+
+Summary
+  Security rules:     18   exact 11, approximated 1, needs review 6 (5 emitted disabled), skipped 0
+  NAT rules:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Addresses:          16   exact 13, approximated 1, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IMPLIED_RULES: Check Point implied rules (global properties) and the other ordered layers of the policy package are not part of the export; only the rules of one layer were read ('Network')
+  [needs-review] SOPHOS_LOAD: the output is an Entities.xml. Put it in a tar archive under that name (or let FWShift do it: give -o a name that ends in .tar) and import it under Backup & firmware > Import export. Rules are added below the rules the firewall has: a firewall rule or NAT rule that is there already, such as the default source NAT rule of a new firewall, comes first. An import can stop at the first object the firewall does not take: compare the number of rules and objects with this report, on a firewall that is not in production
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): InternalZone, ExternalZone. Zones are not created: an import would overwrite the device access of a zone that exists
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] EXISTING_OBJECTS: an import overwrites what the firewall has under the same name: a host, a service or a rule that is in this output replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 3 rule(s) match IPv4 and IPv6 traffic and were written twice: Sophos Firewall keeps a rulebase per IP version. The name of the IPv6 rule ends in _v6
+
+Security rules
+  rule-2  ->  needs-review
+      [needs-review] DEVICE_TARGET: the rule is installed only on gw-edge; decide whether it belongs on the target firewall
+  Social  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Facebook': object of type 'application-site'.
+  Admins  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netadmins': object of type 'access-role'.
+  Updates  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Work-Hours' is not converted; the rule would apply at all times.
+  Old rule  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'lan-without-guests': object of type 'group-with-exclusion'.
+  Partners  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: VPN community match Partner-VPN.
+  DMZ access (cleanup of DMZ-Layer)  ->  exact  (emitted as DMZ access _cleanup of DMZ-Layer_)
+      [info] INLINE_CLEANUP: added for the implicit cleanup of inline layer 'DMZ-Layer', which is drop
+  Tunnels  ->  approximated
+      [approximated] GATEWAY_OBJECT: matches gateway object gw-edge, which stood for every address of the gateway; only its main address is known, so the converted rule no longer applies to its other addresses
+
+Addresses
+  web-1  ->  exact
+      [info] AUTOMATIC_NAT: the object has automatic static NAT to 203.0.113.10: as on Check Point, rules and groups that name it also match that address, written as 'web-1_valid_address'
+  netadmins  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: object of type 'access-role' cannot be converted
+  .updates.example.com  ->  exact  (emitted as x.updates.example.com)
+      [info] RENAMED: renamed to 'x.updates.example.com' to fit the target's naming rules
+  lan-without-guests  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: object of type 'group-with-exclusion' cannot be converted
+  gw-edge  ->  approximated
+      [approximated] GATEWAY_OBJECT: a gateway object stands for every address of the gateway; only its main address 198.51.100.1 is in the export
+
+Address groups
+  dns-2  ->  exact  (emitted as dns-2, dns-2_v6)
+      [info] GROUP_SPLIT: Sophos Firewall keeps IPv4 hosts, IPv6 hosts and host names in groups of their own: written as 'dns-2', 'dns-2_v6'
+  dns-servers  ->  exact  (emitted as dns-servers, dns-servers_v6)
+      [info] GROUP_SPLIT: Sophos Firewall keeps IPv4 hosts, IPv6 hosts and host names in groups of their own: written as 'dns-servers', 'dns-servers_v6'
+
+Services
+  ssh  ->  exact  (emitted as ssh_2)
+      [info] RENAMED: renamed to 'ssh_2' to fit the target's naming rules
+  http  ->  exact  (emitted as http_2)
+      [info] RENAMED: renamed to 'http_2' to fit the target's naming rules
+  https  ->  exact  (emitted as https_2)
+      [info] RENAMED: renamed to 'https_2' to fit the target's naming rules
+  Facebook  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: object of type 'application-site': not converted
+  smtp  ->  exact  (emitted as smtp_2)
+      [info] RENAMED: renamed to 'smtp_2' to fit the target's naming rules
+  gre  ->  exact  (emitted as gre_2)
+      [info] RENAMED: renamed to 'gre_2' to fit the target's naming rules

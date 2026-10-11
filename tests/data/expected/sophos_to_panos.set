@@ -1,0 +1,292 @@
+set address lan-net ip-netmask 10.10.0.0/15
+set address web-1 ip-netmask 10.20.0.10
+set address mail-1 ip-netmask 10.20.0.25
+set address web-public ip-netmask 198.51.100.10
+set address mail-public ip-netmask 198.51.100.25
+set address admin-range ip-range 10.10.5.10-10.10.5.20
+set address partner-net ip-netmask 10.99.0.0/16
+set address scada-server ip-netmask 10.10.7.15
+set address plc-net ip-netmask 10.30.1.0/24
+set address lan6-net ip-netmask 2001:db8:10::/48
+set address updates.example.com fqdn updates.example.com
+set address updates.example.com description "Vendor updates"
+set address mirror.example.net fqdn mirror.example.net
+set address any-example-org ip-netmask 0.0.0.0/32
+set address any-example-org description "FWSHIFT PLACEHOLDER, matches nothing: wildcard host name *.example.org"
+set address "Blocked countries" ip-netmask 0.0.0.0/32
+set address "Blocked countries" description "FWSHIFT PLACEHOLDER, matches nothing: country group"
+set address h-10.10.0.53 ip-netmask 10.10.0.53
+set address h-10.11.0.53 ip-netmask 10.11.0.53
+set address-group dns-servers static [ h-10.10.0.53 h-10.11.0.53 ]
+set address-group dmz-servers static [ web-1 mail-1 ]
+set address-group dmz-servers description "Servers that are published"
+set address-group update-sites static [ mirror.example.net updates.example.com ]
+set service HTTP protocol tcp port 80
+set service HTTPS protocol tcp port 443
+set service DNS-tcp protocol tcp port 53
+set service DNS-udp protocol udp port 53
+set service-group DNS members [ DNS-tcp DNS-udp ]
+set service SMTP protocol tcp port 25
+set service smtp-alt protocol tcp port 2525
+set service SSH protocol tcp port 22
+set service MODBUS protocol tcp port 502
+set service app-ports protocol tcp port 8080,8443,9000-9010
+set service syslog-from-high protocol udp port 514
+set service syslog-from-high protocol udp source-port 1024-65535
+set service-group "Web Access" members [ HTTP HTTPS ]
+set service-group basic-net members DNS
+set service-group "NAT of LAN to Internet web services" members [ "Web Access" DNS ]
+set rulebase security rules "Block countries" from WAN
+set rulebase security rules "Block countries" to any
+set rulebase security rules "Block countries" source "Blocked countries"
+set rulebase security rules "Block countries" destination 0.0.0.0/0
+set rulebase security rules "Block countries" source-user any
+set rulebase security rules "Block countries" category any
+set rulebase security rules "Block countries" application any
+set rulebase security rules "Block countries" service any
+set rulebase security rules "Block countries" action drop
+set rulebase security rules "Block countries" log-end yes
+set rulebase security rules "Block countries" disabled yes
+set rulebase security rules "Block countries" description "FWSHIFT: disabled by the converter, see the report. Geo block"
+set rulebase security rules "LAN to Internet web" from LAN
+set rulebase security rules "LAN to Internet web" to WAN
+set rulebase security rules "LAN to Internet web" source lan-net
+set rulebase security rules "LAN to Internet web" destination 0.0.0.0/0
+set rulebase security rules "LAN to Internet web" source-user any
+set rulebase security rules "LAN to Internet web" category any
+set rulebase security rules "LAN to Internet web" application any
+set rulebase security rules "LAN to Internet web" service [ "Web Access" DNS ]
+set rulebase security rules "LAN to Internet web" action allow
+set rulebase security rules "LAN to Internet web" log-end yes
+set rulebase security rules "LAN to Internet web" description "Browsing, with a linked NAT rule"
+set rulebase security rules "LAN web again" from LAN
+set rulebase security rules "LAN web again" to WAN
+set rulebase security rules "LAN web again" source lan-net
+set rulebase security rules "LAN web again" destination 0.0.0.0/0
+set rulebase security rules "LAN web again" source-user any
+set rulebase security rules "LAN web again" category any
+set rulebase security rules "LAN web again" application any
+set rulebase security rules "LAN web again" service HTTP
+set rulebase security rules "LAN web again" action allow
+set rulebase security rules "LAN web again" log-end no
+set rulebase security rules "LAN web again" description "Never matches: the rule above takes it"
+set rulebase security rules "Admins to DMZ" from LAN
+set rulebase security rules "Admins to DMZ" to DMZ
+set rulebase security rules "Admins to DMZ" source admin-range
+set rulebase security rules "Admins to DMZ" destination dmz-servers
+set rulebase security rules "Admins to DMZ" source-user any
+set rulebase security rules "Admins to DMZ" category any
+set rulebase security rules "Admins to DMZ" application any
+set rulebase security rules "Admins to DMZ" service SSH
+set rulebase security rules "Admins to DMZ" action allow
+set rulebase security rules "Admins to DMZ" log-end yes
+set rulebase security rules "Admins to DMZ-apps" from LAN
+set rulebase security rules "Admins to DMZ-apps" to DMZ
+set rulebase security rules "Admins to DMZ-apps" source admin-range
+set rulebase security rules "Admins to DMZ-apps" destination dmz-servers
+set rulebase security rules "Admins to DMZ-apps" source-user any
+set rulebase security rules "Admins to DMZ-apps" category any
+set rulebase security rules "Admins to DMZ-apps" application ping
+set rulebase security rules "Admins to DMZ-apps" service application-default
+set rulebase security rules "Admins to DMZ-apps" action allow
+set rulebase security rules "Admins to DMZ-apps" log-end yes
+set rulebase security rules "LAN to DMZ web not mail" from LAN
+set rulebase security rules "LAN to DMZ web not mail" to DMZ
+set rulebase security rules "LAN to DMZ web not mail" source lan-net
+set rulebase security rules "LAN to DMZ web not mail" destination mail-1
+set rulebase security rules "LAN to DMZ web not mail" source-user any
+set rulebase security rules "LAN to DMZ web not mail" category any
+set rulebase security rules "LAN to DMZ web not mail" application any
+set rulebase security rules "LAN to DMZ web not mail" service "Web Access"
+set rulebase security rules "LAN to DMZ web not mail" action allow
+set rulebase security rules "LAN to DMZ web not mail" negate-destination yes
+set rulebase security rules "LAN to DMZ web not mail" log-end yes
+set rulebase security rules "LAN to DMZ web not mail" description "Exclusion of one kind"
+set rulebase security rules "LAN SSH out" from LAN
+set rulebase security rules "LAN SSH out" to OT
+set rulebase security rules "LAN SSH out" source lan-net
+set rulebase security rules "LAN SSH out" destination 0.0.0.0/0
+set rulebase security rules "LAN SSH out" source-user any
+set rulebase security rules "LAN SSH out" category any
+set rulebase security rules "LAN SSH out" application any
+set rulebase security rules "LAN SSH out" service SSH
+set rulebase security rules "LAN SSH out" action allow
+set rulebase security rules "LAN SSH out" log-end yes
+set rulebase security rules "LAN SSH out" description "Exclusions of two kinds: skipped for the admins when they go to the DMZ"
+set rulebase security rules "LAN SSH out-2" from LAN
+set rulebase security rules "LAN SSH out-2" to [ DMZ OT ]
+set rulebase security rules "LAN SSH out-2" source [ 10.10.0.0-10.10.5.9 10.10.5.21-10.11.255.255 ]
+set rulebase security rules "LAN SSH out-2" destination 0.0.0.0/0
+set rulebase security rules "LAN SSH out-2" source-user any
+set rulebase security rules "LAN SSH out-2" category any
+set rulebase security rules "LAN SSH out-2" application any
+set rulebase security rules "LAN SSH out-2" service SSH
+set rulebase security rules "LAN SSH out-2" action allow
+set rulebase security rules "LAN SSH out-2" log-end yes
+set rulebase security rules "LAN SSH out-2" description "Exclusions of two kinds: skipped for the admins when they go to the DMZ"
+set rulebase security rules "Internet to web" from WAN
+set rulebase security rules "Internet to web" to DMZ
+set rulebase security rules "Internet to web" source 0.0.0.0/0
+set rulebase security rules "Internet to web" destination web-public
+set rulebase security rules "Internet to web" source-user any
+set rulebase security rules "Internet to web" category any
+set rulebase security rules "Internet to web" application any
+set rulebase security rules "Internet to web" service HTTPS
+set rulebase security rules "Internet to web" action allow
+set rulebase security rules "Internet to web" log-end yes
+set rulebase security rules "Internet to web" description "Published web server"
+set rulebase security rules "Internet to mail" from WAN
+set rulebase security rules "Internet to mail" to DMZ
+set rulebase security rules "Internet to mail" source 0.0.0.0/0
+set rulebase security rules "Internet to mail" destination mail-public
+set rulebase security rules "Internet to mail" source-user any
+set rulebase security rules "Internet to mail" category any
+set rulebase security rules "Internet to mail" application any
+set rulebase security rules "Internet to mail" service smtp-alt
+set rulebase security rules "Internet to mail" action allow
+set rulebase security rules "Internet to mail" log-end yes
+set rulebase security rules "Internet to mail" description "Mail arrives on port 2525"
+set rulebase security rules "OT to SCADA" from OT
+set rulebase security rules "OT to SCADA" to LAN
+set rulebase security rules "OT to SCADA" source plc-net
+set rulebase security rules "OT to SCADA" destination scada-server
+set rulebase security rules "OT to SCADA" source-user any
+set rulebase security rules "OT to SCADA" category any
+set rulebase security rules "OT to SCADA" application any
+set rulebase security rules "OT to SCADA" service [ MODBUS syslog-from-high ]
+set rulebase security rules "OT to SCADA" action allow
+set rulebase security rules "OT to SCADA" log-end no
+set rulebase security rules "DMZ updates" from DMZ
+set rulebase security rules "DMZ updates" to WAN
+set rulebase security rules "DMZ updates" source dmz-servers
+set rulebase security rules "DMZ updates" destination update-sites
+set rulebase security rules "DMZ updates" source-user any
+set rulebase security rules "DMZ updates" category any
+set rulebase security rules "DMZ updates" application any
+set rulebase security rules "DMZ updates" service HTTPS
+set rulebase security rules "DMZ updates" action allow
+set rulebase security rules "DMZ updates" log-end yes
+set rulebase security rules "Finance to app" from LAN
+set rulebase security rules "Finance to app" to DMZ
+set rulebase security rules "Finance to app" source 0.0.0.0/0
+set rulebase security rules "Finance to app" destination web-1
+set rulebase security rules "Finance to app" source-user Finance
+set rulebase security rules "Finance to app" category any
+set rulebase security rules "Finance to app" application any
+set rulebase security rules "Finance to app" service app-ports
+set rulebase security rules "Finance to app" action allow
+set rulebase security rules "Finance to app" log-end yes
+set rulebase security rules "Finance to app" description "Matches known users"
+set rulebase security rules "DNS in office hours" from OT
+set rulebase security rules "DNS in office hours" to LAN
+set rulebase security rules "DNS in office hours" source 0.0.0.0/0
+set rulebase security rules "DNS in office hours" destination dns-servers
+set rulebase security rules "DNS in office hours" source-user any
+set rulebase security rules "DNS in office hours" category any
+set rulebase security rules "DNS in office hours" application any
+set rulebase security rules "DNS in office hours" service basic-net
+set rulebase security rules "DNS in office hours" action allow
+set rulebase security rules "DNS in office hours" log-end yes
+set rulebase security rules "DNS in office hours" disabled yes
+set rulebase security rules "DNS in office hours" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "DNS in office hours-apps" from OT
+set rulebase security rules "DNS in office hours-apps" to LAN
+set rulebase security rules "DNS in office hours-apps" source 0.0.0.0/0
+set rulebase security rules "DNS in office hours-apps" destination dns-servers
+set rulebase security rules "DNS in office hours-apps" source-user any
+set rulebase security rules "DNS in office hours-apps" category any
+set rulebase security rules "DNS in office hours-apps" application ping
+set rulebase security rules "DNS in office hours-apps" service application-default
+set rulebase security rules "DNS in office hours-apps" action allow
+set rulebase security rules "DNS in office hours-apps" log-end yes
+set rulebase security rules "DNS in office hours-apps" disabled yes
+set rulebase security rules "DNS in office hours-apps" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Old test rule" from any
+set rulebase security rules "Old test rule" to any
+set rulebase security rules "Old test rule" source 0.0.0.0/0
+set rulebase security rules "Old test rule" destination any
+set rulebase security rules "Old test rule" source-user any
+set rulebase security rules "Old test rule" category any
+set rulebase security rules "Old test rule" application [ gre icmp ]
+set rulebase security rules "Old test rule" service application-default
+set rulebase security rules "Old test rule" action allow
+set rulebase security rules "Old test rule" log-end no
+set rulebase security rules "Old test rule" disabled yes
+set rulebase security rules "Old test rule" description "Switched off"
+set rulebase security rules "Reject the rest from LAN" from LAN
+set rulebase security rules "Reject the rest from LAN" to any
+set rulebase security rules "Reject the rest from LAN" source 0.0.0.0/0
+set rulebase security rules "Reject the rest from LAN" destination any
+set rulebase security rules "Reject the rest from LAN" source-user any
+set rulebase security rules "Reject the rest from LAN" category any
+set rulebase security rules "Reject the rest from LAN" application any
+set rulebase security rules "Reject the rest from LAN" service any
+set rulebase security rules "Reject the rest from LAN" action reset-client
+set rulebase security rules "Reject the rest from LAN" log-end yes
+set rulebase security rules "LAN6 to Internet" from LAN
+set rulebase security rules "LAN6 to Internet" to WAN
+set rulebase security rules "LAN6 to Internet" source lan6-net
+set rulebase security rules "LAN6 to Internet" destination ::/0
+set rulebase security rules "LAN6 to Internet" source-user any
+set rulebase security rules "LAN6 to Internet" category any
+set rulebase security rules "LAN6 to Internet" application any
+set rulebase security rules "LAN6 to Internet" service "Web Access"
+set rulebase security rules "LAN6 to Internet" action allow
+set rulebase security rules "LAN6 to Internet" log-end yes
+set rulebase security rules "LAN6 to Internet" description "IPv6 rulebase"
+set rulebase security rules "LAN6 to Internet-apps" from LAN
+set rulebase security rules "LAN6 to Internet-apps" to WAN
+set rulebase security rules "LAN6 to Internet-apps" source lan6-net
+set rulebase security rules "LAN6 to Internet-apps" destination ::/0
+set rulebase security rules "LAN6 to Internet-apps" source-user any
+set rulebase security rules "LAN6 to Internet-apps" category any
+set rulebase security rules "LAN6 to Internet-apps" application ping6
+set rulebase security rules "LAN6 to Internet-apps" service application-default
+set rulebase security rules "LAN6 to Internet-apps" action allow
+set rulebase security rules "LAN6 to Internet-apps" log-end yes
+set rulebase security rules "LAN6 to Internet-apps" description "IPv6 rulebase"
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules "Publish web" from WAN
+set rulebase nat rules "Publish web" to WAN
+set rulebase nat rules "Publish web" source any
+set rulebase nat rules "Publish web" destination web-public
+set rulebase nat rules "Publish web" service HTTPS
+set rulebase nat rules "Publish web" destination-translation translated-address web-1
+set rulebase nat rules "Publish mail" from WAN
+set rulebase nat rules "Publish mail" to WAN
+set rulebase nat rules "Publish mail" source any
+set rulebase nat rules "Publish mail" destination mail-public
+set rulebase nat rules "Publish mail" service smtp-alt
+set rulebase nat rules "Publish mail" destination-translation translated-address mail-1
+set rulebase nat rules "Publish mail" destination-translation translated-port 25
+set rulebase nat rules "Publish mail" description "Port 2525 outside, 25 on the server"
+set rulebase nat rules "Mail server out" from any
+set rulebase nat rules "Mail server out" to WAN
+set rulebase nat rules "Mail server out" source mail-1
+set rulebase nat rules "Mail server out" destination any
+set rulebase nat rules "Mail server out" service any
+set rulebase nat rules "Mail server out" source-translation static-ip translated-address mail-public
+set rulebase nat rules "NAT of LAN to Internet web" from LAN
+set rulebase nat rules "NAT of LAN to Internet web" to WAN
+set rulebase nat rules "NAT of LAN to Internet web" source lan-net
+set rulebase nat rules "NAT of LAN to Internet web" destination any
+set rulebase nat rules "NAT of LAN to Internet web" service "NAT of LAN to Internet web services"
+set rulebase nat rules "NAT of LAN to Internet web" source-translation dynamic-ip-and-port translated-address 198.51.100.1
+set rulebase nat rules "NAT of LAN to Internet web" description "Linked NAT rule"
+set rulebase nat rules "Default SNAT IPv4" from any
+set rulebase nat rules "Default SNAT IPv4" to WAN
+set rulebase nat rules "Default SNAT IPv4" source any
+set rulebase nat rules "Default SNAT IPv4" destination any
+set rulebase nat rules "Default SNAT IPv4" service any
+set rulebase nat rules "Default SNAT IPv4" source-translation dynamic-ip-and-port translated-address 198.51.100.1

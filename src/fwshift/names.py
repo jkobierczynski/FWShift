@@ -34,6 +34,13 @@ ASA = NameRules(64, re.compile(r"[^A-Za-z0-9._-]"), True)
 ASA_NATIVE = NameRules(64, re.compile(r"[^!-~]|[?\"]"), False)
 # Rule names end up in remarks, which are free text.
 ASA_TEXT = NameRules(80, re.compile(r"[\x00-\x1f\x7f]"), False)
+# Sophos Firewall: kept to letters, digits, space, underscore, hyphen and period. A service name may have 50
+# characters, a host or a rule 60: objects are kept to 50.
+SOPHOS = NameRules(50, re.compile(r"[^A-Za-z0-9 ._-]"), True)
+SOPHOS_RULE = NameRules(60, SOPHOS.invalid, True)
+# Names that come from a Sophos Firewall are valid there: only what cannot stand in its XML, and the comma that
+# separates names in its lists, is replaced.
+SOPHOS_NATIVE = NameRules(60, re.compile("[\\x00-\\x1f\\x7f,\ufffe\uffff\ud800-\udfff]"), False)
 
 
 def clean(name: str, rules: NameRules) -> str:

@@ -81,7 +81,8 @@ class Address:
     # What it was in the source: for UNSUPPORTED, and for an object that stands for something of the
     # source device (builtin), such as "interface outside" for the address of an ASA interface.
     raw: str = ""
-    # FQDN only: 4 or 6 when the source resolves the name for one IP version only, 0 for both.
+    # FQDN: 4 or 6 when the source resolves the name for one IP version only, 0 for both. For a builtin object
+    # without an address of its own (a system host of a Sophos Firewall): the IP version it is of.
     fqdn_family: int = 0
     # Vendor on which this object exists without a conversion creating it: predefined, or a gateway.
     builtin: str = ""

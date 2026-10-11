@@ -822,7 +822,8 @@ def test_configuration_file() -> None:
 
 # -- the command line ------------------------------------------------------------------------------
 
-SAMPLES = ["panos_sample.xml", "fortios_sample.conf", "checkpoint_sample.json", "asa_sample.cfg", "iptables_sample.rules"]
+SAMPLES = ["panos_sample.xml", "fortios_sample.conf", "checkpoint_sample.json", "asa_sample.cfg", "iptables_sample.rules",
+           "sophos_sample.xml"]  # fmt: skip
 
 
 @pytest.mark.parametrize("sample", SAMPLES)
