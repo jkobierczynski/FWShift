@@ -1,0 +1,131 @@
+name: Release
+
+# A version tag (v0.6.1) gets a release with its packages attached:
+#
+#   fwshift-0.6.1.zip   the project as tagged: sources, tests, samples, manual
+#   fwshift-0.6.1.pyz   one file that runs with "python3 fwshift-0.6.1.pyz ...": nothing to install
+#   the wheel and the source distribution, for pip
+#
+# Run by hand with a tag, it gives a version that was tagged earlier its packages, or builds
+# those of a release again. The steps are plain shell and take nothing from the tree but its
+# sources, so that they work for every tag, also one from before this file existed.
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag to build the packages for, such as v0.5.0"
+        required: true
+        type: string
+      skip_tests:
+        description: "Do not run the tests of that tag first (for an old tag whose tests no longer run)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: The tag is the version of the package
+        run: |
+          case "$TAG" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::'$TAG' is not a version tag (v1.2.3)"; exit 1 ;;
+          esac
+          VERSION="${TAG#v}"
+          FOUND="$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' src/fwshift/__init__.py)"
+          if [ "$FOUND" != "$VERSION" ]; then
+            echo "::error::the tag is $TAG, but src/fwshift/__init__.py says version '$FOUND'"
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Tests
+        if: ${{ !inputs.skip_tests }}
+        run: |
+          python -m pip install -e ".[dev]"
+          python -m mypy
+          python -m pytest -q
+
+      - name: Packages
+        run: |
+          mkdir -p dist
+          # The project as it is tagged, under one directory.
+          git archive --format=zip --prefix="fwshift-$VERSION/" -o "dist/fwshift-$VERSION.zip" HEAD
+          # One file that runs. Its own __main__ hands the exit status on, which zipapp's would not.
+          STAGE="$(mktemp -d)"
+          cp -r src/fwshift "$STAGE/fwshift"
+          find "$STAGE" -name __pycache__ -type d -prune -exec rm -rf {} +
+          cp LICENSE "$STAGE/LICENSE"
+          printf 'import sys\n\nfrom fwshift.cli import main\n\nsys.exit(main())\n' > "$STAGE/__main__.py"
+          python -m zipapp "$STAGE" -c -p "/usr/bin/env python3" -o "dist/fwshift-$VERSION.pyz"
+          # For pip.
+          python -m pip install build
+          python -m build --outdir dist
+          ls -l dist
+
+      - name: The packages are what they say
+        run: |
+          PYZ="$PWD/dist/fwshift-$VERSION.pyz"
+          WORK="$(mktemp -d)"
+          # The zip unpacks to one directory that holds the project.
+          unzip -q "dist/fwshift-$VERSION.zip" -d "$WORK"
+          test -f "$WORK/fwshift-$VERSION/src/fwshift/__init__.py"
+          test -f "$WORK/fwshift-$VERSION/LICENSE"
+          # The single file runs away from the tree, says its version, converts, and hands on its exit status.
+          cd "$WORK"
+          test "$(python "$PYZ" --version)" = "fwshift $VERSION"
+          python "$PYZ" convert "fwshift-$VERSION/tests/data/panos_sample.xml" --to fortios -q -o converted.conf
+          cmp converted.conf "fwshift-$VERSION/tests/data/expected/panos_to_fortios.conf"
+          status=0
+          python "$PYZ" inspect no-such-file 2> /dev/null || status=$?
+          test "$status" -eq 1
+          # The wheel installs, and what it installs is this version.
+          python -m venv venv
+          venv/bin/python -m pip install -q "$OLDPWD"/dist/fwshift-"$VERSION"-py3-none-any.whl
+          test "$(venv/bin/fwshift --version)" = "fwshift $VERSION"
+
+      - name: Release notes
+        run: |
+          # What the development log says was built in this version.
+          awk -v version="$VERSION" '
+            /^### /                    { on = (index($0, ": version " version) && $NF == version); built = 0; next }
+            /^## /                     { on = 0 }
+            on && /^\*\*Built\*\*/     { built = 1; next }
+            on && built && /^\*\*/     { exit }
+            on && built                { print }
+          ' DEVELOPMENT.md > built.md
+          {
+            if grep -q '[^[:space:]]' built.md; then cat built.md; fi
+            printf '\nThe account of this version, with what was reviewed and what is not verified, is in the development log of `DEVELOPMENT.md`.\n\n'
+            printf '| Package | |\n|---|---|\n'
+            printf '| `fwshift-%s.zip` | the project as tagged: sources, tests, sample configurations, manual |\n' "$VERSION"
+            printf '| `fwshift-%s.pyz` | one file, nothing to install: `python3 fwshift-%s.pyz convert ...` (Python 3.9 or newer) |\n' "$VERSION" "$VERSION"
+            printf '| `fwshift-%s-py3-none-any.whl`, `fwshift-%s.tar.gz` | for `pip install` |\n' "$VERSION" "$VERSION"
+          } > notes.md
+          cat notes.md
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --title "FWShift $VERSION" --notes-file notes.md --verify-tag
+          fi

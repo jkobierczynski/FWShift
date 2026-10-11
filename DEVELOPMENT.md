@@ -8,9 +8,9 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.6.0 (alpha) |
+| Version | 0.6.1 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
-| Tests | 1813, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
+| Tests | 1814, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall or a Check Point management server |
 | Next | 0.7.0: Cisco Secure Firewall (see `TODO.md`); lab validation of the sample conversions |
 
@@ -48,6 +48,10 @@ src/fwshift/
     report.py         findings, item status, text and JSON report
     options.py        conversion options
     cli.py            command line; also the small Python API (load, convert)
+.github/workflows/
+    ci.yml            mypy and the tests, on every push
+    release.yml       on a version tag: a release with a zip of the project, a
+                      single-file fwshift.pyz, a wheel and a source distribution
 tests/
     data/             one synthetic sample per format
     data/expected/    their conversions and reports, byte for byte
@@ -321,6 +325,40 @@ addresses. Do not add configurations from real networks, anonymised or not.
 
 CI (`.github/workflows/ci.yml`) runs mypy and pytest on Linux for Python 3.9
 to 3.13, and on Windows and macOS for 3.12.
+
+## Releasing
+
+A version tag gets a GitHub release with its packages
+(`.github/workflows/release.yml`):
+
+| Package | |
+|---|---|
+| `fwshift-X.Y.Z.zip` | the project as tagged, under one directory: sources, tests, sample configurations, manual |
+| `fwshift-X.Y.Z.pyz` | one file that runs with `python3 fwshift-X.Y.Z.pyz ...` (Python 3.9 or newer); nothing to install |
+| `fwshift-X.Y.Z-py3-none-any.whl`, `fwshift-X.Y.Z.tar.gz` | the wheel and the source distribution, for pip |
+
+To release:
+
+1. Set `__version__` in `src/fwshift/__init__.py`, and write the entry
+   `### <date>: version X.Y.Z` in the development log below. What stands under
+   its `**Built**` becomes the text of the release.
+2. Commit, then tag and push the tag:
+
+   ```sh
+   git tag v0.6.1
+   git push origin v0.6.1
+   ```
+
+The workflow refuses a tag that is not the version the package says, runs
+mypy and the tests, builds the packages, and checks them before anything is
+published: the zip unpacks to the project, the single file prints its
+version, converts a sample to the byte and hands on its exit status, the
+wheel installs. A release that exists already gets its packages replaced.
+
+For a version that was tagged before the workflow existed, run it by hand
+(*Actions > Release > Run workflow*) and give the tag. Its steps take nothing
+from the tree but the sources, so they work for every tag; `skip_tests` is
+there for an old tag whose tests no longer run on today's tools.
 
 ## Design decisions
 
@@ -1077,6 +1115,43 @@ finding, as before.
   platforms.
 * SFOS before 18, Sophos UTM, web server protection, device access and VPN
   are not read.
+
+### 2026-10-11: version 0.6.1
+
+**Built**
+
+* A release workflow (`.github/workflows/release.yml`). Every version tag
+  gets a GitHub release with `fwshift-X.Y.Z.zip` (the project as tagged),
+  `fwshift-X.Y.Z.pyz` (one file that runs with Python 3.9 or newer, nothing
+  to install), the wheel and the source distribution.
+* Run by hand with a tag, the workflow gives a version that was tagged
+  earlier its packages.
+* `pyproject.toml` gives the licence as an SPDX expression with the licence
+  file, which is what setuptools asks for now (it builds from 77 on).
+* The converter itself is as it was in 0.6.0.
+
+**How it is made**
+
+The workflow is shell steps and nothing else, so that it can build an old
+tag, which holds no build script. The zip is `git archive` of the tag under
+`fwshift-X.Y.Z/`. The single file is the package with a `__main__` of its
+own: the one `zipapp -m` writes calls `main()` and drops what it returns, and
+the exit status of FWShift means something (1 for an error, 2 for `--strict`,
+3 for `--audit-fail-on`). The text of a release is what the log entry of the
+version lists under **Built**.
+
+**Verified, and not**
+
+The steps were run outside GitHub, in a copy of the project with a commit and
+a tag: the version check (also with a tag that does not match, and one that
+is no version), the packages, their checks, and the release notes for every
+version in this log. The same steps built and checked the packages of 0.1.0
+and 0.3.0 from the trees of those versions, as a run by hand for an old tag
+would. Not run: the workflow on GitHub itself, so neither the
+trigger on a tag, nor the two actions it uses, nor the step that creates the
+release with `gh`. A test (`test_cli.py`) keeps the version, this log, the
+manual and the README in step, and the line of `__init__.py` in the form the
+workflow reads.
 
 ## To do
 

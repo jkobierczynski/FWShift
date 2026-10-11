@@ -153,3 +153,26 @@ def test_manual_and_code_name_the_same_findings(tmp_path: Path) -> None:
             raised |= {finding["code"] for item in data["items"] for finding in item["findings"]}
     assert len(raised) > 60  # the samples exercise most of the reference
     assert not sorted(raised - documented), sorted(raised - documented)
+
+
+def test_version_is_the_same_everywhere_a_release_reads_it() -> None:
+    """The release workflow takes the version from __init__.py and its text from the development log."""
+    import fwshift
+
+    root = Path(__file__).resolve().parents[1]
+    version = fwshift.__version__
+    assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version)
+    # The line as the workflow reads it (sed: ^__version__ = "(.*)"$).
+    lines = (root / "src" / "fwshift" / "__init__.py").read_text(encoding="utf-8").splitlines()
+    assert [line for line in lines if re.fullmatch(r'__version__ = ".*"', line)] == [f'__version__ = "{version}"']
+    log = (root / "DEVELOPMENT.md").read_text(encoding="utf-8")
+    assert f"| Version | {version} (alpha) |" in log
+    entry = [part for part in log.split("\n### ") if part.splitlines()[0].endswith(f": version {version}")]
+    assert len(entry) == 1, "the development log needs one entry for this version"
+    built = entry[0].split("**Built**", 1)[1].split("\n**", 1)[0]
+    assert built.strip().startswith("* "), "what is listed under **Built** is the text of the release"
+    short = version.rsplit(".", 1)[0]
+    assert f"This manual covers version {short}." in (root / "docs" / "MANUAL.md").read_text(encoding="utf-8")
+    assert f"**Status: alpha ({short}).**" in (root / "README.md").read_text(encoding="utf-8")
+    workflow = (root / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    assert "src/fwshift/__init__.py" in workflow and 's/^__version__ = "\\(.*\\)"$/\\1/p' in workflow

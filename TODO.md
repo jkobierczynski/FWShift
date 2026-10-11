@@ -121,5 +121,8 @@ MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
 
 ## Project
 
-1. Release workflow that builds a wheel and a single-file `.pyz` on a version
-   tag.
+1. Publish the wheel on PyPI from the release workflow (trusted publishing),
+   once the output has been loaded on a device of each platform.
+2. Run the release workflow on GitHub for the first time and correct what
+   the dry run outside GitHub could not show (`DEVELOPMENT.md`, version
+   0.6.1).

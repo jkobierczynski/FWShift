@@ -86,6 +86,15 @@ fwshift --version
 
 Without installing: `PYTHONPATH=src python3 -m fwshift ...`.
 
+Each version tag has a release with packages: `fwshift-X.Y.Z.zip`, the
+project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
+file that needs nothing but Python 3.9 or newer:
+
+```sh
+python3 fwshift-0.6.1.pyz --version
+python3 fwshift-0.6.1.pyz convert running-config.xml --to fortios -o fortigate.conf
+```
+
 ## Quick start
 
 ```sh
