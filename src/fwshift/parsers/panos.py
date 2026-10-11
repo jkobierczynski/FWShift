@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from ..appmap import valid_ports
 from ..errors import ParseError
@@ -274,14 +274,21 @@ def _service(entry: ET.Element, report: Report) -> Service:
     return service
 
 
-def _expand_apps(names: List[str], groups: Dict[str, List[str]], seen: Tuple[str, ...] = ()) -> List[str]:
-    out: List[str] = []
+def _expand_apps(
+    names: List[str], groups: Dict[str, List[str]], seen: Tuple[str, ...] = (), memo: Optional[Dict[str, List[str]]] = None
+) -> List[str]:
+    """The applications behind names and application groups; a group that is reached twice is expanded once."""
+    memo = {} if memo is None else memo
+    out: Dict[str, None] = {}
     for name in names:
-        expanded = _expand_apps(groups[name], groups, seen + (name,)) if name in groups and name not in seen else [name]
-        for app in expanded:
-            if app not in out:
-                out.append(app)
-    return out
+        if name in groups and name not in seen:
+            if name not in memo:
+                memo[name] = _expand_apps(groups[name], groups, seen + (name,), memo)
+            expanded = memo[name]
+        else:
+            expanded = [name]
+        out.update(dict.fromkeys(expanded))
+    return list(out)
 
 
 def _rule(entry: ET.Element, app_groups: Dict[str, List[str]], app_filters: Set[str]) -> Rule:

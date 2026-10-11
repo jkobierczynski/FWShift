@@ -1,0 +1,32 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: fortios
+
+Summary
+  Security rules:     18   exact 16, approximated 0, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           5   exact 4, approximated 1, needs review 0, skipped 0
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CENTRAL_NAT: NAT is emitted as central NAT. Enable it first ('config system settings', 'set central-nat enable'); on a FortiGate that already uses per-policy NAT this changes how existing policies translate. Virtual IPs are created with 'extintf any'
+  [needs-review] ZONES_WITHOUT_INTERFACES: zones created without interfaces: outside, dmz, inside, guest. Assign interfaces, or rerun with --zone-map / --interface-map to use existing names
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] EXISTING_OBJECTS: objects are created by name: an object that already exists on the target under the same name is overwritten by the one in this output
+
+Security rules
+  inside_access_in-4  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
+  inside_access_in-7  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match LOCAL\alice is not converted.
+  implicit-guest  ->  exact
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+
+NAT rules
+  nat-mail-srv  ->  approximated  (emitted as central SNAT entry, virtual IP nat-mail-srv-in)
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a central SNAT entry plus virtual IP 'nat-mail-srv-in' for the inbound direction

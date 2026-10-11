@@ -1,0 +1,42 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: iptables
+
+Summary
+  Security rules:     18   exact 15, approximated 0, needs review 2 (2 emitted disabled), skipped 1
+  NAT rules:           5   exact 1, approximated 3, needs review 1, skipped 0
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IPTABLES_LOAD: the output holds the FORWARD chain only. Plain 'iptables-restore' replaces the whole filter table, INPUT and OUTPUT included: check it with 'iptables-restore --test', then load it with 'iptables-restore --noflush' on a host whose FORWARD chain is empty, or merge it by hand
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names; map each zone to its interface with --zone-map: outside, dmz, inside, guest
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] OTHER_IP_VERSION: 1 rule matches the other IP version only; convert with --to ip6tables as well
+  [info] LOGGING_NOT_CONVERTED: logging settings of the rules are not converted; add LOG or NFLOG rules where needed
+
+Security rules
+  inside_access_in-4  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
+  inside_access_in-5  ->  skipped
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  inside_access_in-7  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match LOCAL\alice is not converted.
+  implicit-guest  ->  exact  (emitted as 1 FORWARD rule)
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+
+NAT rules
+  nat-1  ->  approximated  (emitted as 1 POSTROUTING)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from inside only; POSTROUTING cannot match the input interface, so it applies to traffic from every interface
+  nat-mail-srv  ->  approximated  (emitted as 1 PREROUTING, 1 POSTROUTING)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from dmz only; POSTROUTING cannot match the input interface, so it applies to traffic from every interface
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as an SNAT rule plus a DNAT rule for the inbound direction
+  nat-inside-net  ->  approximated  (emitted as 1 POSTROUTING)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from inside only; POSTROUTING cannot match the input interface, so it applies to traffic from every interface
+  nat-after-auto-1  ->  needs-review  (emitted as 1 POSTROUTING)
+      [needs-review] NAT_INPUT_INTERFACE: the rule applied to traffic from guest only; POSTROUTING cannot match the input interface, so it applies to traffic from every interface

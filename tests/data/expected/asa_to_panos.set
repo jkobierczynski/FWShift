@@ -1,0 +1,268 @@
+set address web-srv ip-netmask 10.20.0.10/32
+set address web-srv description "Public web server"
+set address mail-srv ip-netmask 10.20.0.25/32
+set address inside-net ip-netmask 10.10.0.0/16
+set address inside-v6 ip-netmask 2001:db8:10::/64
+set address admin-range ip-range 10.10.5.10-10.10.5.20
+set address updates fqdn updates.example.com
+set address web-public ip-netmask 203.0.113.10/32
+set address branch-net ip-netmask 10.99.0.0/16
+set address guest-pool ip-range 203.0.113.100-203.0.113.110
+set address h-10.20.0.50 ip-netmask 10.20.0.50
+set address-group dmz-servers static [ web-srv mail-srv h-10.20.0.50 ]
+set address-group dmz-servers description "Servers in the DMZ"
+set address n-10.40.0.0_16 ip-netmask 10.40.0.0/16
+set address-group internal static [ inside-net n-10.40.0.0_16 dmz-servers ]
+set service app-8443 protocol tcp port 8443
+set service svc-http protocol tcp port 1-65535
+set service svc-http protocol tcp source-port 80
+set service svc-http-alt protocol tcp port 1-65535
+set service svc-http-alt protocol tcp source-port 8080
+set service mail-services-inline protocol tcp port 25,587
+set service mail-services-inline description "entries of group mail-services"
+set service dns-ntp-tcp protocol tcp port 53
+set service dns-ntp-udp protocol udp port 53,123
+set service-group dns-ntp members [ dns-ntp-tcp dns-ntp-udp ]
+set service tcp-8080 protocol tcp port 8080
+set service web-ports protocol tcp port 80,443,8000-8010
+set service tcp-22 protocol tcp port 22
+set service tcp-443 protocol tcp port 443
+set service tcp-udp-5060-tcp protocol tcp port 5060
+set service tcp-udp-5060-udp protocol udp port 5060
+set service-group tcp-udp-5060 members [ tcp-udp-5060-tcp tcp-udp-5060-udp ]
+set service tcp-3389 protocol tcp port 3389
+set service tcp-23 protocol tcp port 23
+set service udp-53 protocol udp port 53
+set service tcp-src-1024-65535-dst-25 protocol tcp port 25
+set service tcp-src-1024-65535-dst-25 protocol tcp source-port 1024-65535
+set service tcp-80 protocol tcp port 80
+set service-group mail-services members [ app-8443 mail-services-inline ]
+set rulebase security rules outside_access_in-1 from outside
+set rulebase security rules outside_access_in-1 to dmz
+set rulebase security rules outside_access_in-1 source any
+set rulebase security rules outside_access_in-1 destination [ web-srv web-public ]
+set rulebase security rules outside_access_in-1 source-user any
+set rulebase security rules outside_access_in-1 category any
+set rulebase security rules outside_access_in-1 application any
+set rulebase security rules outside_access_in-1 service tcp-8080
+set rulebase security rules outside_access_in-1 action allow
+set rulebase security rules outside_access_in-1 log-end no
+set rulebase security rules outside_access_in-1 description "Published web server"
+set rulebase security rules outside_access_in-2 from outside
+set rulebase security rules outside_access_in-2 to dmz
+set rulebase security rules outside_access_in-2 source any
+set rulebase security rules outside_access_in-2 destination [ mail-srv 203.0.113.25 ]
+set rulebase security rules outside_access_in-2 source-user any
+set rulebase security rules outside_access_in-2 category any
+set rulebase security rules outside_access_in-2 application any
+set rulebase security rules outside_access_in-2 service mail-services
+set rulebase security rules outside_access_in-2 action allow
+set rulebase security rules outside_access_in-2 log-end yes
+set rulebase security rules outside_access_in-3 from outside
+set rulebase security rules outside_access_in-3 to [ inside dmz guest ]
+set rulebase security rules outside_access_in-3 source any
+set rulebase security rules outside_access_in-3 destination any
+set rulebase security rules outside_access_in-3 source-user any
+set rulebase security rules outside_access_in-3 category any
+set rulebase security rules outside_access_in-3 application [ ping icmp ]
+set rulebase security rules outside_access_in-3 service application-default
+set rulebase security rules outside_access_in-3 action allow
+set rulebase security rules outside_access_in-3 log-end no
+set rulebase security rules outside_access_in-4 from outside
+set rulebase security rules outside_access_in-4 to any
+set rulebase security rules outside_access_in-4 source any
+set rulebase security rules outside_access_in-4 destination any
+set rulebase security rules outside_access_in-4 source-user any
+set rulebase security rules outside_access_in-4 category any
+set rulebase security rules outside_access_in-4 application any
+set rulebase security rules outside_access_in-4 service any
+set rulebase security rules outside_access_in-4 action drop
+set rulebase security rules outside_access_in-4 log-end yes
+set rulebase security rules inside_access_in-1 from inside
+set rulebase security rules inside_access_in-1 to [ outside dmz guest ]
+set rulebase security rules inside_access_in-1 source inside-net
+set rulebase security rules inside_access_in-1 destination any
+set rulebase security rules inside_access_in-1 source-user any
+set rulebase security rules inside_access_in-1 category any
+set rulebase security rules inside_access_in-1 application any
+set rulebase security rules inside_access_in-1 service dns-ntp
+set rulebase security rules inside_access_in-1 action allow
+set rulebase security rules inside_access_in-1 log-end no
+set rulebase security rules inside_access_in-2 from inside
+set rulebase security rules inside_access_in-2 to [ outside dmz guest ]
+set rulebase security rules inside_access_in-2 source internal
+set rulebase security rules inside_access_in-2 destination any
+set rulebase security rules inside_access_in-2 source-user any
+set rulebase security rules inside_access_in-2 category any
+set rulebase security rules inside_access_in-2 application any
+set rulebase security rules inside_access_in-2 service web-ports
+set rulebase security rules inside_access_in-2 action allow
+set rulebase security rules inside_access_in-2 log-end no
+set rulebase security rules inside_access_in-3 from inside
+set rulebase security rules inside_access_in-3 to dmz
+set rulebase security rules inside_access_in-3 source admin-range
+set rulebase security rules inside_access_in-3 destination [ dmz-servers 203.0.113.25 ]
+set rulebase security rules inside_access_in-3 source-user any
+set rulebase security rules inside_access_in-3 category any
+set rulebase security rules inside_access_in-3 application any
+set rulebase security rules inside_access_in-3 service tcp-22
+set rulebase security rules inside_access_in-3 action allow
+set rulebase security rules inside_access_in-3 log-end no
+set rulebase security rules inside_access_in-4 from inside
+set rulebase security rules inside_access_in-4 to [ outside dmz guest ]
+set rulebase security rules inside_access_in-4 source inside-net
+set rulebase security rules inside_access_in-4 destination updates
+set rulebase security rules inside_access_in-4 source-user any
+set rulebase security rules inside_access_in-4 category any
+set rulebase security rules inside_access_in-4 application any
+set rulebase security rules inside_access_in-4 service tcp-443
+set rulebase security rules inside_access_in-4 action allow
+set rulebase security rules inside_access_in-4 log-end no
+set rulebase security rules inside_access_in-4 disabled yes
+set rulebase security rules inside_access_in-4 description "FWSHIFT: disabled by the converter, see the report. Software updates during office hours"
+set rulebase security rules inside_access_in-5 from inside
+set rulebase security rules inside_access_in-5 to [ outside dmz guest ]
+set rulebase security rules inside_access_in-5 source inside-v6
+set rulebase security rules inside_access_in-5 destination ::/0
+set rulebase security rules inside_access_in-5 source-user any
+set rulebase security rules inside_access_in-5 category any
+set rulebase security rules inside_access_in-5 application any
+set rulebase security rules inside_access_in-5 service any
+set rulebase security rules inside_access_in-5 action allow
+set rulebase security rules inside_access_in-5 log-end no
+set rulebase security rules inside_access_in-6 from inside
+set rulebase security rules inside_access_in-6 to dmz
+set rulebase security rules inside_access_in-6 source inside-net
+set rulebase security rules inside_access_in-6 destination 10.20.0.50
+set rulebase security rules inside_access_in-6 source-user any
+set rulebase security rules inside_access_in-6 category any
+set rulebase security rules inside_access_in-6 application any
+set rulebase security rules inside_access_in-6 service tcp-udp-5060
+set rulebase security rules inside_access_in-6 action allow
+set rulebase security rules inside_access_in-6 log-end no
+set rulebase security rules inside_access_in-7 from inside
+set rulebase security rules inside_access_in-7 to [ outside dmz guest ]
+set rulebase security rules inside_access_in-7 source inside-net
+set rulebase security rules inside_access_in-7 destination any
+set rulebase security rules inside_access_in-7 source-user "LOCAL\\alice"
+set rulebase security rules inside_access_in-7 category any
+set rulebase security rules inside_access_in-7 application any
+set rulebase security rules inside_access_in-7 service tcp-3389
+set rulebase security rules inside_access_in-7 action allow
+set rulebase security rules inside_access_in-7 log-end no
+set rulebase security rules inside_access_in-8 from inside
+set rulebase security rules inside_access_in-8 to any
+set rulebase security rules inside_access_in-8 source any
+set rulebase security rules inside_access_in-8 destination any
+set rulebase security rules inside_access_in-8 source-user any
+set rulebase security rules inside_access_in-8 category any
+set rulebase security rules inside_access_in-8 application any
+set rulebase security rules inside_access_in-8 service tcp-23
+set rulebase security rules inside_access_in-8 action drop
+set rulebase security rules inside_access_in-8 log-end yes
+set rulebase security rules inside_access_in-8 disabled yes
+set rulebase security rules inside_access_in-9 from inside
+set rulebase security rules inside_access_in-9 to [ outside dmz guest ]
+set rulebase security rules inside_access_in-9 source inside-net
+set rulebase security rules inside_access_in-9 destination any
+set rulebase security rules inside_access_in-9 source-user any
+set rulebase security rules inside_access_in-9 category any
+set rulebase security rules inside_access_in-9 application ping
+set rulebase security rules inside_access_in-9 service application-default
+set rulebase security rules inside_access_in-9 action allow
+set rulebase security rules inside_access_in-9 log-end no
+set rulebase security rules dmz_access_in-1 from dmz
+set rulebase security rules dmz_access_in-1 to [ outside inside guest ]
+set rulebase security rules dmz_access_in-1 source dmz-servers
+set rulebase security rules dmz_access_in-1 destination any
+set rulebase security rules dmz_access_in-1 source-user any
+set rulebase security rules dmz_access_in-1 category any
+set rulebase security rules dmz_access_in-1 application any
+set rulebase security rules dmz_access_in-1 service udp-53
+set rulebase security rules dmz_access_in-1 action allow
+set rulebase security rules dmz_access_in-1 log-end no
+set rulebase security rules dmz_access_in-2 from dmz
+set rulebase security rules dmz_access_in-2 to [ outside inside guest ]
+set rulebase security rules dmz_access_in-2 source mail-srv
+set rulebase security rules dmz_access_in-2 destination any
+set rulebase security rules dmz_access_in-2 source-user any
+set rulebase security rules dmz_access_in-2 category any
+set rulebase security rules dmz_access_in-2 application any
+set rulebase security rules dmz_access_in-2 service tcp-src-1024-65535-dst-25
+set rulebase security rules dmz_access_in-2 action allow
+set rulebase security rules dmz_access_in-2 log-end no
+set rulebase security rules dmz_access_in-3 from dmz
+set rulebase security rules dmz_access_in-3 to any
+set rulebase security rules dmz_access_in-3 source any
+set rulebase security rules dmz_access_in-3 destination inside-net
+set rulebase security rules dmz_access_in-3 source-user any
+set rulebase security rules dmz_access_in-3 category any
+set rulebase security rules dmz_access_in-3 application any
+set rulebase security rules dmz_access_in-3 service any
+set rulebase security rules dmz_access_in-3 action drop
+set rulebase security rules dmz_access_in-3 log-end yes
+set rulebase security rules dmz_access_in-4 from dmz
+set rulebase security rules dmz_access_in-4 to [ outside inside guest ]
+set rulebase security rules dmz_access_in-4 source web-srv
+set rulebase security rules dmz_access_in-4 destination any
+set rulebase security rules dmz_access_in-4 source-user any
+set rulebase security rules dmz_access_in-4 category any
+set rulebase security rules dmz_access_in-4 application any
+set rulebase security rules dmz_access_in-4 service tcp-443
+set rulebase security rules dmz_access_in-4 action allow
+set rulebase security rules dmz_access_in-4 log-end no
+set rulebase security rules implicit-guest from guest
+set rulebase security rules implicit-guest to outside
+set rulebase security rules implicit-guest source any
+set rulebase security rules implicit-guest destination any
+set rulebase security rules implicit-guest source-user any
+set rulebase security rules implicit-guest category any
+set rulebase security rules implicit-guest application any
+set rulebase security rules implicit-guest service any
+set rulebase security rules implicit-guest action allow
+set rulebase security rules implicit-guest log-end no
+set rulebase security rules implicit-guest description "ASA implicit rule: traffic to interfaces of a lower security level is permitted"
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules nat-1 from inside
+set rulebase nat rules nat-1 to outside
+set rulebase nat rules nat-1 source inside-net
+set rulebase nat rules nat-1 destination branch-net
+set rulebase nat rules nat-1 service any
+set rulebase nat rules nat-1 description "VPN to the branch"
+set rulebase nat rules nat-2 from outside
+set rulebase nat rules nat-2 to outside
+set rulebase nat rules nat-2 source any
+set rulebase nat rules nat-2 destination web-public
+set rulebase nat rules nat-2 service tcp-80
+set rulebase nat rules nat-2 destination-translation translated-address web-srv
+set rulebase nat rules nat-2 destination-translation translated-port 8080
+set rulebase nat rules nat-mail-srv from dmz
+set rulebase nat rules nat-mail-srv to outside
+set rulebase nat rules nat-mail-srv source mail-srv
+set rulebase nat rules nat-mail-srv destination any
+set rulebase nat rules nat-mail-srv service any
+set rulebase nat rules nat-mail-srv source-translation static-ip translated-address 203.0.113.25
+set rulebase nat rules nat-mail-srv source-translation static-ip bi-directional yes
+set rulebase nat rules nat-inside-net from inside
+set rulebase nat rules nat-inside-net to outside
+set rulebase nat rules nat-inside-net source inside-net
+set rulebase nat rules nat-inside-net destination any
+set rulebase nat rules nat-inside-net service any
+set rulebase nat rules nat-inside-net source-translation dynamic-ip-and-port translated-address 203.0.113.2
+set rulebase nat rules nat-after-auto-1 from guest
+set rulebase nat rules nat-after-auto-1 to outside
+set rulebase nat rules nat-after-auto-1 source any
+set rulebase nat rules nat-after-auto-1 destination any
+set rulebase nat rules nat-after-auto-1 service any
+set rulebase nat rules nat-after-auto-1 source-translation dynamic-ip-and-port translated-address guest-pool

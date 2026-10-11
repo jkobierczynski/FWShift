@@ -1,0 +1,42 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: panos
+
+Summary
+  Security rules:     18   exact 12, approximated 4, needs review 2 (1 emitted disabled), skipped 0
+  NAT rules:           5   exact 4, approximated 1, needs review 0, skipped 0
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): outside, dmz, inside, guest
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] INTRAZONE_DENY_ADDED: appended 'fwshift-intrazone-deny': PAN-OS allows traffic inside a zone by default, the source denies it
+
+Security rules
+  outside_access_in-1  ->  needs-review
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-public' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-2' also translates the port to 8080; the service of this rule still names the post-NAT port and must be adjusted
+  outside_access_in-2  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to 'mail-srv' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  outside_access_in-3  ->  approximated
+      [approximated] ICMP_TYPE: service 'ping-types' matches ICMP type 0; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping, icmp. Verify these names against the App-ID release in use
+  inside_access_in-3  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to 'dmz-servers' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  inside_access_in-4  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
+  inside_access_in-9  ->  approximated
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping. Verify these names against the App-ID release in use
+  implicit-guest  ->  exact
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+
+NAT rules
+  nat-inside-net  ->  approximated
+      [approximated] NAT_INTERFACE_ADDRESS: translates to 203.0.113.2, the address interface 'GigabitEthernet0/0' has today; use --interface-map GigabitEthernet0/0=<PAN-OS interface> to follow the interface instead

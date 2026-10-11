@@ -1,0 +1,72 @@
+FWShift conversion report
+  source: panos (vsys1)
+  target: asa
+
+Summary
+  Security rules:     14   exact 0, approximated 5, needs review 9 (8 emitted disabled), skipped 0
+  NAT rules:           5   exact 5, approximated 0, needs review 0, skipped 0
+  Addresses:          16   exact 14, approximated 0, needs review 2, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:            5   exact 5, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: trust, untrust, dmz, ot. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [needs-review] INTRAZONE_DEFAULT: the source allows traffic inside a zone unless a rule denies it. An ASA does not send traffic back out of the interface it came in on unless 'same-security-traffic permit intra-interface' is set, and then only what the access lists permit
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+  [info] FQDN_DNS: objects with a host name need name resolution on the ASA ('dns domain-lookup' and a DNS server group)
+
+Security rules
+  Allow-Web-Out  ->  needs-review, emitted disabled  (emitted as trust_access_in)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (group=default-profiles); attach equivalent inspection on the target
+      [approximated] APP_TO_PORTS: applications web-browsing, ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, ot, untrust with --zone-network.
+  Allow-DNS  ->  approximated  (emitted as trust_access_in, dmz_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Inbound-Web  ->  needs-review  (emitted as untrust_access_in)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web-public' with post-NAT 'web-1' because of NAT rule 'Inbound-Web-DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Inbound-Web-DNAT' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [approximated] APP_FILTER_DROPPED: application match ssl dropped; the rule now matches everything on its services
+  Inbound-Mail  ->  approximated  (emitted as untrust_access_in)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'mail-public' with post-NAT 'mail-1' because of NAT rule 'Mail-Static'; check that this rule is meant to cover the translated traffic
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [approximated] APP_TO_PORTS: applications smtp reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Admin-SSH  ->  needs-review, emitted disabled  (emitted as trust_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [approximated] APP_TO_PORTS: applications ssh reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] USER_MATCH: source user match example\netadmins is not converted.
+  Engineering to PLCs  ->  approximated  (emitted as trust_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by ot. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [approximated] APP_TO_PORTS: applications modbus, siemens-s7 reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Block-OT-Outbound  ->  needs-review, emitted disabled  (emitted as ot_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, dmz, untrust with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block-Torrents  ->  needs-review, emitted disabled  (emitted as trust_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, ot, untrust with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) bittorrent; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block-Region  ->  needs-review, emitted disabled  (emitted as global_access)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'KP': not defined in the input. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  App-Server-Ports  ->  approximated  (emitted as trust_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Tagged-Servers-Updates  ->  needs-review, emitted disabled  (emitted as dmz_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'tagged-servers': dynamic address group, members are not known statically.
+  Not-From-Guests  ->  approximated  (emitted as trust_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated source is written as the 3 address ranges it leaves
+      [approximated] APP_TO_PORTS: applications ping reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  DMZ-Intrazone  ->  needs-review, emitted disabled  (emitted as dmz_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic inside one zone, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, untrust, ot, dmz with --zone-network. An ASA sends traffic back out of the interface it came in on only with 'same-security-traffic permit intra-interface'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Old-Rule  ->  needs-review, emitted disabled  (emitted as trust_access_in)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'odd-hosts': wildcard mask 10.20.1.2/0.0.254.0.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, ot, untrust with --zone-network.
+
+Addresses
+  odd-hosts  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard mask 10.20.1.2/0.0.254.0 cannot be converted
+  KP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'Block-Region' but not an address object in the input (a region, an external list or a missing object); emitted as a placeholder that matches nothing

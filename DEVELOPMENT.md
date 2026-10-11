@@ -8,10 +8,10 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.2.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
-| Tests | 300, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS or a Check Point management server |
+| Version | 0.3.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
+| Tests | 657, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA or a Check Point management server |
 | Next | Lab validation of the sample conversions |
 
 ## Layout
@@ -23,11 +23,13 @@ src/fwshift/
         panos.py      PAN-OS / Panorama XML  -> model
         fortios.py    FortiOS configuration  -> model
         checkpoint.py Management API JSON    -> model (inline layers flattened)
+        asa.py        ASA running-config     -> model (bound access lists, NAT sections)
         iptables.py   iptables-save output   -> model (chains flattened)
     emitters/
         panos.py      model -> PAN-OS set commands
         fortios.py    model -> FortiOS CLI configuration
         checkpoint.py model -> shell script of mgmt_cli calls
+        asa.py        model -> ASA commands (access lists per interface, twice NAT)
         iptables.py   model -> iptables-restore / ip6tables-restore file
     transform.py      passes shared by the emitters: hardening of names,
                       references, placeholders, names, application lowering,
@@ -42,14 +44,16 @@ tests/
     data/             one synthetic sample per format
     data/expected/    their conversions and reports, byte for byte
     tools/            the script that writes the Check Point sample
-    helpers.py        loaders, and readers for emitted PAN-OS, FortiOS and
-                      Check Point output
+    helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
+                      Check Point and ASA output
     test_parsers.py   netutil, FortiOS syntax, PAN-OS and FortiOS parsers
     test_emitters.py  PAN-OS and FortiOS emitters
     test_semantics.py one small configuration per semantic trap
     test_iptables.py  iptables both ways, a packet simulator, cross-format NAT
     test_checkpoint.py Check Point both ways, with simulators for an export
                       and for an emitted script
+    test_asa.py       Cisco ASA both ways, with a random ASA that judges
+                      packets itself and a strict reader of emitted commands
     test_cli.py       command line, golden files
 docs/MANUAL.md        user manual
 ```
@@ -96,10 +100,13 @@ came from (same-vendor conversions, default behaviour), it reads
 * NAT is an ordered, first-match rulebase separate from the security rules.
 
 A vendor whose behaviour differs has to be translated *in its parser and
-emitter*, never by bending the model. FortiOS and iptables are the examples:
-they look rules up after destination NAT, so their parsers call
+emitter*, never by bending the model. FortiOS, iptables and ASA are the
+examples: they look rules up after destination NAT, so their parsers call
 `rewrite_destinations(to_post_nat=False)` and their emitters
-`to_post_nat_lookup`.
+`to_post_nat_lookup`. ASA is also the example for zones: its access lists name
+no outgoing interface, so its parser works the destination zones out (from
+what an ASA never forwards, and from routes) and its emitter has to get rid of
+them again.
 
 A few fields tell an emitter what kind of platform the rules came from, so
 that it need not know the vendor:
@@ -108,12 +115,29 @@ that it need not know the vendor:
 |---|---|
 | `default_intrazone`, `default_interzone` | what happens to traffic no rule matches |
 | `lookup_after_dnat` | the source looks rules up after destination NAT; a target of the same kind undoes what the parser did and withdraws its findings |
-| `NatRule.combines` | per NAT rule: the source applies it together with one rule of the other direction, instead of one rule, first match. Set for iptables, FortiOS and Check Point automatic rules (`transform.note_nat_order`) |
+| `NatRule.combines` | per NAT rule: the source applies it together with one rule of the other direction, instead of one rule, first match. Set for iptables, FortiOS, ASA and Check Point automatic rules (`transform.note_nat_order`) |
+| `Rule.egress_implied` | the source rule named no destination zone; the zones in the model were worked out (ASA). A target that cannot match the outgoing interface loses nothing by leaving them out |
+| `DestNat.spread` | the translation picks one of several addresses per connection (iptables `DNAT` to a range) instead of mapping address for address. A rule for one of them cannot be given "the same part of the other side" |
+| `Rule.nat_added` | the destinations a parser of a post-NAT platform added to reach the pre-NAT model, with the origins of the NAT rules they were added for. A target of the same kind takes exactly these away again and leaves the rest of the rule alone |
+| `named_translations` | a rule of the source that names the object of a destination NAT itself applied to the translated traffic (a FortiOS virtual IP in a policy). Such a member is rewritten for a target of the same kind too |
+
+A finding on a rule that is about one NAT rule carries the origin of that NAT
+rule (`Finding.subject`, not shown in the report). `to_post_nat_lookup` uses
+it to withdraw, on a target of the same kind as the source, only the findings
+of NAT rules the target really gets.
 
 `builtin` on an object names the vendor on which the object exists without a
-conversion creating it: a predefined service, a Check Point gateway. An
-emitter for that vendor refers to it by name; every other emitter treats it as
-an ordinary object.
+conversion creating it: a predefined service, a Check Point gateway, a service
+that an ASA access list entry spells out, the address of an ASA interface
+(`raw` then says `interface <name>`). An emitter for that vendor refers to it
+in its own way; every other emitter treats it as an ordinary object.
+
+The resolvers in `transform.py` (`address_intervals`, `known_intervals`,
+`families`, `flatten_services`) walk groups inside groups. They resolve a
+group once per call and return each address once: with two groups per level
+that both hold both groups below, anything else doubles with every level.
+`transform.harden` makes groups that hold themselves unusable before any
+emitter sees them. A walker of your own needs the same two things.
 
 ## Rules the code follows
 
@@ -162,10 +186,13 @@ The work is:
 5. **Sample and tests**: a synthetic configuration in `tests/data`, golden
    conversions to and from the existing vendors, and a case in
    `test_semantics.py` for every behaviour that differs from the model.
-6. **A simulator** where the format allows one. For iptables and Check Point
-   the tests evaluate packets against the source, the model and the emitted
-   output and require the same verdict; that found defects no hand-written
-   case had.
+6. **A simulator** where the format allows one. For iptables, Check Point
+   and ASA the tests evaluate packets against the source, the model and the
+   emitted output and require the same verdict; that found defects no
+   hand-written case had. Build the judge of the source from the generator's
+   own data, not from the parser under test, and give the generator NAT: the
+   one silent error of the ASA review that the tests could have found was a
+   NAT rewrite they had no way to see.
 7. **Manual**: how to get the input (section 3), conversion notes in section
    8, new findings in section 7, how to load the output (section 10).
 
@@ -195,7 +222,8 @@ python -m mypy
 * **Round trip**: FortiOS -> model -> FortiOS -> model is asserted equal for a
   configuration without NAT. PAN-OS output cannot be read back, since the
   parser reads XML and the emitter writes `set` commands.
-* **Packet-level equivalence** (`test_iptables.py`, `test_checkpoint.py`).
+* **Packet-level equivalence** (`test_iptables.py`, `test_checkpoint.py`,
+  `test_asa.py`).
   Random models are emitted and random packets are evaluated against the
   model and against the output: an iptables ruleset walked like the kernel
   walks it, a `mgmt_cli` script replayed call by call (every reference must
@@ -207,8 +235,24 @@ python -m mypy
 
   Know what these tests cannot see: the iptables simulator reads rules with
   the project's own `parse_rule`, so a misreading of one line is invisible to
-  it, and no generator produces NAT. The cases a reviewer found that way are
-  hand-written tests at the end of both files.
+  it, and the iptables and Check Point generators produce no NAT. The cases a
+  reviewer found that way are hand-written tests at the end of both files.
+
+  For ASA the test builds a random ASA (`random_lab`): interfaces with
+  security levels, `same-security-traffic`, lists per interface and a global
+  one, every form of an entry, optionally routes and NAT. Each entry is
+  generated as text together with a predicate, so the lab judges a packet
+  without any of the project's code. The model read from the text has to
+  agree with it; so has the ASA output for that model, read by
+  `helpers.AsaConfig`, which is strict about what an ASA would take (objects
+  before use, one name once, no empty groups) and is not the project's
+  parser. In the other direction random models are written for an ASA with
+  `--zone-network` for every zone and compared packet by packet; with
+  networks that are incomplete in the ways a person leaves them incomplete,
+  the output may allow less than the model but never more without a finding
+  on the rule that decides. None of this
+  replaces an ASA: the lab and the reader are both written from the same
+  reading of Cisco's documentation as the code they check.
 * **The kernel** (`test_iptables.py`, the tests marked `needs_kernel`). Where
   the test host allows it (root, `unshare`, iptables), emitted rulesets and
   the converted samples are loaded with `iptables-restore` into a network
@@ -244,7 +288,7 @@ to 3.13, and on Windows and macOS for 3.12.
 
 | Decision | Reason |
 |---|---|
-| Neutral model with parsers and emitters | Four formats need eight components instead of twelve pairwise converters; a fifth adds two. |
+| Neutral model with parsers and emitters | Five formats need ten components instead of twenty pairwise converters; a sixth adds two. |
 | Model follows PAN-OS for NAT and matching | PAN-OS and Check Point both match pre-NAT; FortiOS is the exception and is handled at its edges. |
 | Disabled rule instead of best guess | A disabled rule is visible and safe; a guessed rule is neither. |
 | Central NAT for FortiOS output | It is the FortiOS model that maps one-to-one onto a NAT rulebase. Per-policy NAT would need NAT rules to be merged into security policies, which is lossy in the general case. Cost: it must be enabled on the FortiGate. |
@@ -258,6 +302,10 @@ to 3.13, and on Windows and macOS for 3.12.
 | Check Point output is a `mgmt_cli` script that stops at the first error and never publishes | The session is the unit of change on a management server: a person reviews it in SmartConsole and publishes or discards. A script that carried on after a refused call would leave a policy with rules missing. |
 | Check Point: one inline layer per zone pair | A cell that holds a zone and an address means "either". Zone and address on one side need two rules in sequence, and a layer per rule would swallow the traffic that the rule does not match. A layer per zone pair holds every rule for that pair. Rules whose cells can carry the zone stay single rules. |
 | Check Point: explicit cleanup in every layer written | The implicit cleanup action is a property of the layer that the script does not control. |
+| ASA: only bound access lists, and permit entries get destination zones | An ASA has dozens of lists that are not policy; `access-group` says which are. "Permit to any" on an ASA never means "back out of the same interface", so the model must not say it either: the zones an entry can reach are written out, narrowed by routes where the entry names addresses. |
+| ASA output: a list per zone plus a global list that ends the policy | The lists an ASA reads first are per interface. A rule for every zone above a rule of one zone is repeated in that zone's list to keep the order. Binding a global list that ends in a deny is what makes sure that no interface falls back to the security-level permit. |
+| ASA output: a rule that needs the outgoing interface is inactive unless networks are given | An entry cannot name it. Written without it, an allow to "any address in zone B" allows every zone. `--zone-network` lets the user say what lies behind a zone; then the networks of the other zones can be left out of the destination, by longest prefix like a route. Nothing is assumed about a zone or an address the user did not mention: such a rule stays inactive, and of an address nobody placed a permit keeps clear and a deny does not. |
+| ASA output: twice NAT for every rule, destination translations `unidirectional` | One line per rule keeps the order of the model. A static rule of an ASA works both ways; the model's destination translation does not. A combining published port is written from the server side because that is the form an ASA combines with source NAT. |
 | NAT order is reported, not emulated | A first-match NAT rulebase and two NAT tables differ in ways `PREROUTING` cannot express (it does not know the outgoing interface). The report names each rule that changes meaning. |
 | Reserved names are renamed | An object called `all` or `HTTP` from another platform would otherwise redefine a FortiOS built-in. |
 | Standard library only | Runs on a bare RHEL box and is easy to audit. |
@@ -289,6 +337,14 @@ policy behaves unexpectedly.
 | Shape of `show access-rulebase` / `show nat-rulebase` answers: `rulebase`, `objects-dictionary`, sections, `from`/`to`/`total` (with `total` counting rules, not section titles), `inline-layer`, the field names of each object type; objects of data domains are predefined | Check Point parser |
 | `mgmt_cli` syntax of every call the script makes (`add host`, `add network`, `add address-range`, `add dns-domain`, `add group`, `add service-tcp/-udp/-sctp/-icmp/-icmp6/-other`, `add service-group`, `add security-zone`, `add access-layer ... add-default-rule false`, `add access-rule ... position N`, `add nat-rule ... position bottom`), switches after the command, a non-zero exit status when the server refuses a call | Check Point emitter |
 | Check Point accepts an address range `0.0.0.0`-`255.255.255.255`, domain objects as group members, empty groups as placeholders, and object names made of letters, digits, `.`, `_` and `-` | Check Point emitter |
+| ASA: interface list, then global list, then deny; an interface without list (and no global one) permits to lower security levels; `any` is both IP versions from 9.0; access lists name real addresses and ports from 8.3. (Checked against Cisco's configuration guide in review.) | ASA parser |
+| ASA never forwards back out of the arrival interface or between equal security levels unless `same-security-traffic` permits it, whatever the lists say; an FTD forwards between and within all interfaces | `_blocked`, `_place` |
+| ASA picks the outgoing interface by its routing table (connected networks, static routes) for real addresses; a NAT rule does not send traffic elsewhere than the route would. (Not verified, and known to be too simple: an ASA takes the outgoing interface from the NAT rule that translates the destination unless `route-lookup` is set, so this holds where the routes agree with the NAT rules.) | `_routed`, `_egress` |
+| ASA NAT: twice NAT in order, then object NAT sorted (static first, fewest real addresses, lowest address, name), then `after-auto`; one rule may translate the destination and another the source, but a twice NAT rule that names both claims the connection; `destination static <mapped> <real>`; `service <original> <translated>`; `interface` in the source is the mapped interface's address, in the destination the real interface's. (Syntax and service order checked against Cisco's guide in review.) | ASA parser, ASA emitter, `note_nat_order(whole=...)` |
+| ASA: `fqdn` without `v4`/`v6` resolves IPv4; running-config always prints the `(real,mapped)` pair of a NAT rule; the port, protocol and ICMP names in `parsers/asa.py` | ASA parser |
+| An ASA accepts what the emitter writes and has not been loaded anywhere: `range` objects for IPv6 and from `0.0.0.0`, `network-object ::/0`, `service 255`, host `192.0.0.8`, `lt`/`gt` in service objects used by NAT, `pat-pool` with an object group, `nat (any,any)`, `unidirectional` on `source static any any destination static`, `no-proxy-arp` with interface `any`, `fqdn v6`, names that start with a digit | ASA emitter |
+| An ASA refuses a NAT rule that names one of its own interface addresses as an object (the keyword `interface` is wanted), and an object group with IPv4 and IPv6 members in NAT. (Both confirmed from Cisco sources in review.) | ASA emitter |
+| FTD: the device shows its access rules as `access-list CSM_FW_ACL_ advanced` with `ifc`, `rule-id` and remarks `rule-id N: L4 RULE: name` / `L7 RULE: name`; an L7 rule appears as `permit` whatever its action. From documentation and memory, no device output was available | ASA parser |
 
 ## Development log
 
@@ -393,11 +449,157 @@ with hostile names was run under sh, bash and dash against a stand-in for
   application control, VPN.
 * Names that differ only in case are reported for Check Point, not resolved.
 
+### 2026-10-11: version 0.3.0
+
+**Built**
+
+* Cisco ASA, read and written; the device configuration of an FTD, read.
+  The parser takes the access lists that `access-group` binds, gives permit
+  entries the interfaces their traffic can leave by (what an ASA never
+  forwards; routes where the entry names addresses), adds the implicit rule
+  of an interface without list, converts outbound lists that only deny, and
+  reads twice NAT and object NAT in the order of the ASA. The emitter writes
+  one access list per zone and a global one, object groups for lists,
+  complements for negated addresses, and twice NAT.
+* `--zone-network`: the networks behind a zone, with which a rule for one
+  destination zone can be written for an ASA (how they are read was settled
+  in round 9, below).
+* Shared: `Rule.egress_implied`; `note_nat_order(whole=...)` for a target
+  that translates per direction but can write a rule that claims a connection
+  whole; `rewrite_destinations` maps part of a translated network to the same
+  part of the other side and reports where it cannot
+  (`NAT_DESTINATION_WIDENED`), and reports a rule that names the port on the
+  wrong side of a port translation; `harden` refuses groups that hold
+  themselves; the group resolvers are linear in the number of groups;
+  `netutil.subtract`, `intersect`, `interval_text`; `Report.withdraw`.
+
+**Reviewed**
+
+| Round | Found | Examples |
+|---|---|---|
+| 8 | 4 silent errors (2 in shared code that predate ASA), 2 wrong facts, 2 crashes, an exponential blow-up, several refused or misleading outputs | a rule for one host behind a static NAT of a network became a rule for the whole network, on every same-kind conversion; a rule for the original port of a port translation, dead on the source, came alive on PAN-OS; an FTD configuration lost every permit because FTD has no `same-security-traffic`; `--zone-network` with overlapping or incomplete networks wrote wrong destinations as "exact"; a destination NAT written as a static rule translated the server's outgoing connections too; a group that holds itself crashed the ASA emitter; two groups per level that hold both groups below took minutes at 28 levels; the address of an interface written as an object, which an ASA refuses |
+| 9 | 3 silent errors (2 in shared code, 1 brought in by the round 8 fix for `--zone-network`), 1 crash, 1 wrong fact, 9 statements in the documents that did not match the code | a rule naming addresses on both sides of one translation (a group with a real host and the mapped address of another) was widened without a finding; with networks for every zone and no default route, a deny rule was cut down to the networks given and the Internet fell through to the permit below; a port translation was not looked at on rules to any destination; `<translated-address>any` from PAN-OS ended in an `AssertionError`; new twice NAT lines go to the end of section 1, not in front |
+| 10 | 4 silent errors (1 brought in by the round 9 service filter, 1 a gap of the strict `--zone-network` reading), 3 false needs-review findings | what a rule exposes depended on the order of the NAT rules (a rule for one of two public addresses of one server, flagged only when its NAT rule came second); a dead rule of iptables or FortiOS (public address, internal port) came alive on a target of the same kind; a negated destination naming part of a translated network kept its list and changed meaning; `inside=10.0.0.0/8` with no networks for a dmz inside it cut a deny for every other zone |
+
+The findings of round 8 are fixed, with tests at the end of
+`tests/test_asa.py`. The first of them was found by an oracle the tests
+lacked: a same-kind round trip with NAT, access lists compared packet by
+packet on real addresses. `random_lab` has NAT now. The reviewer checked the
+facts it could against Cisco's documents (what it verified is marked in the
+table of assumptions) and ran the parser against the tests' random ASA for
+another 1200 seeds without a difference.
+
+Round 9 looked at those fixes. What it found, and what was done:
+
+* **Both sides of one translation.** `rewrite_destinations` now works out,
+  per translation and rule, what the rule names on the new side that does not
+  go with what it names on the side being left, and reports that part
+  (`NAT_ADDRESS_EXPOSED`) whatever else the rule names. An addition is only
+  silent when it puts back what the parser of a same-kind source took. The
+  check also looks at the services: a rule for port 22 is not exposed by a
+  forwarding of port 443 (that was a false finding in the Check Point golden
+  report). Findings carry the NAT rule they are about (`Finding.subject`), so
+  that a same-kind target withdraws only those of NAT rules it really gets.
+* **`--zone-network`.** One way of reading the networks instead of two
+  ("only" and "without"), and no assumption left in it: the networks of the
+  zones a rule is not for are left out of its destination, and that is done
+  only when every zone the rule is for or has to be told apart from was given
+  networks. A zone without networks is not "the rest" (the first version of
+  this fix said it was, and a forgotten zone inside the range of another one
+  then made rules wider without a word). An address in none of the networks
+  belongs to nobody: a permit for any address leaves it out, a deny keeps it
+  (`ZONE_NETWORK_GAP`), and that goes for all of IPv6 when only IPv4 networks
+  were given. "Everything else" for one zone while another has none is
+  reported (`ZONE_NETWORK_INCOMPLETE`). A rule to every other zone is not
+  touched, except for the zone's own networks. A rule left without an address
+  is skipped with `EGRESS_NO_ADDRESS`, at needs-review for a deny. The
+  reviewer's fuzzer for this (random models, nine ways of giving the
+  networks, 300 seeds each) now finds every difference on a flagged rule, and
+  none with complete networks.
+* **Ports on rules to any destination** are checked, in both directions; the
+  port form has its own code (`NAT_PORT_EXPOSED`), which a same-kind target
+  withdraws. Protocols without ports (an ICMP rule) no longer count as a
+  possible match.
+* The crash, the `ASA_LOAD` text and the manual (section 10, step 4), the
+  statements in the manual that did not match, the message for protocol and
+  ICMP-type groups nested too deep, the object left behind for an interface
+  address: fixed. iptables `DNAT` to a range is marked as picking an address
+  per connection (`DestNat.spread`), so a rule for one of them is not mapped
+  address for address.
+
+Left as they are, on purpose:
+
+* Before 9.0, an interface with only an IPv4 list gets no implicit rule for
+  IPv6. Narrower, never wider.
+* The assumption about NAT rules and routes in the table above.
+
+Round 10 looked at the fixes of round 9, and led to the last change of this
+version in `rewrite_destinations`:
+
+* **Order.** Rules are the outer loop now. Hits are looked for in what the
+  rule named before any translation, and what the rule exposes is worked out
+  at the end, per translation, from what the rule names then. A translation
+  that keeps the address and changes the port takes part in that (a rule that
+  reaches the server through another NAT rule).
+* **Services.** A NAT rule with a service does not rewrite a rule whose
+  services cannot meet it, and does not count as exposed by it either: one
+  filter for both, where round 9 had it for one. A public address with two
+  port forwardings to two servers gives each rule the server of its port.
+* **Same kind.** The parser notes what it adds (`Rule.nat_added`), and a
+  target of the same kind takes away exactly that and nothing else. Round
+  trips of iptables, FortiOS and ASA through the model are exact for the
+  destinations, dead entries included; `NAT_ADDRESS_EXPOSED` and
+  `NAT_DESTINATION_WIDENED` are withdrawn there with the other findings of a
+  NAT rule that is written. FortiOS policies that name a virtual IP are the
+  exception that is still rewritten (`Policy.named_translations`).
+* **Negation** over part of a translated network disables the rule unless it
+  names the same part of both sides.
+* **Ports.** A service that holds both ports of a port translation is not
+  reported.
+* **`--zone-network`.** A rule to every other zone has its own zone's
+  networks left out only when every zone has networks.
+
+The tests for round 9 are at the end of `tests/test_asa.py` too, among them
+`test_incomplete_zone_networks_never_widen_without_a_word`: random policies
+converted with networks as a person might give them (a zone forgotten, IPv6
+forgotten, one network missing, a default with a zone missing), where a packet
+the model denies may only be allowed by an entry of a rule the report flags.
+
+**Not done, known**
+
+* Nothing was loaded on an ASA or an FTD. The ASA syntax written and the FTD
+  syntax read are from documentation and memory; the table of assumptions
+  lists what the emitter writes that nobody has seen an ASA accept.
+* To an ASA, rules "to zone B, any address" are inactive without
+  `--zone-network`, and the networks given are taken to be right. A zone or
+  an address nobody mentioned is handled on the side that allows less; a
+  network given to the wrong zone is not noticed.
+* The fixes of round 10 were not reviewed again by the independent reviewer.
+  They are covered by the tests named above and by the reviewer's own
+  oracles, rerun after the fixes: no difference without a needs-review
+  finding on a deciding rule in 2500 seeds each way between pre-NAT and
+  post-NAT platforms, and no difference at all in the round trips of
+  iptables, FortiOS and ASA.
+* An FQDN destination on a rule from the zone a NAT rule serves gets no NAT
+  finding: whether the name resolves to the published address cannot be
+  known when converting.
+* Destination zones from routes: static routes and connected networks only.
+* ASA to ASA changes list names, loses `log` on denies and time ranges, and
+  writes object NAT back as twice NAT.
+* Outbound access lists beyond "deny, then permit everything", time ranges,
+  identity matches, NAT before 8.3, IPv6 lists before 9.0, bridge groups,
+  VPN filters, inspection.
+* The older walkers over nested groups in the PAN-OS and FortiOS parsers and
+  the iptables emitter were made linear in passing; they have no test of
+  their own beyond the ASA one that goes through every emitter.
+
 ## To do
 
-1. Load `tests/data/expected/fortios_to_panos.set` on a PAN-OS VM and
-   `panos_to_fortios.conf` on a FortiGate VM; record what each CLI rejects and
-   correct the emitters. Work through the assumptions table.
+1. Load `tests/data/expected/fortios_to_panos.set` on a PAN-OS VM,
+   `panos_to_fortios.conf` on a FortiGate VM and `panos_to_asa.cfg` on an
+   ASAv; record what each CLI rejects and correct the emitters. Work through
+   the assumptions table. Compare `asa_sample.cfg` and the FTD text in
+   `test_asa.py` with what real devices print.
 2. Run `*_to_checkpoint.sh` against a management server in a lab, and export a
    real rulebase with automatic NAT to compare with the sample. Extend
    `kernel_check.py` to NAT and IPv6, and run it on the legacy iptables
@@ -405,8 +607,20 @@ with hostile names was run under sh, bash and dash against a stand-in for
 3. Correct services for port-translating destination NAT.
 4. FortiOS output with per-policy NAT as an option.
 5. PAN-OS `set`-format parser, which also allows a PAN-OS round-trip test.
-6. Schedule objects; a user/group mapping file.
+6. Schedule objects (ASA time ranges, FortiOS and PAN-OS schedules); a
+   user/group mapping file.
 7. Differential check as a command: evaluate the source and the converted
    model against sampled flows and report every flow whose verdict changed.
    The simulators in the tests are the start of it.
 8. Release workflow that builds a wheel and a single-file `.pyz` on a version tag.
+9. Interface networks in the model (the FortiOS and PAN-OS parsers know
+   them), so that `--zone-network` is only needed where the source does not
+   tell; FTD policies from an FMC export.
+10. iptables `NETMAP`, read and written: it is what maps a network address
+    for address, where `DNAT` to a range picks an address per connection.
+11. The reviewer's oracles as tests: every pre-image of a real packet through
+    a destination NAT (pre-NAT model to a post-NAT target, with several NAT
+    rules for one address), and same-kind round trips for FortiOS and
+    iptables with rules that name both sides of a translation. They were run
+    from the reviewer's scratch directory for this version and are not in the
+    repository.

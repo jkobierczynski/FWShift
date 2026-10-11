@@ -1,0 +1,77 @@
+FWShift conversion report
+  source: checkpoint (Network)
+  target: asa
+
+Summary
+  Security rules:     18   exact 6, approximated 2, needs review 10 (5 emitted disabled), skipped 0
+  NAT rules:           9   exact 6, approximated 0, needs review 1, skipped 2
+  Addresses:          16   exact 13, approximated 1, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IMPLIED_RULES: Check Point implied rules (global properties) and the other ordered layers of the policy package are not part of the export; only the rules of one layer were read ('Network')
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: InternalZone, ExternalZone. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. 1 destination NAT rule is written as a rule that names the source as well and leaves it as it is: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+  [info] FQDN_DNS: objects with a host name need name resolution on the ASA ('dns domain-lookup' and a DNS server group)
+
+Security rules
+  rule-2  ->  needs-review  (emitted as global_access)
+      [needs-review] DEVICE_TARGET: the rule is installed only on gw-edge; decide whether it belongs on the target firewall
+  Guests stay out  ->  exact  (emitted as global_access)
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated destination is written as the 4 address ranges it leaves
+  Social  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-6' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Facebook': object of type 'application-site'.
+  Admins  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netadmins': object of type 'access-role'.
+  Updates  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] SCHEDULE: schedule 'Work-Hours' is not converted; the rule would apply at all times.
+  Old rule  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'lan-without-guests': object of type 'group-with-exclusion'.
+  Partners  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] UNSUPPORTED_MATCH: not converted: VPN community match Partner-VPN.
+  Public web  ->  approximated  (emitted as global_access)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web-1_valid_address' with post-NAT 'web-1' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+  DMZ access / Web in  ->  needs-review  (emitted as global_access)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web-1', the address NAT rule 'nat-2' translates 'web-1_valid_address' to. The target looks rules up after that translation, so traffic sent to 'web-1_valid_address' now matches this rule; on the source it did not
+  DMZ access / Mail in  ->  needs-review  (emitted as global_access)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail-1', the address NAT rule 'nat-6' translates 'mail-public' to. The target looks rules up after that translation, so traffic sent to 'mail-public' now matches this rule; on the source it did not
+  DMZ access / Ping from LAN  ->  needs-review  (emitted as global_access)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web-1', the address NAT rule 'nat-2' translates 'web-1_valid_address' to. The target looks rules up after that translation, so traffic sent to 'web-1_valid_address' now matches this rule; on the source it did not
+  DMZ access (cleanup of DMZ-Layer)  ->  needs-review  (emitted as global_access)
+      [info] INLINE_CLEANUP: added for the implicit cleanup of inline layer 'DMZ-Layer', which is drop
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web-1', the address NAT rule 'nat-2' translates 'web-1_valid_address' to. The target looks rules up after that translation, so traffic sent to 'web-1_valid_address' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail-1', the address NAT rule 'nat-6' translates 'mail-public' to. The target looks rules up after that translation, so traffic sent to 'mail-public' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+  Tunnels  ->  approximated  (emitted as global_access)
+      [approximated] GATEWAY_OBJECT: matches gateway object gw-edge, which stood for every address of the gateway; only its main address is known, so the converted rule no longer applies to its other addresses
+  No ident  ->  exact  (emitted as global_access)
+      [info] RESET_ACTION: action reset-client becomes deny; an ASA resets denied TCP connections only with 'service resetinbound' or 'service resetoutside'
+
+NAT rules
+  nat-4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface, which the rule does not name; give it with --target-nat-zone
+  nat-6  ->  needs-review  (emitted as 1 NAT line)
+      [needs-review] NAT_ORDER: NAT rule 'nat-4' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+      [needs-review] NAT_ORDER: on the source, NAT rule 'nat-1' above this one matches part of its traffic first, and that traffic keeps its destination. The target translates destinations apart from sources: the destination translation of this rule applies to that traffic as well
+  nat-8  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface, which the rule does not name; give it with --target-nat-zone
+
+Addresses
+  web-1  ->  exact
+      [info] AUTOMATIC_NAT: the object has automatic static NAT to 203.0.113.10: as on Check Point, rules and groups that name it also match that address, written as 'web-1_valid_address'
+  netadmins  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: object of type 'access-role' cannot be converted
+  .updates.example.com  ->  exact  (emitted as x.updates.example.com)
+      [info] RENAMED: renamed to 'x.updates.example.com' to fit the target's naming rules
+  lan-without-guests  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: object of type 'group-with-exclusion' cannot be converted
+  gw-edge  ->  approximated
+      [approximated] GATEWAY_OBJECT: a gateway object stands for every address of the gateway; only its main address 198.51.100.1 is in the export
+
+Services
+  Facebook  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: object of type 'application-site': not converted

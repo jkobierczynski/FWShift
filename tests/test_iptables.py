@@ -730,7 +730,8 @@ def test_port_translation_is_reported_on_the_rules_it_concerns() -> None:
     ssh, web, everything = parse_iptables.parse(text.encode(), report).rules
     codes = {rule.name: [f.code for f in report.item("rule", rule.origin).findings] for rule in (ssh, web, everything)}
     assert "NAT_PORT_TRANSLATION" not in codes[ssh.name]  # port 22 is not what the NAT rule forwards
-    assert "NAT_PORT_TRANSLATION" in codes[web.name] and "NAT_PORT_TRANSLATION" in codes[everything.name]
+    assert "NAT_PORT_TRANSLATION" in codes[web.name]
+    assert "NAT_PORT_TRANSLATION" not in codes[everything.name]  # every service: there is no port to adjust
 
 
 def test_emitter_details_found_in_review() -> None:
@@ -1202,3 +1203,22 @@ def test_nat_rule_below_one_that_is_not_converted() -> None:
     (found,) = [f for f in report.item("nat", "dnat").findings if f.code == "NAT_ORDER"]
     assert found.severity == Severity.REVIEW and "'exempt' above this one is not converted" in found.message
     assert not [f for f in report.item("nat", "other").findings if f.code == "NAT_ORDER"]
+
+
+def test_dnat_to_a_range_is_not_address_for_address() -> None:
+    """The kernel picks one address of the range per connection: a rule for one of them stood for the whole network."""
+    text = (
+        "*nat\n:PREROUTING ACCEPT [0:0]\n"
+        "-A PREROUTING -d 198.51.100.0/24 -j DNAT --to-destination 10.20.0.0-10.20.0.255\nCOMMIT\n"
+        "*filter\n:FORWARD DROP [0:0]\n-A FORWARD -d 10.20.0.10/32 -p tcp --dport 443 -j ACCEPT\nCOMMIT\n"
+    )
+    report = Report()
+    p = parse_iptables.parse(text.encode(), report)
+    assert p.nat_rules[0].destination_translation == DestNat("10.20.0.0-10.20.0.255", "", spread=True)
+    finding = next(f for f in report.item("rule", p.rules[0].origin).findings if f.code == "NAT_DESTINATION_WIDENED")
+    assert finding.severity == Severity.REVIEW and p.rules[0].destinations == ["10.20.0.10/32", "198.51.100.0/24"]
+    # To one address there is nothing to pick.
+    report = Report()
+    p = parse_iptables.parse(text.replace("10.20.0.0-10.20.0.255", "10.20.0.10").encode(), report)
+    assert not p.nat_rules[0].destination_translation.spread  # type: ignore[union-attr]
+    assert [f.code for f in report.item("rule", p.rules[0].origin).findings] == ["NAT_DESTINATION_REWRITTEN"]

@@ -1,8 +1,8 @@
 # FWShift user manual
 
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
-Check Point and Linux iptables, and tells you, rule by rule, how faithful the
-result is. This manual covers version 0.2.
+Check Point, Cisco ASA and Linux iptables, and tells you, rule by rule, how
+faithful the result is. This manual covers version 0.3.
 
 **Contents**
 
@@ -31,7 +31,9 @@ It follows one rule above all others: **a conversion never makes the policy
 more permissive without saying so.** In practice:
 
 * Every rule of the source appears in the output, in the same order, or in
-  the report as *skipped* with the reason.
+  the report as *skipped* with the reason. (One kind is counted instead of
+  listed: permit entries of an ASA that can match nothing the ASA forwards,
+  `RULE_WITHOUT_EFFECT`.)
 * A rule whose match cannot be expressed on the target is written
   **disabled** and listed in the report as *needs review*.
 * An object that cannot be converted becomes a placeholder that matches
@@ -43,12 +45,12 @@ FWShift converts the **policy**. It does not convert interfaces, routing, VPN,
 users, security profiles, or system settings, and it is not a substitute for
 testing the result.
 
-> **Status.** Version 0.2 is tested against synthetic configurations. iptables
+> **Status.** Version 0.3 is tested against synthetic configurations. iptables
 > output and input are checked against a Linux kernel (filter rules, one
-> kernel and iptables version). Output for PAN-OS, FortiOS and Check Point has
-> not been loaded on a device or management server yet, and the Check Point
-> input format follows the API documentation. Use FWShift to produce a draft
-> for a lab.
+> kernel and iptables version). Output for PAN-OS, FortiOS, Check Point and
+> Cisco ASA has not been loaded on a device or management server yet; the
+> Check Point input format follows the API documentation, the ASA and FTD
+> syntax Cisco's command references. Use FWShift to produce a draft for a lab.
 
 ## 2. Installation
 
@@ -101,6 +103,44 @@ and `netfilter-persistent` have the same format, and so has the output of
 FWShift converts the `FORWARD` chain of the `filter` table, with the chains it
 jumps to, and the `PREROUTING` and `POSTROUTING` chains of the `nat` table;
 section 8 says what happens to the rest.
+
+**Cisco ASA.** FWShift reads the running configuration as the ASA prints it:
+
+```
+terminal pager 0
+show running-config
+```
+
+A saved copy (`copy running-config tftp:`, a backup file) is the same text.
+In multiple context mode, take the configuration of each context
+(`changeto context NAME`, then `show running-config`) and convert each on its
+own; the system configuration holds no policy. The output of
+`show access-list`, with its expanded groups and hit counts, is not a
+configuration and is not read.
+
+Give FWShift the whole configuration, not the access lists alone. It uses
+
+* the **interface sections** (`nameif`, `security-level`, `ip address`): they
+  say which interfaces there are and what the ASA forwards between them
+  without being told (section 8);
+* the **static routes**: together with the interface addresses they say
+  behind which interface a destination lies;
+* the **`ASA Version` line**: from 9.0 on `any` means IPv4 and IPv6, from 8.3
+  on access lists name the real address of a translated host. Without that
+  line 9.0 or later is assumed, and the report says so (`VERSION_ASSUMED`).
+  NAT in the syntax of 8.2 and earlier is not converted (`LEGACY_NAT`).
+
+Only access lists that an `access-group` line binds are policy. Lists that
+serve a crypto map, NAT or a class map are counted and left out
+(`UNBOUND_ACL`).
+
+**Cisco Firepower Threat Defense.** The `show running-config` of an FTD device
+shows what its manager deployed, in ASA syntax, and FWShift reads that. It is
+the policy as far as addresses, ports and interfaces go, and no further: a
+rule with application, URL or user conditions is in it **without** those
+conditions. FWShift recognises such rules by the remark the manager writes
+(`L7 RULE`) and converts them disabled; intrusion and file policies are not in
+the device configuration at all (`FTD_CONFIGURATION`). NAT is read in full.
 
 **Check Point.** There is no configuration file to export. FWShift reads what
 the Management API answers to `show access-rulebase` and `show nat-rulebase`,
@@ -181,7 +221,8 @@ anywhere, but treat its output and reports like the source.
 4. **Rerun with options** where the report asks for them: `--zone-map` and
    `--interface-map` for the names of the target, `--app-map` for applications
    FWShift does not know, `--target-prefix`, `--target-gateway` and
-   `--target-nat-zone` where a Check Point source or target needs them.
+   `--target-nat-zone` where a Check Point source or target needs them,
+   `--zone-network` for an ASA target.
 5. **Fix what remains by hand** in the output: placeholders, disabled rules.
 6. **Load it in a lab** (section 10) and test.
 
@@ -222,7 +263,7 @@ TCP 502 and TCP 102, not the applications themselves.
 ### `fwshift convert`
 
 ```
-fwshift convert INPUT --to {panos,fortios,checkpoint,iptables,ip6tables,json} [options]
+fwshift convert INPUT --to {panos,fortios,checkpoint,asa,iptables,ip6tables,json} [options]
 ```
 
 `INPUT` is a file, or `-` for standard input.
@@ -231,7 +272,7 @@ fwshift convert INPUT --to {panos,fortios,checkpoint,iptables,ip6tables,json} [o
 
 | Option | Meaning |
 |---|---|
-| `--from {panos,fortios,checkpoint,iptables,ip6tables}` | Source format. Detected when left out: XML is PAN-OS, JSON is Check Point, a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, anything else FortiOS. |
+| `--from {panos,fortios,checkpoint,asa,iptables,ip6tables}` | Source format. Detected when left out: XML is PAN-OS, JSON is Check Point, a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
@@ -248,25 +289,27 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to panos` | PAN-OS `set` commands. |
 | `--to fortios` | FortiOS CLI configuration. |
 | `--to checkpoint` | A shell script of `mgmt_cli` calls for a Check Point management server. |
+| `--to asa` | Cisco ASA commands (9.x): objects, access lists, twice NAT. |
 | `--to iptables` | A file for `iptables-restore`: the IPv4 half of the policy. |
 | `--to ip6tables` | A file for `ip6tables-restore`: the IPv6 half. |
 | `--to json` | The neutral model as JSON, for inspection or other tools. |
 | `--target-vsys NAME` | PAN-OS: prefix commands with `vsys NAME`. Default: a single-vsys firewall, no prefix. |
 | `--target-device-group NAME` | Panorama: write into this device group; rules go to its pre-rulebase. |
 | `--target-shared` | Panorama: write into `shared`; rules go to the shared pre-rulebase. |
-| `--target-nat-zone ZONE` | PAN-OS: destination zone for NAT rules of a source that names none (Check Point, some iptables rules). Without it those NAT rules are skipped. |
+| `--target-nat-zone ZONE` | PAN-OS: destination zone for NAT rules of a source that names none (Check Point, some iptables and ASA rules). Without it those NAT rules are skipped. ASA: the interface for source NAT "to the address of the outgoing interface" where the rule does not name one. |
 | `--target-vdom NAME` | FortiOS: wrap the output in `config vdom` / `edit NAME`. |
 | `--policy-id-start N` | FortiOS: number policies from N. Default is `edit 0`, which lets the FortiGate pick free ids and appends after existing policies. |
 | `--target-layer NAME` | Check Point: the access layer the rules are written to. Default `Network`. It must exist. |
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
-| `--target-prefix TEXT` | Check Point: put `TEXT` in front of the name of every object the script creates, so that none collides with an object the server has. |
+| `--target-prefix TEXT` | Check Point and ASA: put `TEXT` in front of the name of every object (on an ASA also every access list) that is created, so that none collides with one the target has. |
 
 **Adapting the policy**
 
 | Option | Meaning |
 |---|---|
-| `--zone-map SRC=DST` | Use `DST` wherever the source names zone or interface `SRC`. Repeatable. For iptables this is how a zone becomes an interface name, and the other way round. |
+| `--zone-map SRC=DST` | Use `DST` wherever the source names zone or interface `SRC`. Repeatable. For iptables and ASA this is how a zone becomes an interface name, and the other way round. |
+| `--zone-network ZONE=NET[,NET...]` | ASA target: the networks that lie behind a zone (its name after `--zone-map`). Repeatable. An ASA access list cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
 | `--interface-map SRC=DST` | Map a source interface to a target interface: zone members written for FortiOS, and source NAT to an interface address on PAN-OS. Repeatable. |
 | `--app-map FILE` | JSON file that adds or overrides application port definitions (section 9). |
 | `--prune-unused` | Leave out objects that no rule or NAT rule uses, directly or through a group. |
@@ -388,28 +431,36 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `APP_UNKNOWN` | R, disabled | To a port-based target: an application is not in the port table. Add it with `--app-map`. |
 | `APP_DEFAULT_ANY` | R, disabled | To a port-based target: "any application on its default ports" has no port-based equivalent. Decide which services the rule should allow. |
 | `USER_MATCH`, `URL_CATEGORY` | R, disabled | The rule matched users or URL categories, which are not converted. |
-| `UNSUPPORTED_MATCH` | R, disabled | The source rule had a match that is not modelled: HIP profiles, an application filter, FortiOS identity groups, internet-service, ZTNA tags and similar attributes, a negation that cannot be expressed, a missing mandatory field. The message names it. |
+| `UNSUPPORTED_MATCH` | R, disabled | The source rule had a match that is not modelled: HIP profiles, an application filter, FortiOS identity groups, internet-service, ZTNA tags and similar attributes, a negation that cannot be expressed, a missing mandatory field; in an ASA access list entry anything that could not be read in full, `user any`, a TrustSec security group, the address of an interface; an FTD rule with application, URL or user conditions. The message names it. |
 | `UNCONVERTIBLE_OBJECT` | R, disabled | The rule refers to an object that could not be converted (see the object's own finding). |
 | `SCHEDULE` | R, disabled | The rule had a schedule; converted without it, it would apply at all times. |
-| `SERVICE_NEGATE` | R, disabled | To PAN-OS: a negated service match does not exist there. |
+| `SERVICE_NEGATE` | R, disabled | To PAN-OS or ASA: a negated service match does not exist there. On an ASA only a remark is written for the rule: an inactive entry without the negation would say the opposite. |
+| `EGRESS_INTERFACE` | A, or R and disabled | To ASA: the rule is for traffic to certain zones, and an access list entry cannot name the interface traffic leaves by. A: the rule names destination addresses and is written for those, by whatever interface they are reached; also on an intrazone rule, which an ASA only serves with `same-security-traffic permit intra-interface`. R, disabled: the rule is for any address; give the networks behind the zones with `--zone-network`, or the rule a destination. |
+| `EGRESS_BY_NETWORKS` | I or A | To ASA: with `--zone-network`, the networks given for the other zones were left out of the destination of the entry, which keeps the rule to its zones. A: the networks do not cover every address; what they leave out lies behind no zone that is known, so a permit rule for any address does not cover it and a deny rule does (`ZONE_NETWORK_GAP`). |
+| `EGRESS_NO_ADDRESS` | A or R, skipped | To ASA: by the networks given with `--zone-network`, no address of the destination lies behind the zones the rule is for, so it matched nothing and is left out (or, with several source zones, has no entry for some of them). R for a deny rule: if one of the networks is wrong, a deny is missing. |
+| `NEGATION_EXPANDED` | I | To ASA: an access list cannot negate. The negated address list was written as the address ranges it leaves, which matches the same addresses. |
+| `NEGATION_NOT_STATIC` | R, disabled | To ASA: a negated list with a host name. What it leaves cannot be written out; only a remark is written for the rule. |
+| `IMPLICIT_PERMIT` | I | ASA source: a rule for an interface without access list, which the ASA lets send traffic to interfaces of a lower security level (section 8). |
 | `NO_SERVICE` | R, disabled | To PAN-OS: none of the rule's services could be converted. |
-| `RULE_TYPE` | R, disabled | To FortiOS or iptables: an intrazone or interzone rule with zone `any` cannot be written as interface pairs. |
+| `RULE_TYPE` | R, disabled | To FortiOS or iptables: an intrazone or interzone rule with zone `any` cannot be written as interface pairs. To ASA: an intrazone rule with zone `any`. |
 | `RULE_TYPE_EMPTY` | I, skipped (R to Check Point with zone `any`) | An interzone rule whose zones leave no pair of different zones. It matched nothing. |
 | `RULE_TYPE_ANY_ZONE` | R | To Check Point: an intrazone or interzone rule for zone `any` is written for the zones the policy names. For traffic between zones that no rule names it cannot be known whether they are one zone or two: a deny is applied to all of it, an allow to none. |
 | `NEGATED_ANY` | R, disabled | To Check Point: a negated "any" matches nothing. |
 | `NOT_THIS_IP_VERSION` | I, skipped | To iptables or ip6tables: nothing in the rule can match this IP version. It is in the output for the other one. |
-| `INTERFACE_NAME` | R, disabled | To iptables: a zone name that cannot be an interface name. Map it with `--zone-map`. |
+| `INTERFACE_NAME` | R, disabled | To iptables or ASA: a zone name that cannot be an interface name. Map it with `--zone-map`. |
 | `FQDN_RESOLVED_ONCE` | A | To iptables: a host name is resolved once, when the rules are loaded. |
 | `DROP_BEFORE_ESTABLISHED` | R | iptables source: a deny that comes before the rule accepting established connections also dropped the replies of connections opened from the other side. The converted rule blocks new connections in its own direction only. |
 | `INLINE_CLEANUP` | I or R | Check Point source: a rule added for the implicit cleanup of an inline layer. R when the export does not show whether the layer drops or accepts and drop was assumed (section 3). |
 | `GATEWAY_OBJECT` | A or R | Check Point source: the rule names a gateway object, which stood for every address of the gateway; only its main address is in the export. R where that lets more traffic through: a deny that matches it, or an allow that excludes it. |
 | `PROTOCOL_SIGNATURE` | A (R on deny) | Check Point source: a service of the rule also checked the signature of its protocol. Only the port is converted. |
-| `NO_COMMON_FAMILY` | R, skipped | Source and destination share no IP version, or a negation excludes everything. |
+| `NO_COMMON_FAMILY` | R, skipped (I to ASA) | Source and destination share no IP version, or a negation excludes everything: the rule matches nothing. |
 | `UNKNOWN_ATTRIBUTES` | R | FortiOS or Check Point source: the rule has attributes or fields FWShift does not know. If one of them narrows the match, the converted rule is wider. Check them. |
-| `NAT_ADDRESS_EXPOSED` | R | The rule covers only one of the two addresses of a destination NAT, and the two platforms look rules up on different sides of the translation (section 8). The rule matches traffic it did not match on the source, or the other way round for a deny. |
-| `NAT_PORT_TRANSLATION` | R | A destination NAT used by this rule also changes the port. FortiOS policies and iptables rules name the mapped port, PAN-OS and Check Point rules the original one; correct the service by hand. |
+| `NAT_ADDRESS_EXPOSED` | R | The rule covers addresses on one side of a destination NAT without the addresses that go with them on the other side, and the two platforms look rules up on different sides of the translation (section 8). The message names the addresses. The rule matches traffic it did not match on the source, or the other way round for a deny. Also raised for a rule that names both sides, for the part that has no counterpart. |
+| `NAT_PORT_EXPOSED` | R | The same for ports: the service of the rule covers the port on one side of a port translation and not the port on the other, so the rule applies to traffic it did not apply to on the source. Looked at for rules to any destination too. Withdrawn where the target looks rules up as the source did and gets the NAT rule. |
+| `NAT_PORT_TRANSLATION` | R | A destination NAT used by this rule also changes the port, and the service of the rule names the port of one side only. FortiOS policies, ASA access lists and iptables rules name the mapped port, PAN-OS and Check Point rules the original one; correct the service by hand. Not raised for a service that holds both ports. |
+| `NAT_DESTINATION_WIDENED` | R | The rule names part of what a destination NAT translates, and that NAT does not map address for address (several addresses to one, or to a pool). On the other side of the translation the part cannot be told apart: the rule now covers all of it. |
 | `NAT_REDIRECT` | R | iptables source: a DNAT rule without a destination address sends traffic for every destination to one address, and this rule matched it there. A platform that looks rules up before NAT cannot match that traffic with the converted rule: write the rule for the original destinations. |
-| `NAT_DESTINATION_REWRITTEN` | A | The destination was changed, or extended, to the address on the other side of a destination NAT. Check that the rule is meant to cover that traffic. |
+| `NAT_DESTINATION_REWRITTEN` | A | The destination was changed, or extended, to the address on the other side of a destination NAT. A rule for part of a translated network gets the same part of the other side. Check that the rule is meant to cover that traffic. |
 | `DENY_AND_VIP` | A | FortiOS source: a deny policy covers a virtual IP but has no `set match-vip enable`. FortiOS may have let that traffic through to a later policy; the converted rule blocks it. |
 | `FQDN_FAMILY` | A | To PAN-OS or Check Point: an FQDN that FortiOS resolved for one IP version is resolved for both on the target, and this rule can match the other version. |
 | `PROTOCOL_AS_APP` | A | To PAN-OS: ICMP or IP-protocol services became applications (`ping`, `icmp`, `gre`, ...). Verify the App-ID names. |
@@ -418,28 +469,31 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `PROFILES_BY_NAME` | I | PAN-OS to PAN-OS: profiles are referenced by name and must exist on the target. |
 | `DEVICE_TARGET` | R | Panorama or Check Point source: the rule is installed on selected devices only. Decide whether it belongs on the target. |
 | `RULE_SPLIT` | I | One rule became several: one per zone pair on FortiOS, or one for port-based and one for application-based services on PAN-OS. |
-| `RESET_ACTION` | I | A reset action has no exact equivalent: deny on FortiOS, a plain `REJECT` on iptables when the rule is not TCP only, `Reject` on Check Point. |
-| `ATTRIBUTES_IGNORED` | I | FortiOS source: NAT details such as `fixedport` have no equivalent. |
+| `RESET_ACTION` | I | A reset action has no exact equivalent: deny on FortiOS and ASA, a plain `REJECT` on iptables when the rule is not TCP only, `Reject` on Check Point. |
+| `ATTRIBUTES_IGNORED` | I | FortiOS source: NAT details such as `fixedport` have no equivalent. ASA source, on a NAT rule: options such as `dns`, `round-robin` or the fallback to the interface address. |
 | `INCOMPLETE_ADDRESS_PAIR` | I | FortiOS source: addresses of one IP version on one side only. FortiOS cannot match that version, so they were left out. |
 
 ### NAT rules
 
 | Code | Sev. | Meaning and what to do |
 |---|---|---|
-| `NAT_NOT_CONVERTED` | R, skipped | The rule uses something that is not converted (NAT64, dynamic destination translation, an unconvertible object), or something the target cannot say: the message names it. To PAN-OS, a rule without a destination zone needs `--target-nat-zone`; to Check Point, source NAT to the outgoing interface needs `--target-gateway`. |
-| `NAT_ORDER` | R | From PAN-OS or Check Point to FortiOS or iptables: the source applies one NAT rule to a connection, the first that matches; the target translates destinations and sources in separate tables. This rule now also applies to traffic that another rule used to claim, or loses its source translation to one (section 8). On every target: a NAT rule above this one was not converted, and its traffic now reaches this rule. |
+| `NAT_NOT_CONVERTED` | R, skipped | The rule uses something that is not converted (NAT64, dynamic destination translation, an unconvertible object, an ASA NAT line that could not be read in full), or something the target cannot say: the message names it. To PAN-OS, a rule without a destination zone needs `--target-nat-zone`; to Check Point, source NAT to the outgoing interface needs `--target-gateway`; to ASA it needs an interface, from the rule or from `--target-nat-zone`. |
+| `NAT_ORDER` | R | From PAN-OS or Check Point to FortiOS, iptables or ASA: the source applies one NAT rule to a connection, the first that matches; the target translates destinations and sources apart. This rule now also applies to traffic that another rule used to claim, or loses its source translation to one (section 8). On every target: a NAT rule above this one was not converted, and its traffic now reaches this rule. |
+| `NAT_REVERSE_DIRECTION` | A | ASA source: a static twice NAT rule with a destination also translates connections opened from the other side. That direction is not converted. |
+| `NAT_ZONE_BY_ROUTE` | I | ASA source: the destination zone of a NAT rule that translates the destination is the zone its original address is reached in, taken from the interface addresses and static routes. |
+| `NAT_DYNAMIC_ONE_ADDRESS`, `NAT_STATIC_SIZE` | A | To ASA: dynamic NAT to a single address is port address translation on an ASA; static NAT between address sets of different size is mapped in order and wraps around. |
 | `NAT_ZONES` | A or R | To Check Point: the rule applied to some zones only and is written without them. R where the zone was the only limit: a source NAT towards one zone now translates traffic towards every zone. |
 | `NAT_ZONE_ASSUMED` | A | To PAN-OS: the source rule names no destination zone; the zone given with `--target-nat-zone` was used. |
 | `NAT_GROUP` | I | To Check Point: a group was created, because a NAT rule cell holds one object. |
-| `NAT_ADDRESSES`, `NAT_SERVICE`, `NAT_RANGE` | R, skipped (`NAT_RANGE`: A) | To iptables: the rule needs static IPv4 addresses and a TCP, UDP or SCTP service. DNAT to a range picks an address per connection. |
+| `NAT_ADDRESSES`, `NAT_SERVICE`, `NAT_RANGE` | R, skipped (`NAT_RANGE`: A) | To iptables: the rule needs static IPv4 addresses and a TCP, UDP or SCTP service. DNAT to a range picks an address per connection. To ASA: the rule needs static addresses of one IP version per object, and a service of at most 16 TCP, UDP or SCTP ports or ranges without source ports. |
 | `NAT_ANY_DESTINATION` | R | To iptables: the rule translates traffic to every destination; the security rules were not adjusted to the translated address. |
 | `NAT_INPUT_INTERFACE` | A or R | To iptables: source NAT is done in `POSTROUTING`, which cannot match the interface the traffic came in on. R when that was the rule's only limit. |
 | `NAT_OUTPUT_INTERFACE` | A | To iptables or FortiOS: a rule that translates destination and source. After the destination translation the traffic leaves by another interface than the rule names, so the source translation is written for every interface. |
 | `NAT_AFTER_DNAT` | A | The same kind of rule. Its source translation is matched after the destination was translated, and cannot be tied to the original destination: it also applies to traffic from the same sources that is sent to the translated address directly. iptables output avoids this where the original destination is an address or network (`--ctorigdst`); FortiOS central SNAT cannot. |
 | `AUTOMATIC_NAT_IN_GROUP` | R | Check Point source: a manual NAT rule names a group that holds an object with automatic static NAT. In the converted rule the group also matches the translated address; whether Check Point does is not known. |
 | `AUTOMATIC_NAT_SHAPE` | R | Check Point source: an automatic NAT rule that does not name the same object in its original and translated column. It was read as it stands. |
-| `NAT_DESTINATION`, `NAT_DESTINATION_SIZE`, `NAT_PORT` | R, skipped | To FortiOS: the destination NAT cannot become a virtual IP: it needs one IPv4 address or range on each side, of equal size, and for a port translation a service with one protocol and one port or range. |
-| `NAT_POOL` | R, skipped | To FortiOS or iptables: the translated address is not a static IPv4 address, or not exactly one address or range. |
+| `NAT_DESTINATION`, `NAT_DESTINATION_SIZE`, `NAT_PORT` | R, skipped | To FortiOS: the destination NAT cannot become a virtual IP: it needs one IPv4 address or range on each side, of equal size, and for a port translation a service with one protocol and one port or range. To ASA: one static address object on each side; a port translation needs a service with single ports. |
+| `NAT_POOL` | R, skipped | To FortiOS or iptables: the translated address is not a static IPv4 address, or not exactly one address or range. To ASA: it is not a static address. |
 | `NAT_IPV6` | R or I, skipped | To FortiOS: the rule is not IPv4 (R). With `--to ip6tables`: NAT rules are written for IPv4 only (I, on every NAT rule). |
 | `NAT_DISABLED` | I | A NAT rule that is disabled in the source. To FortiOS no virtual IP is created for it (skipped); to iptables it is written as a comment line. |
 | `NAT_OVERLAP` | R | FortiOS source: another policy passes overlapping traffic without NAT, for other services. NAT rules do not match on service, so that traffic would be translated. Add a no-NAT rule or narrow this one. |
@@ -448,7 +502,7 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `NAT_SOURCE_DROPPED` | A | To FortiOS: the destination NAT applied to some sources only; the virtual IP applies to all. |
 | `NAT_BIDIRECTIONAL` | I, A or R | Bi-directional static NAT is written as two parts: a central SNAT entry plus a virtual IP on FortiOS, an SNAT and a DNAT rule on iptables, two NAT rules on Check Point. R when the inbound half could not be written. |
 | `NAT_STATIC_RANGE` | A | To FortiOS: static NAT of several addresses becomes a one-to-one pool, which does not promise the same translated address per host. |
-| `NAT_INTERFACE_ADDRESS` | A | To PAN-OS or Check Point: source NAT to an interface address was written with the address that interface has in the backup. Use `--interface-map` (PAN-OS) or `--target-gateway` (Check Point) to follow the interface instead. |
+| `NAT_INTERFACE_ADDRESS` | A | To PAN-OS or Check Point: source NAT to an interface address was written with the address that interface has in the backup. Use `--interface-map` (PAN-OS) or `--target-gateway` (Check Point) to follow the interface instead. ASA source: a rule that publishes a port on the address of an interface (`interface`) is converted with the address the interface has in the configuration; back to an ASA it is written with `interface` again. |
 | `VIP_REVERSE_NAT` | A | FortiOS source: a static virtual IP also translates sessions the mapped host opens, when the outgoing policy has NAT. That direction is not converted. |
 | `NAT_MERGED` | I | FortiOS source: several policies had identical source NAT and share one rule. |
 | `RULE_SPLIT` | I | To PAN-OS: one rule per destination zone. |
@@ -460,6 +514,7 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `UNSUPPORTED_ADDRESS`, `INVALID_ADDRESS` | R | An address type that is not converted (wildcard mask, geography, dynamic, a Check Point access role, group with exclusion or updatable object), an object that is not in a Check Point export in full, or a value that cannot be read. Emitted as a placeholder; rules using it are disabled. |
 | `UNSUPPORTED_VIP` | R | A virtual IP that is not a static NAT (load balancing and others) or cannot be read. |
 | `GROUP_EXCLUDE` | R | A FortiOS address group with excluded members. |
+| `UNSUPPORTED_GROUP` | R | A group that holds itself, directly or through other groups: no platform takes one. ASA source: an object group with a member that could not be read, or object groups nested more than 64 deep. Emitted as a placeholder; rules using it are disabled. |
 | `UNDEFINED_REFERENCE` | R | A rule names something that is not an object in the input: a region, an external dynamic list, a missing object. Emitted as a placeholder. |
 | `UNSUPPORTED_SERVICE` | R | A service that cannot be converted: a proxy service, one limited to a destination address, an unreadable port list, a Check Point application or RPC object, an object that is not in the export in full. |
 | `AUTOMATIC_NAT` | I or R | Check Point source: the object has automatic static NAT. As on Check Point, rules and groups that name it also match its translated address, written as a second object `<name>_valid_address`. R when the NAT settings could not be read. |
@@ -475,19 +530,19 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | Code | Sev. | Meaning and what to do |
 |---|---|---|
 | `CENTRAL_NAT` | R | To FortiOS: NAT is written as central NAT, which has to be enabled first (section 10). |
-| `INTRAZONE_DEFAULT` | R | To FortiOS or iptables: the source allowed traffic inside a zone by default and the target does not, or (iptables with `FORWARD` policy `ACCEPT`) the other way round. |
-| `INTRAZONE_ALLOW` | R | To iptables: a FortiOS zone with `set intrazone allow`. No rule was written for the traffic between its interfaces. |
-| `INTERZONE_DEFAULT` | R | The source allows what no rule matches (a PAN-OS `interzone-default` override, an iptables `FORWARD` policy `ACCEPT`, a Check Point layer whose implicit cleanup accepts). That is not carried over; only iptables output keeps it, as the chain policy. |
+| `INTRAZONE_DEFAULT` | R | To FortiOS, iptables or ASA: the source allowed traffic inside a zone by default and the target does not, or (iptables with `FORWARD` policy `ACCEPT`) the other way round. |
+| `INTRAZONE_ALLOW` | R | To iptables or ASA: a FortiOS zone with `set intrazone allow`. No rule was written for the traffic between its interfaces. |
+| `INTERZONE_DEFAULT` | R | The source allows what no rule matches (a PAN-OS `interzone-default` override, an iptables `FORWARD` policy `ACCEPT`, a Check Point layer whose implicit cleanup accepts). That is not carried over; only iptables output keeps it, as the chain policy, and ASA output, as a final `permit ip any any` in the global access list. |
 | `ZONES_WITHOUT_INTERFACES` | R | To FortiOS: zones were created empty. Assign interfaces or use `--zone-map` / `--interface-map`. |
 | `ZONES_REQUIRED` | R | To PAN-OS or Check Point: the zones named by the rules must exist on the target and be assigned to interfaces. |
-| `INTERFACES_REQUIRED` | R | To iptables: zones are written as interface names. Map each zone to its interface with `--zone-map`. |
+| `INTERFACES_REQUIRED` | R | To iptables or ASA: zones are written as interface names. Map each zone to its interface with `--zone-map`. For an ASA the note also states what the access lists count on: that the ASA has no other interfaces than the policy names, and does not send traffic back out of the interface it came in on (section 8). |
 | `INTRAZONE_ALLOW_MERGED` | R | To PAN-OS or Check Point: `--zone-map` merges a zone that allows intrazone traffic with another one; no allow rule was written for it. |
-| `NAT_ORDER` | A | To PAN-OS or Check Point, from FortiOS, iptables, or Check Point automatic NAT rules: the source applies a destination NAT rule and a source NAT rule to one connection, the target one NAT rule only (section 8). |
-| `TABLE_NOT_CONVERTED` | R | FortiOS source: a table such as `firewall policy6` or `firewall local-in-policy` has entries and is not converted. iptables source: the `mangle`, `raw` or `security` table has rules. |
+| `NAT_ORDER` | A | To PAN-OS or Check Point, from FortiOS, iptables, ASA, or Check Point automatic NAT rules: the source applies a destination NAT rule and a source NAT rule to one connection, the target one NAT rule only (section 8). To ASA from those sources: a destination NAT without a port is written as a rule that leaves the source alone, with the same effect. |
+| `TABLE_NOT_CONVERTED` | R | FortiOS source: a table such as `firewall policy6` or `firewall local-in-policy` has entries and is not converted. iptables source: the `mangle`, `raw` or `security` table has rules. ASA source before 9.0: `ipv6 access-list` lines; the result has no IPv6 rules. |
 | `SUSPICIOUS_QUOTING` | R | FortiOS source: a quoted value runs over lines that look like configuration. An unescaped quote may have hidden entries; check the line given. |
 | `NO_HIERARCHY` | R | Panorama source without `<readonly>`: parent device groups could not be found. |
 | `INTRAZONE_DENY_ADDED` | I | To PAN-OS: `fwshift-intrazone-deny` was appended (section 8). |
-| `EXISTING_OBJECTS` | I | To FortiOS: objects are created by name and overwrite existing ones of the same name. |
+| `EXISTING_OBJECTS` | I | To FortiOS or ASA: objects are created by name and change existing ones of the same name; an ASA object group that exists gets the new members added to its own. |
 | `PANORAMA_SOURCE` | I | Reminder of what a Panorama export does not contain. |
 | `PRUNED` | I | `--prune-unused` left out this many objects. |
 
@@ -502,6 +557,32 @@ Notes that only an iptables source or target raises:
 | `IPTABLES_LOAD` | R | Target: how to load the output without replacing `INPUT` and `OUTPUT` (section 10). |
 | `OTHER_IP_VERSION` | I | Target: some rules match the other IP version (too). Convert with `--to ip6tables` or `--to iptables` as well. |
 | `LOGGING_NOT_CONVERTED` | I | Target: logging settings are not converted. Add `LOG` or `NFLOG` rules where needed. |
+
+Notes that only a Cisco ASA source or target raises:
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `VERSION_ASSUMED` | I | Source: no `ASA Version` line. The configuration was read as 9.0 or later. |
+| `LEGACY_NAT` | R | Source: NAT commands of ASA 8.2 and earlier (`static`, `global`, `nat` with a NAT id) are not converted. The access lists of that release name translated addresses and were read as such. |
+| `NO_ACCESS_GROUP` | R | Source: no `access-group` line binds an access list. No security rules were read. |
+| `UNBOUND_ACL` | I | Source: access lists that no `access-group` binds serve something else (NAT, VPN, class maps) and are not rules. |
+| `ACL_MISSING` | R | Source: an `access-group` names an access list that is not in the input. Its interface was read as passing nothing; check that the input is complete. |
+| `OUTBOUND_ACL` | R | Source: an access list bound `out` that does more than deny. A connection has to pass it as well as the inbound list, which a first-match rulebase cannot say. It is not converted: add its restrictions by hand. A list of denies followed by `permit ip any any` is converted, as deny rules towards that interface. |
+| `NO_INTERFACES` | R | Source: the input shows fewer than two interfaces. The rules were read without what an ASA never forwards (below), because which interfaces there are is not known. |
+| `EGRESS_BY_ROUTE` | I | Source: the destination zone of permit entries with destination addresses was taken from the interface addresses and static routes. |
+| `RULE_WITHOUT_EFFECT` | I | Source: this many permit entries can match nothing the ASA forwards (their destination lies behind the interface the traffic comes in on, or behind one of the same security level) and were left out. |
+| `MANAGEMENT_INTERFACE` | I | Source: management-only interfaces forward nothing. Their access lists were left out. |
+| `PER_USER_OVERRIDE` | A | Source: an access list with `per-user-override` can be replaced per user by one from the authentication server, which is not in the configuration. |
+| `BRIDGE_GROUPS` | R | Source: interfaces in bridge groups are read as zones of their own. That members of a group share a network is not modelled. |
+| `ICMP_STATELESS` | A | Source: without `inspect icmp` the ASA lets the reply to a permitted ICMP request through only where an access list permits the reply. Every target lets replies through by itself. |
+| `VPN_BYPASS` | A | Source: traffic arriving through VPN tunnels bypasses the interface access lists (`sysopt connection permit-vpn`). The converted rules do not allow it: add rules for it. |
+| `FTD_CONFIGURATION` | R | Source: the configuration of an FTD device (section 3). |
+| `ASA_LOAD` | R | Target: what loading the output does to the ASA (section 10). |
+| `SAME_SECURITY_TRAFFIC` | I | ASA to ASA: the access lists rely on the security levels and `same-security-traffic` settings of the source. Keep them. |
+| `ZONE_NETWORK_UNKNOWN` | R | Target: `--zone-network` names a zone the policy does not know. It was taken as a further interface, and rules for other zones leave its networks out. Check the name: it is the name after `--zone-map`. |
+| `ZONE_NETWORK_GAP` | A | Target: the networks given with `--zone-network` leave addresses out (the note lists them; "every IPv6 address" when only IPv4 networks were given). Nobody said behind which zone they lie: in rules for any address that are kept to their zones, a permit does not cover them and a deny does. Give the zone with the default route `0.0.0.0/0` and `::/0`. |
+| `ZONE_NETWORK_INCOMPLETE` | R | Target: the networks given cover every address of an IP version, and a zone was given none. "Everything else" for one zone only means something when every other zone has its networks: as it is, what lies behind the zone without networks counts as lying behind another. Rules that had to be told apart from traffic to that zone were not kept to their zones (`EGRESS_INTERFACE`). |
+| `FQDN_DNS` | I | Target: objects with a host name need `dns domain-lookup` and a DNS server group. |
 
 Notes that only a Check Point source or target raises:
 
@@ -565,6 +646,12 @@ plus an un-negated IPv6 `all`. A FortiOS policy negated for one version only,
 or negated on both sides while holding a single version, has no PAN-OS
 equivalent and is disabled.
 
+An ASA access list cannot negate at all. A negated address list is written as
+the address ranges it leaves, which matches exactly the same addresses
+(`NEGATION_EXPANDED`); a negated service, or a negated list with a host name,
+cannot be written and the rule is reported (`SERVICE_NEGATE`,
+`NEGATION_NOT_STATIC`).
+
 ### Zones and interfaces
 
 Zone and interface names are carried over unchanged; rename them with
@@ -575,10 +662,12 @@ To PAN-OS, zones are not created: they must exist.
 PAN-OS rule types are translated for FortiOS: an intrazone rule becomes one
 policy per zone, an interzone rule one policy per pair of different zones.
 
-iptables has interfaces and nothing else: zones are written as interface
-names, so every zone needs a `--zone-map` entry. Check Point rules have no
-zone columns; how zones are read and written there is described under
-*Check Point* below.
+iptables and Cisco ASA have interfaces and nothing else: zones are written as
+interface names, so every zone needs a `--zone-map` entry. An ASA access list
+names only the interface traffic comes in on, not the one it leaves by; what
+that means for rules with a destination zone is described under *Cisco ASA*
+below. Check Point rules have no zone columns; how zones are read and written
+there is described under *Check Point* below.
 
 ### Default behaviour
 
@@ -601,7 +690,8 @@ A source that allows what **no** rule matches (an iptables `FORWARD` chain
 with policy `ACCEPT`, a Check Point layer whose implicit cleanup accepts, a
 PAN-OS `interzone-default` override) keeps that only in iptables output. The
 other targets end in their own deny, and the report says so
-(`INTERZONE_DEFAULT`).
+(`INTERZONE_DEFAULT`); ASA output ends its global access list in
+`permit ip any any` instead, and the report says that.
 
 ### NAT
 
@@ -659,11 +749,41 @@ by hand.
 | Check Point | the original packet | one manual rule, the first that matches; automatic rules can combine |
 | FortiOS | the address after destination NAT | a virtual IP and a central SNAT entry, each on its own |
 | iptables | the address after `PREROUTING` | one `PREROUTING` rule and one `POSTROUTING` rule |
+| Cisco ASA (8.3 and later) | the real address and port, after destination NAT | one rule for the destination and one for the source; a twice NAT rule that names both sides applies alone |
 
-What is said above for FortiOS holds for iptables, and what is said for PAN-OS
-holds for Check Point. The second column matters too:
+What is said above for FortiOS holds for iptables and ASA, and what is said
+for PAN-OS holds for Check Point. A rule for *part* of a translated network
+gets the same part of the other side: a rule for host .10 of a network that is
+translated address for address stays a rule for one host. Where the translation
+is not address for address (four public addresses to one server) that cannot
+be done, and the rule is reported (`NAT_DESTINATION_WIDENED`). A rule that
+names addresses of **both** sides is looked at part by part: what it names on
+one side without its counterpart on the other is reported
+(`NAT_ADDRESS_EXPOSED`), because one of the two platforms let that traffic in
+and the other did not. The same care goes for ports, also on rules to any
+destination: a rule whose service covers only the port on the wrong side of a
+port translation is reported (`NAT_PORT_EXPOSED`), one that names the port of
+the side being left has to be adjusted (`NAT_PORT_TRANSLATION`). What is
+compared is addresses, ports and source zones; a rule that tells such traffic
+apart by something else is reported all the same. All of this is worked out
+per rule against what the rule named to begin with and what it names in the
+end, so the order of the NAT rules does not decide what is found: a rule for
+one of two public addresses of a server is a rule for the server after NAT,
+and is reported whichever NAT rule comes first.
 
-* **From FortiOS or iptables to PAN-OS or Check Point.** A connection that got
+A **negated** destination has to name the same on both sides of a
+translation (all of both, none of either, or the same part of a network that
+is translated address for address). Otherwise the rule would change meaning,
+and it is converted disabled.
+
+Between two platforms of the **same kind** (FortiOS, iptables and ASA among
+each other) none of this is needed when the target gets the NAT rule: the
+rule is written with the destinations the source had, and the findings above
+are withdrawn. They stay for a NAT rule that could not be written.
+
+The second column matters too:
+
+* **From FortiOS, iptables or ASA to PAN-OS or Check Point.** A connection that got
   a destination translation *and* a source translation from two rules gets
   only the first of them on the target (note `NAT_ORDER`). Combine the two in
   one NAT rule where that matters.
@@ -691,6 +811,11 @@ holds for Check Point. The second column matters too:
   Its source half is matched after the destination was translated, so it is
   written for the new address and port and for every outgoing interface
   (`NAT_OUTPUT_INTERFACE`, `NAT_AFTER_DNAT`).
+* **To ASA** every NAT rule becomes one twice NAT line, in order. A line that
+  names source and destination claims its connections whole, as a rule of the
+  model does; a line without a destination part does not keep a later rule
+  from translating the destination, and that is what `NAT_ORDER` reports
+  there.
 
 ### iptables
 
@@ -814,6 +939,143 @@ holds for Check Point. The second column matters too:
 * NAT rules are written as manual rules. Zones are left out of them
   (`NAT_ZONES`); source NAT to "the outgoing interface" needs the gateway
   object (`--target-gateway`).
+
+### Cisco ASA
+
+**What is read**
+
+* The interface names (`nameif`) are the zones. Interfaces marked
+  `management-only` forward nothing and are left out.
+* The access list bound **inbound** to an interface holds the rules for
+  traffic arriving on it; the **global** access list follows it for every
+  interface; then everything is denied. Entries become rules named
+  `<list>-<number>`; the remarks above an entry become its description.
+* An ASA does **not** send traffic back out of the interface it came in on,
+  nor between two interfaces of the same security level, unless
+  `same-security-traffic permit intra-interface` / `inter-interface` says so,
+  whatever the access lists permit. A permit entry therefore becomes a rule
+  to the interfaces its traffic can leave by, not to "any". An entry of a
+  list that serves several interfaces, or of the global list, becomes an
+  interzone rule over all interfaces. Deny entries need none of this.
+* Where a permit entry names **destination addresses**, the destination zone
+  is narrowed to the interface those addresses are routed to, going by the
+  interface addresses and static routes (`EGRESS_BY_ROUTE`). That is what
+  makes "permit any to the web server" a rule from outside to dmz. With a
+  routing protocol, a route map or policy routing in the configuration only
+  connected networks are trusted; with bridge groups or for networks of an
+  interface that is shut down nothing is narrowed. A permit that can then
+  match nothing (its destination lies behind the interface it comes in on)
+  is left out and counted (`RULE_WITHOUT_EFFECT`).
+* An interface **without** an access list, on an ASA without a global one,
+  lets traffic out to interfaces of a lower security level. That becomes a
+  rule (`implicit-<interface>`, `IMPLICIT_PERMIT`).
+* An access list bound **outbound** is a second check on the way out. A list
+  that only denies and then permits everything is converted: its denies come
+  first, for traffic towards that interface. Anything else is reported and
+  not converted (`OUTBOUND_ACL`).
+* Ports and ICMP types by name, port operators (`eq`, `lt`, `gt`, `neq`,
+  `range`), protocol, port and ICMP-type object groups, service objects and
+  groups, `inactive`, `log`. A service that an entry spells out becomes an
+  object named after it (`tcp-443`, `icmp-8`).
+* Whatever in an entry is not understood in full makes the rule unusable,
+  never wider: it is converted disabled, with the reason. That goes for
+  `time-range` (a schedule), TrustSec matches, the address of an interface,
+  and for anything that follows where the entry should end. A `user` or
+  `user-group` match is kept as a user match of the rule: PAN-OS gets it as
+  `source-user`, a target without users gets the rule disabled.
+* **NAT** (8.3 and later) is read in the order the ASA applies it: twice NAT,
+  then object NAT sorted the ASA's way (static before dynamic, the fewest
+  real addresses first), then twice NAT `after-auto`. Access lists name the
+  real address of a translated host; the model wants the original one, so the
+  rules are extended by it (`NAT_DESTINATION_REWRITTEN`). A port published
+  with `static ... service` is read as a destination translation for traffic
+  arriving on the mapped interface. `interface` as an address becomes an
+  object with the address the interface has (`NAT_INTERFACE_ADDRESS`).
+* **Before 9.0** `any` is IPv4 and the `ipv6 access-list` lines are not
+  converted. **Before 8.3** NAT is not converted, and the access lists are
+  taken to name translated addresses, as they did.
+* **FTD.** Entries name their interfaces (`ifc`), and one rule of the manager
+  is several entries with one rule id: they are merged back into one rule,
+  named after the manager's remark. An FTD forwards between and within all
+  interfaces. Rules with application, URL or user conditions are converted
+  disabled (section 3).
+* Not read: time ranges, inspection and service policies, VPN, routing
+  protocols, failover, and everything else outside the policy. Traffic from
+  VPN tunnels bypasses the access lists by default (`VPN_BYPASS`), and ICMP
+  is not stateful without `inspect icmp` (`ICMP_STATELESS`).
+
+**What is written**
+
+* Commands for the configuration mode of an ASA 9.x: `object network`,
+  `object-group network`, `object service`, `object-group service`,
+  `access-list`, `nat`, `access-group`. Interfaces are not configured.
+* One access list per source zone, `<zone>_access_in`, bound inbound, and
+  `global_access` for rules from any zone. The ASA reads the list of an
+  interface before the global one, so a rule for every zone that stands above
+  a rule of one zone is repeated in that zone's list, in place. The global
+  list always ends the policy, with a deny (or with a permit where the source
+  accepts what no rule matches): no interface is left to the ASA's own permit
+  towards lower security levels.
+* An entry holds one source, one destination and one service. Lists become
+  object groups (`FWSHIFT_NETWORK_1`, `FWSHIFT_SERVICE_1`), literal addresses
+  are written into the entry or get an object (`h-192.0.2.1`,
+  `r-10.0.0.1-10.0.0.9`).
+* **Destination zones.** An entry cannot name the interface traffic leaves
+  by. A rule to zone `any`, or to every other zone the policy knows, needs
+  nothing: it is an entry for any destination. For any other rule:
+  * with `--zone-network` for every zone the rule is for and every zone it
+    has to be told apart from, the networks of the zones it is *not* for are
+    left out of its destination (`EGRESS_BY_NETWORKS`). That is exact when
+    the networks are right and complete, for IPv4 and for IPv6. Nothing is
+    assumed where they are not:
+    * a zone without networks is not "the rest". A rule that is for it, or
+      has to be kept away from it, is treated as if no networks were given
+      (below), and the finding names the zone;
+    * an address that lies in none of the networks lies behind no zone that
+      is known. The side that allows less is taken: a permit rule for any
+      address does not cover it, a deny rule does, and the report says so
+      (`ZONE_NETWORK_GAP`). `0.0.0.0/0,::/0` for the zone with the default
+      route leaves no such address;
+    * with IPv4 networks only, every IPv6 address is such an address;
+    * a zone given "everything else" while another zone has no networks
+      is reported (`ZONE_NETWORK_INCOMPLETE`).
+
+    A rule whose destination then has no address left behind its zones matched
+    nothing and is left out, with a finding (`EGRESS_NO_ADDRESS`; needs review
+    for a deny rule). What cannot be noticed is a network that is wrong: a
+    range given for one zone that holds a network of a zone given another
+    range, without that smaller network being given too;
+  * otherwise, a rule that names destination addresses is written for those
+    addresses, by whatever interface they are reached (`EGRESS_INTERFACE`,
+    approximated), and a rule to any address is written `inactive`
+    (`EGRESS_INTERFACE`, needs review): enabled, it would allow traffic to
+    every zone.
+
+  The lists are written for an ASA whose interfaces are the zones of the
+  policy and no others, and that does not send traffic back out of the
+  interface it came in on (`INTERFACES_REQUIRED` says so). With the networks
+  of a zone given, rules from that zone leave them out, and the second
+  assumption is not needed.
+* A rule that cannot be enforced is written `inactive`, with a remark. Where
+  an inactive entry would read as the opposite of the rule (a negation that
+  cannot be written), only a remark is written.
+* A service that one entry can say (`tcp ... eq 443`) is written into the
+  entry when it comes from an ASA; services of other sources become objects.
+  A host name resolved for both IP versions becomes two `fqdn` objects and a
+  group.
+* **NAT** is written as twice NAT, one line per rule (per port of its
+  service). A destination translation names the source side as well and is
+  marked `unidirectional`, so that it does what the rule of the model does and
+  no more. From a source that applies a destination NAT and a source NAT to
+  the same connection (FortiOS, iptables, ASA), a published port is written
+  the way an ASA does it, from the side of the server, and source NAT rules
+  still apply to its clients. Rules without translation get `no-proxy-arp`.
+  Source NAT "to the outgoing interface" needs to know the interface: from
+  the rule, or from `--target-nat-zone`.
+* Names keep to letters, digits, `.`, `_` and `-`, 64 characters; names that
+  come from an ASA are kept as they are (printable characters without `?`
+  and `"`). Words of the command line (`any`, `interface`, `host`, ...) are
+  not used as names, and network and service objects do not share a name.
 
 ### Names
 
@@ -951,6 +1213,32 @@ management server and in the SmartConsole installation.
 6. Assign the security zones to the interfaces of the gateway, and add proxy
    ARP for translated addresses (`NAT_MANUAL_RULES`).
 
+### Cisco ASA
+
+The output is a list of commands for configuration mode.
+
+1. Convert with `--zone-map` so that the access lists name the interfaces
+   (`nameif`) of the ASA, and with `--zone-network` where the report asks for
+   it. The interfaces must exist; give them different security levels, or set
+   `same-security-traffic permit inter-interface`.
+2. Read the lines at the end first. `access-group <list> in interface <name>`
+   **replaces** the access list bound to that interface now, and
+   `access-group global_access global` ends the policy for every interface of
+   the ASA, including those the output does not name. Remove these lines if
+   you want to look at the lists before they take effect.
+3. An access list that exists under the same name gets the new entries added
+   to its own, and an object group its new members. Load the output on an ASA
+   that has neither, or convert with `--target-prefix`.
+4. The NAT lines are twice NAT rules. An ASA adds them at the **end of
+   section 1** of its NAT table: manual NAT rules the ASA already has stay in
+   front of the new ones and win; only its network object NAT (section 2) and
+   `after-auto` rules (section 3) come after them. Load the output on an ASA
+   without manual NAT rules, or check the order with `show nat`.
+5. `configure terminal`, paste the file, check with `show access-list` and
+   `show nat`, then `write memory`.
+6. Objects with a host name need DNS (`dns domain-lookup <interface>` and a
+   DNS server group).
+
 ### After loading
 
 Search the configuration for `FWSHIFT`: every placeholder object and every
@@ -976,6 +1264,13 @@ rule the converter disabled carries that word in its comment or description.
 | `the export holds several access layers; choose one with --layer: ...` | Name one of the listed layers. Inline layers are found by themselves. |
 | `layer '...' not found; available: ...` | `--layer` names a layer that is not in the input. |
 | `the inline layers expand to more than 50000 rules` | Inline layers nested many times over. Not converted. |
+| `no Cisco ASA configuration found; expected the output of 'show running-config'` | `--from asa` on a file that has no interfaces, objects, access lists or NAT of an ASA. |
+| `this is the system configuration of an ASA in multiple context mode` | It holds no policy. Convert the configuration of each context. |
+| `the configuration could not be read (...)` | An ASA configuration that is damaged in a way FWShift did not foresee. Please report it. |
+| `--zone-network expects ZONE=NETWORK[,NETWORK...]` | Write the option as `--zone-network dmz=10.20.0.0/24,2001:db8:20::/64`. |
+| `--zone-network: ... overlap without one lying inside the other` | Two zones were given the same network, or ranges that cut across each other. A network inside another one is fine. |
+| `--target-nat-zone: '...' cannot be an interface name` | ASA target: the value is not a name an interface can have. |
+| `--zone-map: 'any' stands for every zone and cannot be the name of one` | Map the zone to a real name. |
 | `control characters are not allowed in ...` | An option value holds a line break or another control character. |
 | `--target-layer '...' is not a name mgmt_cli can be given` | The name starts with a hyphen. The same message exists for `--target-package` and `--target-gateway`. |
 | `--zone-map expects SOURCE=TARGET` | Write the option as `--zone-map old=new`. |
@@ -986,6 +1281,20 @@ single cause usually explains many: applications missing from the port table
 FWShift does not know, or a Check Point export without `details-level full`
 and `dereference-group-members true`, in which the objects are names without
 content.
+
+**Most rules for an ASA are inactive, with `EGRESS_INTERFACE`.** The source
+policy has rules "from zone A to zone B, any address", and an ASA access list
+cannot say "to zone B". Tell FWShift which networks lie behind the zones with
+`--zone-network`: the networks of every zone, with `0.0.0.0/0,::/0` for the
+one that stands for "everything else" (the Internet side). A rule stays
+inactive as long as a zone it is for, or has to be told apart from, has no
+networks; the finding names that zone.
+
+**Rules for an ASA allow less than expected, with `ZONE_NETWORK_GAP`.** The
+networks given do not cover every address: the default route is missing, or
+only IPv4 networks were given. What no network covers is allowed by no rule
+for any address that is kept to its zone. Add `0.0.0.0/0,::/0` to the zone
+the default route points to.
 
 **The output is larger than expected.** Every object of the source is
 converted, used or not; a FortiOS backup alone defines some ninety default
@@ -999,18 +1308,19 @@ deliberate: see *IPv4 and IPv6* in section 8.
 * The emitted syntax follows the vendors' documented formats. Only iptables
   output has been loaded into the real thing (a Linux kernel with iptables
   1.8.10, nf_tables backend; filter rules, not NAT); nothing has been
-  validated on PAN-OS or FortiOS devices or a Check Point management server,
-  or across versions.
+  validated on PAN-OS, FortiOS or ASA devices or a Check Point management
+  server, or across versions.
 * Statements about vendor behaviour that the conversion relies on (FortiOS
   policy lookup after destination NAT, `match-vip`, PAN-OS FQDN resolution, the
   commands each CLI accepts, the fields of the Check Point Management API, what
-  an object with automatic NAT matches) come from documentation and still need
-  confirming. `DEVELOPMENT.md` lists them.
+  an object with automatic NAT matches, what an ASA forwards without being
+  told and how it orders and combines NAT rules) come from documentation and
+  still need confirming. `DEVELOPMENT.md` lists them.
 * A port-translating destination NAT is reported, not corrected.
-* A connection that needs destination *and* source NAT from separate FortiOS
-  or iptables rules gets one of them on PAN-OS and Check Point; the order of a
-  first-match NAT rulebase is reported, not reproduced, on FortiOS and
-  iptables (section 8).
+* A connection that needs destination *and* source NAT from separate FortiOS,
+  iptables or ASA rules gets one of them on PAN-OS and Check Point; the order
+  of a first-match NAT rulebase is reported, not reproduced, on FortiOS,
+  iptables and ASA (section 8).
 * Source NAT rules derived from FortiOS policies match on zones and addresses,
   not on the policy's services.
 * Dynamic address groups survive only PAN-OS to PAN-OS.
@@ -1021,5 +1331,28 @@ deliberate: see *IPv4 and IPv6* in section 8.
   identity awareness, application control, content awareness and VPN
   communities are not converted. The output is `mgmt_cli` calls for the
   firewall (network) blade only.
+* Cisco ASA: one configuration (one context) per run. Time ranges, user and
+  TrustSec matches, outbound access lists that do more than deny, NAT of
+  releases before 8.3, IPv6 access lists of releases before 9.0, inspection
+  and service policies and VPN are not converted. Destination zones are worked
+  out from interface addresses and static routes: where routing is decided by
+  a routing protocol, FWShift does not narrow and the rules name every
+  interface the traffic could leave by. Bridge groups are not modelled. ASA
+  to ASA is not a copy: the names of access lists, `log` on a deny, time
+  ranges and object NAT (written back as twice NAT) change.
+* Cisco FTD: only what the device configuration shows. Rules with
+  application, URL or user conditions come out disabled; for those the
+  manager's policy is the source, and FWShift does not read it.
+* To an ASA, a rule "to zone B, any address" needs `--zone-network`; without
+  it the rule is written inactive. The networks you give are taken to be
+  right: a zone or an address nobody mentioned is handled on the side that
+  allows less and reported, but a network given to the wrong zone is not
+  noticed.
+* ASA before 9.0: an interface whose only access list is an IPv4 one gets no
+  rule for the IPv6 traffic the ASA let out by security level.
+* A rule that names an address which a destination NAT translates away (dead
+  on a platform that looks rules up after NAT) is converted as a rule for
+  that address, with a finding (`NAT_ADDRESS_EXPOSED`). Back to a platform
+  of the same kind, with the same NAT rule, it is left as it was.
 * PAN-OS `set`-format input, schedules, and user and group mapping are not
   implemented yet.

@@ -34,7 +34,8 @@ from .model import (
     SnatKind,
 )
 from .names import NameRules, clean, unique
-from .netutil import FULL_V4, FULL_V6, Interval, is_number, normalize, overlaps, parse_literal, size, within
+from .netutil import FULL_V4, FULL_V6, Interval, intersect, interval_text, is_number, normalize, overlaps
+from .netutil import parse_literal, size, subtract, within
 from .report import Report, Severity
 
 Reason = Tuple[str, str]
@@ -86,6 +87,18 @@ def harden(p: Policy, report: Report) -> None:
     are not ports. A parser that validates its input leaves nothing to do here.
     """
     _without_control(p)
+    # No platform takes a group that holds itself, and nothing can be read off one.
+    for name in _circular({name: group.members for name, group in p.address_groups.items()}):
+        group = p.address_groups[name]
+        if not group.unsupported:
+            group.unsupported = "address group that holds itself, or a group that does"
+            report.add("address-group", name, Severity.REVIEW, "UNSUPPORTED_GROUP", f"{group.unsupported}: not converted")
+    for name in _circular({name: sgroup.members for name, sgroup in p.service_groups.items()}):
+        p.service_groups[name].members = []
+        report.add(
+            "service-group", name, Severity.REVIEW, "UNSUPPORTED_GROUP",
+            "service group that holds itself, or a group that does: not converted",
+        )  # fmt: skip
     for address in p.addresses.values():
         if address.kind == AddressKind.FQDN and not _HOST_NAME.fullmatch(address.value):
             address.kind, address.raw = AddressKind.UNSUPPORTED, "host name with characters no host name has"
@@ -111,10 +124,36 @@ def harden(p: Policy, report: Report) -> None:
             report.add("service", service.name, Severity.REVIEW, "UNSUPPORTED_SERVICE", f"{service.unsupported}: not converted")
 
 
+def _circular(groups: Mapping[str, List[str]]) -> List[str]:
+    """Groups that hold themselves, directly or through other groups, and the groups that hold such a group."""
+    waiting = {name: {member for member in members if member in groups} for name, members in groups.items()}
+    users: Dict[str, List[str]] = {}
+    for name, inner in waiting.items():
+        for member in inner:
+            users.setdefault(member, []).append(name)
+    done = [name for name, inner in waiting.items() if not inner]
+    while done:
+        name = done.pop()
+        del waiting[name]
+        for user in users.get(name, []):
+            if user in waiting:
+                waiting[user].discard(name)
+                if not waiting[user]:
+                    done.append(user)
+    return list(waiting)
+
+
 # -- resolution -----------------------------------------------------------
 
 
-def address_intervals(p: Policy, ref: str, _seen: Optional[Set[str]] = None) -> Optional[List[Interval]]:
+# The resolvers below walk groups inside groups. A group that is reached twice is resolved once
+# (``_memo``, for the duration of one call) and gives each of its addresses once: nesting that
+# fans out would otherwise cost time and memory that double with every level.
+
+
+def address_intervals(
+    p: Policy, ref: str, _seen: Optional[Set[str]] = None, _memo: Optional[Dict[str, Optional[List[Interval]]]] = None
+) -> Optional[List[Interval]]:
     """IP ranges a rule member stands for, or None when that cannot be known statically."""
     if ref == ANY:
         return [FULL_V4, FULL_V6]
@@ -127,20 +166,27 @@ def address_intervals(p: Policy, ref: str, _seen: Optional[Set[str]] = None) -> 
     if ref in p.address_groups:
         group = p.address_groups[ref]
         seen = _seen or set()
+        memo = _memo if _memo is not None else {}
+        if ref in memo:
+            return memo[ref]
         if group.dynamic_filter or group.unsupported or ref in seen:
-            return None
-        out: List[Interval] = []
+            return None  # a group inside itself: whatever is above it cannot be known either
+        out: Optional[List[Interval]] = []
         for member in group.members:
-            resolved = address_intervals(p, member, seen | {ref})
-            if resolved is None:
-                return None
+            resolved = address_intervals(p, member, seen | {ref}, memo)
+            if resolved is None or out is None:
+                out = None
+                break
             out += resolved
-        return out
+        memo[ref] = list(dict.fromkeys(out)) if out is not None else None
+        return memo[ref]
     interval = parse_literal(ref)
     return [interval] if interval else None
 
 
-def known_intervals(p: Policy, ref: str, _seen: Optional[Set[str]] = None) -> Tuple[List[Interval], bool]:
+def known_intervals(
+    p: Policy, ref: str, _seen: Optional[Set[str]] = None, _memo: Optional[Dict[str, Tuple[List[Interval], bool]]] = None
+) -> Tuple[List[Interval], bool]:
     """(IP ranges that can be read off a rule member, whether that is all of it).
 
     Unlike :func:`address_intervals` this does not give up on a group that holds
@@ -149,20 +195,26 @@ def known_intervals(p: Policy, ref: str, _seen: Optional[Set[str]] = None) -> Tu
     if ref in p.address_groups:
         group = p.address_groups[ref]
         seen = _seen or set()
+        memo = _memo if _memo is not None else {}
         if ref in seen:
             return [], False
+        if ref in memo:
+            return memo[ref]
         out: List[Interval] = []
         complete = not (group.dynamic_filter or group.unsupported)
         for member in group.members:
-            intervals, member_complete = known_intervals(p, member, seen | {ref})
+            intervals, member_complete = known_intervals(p, member, seen | {ref}, memo)
             out += intervals
             complete = complete and member_complete
-        return out, complete
+        result = (list(dict.fromkeys(out)), complete)
+        if complete:
+            memo[ref] = result  # an incomplete answer may be so because of where the walk came from
+        return result
     resolved = address_intervals(p, ref)
     return (resolved, True) if resolved is not None else ([], False)
 
 
-def families(p: Policy, ref: str, _seen: Optional[Set[str]] = None) -> Set[int]:
+def families(p: Policy, ref: str, _seen: Optional[Set[str]] = None, _memo: Optional[Dict[str, Set[int]]] = None) -> Set[int]:
     """IP versions (4, 6) a rule member can match."""
     if ref == ANY:
         return {4, 6}
@@ -176,31 +228,49 @@ def families(p: Policy, ref: str, _seen: Optional[Set[str]] = None) -> Set[int]:
         return {4}
     if ref in p.address_groups:
         seen = _seen or set()
+        memo = _memo if _memo is not None else {}
         if ref in seen:
             return set()
+        if ref in memo:
+            return memo[ref]
         out: Set[int] = set()
         for member in p.address_groups[ref].members:
-            out |= families(p, member, seen | {ref})
-        return out or {4}
+            out |= families(p, member, seen | {ref}, memo)
+            if out == {4, 6}:
+                break
+        memo[ref] = out or {4}
+        return memo[ref]
     interval = parse_literal(ref)
     return {interval[0]} if interval else {4}
 
 
-def flatten_services(p: Policy, ref: str, _seen: Optional[Set[str]] = None) -> Optional[List[ServiceEntry]]:
+def flatten_services(
+    p: Policy, ref: str, _seen: Optional[Set[str]] = None, _memo: Optional[Dict[str, Optional[List[ServiceEntry]]]] = None
+) -> Optional[List[ServiceEntry]]:
     """All protocol/port entries behind a service or service group; None if unresolvable."""
     if ref in p.services:
         return list(p.services[ref].entries) or None
     if ref in p.service_groups:
         seen = _seen or set()
+        memo = _memo if _memo is not None else {}
+        if ref in memo:
+            return memo[ref]
         if ref in seen:
             return None
-        out: List[ServiceEntry] = []
+        out: Optional[List[ServiceEntry]] = []
         for member in p.service_groups[ref].members:
-            resolved = flatten_services(p, member, seen | {ref})
-            if resolved is None:
-                return None
+            resolved = flatten_services(p, member, seen | {ref}, memo)
+            if resolved is None or out is None:
+                out = None
+                break
             out += resolved
-        return out or None
+        if out is not None:
+            distinct: Dict[Tuple[object, ...], ServiceEntry] = {}
+            for entry in out:
+                distinct.setdefault(dataclasses.astuple(entry), entry)
+            out = list(distinct.values())
+        memo[ref] = out or None
+        return memo[ref]
     return None
 
 
@@ -392,27 +462,36 @@ def note_fqdn_families(p: Policy, rule: Rule, report: Report, target: str) -> No
     For a target that resolves every FQDN for both IP versions.
     """
 
-    def single_family(members: List[str], seen: Tuple[str, ...] = ()) -> Dict[str, int]:
+    def reachable(members: List[str]) -> List[str]:
+        """The members and everything inside the groups among them, each once."""
+        out: Dict[str, None] = {}
+        todo = list(reversed(members))
+        while todo:
+            name = todo.pop()
+            if name not in out:
+                out[name] = None
+                if name in p.address_groups:
+                    todo += reversed(p.address_groups[name].members)
+        return list(out)
+
+    def single_family(members: List[str]) -> Dict[str, int]:
         out: Dict[str, int] = {}
-        for member in members:
+        for member in reachable(members):
             address = p.addresses.get(member)
             if address is not None and address.kind == AddressKind.FQDN and address.fqdn_family:
                 out[member] = address.fqdn_family
-            elif member in p.address_groups and member not in seen:
-                out.update(single_family(p.address_groups[member].members, seen + (member,)))
         return out
 
-    def versions_here(member: str, seen: Tuple[str, ...] = ()) -> Set[int]:
+    def versions_here(member: str) -> Set[int]:
         """IP versions a member matches on the target."""
-        address = p.addresses.get(member)
-        if address is not None and address.kind == AddressKind.FQDN:
-            return {4, 6}
-        if member in p.address_groups and member not in seen:
-            out: Set[int] = set()
-            for inner in p.address_groups[member].members:
-                out |= versions_here(inner, seen + (member,))
-            return out
-        return families(p, member)
+        out: Set[int] = set()
+        for name in reachable([member]):
+            address = p.addresses.get(name)
+            if address is not None and address.kind == AddressKind.FQDN:
+                out |= {4, 6}
+            elif name not in p.address_groups:
+                out |= families(p, name)
+        return out
 
     sides = (
         (rule.sources, rule.destinations, rule.negate_destination),
@@ -768,7 +847,12 @@ def _listed(names: List[str]) -> str:
 
 
 def note_nat_order(
-    p: Policy, report: Report, written: AbstractSet[str], target: str, tied: AbstractSet[str] = frozenset()
+    p: Policy,
+    report: Report,
+    written: AbstractSet[str],
+    target: str,
+    tied: AbstractSet[str] = frozenset(),
+    whole: Optional[AbstractSet[str]] = None,
 ) -> None:
     """Report what changes when NAT rules move between "first match" and "one rule of each direction".
 
@@ -776,6 +860,11 @@ def note_nat_order(
     "first-match" (PAN-OS, Check Point) or "per-direction" (iptables, FortiOS).
     ``tied`` names rules whose source translation the target ties to the original
     destination of the rule itself, so that it cannot touch other traffic.
+    ``whole`` is given for a target of ASA kind. It names the rules written as one
+    rule for both directions (twice NAT with a destination part): such a rule claims
+    its connections as it did on the source, and no other rule translates their
+    source. On such a target the inbound half of a static NAT applies to traffic
+    that arrives where the rule translates towards, not to traffic from every zone.
     Two rules that both carry ``combines`` applied together on the source.
 
     The comparison goes by zones, addresses and services, and assumes an overlap
@@ -784,6 +873,15 @@ def note_nat_order(
     """
     enabled = [nat for nat in p.nat_rules if nat.enabled]
     rules = [nat for nat in enabled if nat.origin in written]
+    asa_kind = whole is not None
+    whole = whole or frozenset()
+
+    def inbound_of(nat: NatRule) -> List[_Inbound]:
+        found = _inbound(nat)
+        if asa_kind:
+            found = [dataclasses.replace(i, src_zones=nat.dst_zones) if i.implicit else i for i in found]
+        return found
+
     # 0. A rule that is not written no longer claims its traffic: translating rules below it get it.
     for index, missing in enumerate(enabled):
         translates = missing.source_translation is not None or missing.destination_translation is not None
@@ -810,17 +908,24 @@ def note_nat_order(
                     f"NAT rule '{missing.name}' above this one is not converted. On the source it matched part of "
                     "this traffic first; that traffic now reaches this rule and is translated by it",
                 )
+    # Rules that applied together on the source and that the target writes as rules that stand alone.
+    alone = rules if target == "first-match" else [n for n in rules if n.origin in whole]
+    dnat = [n for n in alone if n.combines and n.destination_translation is not None and n.source_translation is None]
+    snat = [n for n in rules if n.combines and n.source_translation is not None and n.destination_translation is None]
+    if dnat and snat:
+        report.note(
+            Severity.APPROX,
+            "NAT_ORDER",
+            "the source applies a destination NAT rule and a source NAT rule to the same connection. The "
+            "target applies one NAT rule, the first that matches: a connection that needed both translations "
+            "gets the destination translation only. Combine the two in one rule where that matters"
+            if target == "first-match"
+            else "the source applies a destination NAT rule and a source NAT rule to the same connection. "
+            f"{len(dnat)} destination NAT rule{'s are' if len(dnat) != 1 else ' is'} written as a rule that names "
+            "the source as well and leaves it as it is: a connection that needed both translations gets the "
+            "destination translation only. Combine the two in one rule where that matters",
+        )
     if target == "first-match":
-        dnat = [n for n in rules if n.combines and n.destination_translation is not None and n.source_translation is None]
-        snat = [n for n in rules if n.combines and n.source_translation is not None and n.destination_translation is None]
-        if dnat and snat:
-            report.note(
-                Severity.APPROX,
-                "NAT_ORDER",
-                "the source applies a destination NAT rule and a source NAT rule to the same connection. The "
-                "target applies one NAT rule, the first that matches: a connection that needed both translations "
-                "gets the destination translation only. Combine the two in one rule where that matters",
-            )
         return
     position = {id(nat): index for index, nat in enumerate(rules)}
     for later in rules:
@@ -828,9 +933,10 @@ def note_nat_order(
         #    and that a destination translation of this rule now changes.
         claimed = [
             earlier.name
-            for inbound in _inbound(later)
+            for inbound in inbound_of(later)
             for earlier in rules[: position[id(later)]]
             if not (earlier.combines and later.combines)
+            and earlier.origin not in whole
             and not _two_halves(earlier, later)
             and _claims(p, earlier, inbound)
         ]
@@ -851,7 +957,7 @@ def note_nat_order(
     added: List[Tuple[NatRule, _Inbound, NatRule]] = []  # (rule, its translation, rule that now translates the source)
     for first in rules:
         own = _outbound(first)
-        for inbound in _inbound(first):
+        for inbound in [] if first.origin in whole else inbound_of(first):
             leaves_to = _zone_after(p, inbound)
             keeps_own = own is not None and not inbound.implicit  # the rule translates the source itself
             ahead: List[str] = []  # entries that come before its own
@@ -963,12 +1069,33 @@ def to_post_nat_lookup(p: Policy, report: Report, written: Set[str]) -> None:
 
     ``written`` holds the origins of the NAT rules the target will really get.
     When the source is a platform of the same kind, what its parser did to reach
-    the pre-NAT model is undone here, so the findings about it are withdrawn.
+    the pre-NAT model is undone here for those NAT rules, which leaves the rules
+    as the source had them: the findings about it are withdrawn.
     """
     same_kind = p.lookup_after_dnat
     if same_kind:
-        report.retract("rule", {"NAT_PORT_TRANSLATION", "NAT_DESTINATION_REWRITTEN", "NAT_REDIRECT"})
-    rewrite_destinations(p, report, to_post_nat=True, only=written, quiet_when_covered=same_kind)
+        report.retract(
+            "rule",
+            {
+                "NAT_PORT_TRANSLATION", "NAT_PORT_EXPOSED", "NAT_DESTINATION_REWRITTEN", "NAT_DESTINATION_WIDENED",
+                "NAT_ADDRESS_EXPOSED", "NAT_REDIRECT",
+            },
+            subjects=written,
+        )  # fmt: skip
+    rewrite_destinations(
+        p, report, to_post_nat=True, only=written, quiet_when_covered=same_kind, named_translations=p.named_translations
+    )
+
+
+@dataclass
+class _Side:
+    """One destination NAT as one rule meets it."""
+
+    translation: DestinationTranslation
+    old: List[Interval]  # the addresses of the side being left
+    new: List[Interval]
+    covered: List[Interval]  # what goes, on the new side, with what the rule names on the side being left
+    new_side_service: bool  # the services of the rule can match the traffic as it looks on the new side
 
 
 def rewrite_destinations(
@@ -978,6 +1105,7 @@ def rewrite_destinations(
     only: Optional[Set[str]] = None,
     report_deny: bool = True,
     quiet_when_covered: bool = False,
+    named_translations: bool = False,
 ) -> None:
     """Translate security-rule destinations between pre-NAT and post-NAT addressing.
 
@@ -985,100 +1113,295 @@ def rewrite_destinations(
     destination NAT, against the mapped address. An emitter targeting FortiOS
     calls this with ``to_post_nat=True``, a parser reading FortiOS with ``False``.
 
-    For each destination NAT:
+    For each rule and destination NAT whose traffic the rule can match (source
+    zones, and the services where the NAT rule names one):
 
     * a rule that covers the address of the side being left gets the address of
       the other side;
-    * an allow rule that covers only the other side would start to match the
-      translated traffic, and is reported;
-    * a negated destination that would change meaning disables the rule.
+    * a rule that then covers addresses of the other side which do not go with
+      what it covered on the side being left would start to match translated
+      traffic, and is reported. That is looked at once every translation has
+      been applied, against what the rule named to begin with, so that the
+      order of the NAT rules does not decide what is found;
+    * a negated destination that would change meaning disables the rule;
+    * a rule whose service names the port of one side only is reported.
 
-    Matching is done on addresses and source zones only, so every change is
-    reported for review.
+    Matching is done on addresses, ports and source zones only, so every change
+    is reported for review. A parser (``to_post_nat=False``) notes on each rule
+    the destinations it added (``Rule.nat_added``).
+
+    ``quiet_when_covered``: the source is a platform of the same kind as the
+    target. Only what its parser added is taken away again; what the source
+    itself wrote stood for the same addresses there as it will on the target,
+    and stays.
+
+    ``named_translations``: on the source a rule that names the object of a
+    destination NAT itself applied to the translated traffic (FortiOS virtual IPs).
     """
+    usable: List[Tuple[DestinationTranslation, List[Interval], List[Interval]]] = []
     for translation in destination_translations(p, only):
-        nat, pre_ref, post_ref, port = translation.nat, translation.pre, translation.post, translation.port
-        pre, post = address_intervals(p, pre_ref), address_intervals(p, post_ref)
+        pre, post = address_intervals(p, translation.pre), address_intervals(p, translation.post)
         if not pre or not post:
             continue  # nothing to go by
         if FULL_V4 in normalize(pre):
             if not to_post_nat:
                 _note_redirect(p, report, translation, post)
             continue  # a redirect of every destination: there is no address to put in its place
-        old, new, new_ref = (pre, post, post_ref) if to_post_nat else (post, pre, pre_ref)
-        old_side, new_side = ("pre-NAT", "post-NAT") if to_post_nat else ("post-NAT", "pre-NAT")
-        for rule in p.rules:
-            if ANY in rule.destinations or ANY_V4 in rule.destinations:
-                continue  # covers the pre-NAT and the post-NAT address alike
+        usable.append((translation, pre, post))
+    for rule in p.rules:
+        named = list(rule.destinations)  # what the rule named before any translation was applied
+        sides: List[_Side] = []
+        same_address: List[DestinationTranslation] = []
+        everything = ANY in rule.destinations or ANY_V4 in rule.destinations
+        for translation, pre, post in usable:
             if not _zones_meet(translation.zones, rule.src_zones):
                 continue
-            # Read what can be read: a group holding an FQDN still names its other members.
-            resolved = [(member,) + known_intervals(p, member) for member in rule.destinations]
-            known = [interval for _, intervals, _ in resolved for interval in intervals]
-            if rule.negate_destination:
-                # A negated list matches the translated traffic unless it names the address looked at.
-                if within(old, known) != within(new, known):
-                    rule.unsupported.append(
-                        f"negated destination that names only one of the addresses of NAT rule '{nat.name}' "
-                        f"({pre_ref}, {post_ref})"
-                    )
+            if everything:
+                # Covers the pre-NAT and the post-NAT address alike: only the port can differ.
+                applies = _zones_meet(translation.arrival_zones, rule.src_zones)
+            elif normalize(pre) == normalize(post) and not rule.negate_destination:
+                # The address stays and the port changes: looked at when the rule has its final addresses,
+                # which may hold this one through another NAT rule.
+                same_address.append(translation)
+                if not quiet_when_covered:
+                    original, translated, _ = _service_sides(p, rule, translation.nat, translation.port)
+                    stays = intersect([i for member in named for i in known_intervals(p, member)[0]], pre)
+                    sides.append(_Side(translation, pre, post, stays, translated if to_post_nat else original))
                 continue
-            hits = [(member, complete) for member, intervals, complete in resolved if overlaps(intervals, old)]
-            if not hits:
-                if not overlaps(known, new) or not _zones_meet(translation.arrival_zones, rule.src_zones):
-                    continue
-                allow = rule.action == Action.ALLOW
-                if to_post_nat:
-                    text = (
-                        f"the destination covers '{post_ref}', the address NAT rule '{nat.name}' translates "
-                        f"'{pre_ref}' to. The target looks rules up after that translation, so traffic sent to "
-                        f"'{pre_ref}' now matches this rule; on the source it did not"
-                        + ("" if allow else ". This rule now blocks that traffic before the rules below see it")
-                    )
-                elif not allow and not report_deny:
-                    continue  # the caller reports deny rules itself (FortiOS: together with match-vip)
-                elif pre_ref in _reachable_names(p, rule.destinations):
-                    continue  # the policy names the virtual IP itself: FortiOS applied it to that traffic
-                else:
-                    text = (
-                        f"the destination covers '{pre_ref}', the external address of NAT rule '{nat.name}', "
-                        f"but not '{post_ref}' behind it. The source looks rules up after the translation and "
-                        "did not apply this rule to that traffic; the converted rule does"
-                    )
-                report.add("rule", rule.origin, Severity.REVIEW, "NAT_ADDRESS_EXPOSED", text)
-                continue
-            destinations = list(rule.destinations)
-            # A source of the same kind: a rule that already names the new side only loses a dead address.
-            silent = quiet_when_covered and overlaps(known, new)
-            for member, complete in hits:
-                intervals = known_intervals(p, member)[0]
-                if to_post_nat and complete and normalize(intervals) == normalize(old):
-                    destinations[destinations.index(member)] = new_ref
-                    how = f"replaced {old_side} destination '{member}' with {new_side} '{new_ref}'"
-                elif within(new, known):
-                    continue  # the rule names the other address already
-                else:
-                    destinations.append(new_ref)
-                    how = f"added {new_side} destination '{new_ref}' next to '{member}'"
-                if not silent:
-                    report.add(
-                        "rule",
-                        rule.origin,
-                        Severity.APPROX,
-                        "NAT_DESTINATION_REWRITTEN",
-                        f"{how} because of NAT rule '{nat.name}'; check that this rule is meant "
-                        "to cover the translated traffic",
-                    )
-            rule.destinations = _dedupe(destinations)
-            if port and not quiet_when_covered and _port_concerns(p, rule, nat, port, to_post_nat):
-                report.add(
-                    "rule",
-                    rule.origin,
-                    Severity.REVIEW,
-                    "NAT_PORT_TRANSLATION",
-                    f"NAT rule '{nat.name}' also translates the port to {port}; "
-                    f"the service of this rule still names the {old_side} port and must be adjusted",
+            else:
+                applies = _rewrite_addresses(
+                    p, report, translation, rule, named, pre, post, to_post_nat, quiet_when_covered, named_translations, only, sides
                 )
+            if applies and not quiet_when_covered:
+                _report_ports(p, report, rule, translation, to_post_nat)
+        final = [interval for member in rule.destinations for interval in known_intervals(p, member)[0]]
+        for translation in same_address:
+            if overlaps(final, address_intervals(p, translation.pre) or []) and not quiet_when_covered:
+                _report_ports(p, report, rule, translation, to_post_nat)
+        if sides:
+            _report_exposed(p, report, rule, named, sides, to_post_nat, report_deny, named_translations)
+
+
+def _report_ports(p: Policy, report: Report, rule: Rule, translation: DestinationTranslation, to_post_nat: bool) -> None:
+    """Report a rule whose services name the port of one side only of a port translation it applies to."""
+    nat, port = translation.nat, translation.port
+    if not port or (rule.services == [ANY] and not rule.negate_service):
+        return
+    old_side, new_side = ("pre-NAT", "post-NAT") if to_post_nat else ("post-NAT", "pre-NAT")
+    original, translated, known = _service_sides(p, rule, nat, port)
+    names_old = original if to_post_nat else translated
+    names_new = translated if to_post_nat else original
+    if names_old and (not names_new or not known):
+        report.add(
+            "rule",
+            rule.origin,
+            Severity.REVIEW,
+            "NAT_PORT_TRANSLATION",
+            f"NAT rule '{nat.name}' also translates the port to {port}; "
+            f"the service of this rule still names the {old_side} port and must be adjusted",
+            nat.origin,
+        )
+    elif names_new and not names_old:
+        where = "after" if to_post_nat else "before"
+        report.add(
+            "rule",
+            rule.origin,
+            Severity.REVIEW,
+            "NAT_PORT_EXPOSED",
+            f"the service covers the {new_side} port of NAT rule '{nat.name}' (which translates the port to "
+            f"{port}) but not the {old_side} one. The source looks rules up {'before' if to_post_nat else 'after'} "
+            f"the translation and did not apply this rule to that traffic; the target looks them up {where} "
+            "it, and there the rule applies",
+            nat.origin,
+        )
+
+
+def _rewrite_addresses(
+    p: Policy,
+    report: Report,
+    translation: DestinationTranslation,
+    rule: Rule,
+    named: List[str],
+    pre: List[Interval],
+    post: List[Interval],
+    to_post_nat: bool,
+    same_kind: bool,
+    named_translations: bool,
+    written: Optional[Set[str]],
+    sides: List[_Side],
+) -> bool:
+    """Give one rule the addresses of the other side of one destination NAT (see rewrite_destinations).
+
+    Returns whether the rule goes on applying to the traffic of that NAT rule, so that its ports matter.
+    Appends to ``sides`` what is needed to see, afterwards, whether the rule covers too much.
+    """
+    nat, pre_ref, post_ref = translation.nat, translation.pre, translation.post
+    old, new, new_ref = (pre, post, post_ref) if to_post_nat else (post, pre, pre_ref)
+    old_side, new_side = ("pre-NAT", "post-NAT") if to_post_nat else ("post-NAT", "pre-NAT")
+    # Read what can be read: a group holding an FQDN still names its other members.
+    resolved = [(member,) + known_intervals(p, member) for member in named]
+    known = [interval for _, intervals, _ in resolved for interval in intervals]
+    # One address for one address: a rule for part of one side gets the same part of the other.
+    one_to_one = len(old) == 1 and len(new) == 1 and size(old[0]) == size(new[0])
+    if nat.destination_translation is not None and nat.destination_translation.spread:
+        one_to_one = False  # the source picked one of the addresses per connection
+
+    def other_side(intervals: List[Interval]) -> List[Interval]:
+        shift = new[0][1] - old[0][1]
+        return [(new[0][0], first + shift, last + shift) for _, first, last in intersect(intervals, old)]
+
+    if rule.negate_destination:
+        # A negated list matches the translated traffic unless it names the address looked at:
+        # it has to name the same of both sides, or the rule changes meaning.
+        if not overlaps(known, old) and not overlaps(known, new):
+            return True
+        same = within(old, known) and within(new, known)
+        if not same and one_to_one:
+            same = normalize(other_side(known)) == normalize(intersect(known, new))
+        if not same:
+            reason = (
+                f"negated destination that does not name the same on both sides of NAT rule '{nat.name}' "
+                f"({pre_ref}, {post_ref})"
+            )
+            if reason not in rule.unsupported:
+                rule.unsupported.append(reason)
+            return False
+        return not within(old, known)
+    if normalize(old) == normalize(new):
+        return overlaps(known, old)  # the address stays as it is: only the port can differ (the caller sees to that)
+    # The services decide whether the NAT rule translates the traffic of this rule at all.
+    # (A source of the same kind: its services still name the ports of the side the target matches,
+    # and what is undone is what its parser noted, whatever the services.)
+    old_service = new_service = True
+    if nat.destination_translation is not None and not same_kind:
+        original, translated, _ = _service_sides(p, rule, nat, translation.port)
+        old_service, new_service = (original, translated) if to_post_nat else (translated, original)
+    hits = [(member, intervals, complete) for member, intervals, complete in resolved if overlaps(intervals, old)]
+    side = _Side(translation, old, new, [], new_service)
+    if not same_kind:
+        sides.append(side)  # between platforms of one kind the rule ends as the source had it: nothing new is exposed
+    if not hits or not old_service:
+        return False
+    destinations = list(rule.destinations)
+    for member, intervals, complete in hits:
+        if within(old, intervals):
+            counterpart, refs = list(new), [new_ref]
+        elif one_to_one:
+            counterpart = other_side(intervals)
+            refs = [interval_text(interval) for interval in counterpart]
+        else:
+            counterpart, refs = list(new), [new_ref]  # no telling which of them go with this part
+        side.covered += counterpart
+        lies_on_old_side = complete and within(intervals, old)
+        if same_kind:
+            added_for = rule.nat_added.get(member, [])
+            if nat.origin in added_for:
+                # What the parser added for this NAT rule goes again, once every NAT rule it was added for is written.
+                if member in destinations and (written is None or all(origin in written for origin in added_for)):
+                    destinations.remove(member)
+                continue
+            if not (named_translations and pre_ref in _reachable_names(p, [member])):
+                continue  # written by the source, which read it as the target will: it stays as it is
+        widened = not within(old, intervals) and not one_to_one
+        listed = "', '".join(refs)
+        now = [i for other in destinations for i in known_intervals(p, other)[0]]
+        if to_post_nat and lies_on_old_side:
+            # The member lies on the side being left: its counterpart takes its place.
+            rest = [i for other in destinations if other != member for i in known_intervals(p, other)[0]]
+            put = [] if within(counterpart, rest) else refs
+            if member in destinations:
+                position = destinations.index(member)
+                destinations[position : position + 1] = put
+            else:
+                destinations += put  # an earlier NAT rule for the same address took the member away already
+            how = f"replaced {old_side} destination '{member}' with {new_side} '{listed}'"
+        elif within(counterpart, known):
+            continue  # the rule named the other address itself
+        else:
+            if not within(counterpart, now):
+                destinations += refs
+            if not to_post_nat:
+                for ref in refs:
+                    if nat.origin not in rule.nat_added.setdefault(ref, []):
+                        rule.nat_added[ref].append(nat.origin)
+            how = f"added {new_side} destination '{listed}' next to '{member}'"
+        if widened:
+            report.add(
+                "rule",
+                rule.origin,
+                Severity.REVIEW,
+                "NAT_DESTINATION_WIDENED",
+                f"{how} because of NAT rule '{nat.name}'. '{member}' is only part of what that rule "
+                f"translates, and it does not map address for address: the rule now covers all of '{new_ref}'",
+                nat.origin,
+            )
+        else:
+            report.add(
+                "rule",
+                rule.origin,
+                Severity.APPROX,
+                "NAT_DESTINATION_REWRITTEN",
+                f"{how} because of NAT rule '{nat.name}'; check that this rule is meant "
+                "to cover the translated traffic",
+                nat.origin,
+            )
+    rule.destinations = _dedupe(destinations)
+    return True
+
+
+def _report_exposed(
+    p: Policy,
+    report: Report,
+    rule: Rule,
+    named: List[str],
+    sides: List[_Side],
+    to_post_nat: bool,
+    report_deny: bool,
+    named_translations: bool,
+) -> None:
+    """Report what a rule names on the new side of a translation without what goes with it on the other side.
+
+    There the two platforms disagree about the translated traffic: one let it in, the other did not.
+    """
+    allow = rule.action == Action.ALLOW
+    if not to_post_nat and not allow and not report_deny:
+        return  # the caller reports deny rules itself (FortiOS: together with match-vip)
+    final = [interval for member in rule.destinations for interval in known_intervals(p, member)[0]]
+    for side in sides:
+        translation = side.translation
+        nat, pre_ref, post_ref = translation.nat, translation.pre, translation.post
+        exposed = subtract(intersect(final, side.new), side.covered)
+        if not exposed or not side.new_side_service or not _zones_meet(translation.arrival_zones, rule.src_zones):
+            continue
+        if not to_post_nat and named_translations and pre_ref in _reachable_names(p, named):
+            continue  # the policy names the virtual IP itself: FortiOS applied it to that traffic
+        partly = bool(side.covered)  # next to addresses that do go with what the rule names on the other side
+        shown = ", ".join(interval_text(interval) for interval in exposed[:3]) + (", ..." if len(exposed) > 3 else "")
+        if to_post_nat:
+            if partly:
+                covers = (
+                    f"{shown} of '{post_ref}', the address NAT rule '{nat.name}' translates '{pre_ref}' to, "
+                    "but not the addresses that are translated to them"
+                )
+                sent = f"those addresses of '{pre_ref}'"
+            else:
+                covers = f"'{post_ref}', the address NAT rule '{nat.name}' translates '{pre_ref}' to"
+                sent = f"'{pre_ref}'"
+            text = (
+                f"the destination covers {covers}. The target looks rules up after that translation, so traffic sent to "
+                f"{sent} now matches this rule; on the source it did not"
+                + ("" if allow else ". This rule now blocks that traffic before the rules below see it")
+            )
+        else:
+            if partly:
+                covers = f"{shown} of '{pre_ref}', the external address of NAT rule '{nat.name}', but not what they are translated to"
+            else:
+                covers = f"'{pre_ref}', the external address of NAT rule '{nat.name}', but not '{post_ref}' behind it"
+            text = (
+                f"the destination covers {covers}. The source looks rules up after the translation and "
+                "did not apply this rule to that traffic; the converted rule does"
+            )
+        report.add("rule", rule.origin, Severity.REVIEW, "NAT_ADDRESS_EXPOSED", text, nat.origin)
 
 
 def _note_redirect(p: Policy, report: Report, translation: DestinationTranslation, post: List[Interval]) -> None:
@@ -1101,46 +1424,61 @@ def _note_redirect(p: Policy, report: Report, translation: DestinationTranslatio
                 "this rule to it after that translation. The converted rule still names the translated address"
                 + (" and port" if translation.port else "")
                 + ": a platform that looks rules up before NAT will not match the redirected traffic with it",
+                nat.origin,
             )
 
 
-def _l4_ranges(p: Policy, names: List[str]) -> Optional[Dict[Protocol, List[Tuple[int, int]]]]:
-    """Destination port ranges per protocol of a service list; None when it is not just TCP/UDP/SCTP ports."""
+_IP_NUMBERS = {6: Protocol.TCP, 17: Protocol.UDP, 132: Protocol.SCTP}
+
+
+def _l4_ranges(p: Policy, names: List[str], ports_only: bool = True) -> Optional[Dict[Protocol, List[Tuple[int, int]]]]:
+    """Destination port ranges per protocol of a service list; None when it is not just TCP/UDP/SCTP ports.
+
+    Without ``ports_only`` entries of protocols that have no ports are left out instead: they
+    cannot match what a port stands for.
+    """
     out: Dict[Protocol, List[Tuple[int, int]]] = {}
     for name in names:
         entries = flatten_services(p, name)
         if entries is None:
             return None
         for entry in entries:
-            if entry.protocol not in L4_PROTOCOLS:
-                return None
-            for part in (entry.dst_ports or "1-65535").split(","):
+            protocol, ports = entry.protocol, entry.dst_ports or "1-65535"
+            if protocol not in L4_PROTOCOLS:
+                if ports_only or (protocol == Protocol.IP and entry.ip_protocol is None):
+                    return None
+                if protocol != Protocol.IP or entry.ip_protocol not in _IP_NUMBERS:
+                    continue
+                protocol, ports = _IP_NUMBERS[entry.ip_protocol], "1-65535"
+            for part in ports.split(","):
                 first, _, last = part.partition("-")
                 if not is_number(first) or not is_number(last or first):
                     return None
-                out.setdefault(entry.protocol, []).append((int(first), int(last or first)))
+                out.setdefault(protocol, []).append((int(first), int(last or first)))
     return out
 
 
-def _port_concerns(p: Policy, rule: Rule, nat: NatRule, port: str, to_post_nat: bool) -> bool:
-    """Whether a port translation can touch what the services of a rule match."""
-    rule_ports = _l4_ranges(p, rule.services)
+def _service_sides(p: Policy, rule: Rule, nat: NatRule, port: str) -> Tuple[bool, bool, bool]:
+    """Whether the services of a rule can match (the ports a NAT rule matches, the ports it translates them to).
+
+    ``port`` is the port the NAT rule translates to, empty when it leaves the port alone.
+    What cannot be read off the services counts as a match; the third value says whether it could be read.
+    """
+    rule_ports = _l4_ranges(p, rule.services, ports_only=False)
     nat_ports = _l4_ranges(p, [nat.service])
-    if rule_ports is None or not is_number(port):
-        return True
-    if to_post_nat:
-        # The rule names ports of the original packet: does it meet what the NAT rule matches?
-        if nat_ports is None:
-            return True
-        return any(
-            low <= last and first <= high
-            for protocol, ranges in nat_ports.items()
-            for first, last in ranges
-            for low, high in rule_ports.get(protocol, [])
-        )
-    # The rule names ports after translation: does it meet the translated port?
+    if rule_ports is None or rule.negate_service or (port and not is_number(port)):
+        return True, True, False
+    original = nat_ports is None or any(
+        low <= last and first <= high
+        for protocol, ranges in nat_ports.items()
+        for first, last in ranges
+        for low, high in rule_ports.get(protocol, [])
+    )
+    if not port:
+        return original, original, True
     protocols = list(nat_ports) if nat_ports else list(rule_ports)
-    return any(low <= int(port) <= high for protocol in protocols for low, high in rule_ports.get(protocol, []))
+    translated = any(low <= int(port) <= high for protocol in protocols for low, high in rule_ports.get(protocol, []))
+    return original, translated, True
 
 
 # -- names ----------------------------------------------------------------
@@ -1228,6 +1566,7 @@ def rename_objects(p: Policy, address_map: Mapping[str, str], service_map: Mappi
     for rule in p.rules:
         rule.sources, rule.destinations = amap(rule.sources), amap(rule.destinations)
         rule.services = smap(rule.services)
+        rule.nat_added = {address_map.get(member, member): origins for member, origins in rule.nat_added.items()}
     for nat in p.nat_rules:
         nat.sources, nat.destinations = amap(nat.sources), amap(nat.destinations)
         nat.service = service_map.get(nat.service, nat.service)

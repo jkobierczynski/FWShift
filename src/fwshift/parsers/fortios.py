@@ -414,6 +414,7 @@ class _Builder:
         self.interface_ip: Dict[str, str] = {}
         self.interface_net: Dict[str, Interval] = {}
         self.nat_seen: Dict[Tuple[object, ...], str] = {}
+        self.family_memo: Dict[str, Set[int]] = {}  # address group -> IP versions; each group is walked once
 
     def section(self, path: str) -> Block:
         return self.scope.children.get(path) or Block()
@@ -437,7 +438,8 @@ class _Builder:
         for nat in self.p.nat_rules:
             nat.combines = True  # a virtual IP and a source NAT apply to the same session
         self._default_services()
-        transform.rewrite_destinations(self.p, self.report, to_post_nat=False, report_deny=False)
+        self.p.named_translations = True
+        transform.rewrite_destinations(self.p, self.report, to_post_nat=False, report_deny=False, named_translations=True)
         self._deny_and_vips(infos)
         for table in _UNCONVERTED_TABLES:
             if self.section(table).entries:
@@ -890,10 +892,14 @@ class _Builder:
             return {4, 6}
         group = self.p.address_groups.get(member)
         if group is not None and member not in _seen:
-            out: Set[int] = set()
-            for inner in group.members:
-                out |= self._model_families(inner, _seen + (member,))
-            return out or {4}
+            if member not in self.family_memo:
+                out: Set[int] = set()
+                for inner in group.members:
+                    out |= self._model_families(inner, _seen + (member,))
+                    if out == {4, 6}:
+                        break
+                self.family_memo[member] = out or {4}
+            return self.family_memo[member]
         return transform.families(self.p, member)
 
     # -- NAT rules --------------------------------------------------------

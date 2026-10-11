@@ -55,7 +55,7 @@ from ..model import (
     SourceNat,
     Zone,
 )
-from ..netutil import FULL_V4, FULL_V6, Interval, int_to_ip, is_number, normalize, parse_literal, range_text
+from ..netutil import FULL_V4, FULL_V6, Interval, int_to_ip, intersect, is_number, normalize, parse_literal, range_text, subtract
 from ..report import Report, Severity
 
 Obj = Dict[str, Any]
@@ -143,28 +143,6 @@ def _port_ranges(entries: List[ServiceEntry]) -> Optional[Dict[Protocol, List[Tu
             first, _, last = part.partition("-")
             out.setdefault(entry.protocol, []).append((int(first), int(last or first)))
     return out
-
-
-def _intersect(a: List[Interval], b: List[Interval]) -> List[Interval]:
-    out = [(x[0], max(x[1], y[1]), min(x[2], y[2])) for x in a for y in b if x[0] == y[0] and x[1] <= y[2] and y[1] <= x[2]]
-    return normalize(out)
-
-
-def _subtract(a: List[Interval], b: List[Interval]) -> List[Interval]:
-    """What is left of ``a`` without the addresses of ``b``; both merged and sorted."""
-    out: List[Interval] = []
-    for version, first, last in a:
-        for other_version, low, high in b:
-            if other_version != version or high < first or low > last:
-                continue
-            if low > first:
-                out.append((version, first, low - 1))
-            first = high + 1
-            if first > last:
-                break
-        if first <= last:
-            out.append((version, first, last))
-    return normalize(out)
 
 
 def _literal(interval: Interval) -> str:
@@ -918,11 +896,11 @@ class _Builder:
         if outer_negated or inner_negated:
             # In the plain list and not in the negated one.
             kept, names, removed = (second, inner, first) if outer_negated else (first, outer, second)
-            common = _subtract(kept, removed)
+            common = subtract(kept, removed)
             if common == kept:
                 return list(names), False, True
         else:
-            common = _intersect(first, second)
+            common = intersect(first, second)
             # Keep the names where one list simply lies inside the other.
             if common == second:
                 return list(inner), False, True

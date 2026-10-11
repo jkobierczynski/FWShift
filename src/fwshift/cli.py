@@ -12,13 +12,16 @@ from typing import Callable, Dict, List, Optional, Sequence, TextIO
 
 from . import __version__, transform
 from .appmap import load_app_map
+from .emitters import asa as emit_asa
 from .emitters import checkpoint as emit_checkpoint
 from .emitters import fortios as emit_fortios
 from .emitters import iptables as emit_iptables
 from .emitters import panos as emit_panos
 from .errors import FwshiftError
-from .model import Policy
+from .model import ANY, Policy
+from .netutil import parse_literal
 from .options import Options
+from .parsers import asa as parse_asa
 from .parsers import checkpoint as parse_checkpoint
 from .parsers import fortios as parse_fortios
 from .parsers import iptables as parse_iptables
@@ -31,13 +34,14 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "iptables": emit_iptables.emit,
     "ip6tables": emit_iptables.emit_v6,
     "checkpoint": emit_checkpoint.emit,
+    "asa": emit_asa.emit,
 }
-VENDORS = ("panos", "fortios", "checkpoint", "iptables", "ip6tables")
+VENDORS = ("panos", "fortios", "checkpoint", "asa", "iptables", "ip6tables")
 
 
 def detect_format(data: bytes) -> str:
-    """PAN-OS exports are XML, Check Point API output is JSON, iptables-save output starts with a table;
-    anything else is taken as FortiOS."""
+    """PAN-OS exports are XML, Check Point API output is JSON, iptables-save output starts with a table,
+    an ASA configuration has lines only an ASA writes; anything else is taken as FortiOS."""
     head = data.lstrip(b"\xef\xbb\xbf \t\r\n")
     if head.startswith(b"<"):
         return "panos"
@@ -49,6 +53,8 @@ def detect_format(data: bytes) -> str:
             return "iptables"  # the parser tells IPv4 from IPv6
         if line and not line.startswith(b"#"):
             break
+    if parse_asa.looks_like_asa(head[:1_000_000].decode("utf-8", errors="replace")):
+        return "asa"
     return "fortios"
 
 
@@ -61,6 +67,8 @@ def load(
         return parse_fortios.parse(data, report, vdom=vdom)
     if source == "checkpoint":
         return parse_checkpoint.parse(data, report, layer=layer)
+    if source == "asa":
+        return parse_asa.parse(data, report)
     if source in ("iptables", "ip6tables"):
         return parse_iptables.parse(data, report, family=6 if source == "ip6tables" else 0)
     raise FwshiftError(f"unknown source format '{source}'")
@@ -75,8 +83,11 @@ def convert(policy: Policy, target: str, report: Report, options: Optional[Optio
              "target scope": options.target_scope, "--target-vdom": options.target_vdom,
              "--target-nat-zone": options.nat_zone, "--target-layer": options.target_layer,
              "--target-package": options.target_package, "--target-gateway": options.target_gateway,
-             "--target-prefix": options.object_prefix}  # fmt: skip
+             "--target-prefix": options.object_prefix,
+             "--zone-network": " ".join(options.zone_networks)}  # fmt: skip
     transform.check_words(words)
+    if ANY in options.zone_map.values():
+        raise FwshiftError("--zone-map: 'any' stands for every zone and cannot be the name of one")
     transform.harden(policy, report)
     if target == "json":
         return policy.to_json()
@@ -98,6 +109,18 @@ def _pairs(values: Sequence[str], option: str) -> Dict[str, str]:
         if not sep or not key or not new:
             raise FwshiftError(f"{option} expects SOURCE=TARGET, got '{value}'")
         out[key] = new
+    return out
+
+
+def _networks(values: Sequence[str]) -> Dict[str, List[str]]:
+    out: Dict[str, List[str]] = {}
+    for value in values:
+        zone, sep, networks = value.partition("=")
+        listed = [network.strip() for network in networks.split(",")]
+        bad = [network for network in listed if parse_literal(network) is None]
+        if not sep or not zone or bad:
+            raise FwshiftError(f"--zone-network expects ZONE=NETWORK[,NETWORK...], got '{value[:60]}'")
+        out.setdefault(zone, []).extend(listed)
     return out
 
 
@@ -141,7 +164,8 @@ def _source_options(parser: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="fwshift", description="Convert firewall policies between PAN-OS, FortiOS, Check Point and iptables, with a lossiness report."
+        prog="fwshift",
+        description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA and iptables, with a lossiness report.",
     )
     parser.add_argument("--version", action="version", version=f"fwshift {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -156,6 +180,11 @@ def build_parser() -> argparse.ArgumentParser:
     conv.add_argument(
         "--interface-map", action="append", default=[], metavar="SRC=DST", help="map a source interface to a target one"
     )
+    conv.add_argument(
+        "--zone-network", action="append", default=[], metavar="ZONE=NET[,NET]",
+        help="ASA target: the networks behind a zone, so that rules for other zones can leave them out. Give them "
+        "for every zone; 0.0.0.0/0,::/0 for the zone with the default route",
+    )  # fmt: skip
     conv.add_argument("--app-map", metavar="FILE", help="JSON file: application name -> list of port specs")
     conv.add_argument("--prune-unused", action="store_true", help="leave out objects no rule uses")
     target = conv.add_mutually_exclusive_group()
@@ -164,7 +193,8 @@ def build_parser() -> argparse.ArgumentParser:
     target.add_argument("--target-shared", action="store_true", help="Panorama target: write into shared")
     conv.add_argument(
         "--target-nat-zone", default="", metavar="ZONE",
-        help="PAN-OS target: destination zone for NAT rules of a source that names none",
+        help="PAN-OS target: destination zone for NAT rules of a source that names none; "
+        "ASA target: interface for NAT to the outgoing interface where the rule names none",
     )  # fmt: skip
     conv.add_argument("--target-vdom", default="", metavar="NAME", help="FortiOS target: write into this VDOM")
     conv.add_argument(
@@ -180,7 +210,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--target-gateway", default="", metavar="NAME", help="Check Point target: gateway object that hide NAT uses"
     )
     conv.add_argument(
-        "--target-prefix", default="", metavar="TEXT", help="Check Point target: prefix for the names of created objects"
+        "--target-prefix", default="", metavar="TEXT", help="Check Point and ASA targets: prefix for the names of created objects"
     )
     conv.add_argument("--strict", action="store_true", help="exit with status 2 when anything needs review")
     conv.add_argument("-q", "--quiet", action="store_true", help="do not print the report or the summary")
@@ -218,6 +248,7 @@ def _run_convert(args: argparse.Namespace) -> int:
         target_package=args.target_package,
         target_gateway=args.target_gateway,
         object_prefix=args.target_prefix,
+        zone_networks=_networks(args.zone_network),
     )
     output = convert(policy, args.target, report, options)
     if args.output:

@@ -147,12 +147,15 @@ class _Emitter:
         self.postrouting: List[str] = []
         self.chain_counter = 0
         self.tied: Set[str] = set()  # NAT rules whose source half is bound to their own original destination
+        self.leaves: Dict[str, List[Tuple[str, object]]] = {}
         self.other_family = 0
 
     # -- addresses and services -------------------------------------------
 
     def _leaves(self, member: str, seen: Tuple[str, ...] = ()) -> List[Tuple[str, object]]:
         """What a rule member stands for: ("any", None), ("interval", Interval) or ("fqdn", name)."""
+        if member in self.leaves:
+            return self.leaves[member]
         if member == ANY:
             return [("any", None)]
         if member in self.p.addresses:
@@ -167,7 +170,10 @@ class _Emitter:
             out: List[Tuple[str, object]] = []
             for inner in self.p.address_groups[member].members:
                 out += self._leaves(inner, seen + (member,))
-            return out
+            # Each group is walked once and gives each of its addresses once: nesting that fans out
+            # would otherwise double the work with every level.
+            self.leaves[member] = list(dict.fromkeys(out))
+            return self.leaves[member]
         interval = parse_literal(member)
         return [("interval", interval)] if interval else []
 

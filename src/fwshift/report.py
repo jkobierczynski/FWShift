@@ -10,7 +10,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import AbstractSet, Any, Dict, List, Tuple
+from typing import AbstractSet, Any, Dict, List, Optional, Tuple
 
 
 class Severity(IntEnum):
@@ -47,6 +47,7 @@ class Finding:
     severity: Severity
     code: str
     message: str
+    subject: str = ""  # what else the finding is about: the origin of a NAT rule; not shown
 
     def to_dict(self) -> Dict[str, str]:
         return {"severity": _LABEL[self.severity], "code": self.code, "message": self.message}
@@ -95,10 +96,10 @@ class Report:
             ordered.setdefault(key, item)
         self.items = ordered
 
-    def add(self, kind: str, name: str, severity: Severity, code: str, message: str) -> None:
+    def add(self, kind: str, name: str, severity: Severity, code: str, message: str, subject: str = "") -> None:
         item, message = self.item(kind, name), _line(message)
         if not any(f.code == code and f.message == message for f in item.findings):
-            item.findings.append(Finding(severity, code, message))
+            item.findings.append(Finding(severity, code, message, subject))
 
     def disable(self, kind: str, name: str, code: str, message: str) -> None:
         self.add(kind, name, Severity.REVIEW, code, message)
@@ -108,13 +109,26 @@ class Report:
         self.add(kind, name, severity, code, message)
         self.item(kind, name).skipped = True
 
-    def retract(self, kind: str, codes: AbstractSet[str]) -> None:
-        """Withdraw findings that a later step has made moot; kind "note" withdraws notes for the whole policy."""
+    def retract(self, kind: str, codes: AbstractSet[str], subjects: Optional[AbstractSet[str]] = None) -> None:
+        """Withdraw findings that a later step has made moot; kind "note" withdraws notes for the whole policy.
+
+        With ``subjects``, a finding that is about something else than these stays.
+        """
         if kind == "note":
             self.notes = [note for note in self.notes if note.code not in codes]
         for item in self.items.values():
             if item.kind == kind:
-                item.findings = [f for f in item.findings if f.code not in codes]
+                item.findings = [
+                    f
+                    for f in item.findings
+                    if f.code not in codes or (subjects is not None and f.subject and f.subject not in subjects)
+                ]
+
+    def withdraw(self, kind: str, name: str, codes: AbstractSet[str]) -> None:
+        """Withdraw findings of one item that the target makes moot."""
+        item = self.items.get((kind, _name(name)))
+        if item is not None:
+            item.findings = [f for f in item.findings if f.code not in codes]
 
     def note(self, severity: Severity, code: str, message: str) -> None:
         message = _line(message)

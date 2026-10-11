@@ -111,6 +111,39 @@ def within(inner: Sequence[Interval], outer: Sequence[Interval]) -> bool:
     return all(any(o[0] == i[0] and o[1] <= i[1] and i[2] <= o[2] for o in merged) for i in normalize(inner))
 
 
+def intersect(a: Sequence[Interval], b: Sequence[Interval]) -> List[Interval]:
+    """The addresses that are in ``a`` and in ``b``, merged and sorted."""
+    out = [(x[0], max(x[1], y[1]), min(x[2], y[2])) for x in a for y in b if x[0] == y[0] and x[1] <= y[2] and y[1] <= x[2]]
+    return normalize(out)
+
+
+def interval_text(interval: Interval) -> str:
+    """``10.0.0.1`` for one address, ``10.0.0.0/24`` for one network, else ``first-last``."""
+    version, first, last = interval
+    if first == last:
+        return str(int_to_ip(version, first))
+    networks = list(ipaddress.summarize_address_range(int_to_ip(version, first), int_to_ip(version, last)))
+    return str(networks[0]) if len(networks) == 1 else range_text(interval)
+
+
+def subtract(a: Sequence[Interval], b: Sequence[Interval]) -> List[Interval]:
+    """What is left of ``a`` without the addresses of ``b``, merged and sorted."""
+    remove = normalize(b)
+    out: List[Interval] = []
+    for version, first, last in normalize(a):
+        for other_version, low, high in remove:
+            if other_version != version or high < first or low > last:
+                continue
+            if low > first:
+                out.append((version, first, low - 1))
+            first = high + 1
+            if first > last:
+                break
+        if first <= last:
+            out.append((version, first, last))
+    return out
+
+
 def netmask_to_cidr(address: str, mask: str) -> Optional[str]:
     """``10.0.0.0`` + ``255.255.255.0`` -> ``10.0.0.0/24``; None for a non-contiguous mask."""
     length = mask_length(mask)

@@ -28,6 +28,12 @@ CHECKPOINT = NameRules(100, re.compile(r"[^A-Za-z0-9._-]"), True)
 # Names that come from Check Point itself are valid there: only what would break the script is replaced,
 # control characters and a leading hyphen (which mgmt_cli would read as a switch).
 CHECKPOINT_NATIVE = NameRules(255, re.compile(r"[\x00-\x1f\x7f]|^-+"), False)
+# Cisco ASA: letters, digits, underscore, hyphen and period, which every release accepts; alphanumeric first.
+ASA = NameRules(64, re.compile(r"[^A-Za-z0-9._-]"), True)
+# Names that come from an ASA are valid there: only what cannot stand in a command is replaced.
+ASA_NATIVE = NameRules(64, re.compile(r"[^!-~]|[?\"]"), False)
+# Rule names end up in remarks, which are free text.
+ASA_TEXT = NameRules(80, re.compile(r"[\x00-\x1f\x7f]"), False)
 
 
 def clean(name: str, rules: NameRules) -> str:

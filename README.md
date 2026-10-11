@@ -10,11 +10,12 @@ what was approximated and what a person has to look at.
 | Palo Alto PAN-OS / Panorama | XML configuration export | `set` commands |
 | Fortinet FortiOS | configuration backup (CLI text) | CLI configuration |
 | Check Point | Management API export (JSON) | shell script of `mgmt_cli` calls |
+| Cisco ASA (and FTD, read only) | `show running-config` | ASA commands (9.x) |
 | Linux iptables / ip6tables | `iptables-save` output | `iptables-restore` file |
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.2).** The converter is tested against synthetic
+> **Status: alpha (0.3).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** is checked against the real thing: generated rulesets are
@@ -22,11 +23,11 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   compared with the model, in both directions. That covers the IPv4 filter
 >   rules on one kernel (iptables 1.8.10, nf_tables backend); NAT rules and
 >   IPv6 rulesets are loaded but no packets are sent through them.
-> * **PAN-OS, FortiOS and Check Point** output has **not been loaded on a
->   device or management server**, and the Check Point input format is taken
->   from the API documentation, not from a real export. Several conversion
->   rules rest on vendor behaviour taken from documentation rather than from a
->   lab.
+> * **PAN-OS, FortiOS, Check Point and Cisco ASA** output has **not been loaded
+>   on a device or management server**. The Check Point input format is taken
+>   from the API documentation, not from a real export, and the ASA and FTD
+>   syntax from Cisco's command references. Several conversion rules rest on
+>   vendor behaviour taken from documentation rather than from a lab.
 >
 > Treat the output as a draft for a lab, read the report, and never load it in
 > production unreviewed.
@@ -94,13 +95,25 @@ fwshift convert running-config.xml --to ip6tables -o rules.v6 --zone-map trust=e
 # iptables to Check Point: a script of mgmt_cli calls that publishes nothing
 fwshift convert rules.v4 --to checkpoint -o checkpoint.sh --report report.txt --target-prefix mig_
 
+# Cisco ASA to PAN-OS: interface names become zones
+fwshift convert asa-running.cfg --to panos -o panos.set --report report.txt \
+    --interface-map GigabitEthernet0/0=ethernet1/1
+
+# FortiOS to Cisco ASA: an access list cannot name the outgoing interface,
+# so say which networks lie behind every zone; "everything else" is said
+# as a default route would say it
+fwshift convert fgt-backup.conf --to asa -o asa.cfg --report report.txt \
+    --zone-map wan1=outside --zone-map lan=inside \
+    --zone-network inside=10.10.0.0/16 --zone-network dmz=10.20.0.0/24 \
+    --zone-network outside=0.0.0.0/0,::/0
+
 # What did the parser read?
 fwshift inspect fgt-backup.conf
 ```
 
 The [manual](docs/MANUAL.md#3-getting-the-source-configuration) shows how to
 get the input for each platform; for Check Point that is three `mgmt_cli show`
-calls.
+calls, for an ASA `show running-config`.
 
 The report starts with a summary and then lists every rule that is not exact:
 
@@ -115,7 +128,7 @@ Security rules
       [needs-review] USER_MATCH: source user match example\netadmins is not converted.
 ```
 
-Four synthetic configurations to try it on, one per format, are in
+Five synthetic configurations to try it on, one per format, are in
 [`tests/data`](tests/data), with their conversions in
 [`tests/data/expected`](tests/data/expected).
 
@@ -141,25 +154,36 @@ Four synthetic configurations to try it on, one per format, are in
 | NAT | manual and automatic rules: hide, static, port translation, no-NAT | `DNAT`, `SNAT`, `MASQUERADE` and exemptions of the `nat` table (IPv4) |
 | Scope | one access layer and the NAT rulebase of one policy package | one IP version per file |
 
+| | Cisco ASA |
+|---|---|
+| Address objects | `object network`: host, subnet, range, FQDN (per IP version); names from `name` |
+| Address groups | `object-group network`, nested |
+| Services | `object service`, `object-group service` (with ports or with service entries), protocol and ICMP-type groups, ports and ICMP types spelled out in an entry |
+| Security rules | access lists bound with `access-group`: per interface (inbound), global, and outbound lists that only deny; `inactive`, remarks, logging; the ASA's own rules (no traffic back out of an interface, security levels) made explicit |
+| NAT | twice NAT and object NAT in the order the ASA applies them: static, dynamic, PAT pools, interface PAT, published ports, exemptions (8.3 and later) |
+| Scope | one configuration (one context); ASA 8.3 and later in full, older releases without NAT; an FTD as far as its device configuration shows |
+
 Not converted, and reported where a rule depends on it: security profiles,
 schedules, user and group matches, URL categories, HIP profiles, application
 filters, wildcard-mask and geography addresses, external dynamic lists,
 internet-service (ISDB) policies, load-balancing virtual IPs, NAT64/NAT46,
 Check Point access roles, application objects, VPN communities and implied
 rules, iptables match modules beyond addresses, ports and state, the `INPUT`
-and `OUTPUT` chains, routing, interfaces, VPN, and everything else outside the
-policy.
+and `OUTPUT` chains, ASA time ranges, identity (user and TrustSec) matches,
+outbound access lists that do more than deny, NAT of ASA releases before 8.3,
+the application, URL and user conditions of FTD rules, routing, interfaces,
+VPN, and everything else outside the policy.
 
 ## Roadmap
 
-1. Validation of the output on PAN-OS and FortiOS lab devices, a Check Point
-   management server and a Linux host.
+1. Validation of the output on PAN-OS, FortiOS and ASA lab devices, a Check
+   Point management server and a Linux host.
 2. FortiOS output with per-policy NAT as an alternative to central NAT.
 3. Service correction for port-translating NAT; schedules; user and group mapping.
-4. PAN-OS `set`-format input; nftables.
+4. PAN-OS `set`-format input; nftables; FTD rules from an FMC export.
 5. Differential check for every format: evaluate source and converted policy
    against sample flows and report every flow whose verdict changed. The test
-   suite does this today for iptables and Check Point.
+   suite does this today for iptables, Check Point and Cisco ASA.
 
 ## Licence
 

@@ -78,7 +78,9 @@ class Address:
     value: str
     description: str = ""
     tags: List[str] = field(default_factory=list)
-    raw: str = ""  # for UNSUPPORTED: what it was in the source
+    # What it was in the source: for UNSUPPORTED, and for an object that stands for something of the
+    # source device (builtin), such as "interface outside" for the address of an ASA interface.
+    raw: str = ""
     # FQDN only: 4 or 6 when the source resolves the name for one IP version only, 0 for both.
     fqdn_family: int = 0
     # Vendor on which this object exists without a conversion creating it: predefined, or a gateway.
@@ -157,6 +159,15 @@ class Rule:
     profiles: Dict[str, str] = field(default_factory=dict)  # reported, not converted
     unsupported: List[str] = field(default_factory=list)  # match criteria not modelled
     origin: str = ""  # stable key of the source rule, used by the report
+    # True when the source rule named no destination zone and the zones here were worked out:
+    # they are where its destination addresses are routed to, or every zone the source platform
+    # forwards to at all. A target that cannot match the outgoing interface loses nothing by
+    # leaving them out.
+    egress_implied: bool = False
+    # Destinations a parser added: the pre-NAT address of a translated destination the source rule
+    # named, with the origins of the NAT rules it was added for. A target that looks rules up as
+    # the source did takes them away again (transform.rewrite_destinations).
+    nat_added: Dict[str, List[str]] = field(default_factory=dict)
 
 
 @dataclass
@@ -172,6 +183,7 @@ class SourceNat:
 class DestNat:
     address: str
     port: str = ""
+    spread: bool = False  # several addresses, one picked per connection (iptables DNAT to a range): not address for address
 
 
 @dataclass
@@ -214,6 +226,9 @@ class Policy:
     # here are already normalised to pre-NAT addresses; an emitter for a platform of
     # the same kind uses this to tell that their services still name post-NAT ports.
     lookup_after_dnat: bool = False
+    # True when a rule of the source that names the object of a destination NAT itself applied
+    # to the translated traffic (a FortiOS virtual IP in a policy).
+    named_translations: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return dataclasses.asdict(self)

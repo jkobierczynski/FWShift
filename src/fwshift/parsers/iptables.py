@@ -795,7 +795,8 @@ class _Builder:
                 if address is None:
                     nat.unsupported.append("DNAT target that could not be read")
                 else:
-                    nat.destination_translation = DestNat(address, port)
+                    # To a range the kernel picks an address per connection (NETMAP is what maps one for one).
+                    nat.destination_translation = DestNat(address, port, spread="-" in address)
             elif target in ("ACCEPT", "RETURN"):
                 # It ends PREROUTING only: POSTROUTING still translates the source. A rule without
                 # translation in a NAT rulebase would stop both, and no target can say "this half only".
