@@ -132,6 +132,8 @@ def emit(policy: Policy, report: Report, options: Options) -> str:
     transform.sanitize_names(
         p, rules, CHECKPOINT_NATIVE, report, reserved, reserved, one_namespace=True, prefix=prefix, keep=existing
     )
+    if options.written is not None:
+        options.written.append(p)
     return _Emitter(p, report, options, source_zones, rules).run()
 
 

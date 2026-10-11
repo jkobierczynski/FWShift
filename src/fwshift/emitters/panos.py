@@ -90,6 +90,8 @@ def emit(policy: Policy, report: Report, options: Options) -> str:
         reserved_addresses=_RESERVED_ADDRESSES if foreign else frozenset(),
         reserved_services=_RESERVED_SERVICES if foreign else frozenset(),
     )
+    if options.written is not None:
+        options.written.append(p)
     return _Emitter(p, report, options, source_zones).run()
 
 

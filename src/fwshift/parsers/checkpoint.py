@@ -655,6 +655,10 @@ class _Builder:
         track_type = self._label(track.get("type")) if isinstance(track, dict) else self._label(track)
         rule.log_end = (track_type or "None").lower() != "none"
         rule.log_start = False
+        if isinstance(track, dict):
+            extras = [key for key in ("alert", "accounting", "per-session", "per-connection") if track.get(key) not in (None, False, "none")]
+            if (track_type or "None").lower() not in ("none", "log") or extras:
+                rule.handling["track"] = " ".join([track_type or "None"] + [f"{key}={track[key]}" for key in extras])
         return rule
 
     def _reach(self, members: List[str], groups: Dict[str, Any]) -> Set[str]:

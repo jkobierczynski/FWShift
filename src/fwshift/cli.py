@@ -7,10 +7,13 @@
 from __future__ import annotations
 
 import argparse
+import copy
+import dataclasses
+import json
 import sys
-from typing import Callable, Dict, List, Optional, Sequence, TextIO
+from typing import Callable, Dict, List, Optional, Sequence, TextIO, Tuple
 
-from . import __version__, transform
+from . import __version__, audit, transform
 from .appmap import load_app_map
 from .emitters import asa as emit_asa
 from .emitters import checkpoint as emit_checkpoint
@@ -124,6 +127,80 @@ def _networks(values: Sequence[str]) -> Dict[str, List[str]]:
     return out
 
 
+def _audit_options(parser: argparse.ArgumentParser) -> None:
+    group = parser.add_argument_group("audit")
+    group.add_argument("--audit-config", metavar="FILE", help="JSON file with the actions, accepted rules and thresholds of the audit")
+    group.add_argument(
+        "--audit-action", action="append", default=[], metavar="CHECK=ACTION",
+        help="what to do with the findings of a check: off, accept, report, disable, or reorder (shadowed rules). "
+        "'fwshift audit --list-checks' shows the checks",
+    )  # fmt: skip
+    group.add_argument(
+        "--audit-accept", action="append", default=[], metavar="RULE[=CHECK,...]",
+        help="let a rule pass a check, or every check; * and ? match as in file names",
+    )  # fmt: skip
+    group.add_argument("--audit-fail-on", metavar="LEVEL", help="exit with status 3 when a finding of this level or higher is reported: info, low, medium, high")
+
+
+def _audit_config(args: argparse.Namespace) -> audit.AuditConfig:
+    config = audit.AuditConfig()
+    if args.audit_config:
+        config = audit.load_config(_read(args.audit_config).decode("utf-8", errors="replace"), args.audit_config)
+    for value in args.audit_action:
+        check, sep, action = value.partition("=")
+        if not sep:
+            raise FwshiftError(f"--audit-action expects CHECK=ACTION, got '{value[:60]}'")
+        config.set_action(check, action, "--audit-action")
+    for value in args.audit_accept:
+        rule, _, checks = value.partition("=")
+        config.accept(rule, checks.split(",") if checks else [], "accepted on the command line", "--audit-accept")
+    if args.audit_fail_on:
+        config.fail_on = audit.level_of(args.audit_fail_on, "--audit-fail-on")
+    return config
+
+
+def _lost(policy: Policy, report: Report) -> List[str]:
+    """The rules a conversion wrote disabled or left out, of those that were enabled."""
+    return [rule.origin for rule in policy.rules
+            if rule.enabled and (report.item("rule", rule.origin).disabled or report.item("rule", rule.origin).skipped)]  # fmt: skip
+
+
+def _trial(target: str, options: Options) -> audit.Trial:
+    """A conversion that writes nothing: it tells which rules the target cannot take, and what it would write from."""
+
+    def convert_on_trial(policy: Policy) -> Tuple[Optional[Policy], List[str]]:
+        kept: List[Policy] = []
+        report = Report()
+        convert(copy.deepcopy(policy), target, report, dataclasses.replace(options, written=kept))
+        return (kept[-1] if kept else None), _lost(policy, report)
+
+    return convert_on_trial
+
+
+def _audit_apply(policy: Policy, result: audit.AuditResult, config: audit.AuditConfig, report: Report,
+                 trial: Optional[audit.Trial] = None) -> None:  # fmt: skip
+    """Carry out the audit's actions before a conversion, and say in the conversion report what was done."""
+    names = {rule.origin: rule.name for rule in policy.rules}
+    for origin, check, changes, what in audit.apply(policy, result, config, (), trial):
+        if not changes:
+            report.add("rule", origin, Severity.INFO, "AUDIT_DISABLED",
+                       f"disabled by the audit ({check}): the rule decided no traffic that other rules do not decide the same way")  # fmt: skip
+        elif what == "disabled":
+            report.add("rule", origin, Severity.APPROX, "AUDIT_DISABLED",
+                       f"disabled by the audit ({check}), as asked: what '{names.get(origin, origin)}' allowed is no longer allowed by it")  # fmt: skip
+        else:
+            report.add("rule", origin, Severity.REVIEW, "AUDIT_MOVED",
+                       f"{what} by the audit ({check}), as asked: on the source this rule never matched, now it decides its "
+                       "traffic before the rules that used to. Check that this is what was meant")  # fmt: skip
+
+
+def _audit_after(policy: Policy, result: audit.AuditResult, config: audit.AuditConfig, report: Report,
+                 written: Optional[Policy] = None) -> None:  # fmt: skip
+    """Audit the policy as the conversion left it: without the rules it wrote disabled or left out."""
+    lost = _lost(policy, report)
+    audit.compare(result, audit.effective(policy, lost), config, lost, written)
+
+
 def _read(path: str) -> bytes:
     try:
         if path == "-":
@@ -153,8 +230,11 @@ def _print(stream: TextIO, text: str) -> None:
     buffer.flush()
 
 
-def _source_options(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("input", help="configuration file to read, or - for standard input")
+def _source_options(parser: argparse.ArgumentParser, optional: bool = False) -> None:
+    if optional:
+        parser.add_argument("input", nargs="?", help="configuration file to read, or - for standard input")
+    else:
+        parser.add_argument("input", help="configuration file to read, or - for standard input")
     parser.add_argument("--from", dest="source", choices=VENDORS, help="source format (default: detected)")
     parser.add_argument("--vsys", default="", help="PAN-OS source: virtual system to read")
     parser.add_argument("--device-group", default="", help="Panorama source: device group to read")
@@ -214,6 +294,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conv.add_argument("--strict", action="store_true", help="exit with status 2 when anything needs review")
     conv.add_argument("-q", "--quiet", action="store_true", help="do not print the report or the summary")
+    conv.add_argument(
+        "--audit", action="store_true",
+        help="audit the policy before and after the conversion (rules that allow too much, rules that never match, loose "
+        "ends) and carry out the actions set for the checks",
+    )  # fmt: skip
+    _audit_options(conv)
+
+    aud = commands.add_parser("audit", help="audit a configuration: rules that allow too much, rules that never match, loose ends")
+    _source_options(aud, optional=True)
+    aud.add_argument("-o", "--output", help="write the audit here (default: standard output)")
+    aud.add_argument("--json", action="store_true", help="write the audit as JSON")
+    aud.add_argument("--list-checks", action="store_true", help="show the checks, their levels and what can be done with them")
+    _audit_options(aud)
 
     insp = commands.add_parser("inspect", help="show what was read from a configuration")
     _source_options(insp)
@@ -250,7 +343,21 @@ def _run_convert(args: argparse.Namespace) -> int:
         object_prefix=args.target_prefix,
         zone_networks=_networks(args.zone_network),
     )
-    output = convert(policy, args.target, report, options)
+    auditing = bool(args.audit or args.audit_config or args.audit_action or args.audit_accept or args.audit_fail_on)
+    if auditing and args.target == "json":
+        raise FwshiftError("--to json writes the model as it was read; audit the configuration with 'fwshift audit'")
+    config = _audit_config(args) if auditing else audit.AuditConfig()
+    audited: Optional[audit.AuditResult] = None
+    if auditing:
+        transform.harden(policy, report)
+        audited = report.audit = audit.run(policy, config, report)
+        # A rule is only redundant next to rules that are written, and as they are written: the audit
+        # converts on trial to see which rules the target cannot take and what it makes of the others.
+        _audit_apply(policy, audited, config, report, _trial(args.target, options))
+    kept: List[Policy] = []
+    output = convert(policy, args.target, report, dataclasses.replace(options, written=kept))
+    if audited is not None:
+        _audit_after(policy, audited, config, report, kept[-1] if kept else None)
     if args.output:
         _write(args.output, output)
     else:
@@ -268,7 +375,40 @@ def _run_convert(args: argparse.Namespace) -> int:
             f"fwshift: {rules['total']} rules: {rules['exact']} exact, {rules['approximated']} approximated, "
             f"{rules['needs-review']} need review, {rules['skipped']} skipped. Report: {args.report}\n",
         )
-    return 2 if args.strict and report.needs_review else 0
+    if args.strict and report.needs_review:
+        return 2
+    return 3 if audited is not None and audited.fails(config.fail_on) else 0
+
+
+def _run_audit(args: argparse.Namespace) -> int:
+    if args.list_checks:
+        rows = audit.checks_table()
+        width = max(len(row[0]) for row in rows)
+        lines = [f"{'check':<{width}}  level   default  what it finds"]
+        lines += [f"{code:<{width}}  {level:<6}  {default:<7}  {title} (can be: {actions})" for code, level, default, actions, title in rows]
+        _print(sys.stdout, "\n".join(lines) + "\n")
+        return 0
+    if not args.input:
+        raise FwshiftError("audit: a configuration file is needed (or - for standard input)")
+    config = _audit_config(args)
+    data = _read(args.input)
+    source = args.source or detect_format(data)
+    report = Report()
+    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer)
+    transform.harden(policy, report)
+    result = audit.run(policy, config, report)
+    disabled = sum(1 for rule in policy.rules if not rule.enabled)
+    if args.json:
+        text = json.dumps({"source": source, "scope": policy.scope, **result.to_dict()}, indent=2, ensure_ascii=False) + "\n"
+    else:
+        head = (f"FWShift audit\n  source: {source}{f' ({policy.scope})' if policy.scope else ''}\n"
+                f"  security rules: {len(policy.rules)} ({disabled} disabled), NAT rules: {len(policy.nat_rules)}\n\n")  # fmt: skip
+        text = head + result.to_text("Summary")
+    if args.output:
+        _write(args.output, text)
+    else:
+        _print(sys.stdout, text)
+    return 3 if result.fails(config.fail_on) else 0
 
 
 def _run_inspect(args: argparse.Namespace) -> int:
@@ -302,6 +442,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         if args.command == "convert":
             return _run_convert(args)
+        if args.command == "audit":
+            return _run_audit(args)
         return _run_inspect(args)
     except FwshiftError as exc:
         _print(sys.stderr, f"fwshift: error: {exc}\n")

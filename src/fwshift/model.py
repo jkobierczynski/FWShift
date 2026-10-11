@@ -157,6 +157,10 @@ class Rule:
     url_categories: List[str] = field(default_factory=lambda: [ANY])
     schedule: str = ""  # empty = always
     profiles: Dict[str, str] = field(default_factory=dict)  # reported, not converted
+    # What else the source rule does with the traffic it matches and the model has no place for:
+    # NAT set on a FortiOS policy, shaping, a log profile. Nothing is converted from here; the
+    # audit uses it to tell whether two rules handle traffic the same way.
+    handling: Dict[str, str] = field(default_factory=dict)
     unsupported: List[str] = field(default_factory=list)  # match criteria not modelled
     origin: str = ""  # stable key of the source rule, used by the report
     # True when the source rule named no destination zone and the zones here were worked out:

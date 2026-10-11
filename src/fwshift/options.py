@@ -7,7 +7,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Optional
+
+from .model import Policy
 
 
 @dataclass
@@ -38,3 +40,6 @@ class Options:
     # ASA target: networks behind a zone, for rules that an access list can only keep to their
     # destination zone by leaving out the networks of the other zones.
     zone_networks: Dict[str, List[str]] = field(default_factory=dict)
+    # When a list: an emitter adds the model it writes its output from, with the names, zones and
+    # addresses as the target gets them. The audit proves what it disables on that as well.
+    written: Optional[List[Policy]] = None

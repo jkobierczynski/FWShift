@@ -76,6 +76,7 @@ class Report:
         self.target = ""
         self.items: Dict[Tuple[str, str], Item] = {}
         self.notes: List[Finding] = []
+        self.audit: Optional[Any] = None  # an audit.AuditResult, when the policy was audited
 
     def item(self, kind: str, name: str) -> Item:
         name = _name(name)
@@ -155,6 +156,12 @@ class Report:
         )
 
     def to_dict(self) -> Dict[str, Any]:
+        out = self._to_dict()
+        if self.audit is not None:
+            out["audit"] = self.audit.to_dict()
+        return out
+
+    def _to_dict(self) -> Dict[str, Any]:
         return {
             "source": self.source,
             "target": self.target,
@@ -208,4 +215,7 @@ class Report:
                 out.append(line)
                 for f in item.findings:
                     out.append(f"      [{_LABEL[f.severity]}] {f.code}: {f.message}")
-        return "\n".join(out) + "\n"
+        text = "\n".join(out) + "\n"
+        if self.audit is not None:
+            text += "\n" + self.audit.to_text()
+        return text

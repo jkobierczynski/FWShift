@@ -64,6 +64,8 @@ def emit(policy: Policy, report: Report, options: Options, family: int = 4) -> s
         and (nat.destination_translation is not None or transform.bidirectional_pair(p, nat) is not None)
     }
     transform.to_post_nat_lookup(p, report, written if family == 4 else set())
+    if options.written is not None:
+        options.written.append(p)
     return _Emitter(p, report, options, family).run()
 
 
@@ -267,7 +269,8 @@ class _Emitter:
             self.filter.append(f"# FWSHIFT disabled, see the report: {self._describe(rule)}")
             return
         if not rule.enabled:
-            self.filter.append(f"# disabled in the source: {self._describe(rule)}")
+            by_audit = any(f.code == "AUDIT_DISABLED" for f in self.report.item("rule", rule.origin).findings)
+            self.filter.append(f"# disabled {'by the audit' if by_audit else 'in the source'}: {self._describe(rule)}")
             return
         if pairs is not None and not pairs:
             self.report.skip(

@@ -13,9 +13,13 @@ what was approximated and what a person has to look at.
 | Cisco ASA (and FTD, read only) | `show running-config` | ASA commands (9.x) |
 | Linux iptables / ip6tables | `iptables-save` output | `iptables-restore` file |
 
+It also **audits** a policy, of any of these formats: rules that allow too
+much, rules that never match because earlier rules cover them, unused and
+duplicate objects. On its own, or before and after a conversion.
+
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.3).** The converter is tested against synthetic
+> **Status: alpha (0.4).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** is checked against the real thing: generated rulesets are
@@ -109,6 +113,14 @@ fwshift convert fgt-backup.conf --to asa -o asa.cfg --report report.txt \
 
 # What did the parser read?
 fwshift inspect fgt-backup.conf
+
+# Audit a policy: nothing is converted, nothing is changed
+fwshift audit asa-running.cfg
+
+# Convert with an audit before and after; disable what is proven redundant,
+# let the published web servers pass the "any source" check
+fwshift convert asa-running.cfg --to panos -o panos.set --report report.txt \
+    --audit-action REDUNDANT_RULE=disable --audit-accept 'outside_access_in-*=ANY_SOURCE'
 ```
 
 The [manual](docs/MANUAL.md#3-getting-the-source-configuration) shows how to
@@ -127,6 +139,37 @@ Security rules
       [approximated] APP_TO_PORTS: applications ssh reduced to their well-known ports; ...
       [needs-review] USER_MATCH: source user match example\netadmins is not converted.
 ```
+
+## Audit
+
+```
+$ fwshift audit asa-running.cfg
+Summary
+  high 0, medium 4, low 10, info 2
+
+Findings in the policy as it was read
+  [medium] RISKY_SERVICE: rule 'inside_access_in-7' allows rdp, from zone inside to zone outside, dmz, guest (on the list of the cleartext and remote administration protocols)
+  [low] REDUNDANT_RULE: rule 'inside_access_in-4' never matches: 'inside_access_in-2' above it already allows everything it could match
+  [info] UNUSED_OBJECT: 2 services no rule uses: 'svc-http', 'svc-http-alt'
+  ...
+```
+
+| | Checks |
+|---|---|
+| Rules that allow a lot | any/any/any and its partial forms, very large networks, very wide port ranges, cleartext and remote administration protocols, industrial protocols, no logging, no security profile |
+| Rule order | shadowed rules (never match; earlier rules decide otherwise), redundant rules (can go without a change), rules that match nothing, shadowed NAT rules |
+| Loose ends | disabled rules, unused and duplicate objects, empty groups, a default that allows |
+| After a conversion | a blocking rule the target could not take, with what now allows its traffic (the rules below it, or a default) |
+
+Each check can be switched off, accepted (for all rules, or for one rule
+with a reason), or acted on in a conversion: `disable` the rules, or
+`reorder` shadowed ones. A rule is only called dead when that is proven from
+zones, addresses and ports against all earlier rules together, and disabling
+such a rule changes no verdict; the tests check that against every packet of
+a small world. A rule that was read only approximately is not called dead and
+proves nothing about another rule: the audit lists it instead.
+`--audit-fail-on high` makes it a gate for a pipeline. See
+[section 13 of the manual](docs/MANUAL.md#13-auditing-a-policy).
 
 Five synthetic configurations to try it on, one per format, are in
 [`tests/data`](tests/data), with their conversions in
@@ -184,6 +227,8 @@ VPN, and everything else outside the policy.
 5. Differential check for every format: evaluate source and converted policy
    against sample flows and report every flow whose verdict changed. The test
    suite does this today for iptables, Check Point and Cisco ASA.
+6. Audit: a zone-to-zone matrix of what can talk to what (for IEC 62443 zone
+   and conduit reviews), zone ranks, hit counts where the source exports them.
 
 ## Licence
 

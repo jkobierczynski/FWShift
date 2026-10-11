@@ -2,7 +2,8 @@
 
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
 Check Point, Cisco ASA and Linux iptables, and tells you, rule by rule, how
-faithful the result is. This manual covers version 0.3.
+faithful the result is. It can also audit a policy: rules that allow too much,
+rules that never match, loose ends. This manual covers version 0.4.
 
 **Contents**
 
@@ -18,6 +19,7 @@ faithful the result is. This manual covers version 0.3.
 10. [Loading the output](#10-loading-the-output)
 11. [Errors and troubleshooting](#11-errors-and-troubleshooting)
 12. [Limits](#12-limits)
+13. [Auditing a policy](#13-auditing-a-policy)
 
 ---
 
@@ -45,7 +47,7 @@ FWShift converts the **policy**. It does not convert interfaces, routing, VPN,
 users, security profiles, or system settings, and it is not a substitute for
 testing the result.
 
-> **Status.** Version 0.3 is tested against synthetic configurations. iptables
+> **Status.** Version 0.4 is tested against synthetic configurations. iptables
 > output and input are checked against a Linux kernel (filter rules, one
 > kernel and iptables version). Output for PAN-OS, FortiOS, Check Point and
 > Cisco ASA has not been loaded on a device or management server yet; the
@@ -292,7 +294,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to asa` | Cisco ASA commands (9.x): objects, access lists, twice NAT. |
 | `--to iptables` | A file for `iptables-restore`: the IPv4 half of the policy. |
 | `--to ip6tables` | A file for `ip6tables-restore`: the IPv6 half. |
-| `--to json` | The neutral model as JSON, for inspection or other tools. |
+| `--to json` | The neutral model as JSON, for inspection or other tools. It is the model as it was read: the audit options cannot be combined with it. |
 | `--target-vsys NAME` | PAN-OS: prefix commands with `vsys NAME`. Default: a single-vsys firewall, no prefix. |
 | `--target-device-group NAME` | Panorama: write into this device group; rules go to its pre-rulebase. |
 | `--target-shared` | Panorama: write into `shared`; rules go to the shared pre-rulebase. |
@@ -323,8 +325,27 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--report-json FILE` | Also write the report as JSON. |
 | `--strict` | Exit with status 2 when anything needs review. |
 | `-q`, `--quiet` | Do not print the report or the one-line summary. |
+| `--audit` | Audit the policy before and after the conversion, and carry out the actions set for the checks (section 13). The audit options below switch it on as well. |
+| `--audit-config FILE` | JSON file with the actions, accepted rules, thresholds and service lists of the audit. |
+| `--audit-action CHECK=ACTION` | What to do with the findings of a check: `off`, `accept`, `report`, `disable`, and for shadowed rules `reorder`. Not every check takes every action (section 13). Repeatable. |
+| `--audit-accept RULE[=CHECK,...]` | Let a rule (or a NAT rule, or an object) pass a check, or every check. `*` and `?` stand for any text and any one character. Repeatable. |
+| `--audit-fail-on LEVEL` | Exit with status 3 when a finding of this level (`info`, `low`, `medium`, `high`) or higher is reported. |
 
 All output is UTF-8.
+
+### `fwshift audit`
+
+```
+fwshift audit INPUT [--from ...] [-o FILE] [--json] [--audit-config FILE]
+                    [--audit-action CHECK=ACTION] [--audit-accept RULE[=CHECK,...]] [--audit-fail-on LEVEL]
+fwshift audit --list-checks
+```
+
+Audits a configuration of any format that can be read and prints what it
+found (section 13). Nothing is converted and nothing is changed: an action
+such as `disable` is shown as what a conversion would do. `--json` writes the
+findings as JSON; `--list-checks` shows the checks, their levels and the
+actions each can take.
 
 ### `fwshift inspect`
 
@@ -342,6 +363,7 @@ converted.
 | 0 | Converted. The report may still hold findings. |
 | 1 | Error: the input could not be read or an option is wrong. A message starting with `fwshift: error:` says why. |
 | 2 | `--strict` was given and something needs review. (An invalid command line also ends with 2.) |
+| 3 | `--audit-fail-on` was given and the audit reported a finding of that level or higher (in a conversion: before or after it) that was not accepted and whose rule was not disabled. Status 2 comes first. |
 
 ## 6. The report
 
@@ -370,6 +392,8 @@ Security rules
   needs, default behaviour that differs.
 * The sections after that list every item that has a finding. Items that are
   exact and have nothing to say are counted but not listed.
+* With `--audit`, the audit follows as a section of its own (section 13), and
+  the JSON report has an `audit` key.
 
 ### Status of an item
 
@@ -426,6 +450,8 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 
 | Code | Sev. | Meaning and what to do |
 |---|---|---|
+| `AUDIT_DISABLED` | I or A | With `--audit`: the rule was disabled because a check was set to `disable` (section 13). I: a rule that never matched or added nothing; no traffic is decided differently. A: a rule disabled for what it allowed; that traffic is no longer allowed by it. |
+| `AUDIT_MOVED` | R | With `--audit` and `SHADOWED_RULE=reorder`: the rule never matched on the source and was moved up, in front of the first rule that decided its traffic otherwise. It decides that traffic now. Check that this is what was meant: a moved allow rule opens what was blocked. |
 | `APP_TO_PORTS` | A (R on deny) | To FortiOS, Check Point or iptables: applications were replaced by services with their well-known ports. Layer-7 identification is lost; add application control if needed. On a deny rule the scope of the block changes, so check it. |
 | `APP_FILTER_DROPPED` | A (R on deny) | To a port-based target: the rule named applications *and* explicit services. The services are kept, the application match is dropped. |
 | `APP_UNKNOWN` | R, disabled | To a port-based target: an application is not in the port table. Add it with `--app-map`. |
@@ -1356,3 +1382,301 @@ deliberate: see *IPv4 and IPv6* in section 8.
   of the same kind, with the same NAT rule, it is left as it was.
 * PAN-OS `set`-format input, schedules, and user and group mapping are not
   implemented yet.
+
+## 13. Auditing a policy
+
+A migration is the moment a rulebase gets looked at. The audit looks at it
+for you, in the vendor-neutral model, so it is the same for every format
+FWShift reads:
+
+```sh
+fwshift audit asa-running.cfg                      # a report, nothing else
+fwshift convert asa-running.cfg --to panos --audit # before and after the conversion
+```
+
+```
+FWShift audit
+  source: asa (ASA Version 9.12(4))
+  security rules: 18 (1 disabled), NAT rules: 5
+
+Summary
+  high 0, medium 4, low 10, info 2
+
+Findings in the policy as it was read
+  [medium] RISKY_SERVICE: rule 'inside_access_in-7' allows rdp, from zone inside to zone outside, dmz, guest (on the list of the cleartext and remote administration protocols)
+  [low] REDUNDANT_RULE: rule 'inside_access_in-4' never matches: 'inside_access_in-2' above it already allows everything it could match
+  [info] UNUSED_OBJECT: 2 services no rule uses: 'svc-http', 'svc-http-alt'
+  ...
+```
+
+### The checks
+
+`fwshift audit --list-checks` prints this table.
+
+| Check | Level | What it finds | Can be |
+|---|---|---|---|
+| `ANY_ANY_ANY` | high | An allow rule for any source, any destination and any service. | off, accept, report, disable |
+| `ANY_SERVICE` | medium | An allow rule for any service (or any application on its default ports). | off, accept, report, disable |
+| `ANY_TO_ANY` | medium | An allow rule from any source to any destination, for named services. | off, accept, report, disable |
+| `ANY_SOURCE` | low | An allow rule from any source to named destinations. Normal for a published service. | off, accept, report, disable |
+| `ANY_DESTINATION` | low | An allow rule from named sources to any destination. Normal for outbound access. | off, accept, report, disable |
+| `WIDE_NETWORK` | low | An allow rule that names a network of /8 or larger (IPv6: /32). | off, accept, report, disable |
+| `WIDE_PORTS` | low | An allow rule for a range of 1024 ports or more. | off, accept, report, disable |
+| `RISKY_SERVICE` | medium | An allow rule for a protocol on the list of those that carry passwords in the clear or give a remote session: telnet, FTP, TFTP, the r-services, NetBIOS, SMB, RDP, VNC, SNMP, X11. | off, accept, report, disable |
+| `INDUSTRIAL_SERVICE` | low | An allow rule for a control system protocol (Modbus, S7, DNP3, EtherNet/IP, OPC UA, BACnet, IEC 104, PROFINET, FINS, Niagara Fox). Nothing wrong with it; where such a protocol crosses a firewall is worth knowing. | off, accept, report, disable |
+| `NO_LOG` | low | A rule that does not log. PAN-OS and Check Point sources only: there the model holds whether a rule logs. | off, accept, report |
+| `NO_PROFILE` | low | An allow rule without a security profile. PAN-OS and FortiOS sources only. | off, accept, report |
+| `SHADOWED_RULE` | high | A rule that never matches, because earlier rules take all it could match, and some of that they decide the other way. High for a blocking rule (a block that is not enforced), medium for an allow rule. | off, accept, report, disable, reorder |
+| `REDUNDANT_RULE` | low | A rule that can go without anything changing: it never matches because earlier rules with the same action hold all of it, or it matches but a later rule handles all of its traffic the same way. | off, accept, report, disable |
+| `EMPTY_RULE` | low | A rule that can match nothing by itself: zones that leave no pair of zones, a negation that leaves nothing, a group without members, an IPv4 source with an IPv6 destination. | off, accept, report, disable |
+| `OVERLAPPING_RULES` | info | A rule of which earlier rules with another action take a part. Usually intended (the exception above the rule); off by default. | off, accept, report |
+| `SHADOWED_NAT` | medium | A NAT rule that never matches because earlier NAT rules translate all it could match. Only where one NAT rule applies to a connection (PAN-OS, Check Point manual rules). | off, accept, report |
+| `DISABLED_RULE` | info | A rule that is disabled. | off, accept, report |
+| `NO_DESCRIPTION` | info | A rule without a description. Off by default. | off, accept, report |
+| `UNUSED_OBJECT` | info | Objects that no rule, NAT rule or group in use refers to. Predefined objects are left out. | off, accept, report |
+| `DUPLICATE_OBJECT` | info | Addresses or services with the same content under several names. Objects a parser made up (for an inline address, say) are among them. | off, accept, report |
+| `EMPTY_GROUP` | low | A group without members: it matches nothing. | off, accept, report |
+| `DEFAULT_ALLOW` | high | Traffic between zones that no rule matches is allowed. | off, accept, report |
+| `EXPOSED_BY_CONVERSION` | high | After a conversion only: a blocking rule that is not in the output as it was, with something that now allows part of what it blocked. | off, accept, report |
+
+The level of `ANY_ANY_ANY`, `ANY_SERVICE` and `ANY_TO_ANY` is one lower for
+a rule whose zones keep it to a part of the firewall: there is a zone it
+neither comes from nor goes to, or it is for traffic inside a zone. A rule
+from one zone to *every* other zone
+names zones without being kept anywhere, and keeps its level: that is what
+every access list on an ASA or a chain on iptables looks like.
+
+Only enabled rules are looked at. The audit knows what a policy *says*, not
+how it is used: which rules are hit, and which zone is the trusted one, is
+not in a configuration.
+
+### Rules that never match
+
+A rule is called shadowed, redundant or empty only when that follows from
+what can be read: zones, addresses, protocols, ports and ICMP types, with
+every negation and every group resolved. The comparison is with **all**
+earlier rules together, not rule by rule: a rule that three earlier rules
+cover between them is found. IPv4 and IPv6 are kept apart: a rule from an
+IPv4 network to "any" matches no IPv6 packet.
+
+"Never matches" is a statement about the policy as FWShift read it. What
+cannot be read, or was read only approximately, is taken on the side that
+makes the claim harder:
+
+* a host name, a dynamic group, a group with excluded members, an
+  application on its default ports, an object that could not be converted:
+  a rule that is *covered* counts as matching whatever such a member might
+  stand for; a rule that *covers* counts as matching only what it surely
+  does. Two rules that use the same name are compared by the name;
+* an application, user, URL category or schedule on an earlier rule keeps it
+  from covering a later rule that does not have the same or a narrower one;
+* a rule with a criterion the model does not hold covers nothing;
+* **a rule the parser itself reported as approximated or needs-review**
+  (installed on one gateway only, an attribute FWShift does not know, a
+  match that was widened) is left out on both sides: it is not called dead,
+  and it is not used to call another rule dead. The same goes for the
+  addresses of an object that was read approximately (a Check Point gateway
+  object, of which only the main address is in the export). These rules are
+  listed under *Left out of the order checks*, with the finding that put
+  them there.
+
+So what the audit calls dead is dead in the model, and it may miss a dead
+rule where names, applications or an approximate reading decide. A rule that
+falls into more than 4096 pieces while earlier rules are taken out of it is
+not followed further; it is listed in the same place.
+
+**Destination NAT.** iptables, FortiOS and the ASA match a rule on the
+address *after* destination NAT; the model holds every rule the PAN-OS way,
+on the address before it, and the parser adds that address (section 8). The
+audit reads such a source as the firewall did: without the addresses the
+parser added. A FortiOS policy that names a virtual IP is taken as matching
+the traffic that virtual IP translates, which proves nothing about a policy
+for the plain address.
+
+The difference between the two findings is what the rule was for. If rules
+above it with the *same* action hold all of it, it has nothing of its own:
+`REDUNDANT_RULE`, even where a blocking rule further up takes part of that
+traffic (it takes it from those rules just the same). If part of what it
+could match is only ever decided the *other* way, the rule says something the
+policy does not do: `SHADOWED_RULE`, and the message names who takes what.
+
+A rule that *does* match is redundant when a later rule handles all of its
+traffic the same way and no rule in between decides any of it otherwise.
+"The same way" is more than the verdict: logging, security profiles, and
+what else the source rule does to a session (NAT in a FortiOS policy, a
+traffic shaper, a PAN-OS log forwarding profile or QoS marking, the track
+setting of a Check Point rule).
+
+### What to do with a finding
+
+Each check has an action:
+
+| Action | Meaning |
+|---|---|
+| `report` | List the finding. The default for most checks. |
+| `off` | Do not run the check. |
+| `accept` | The findings of this check are fine: they are counted and listed under *Accepted* (those from after a conversion too), and do not make `--audit-fail-on` fail. |
+| `disable` | In a conversion: write the rule disabled. Not for `NO_LOG` and `NO_PROFILE`: a rule that does not log, or has no profile, is not a rule that should go (and `NO_LOG` finds blocking rules too). |
+| `reorder` | `SHADOWED_RULE` only, in a conversion: move the rule up, in front of the first rule that decides its traffic the other way. |
+
+```sh
+fwshift convert in.cfg --to panos -o out.set --report report.txt \
+    --audit-action REDUNDANT_RULE=disable --audit-action SHADOWED_RULE=reorder \
+    --audit-accept 'Inbound-*=ANY_SOURCE' --audit-accept Legacy-FTP
+```
+
+**One rule can be let through** with `--audit-accept RULE` (every check) or
+`RULE=CHECK,CHECK`. A NAT rule or an object is accepted by its name the same
+way. The name as it is written comes first; in a pattern only `*` and `?`
+stand for something else, so a rule called `Allow [DMZ]` is accepted under
+that name. Two findings are not accepted by "every check of this rule", only
+with the check named: a finding about the whole policy (`DEFAULT_ALLOW`,
+accepted as `default=DEFAULT_ALLOW` or with `--audit-action
+DEFAULT_ALLOW=accept`), and `EXPOSED_BY_CONVERSION`, which is about what a
+conversion did to a rule and not about the rule as it was reviewed. In the
+configuration file an accepted rule can carry the reason, which is printed
+with it. An acceptance that nothing answers to is listed under *Accepted,
+but not found*: a typing error in a name does not go unnoticed.
+
+**Disabling is of two kinds**, and the conversion report says which:
+
+* `REDUNDANT_RULE`, `SHADOWED_RULE` and `EMPTY_RULE`: no traffic is decided
+  differently, in verdict, logging, profiles or handling (`AUDIT_DISABLED`,
+  info). This is proven before it is done, and twice. Once on the policy as
+  it was read: after the other actions, and without the rules the target
+  cannot take. And once on the rules as the target gets them, for which
+  FWShift converts on trial: a target that matches its rules on the other
+  side of a destination NAT than the source did (iptables to PAN-OS, PAN-OS
+  to a FortiGate), or for which two zones became one, sees other addresses
+  and zones in the same rule. A rule that changes nothing on the source and
+  decides traffic in the output is kept, and so is a rule that only looked
+  redundant next to a rule that is itself disabled or that the target cannot
+  express. The audit says which rules it kept, and why.
+* every other check: the rule allowed something, and no longer does
+  (`AUDIT_DISABLED`, approximated). That is your decision; FWShift only
+  carries it out.
+
+**Reordering changes verdicts.** A shadowed rule that is moved up decides its
+traffic from then on. For a blocking rule that closes something, for an allow
+rule it opens something, and FWShift cannot know which of the two rules was
+the mistake. Every moved rule is therefore listed as *needs review*
+(`AUDIT_MOVED`). Rules that are not moved keep their order. Where a moved rule
+still never matches (another moved rule, or a rule above its new place, has
+all of it), the audit says so.
+
+`fwshift audit` on its own changes nothing: `disable` and `reorder` are shown
+as what a conversion would do, which makes it the place to try a
+configuration out. `--to json` writes the model as it was read and refuses
+the audit options.
+
+### The configuration file
+
+Everything in it is optional; a key that is not known is refused, at every
+level, and so is a check that does not exist.
+
+```json
+{
+  "checks": {
+    "SHADOWED_RULE": "reorder",
+    "REDUNDANT_RULE": "disable",
+    "NO_PROFILE": "off",
+    "ANY_SOURCE": {"action": "report", "level": "info"}
+  },
+  "accept": [
+    "Legacy-*",
+    {"rule": "Inbound-Web", "checks": ["ANY_SOURCE"], "reason": "the public web server"}
+  ],
+  "thresholds": {"wide_network_v4": 8, "wide_network_v6": 32, "wide_ports": 1024},
+  "services": {
+    "risky": {"telnet": ["tcp/23"], "rdp": ["tcp/3389", "udp/3389"]},
+    "industrial": {"modbus": ["tcp/502"]}
+  },
+  "applications": {"risky": ["telnet", "ms-rdp"], "industrial": ["modbus"]},
+  "fail_on": "high"
+}
+```
+
+`services.risky` and `services.industrial` replace the built-in lists of
+ports; `applications.risky` and `applications.industrial` replace the lists
+of application names (for sources that name applications). Options on the
+command line are applied after the file.
+
+### Before and after a conversion
+
+With `--audit`, `fwshift convert` audits twice:
+
+1. **The policy as it was read.** The actions are carried out on it, and then
+   it is converted.
+2. **The policy as it was converted**: the same rules, without those the
+   conversion wrote disabled or left out. Only what is new is listed, under
+   *After the conversion*, with a summary line of its own.
+
+The second audit is where a conversion that lost a rule shows its
+consequence. A blocking rule that could not be written (to an ASA without
+`--zone-network`, say) leaves the allow rules below it with more traffic
+than they had:
+
+```
+After the conversion
+  high 1, medium 0, low 0, info 0
+  [high] EXPOSED_BY_CONVERSION: rule 'no-out' blocks traffic from zone trust to zone untrust on the source and is not enforced in the output: 'rest' below it now allows part of what it blocked. Fix the rule in the output before it goes live
+  these never matched on the source and do in the output, because rules above them were not written: 'no-partner'
+```
+
+What takes the traffic may be a rule below, or the default of the target
+(traffic inside a zone, where the lost rule blocked it and the zone allows
+it). Two more lines can follow: the rules that never matched on the source
+and do in the output, as above, and the findings about rules that are not in
+the output or are disabled there.
+
+`EXPOSED_BY_CONVERSION` has a second form. A rule that the audit disabled
+because other rules decided its traffic the same way is checked once more
+against the policy as it was written; should those other rules not be in the
+output as they were, the finding says that the rule *is needed again*.
+
+The second audit works on FWShift's model of what it wrote, not on the
+output read back: it shows what the conversion knows it changed. It does not
+replace testing the output.
+
+### In a pipeline
+
+`--audit-fail-on high` makes both commands end with status 3 when a finding
+of that level is reported and not accepted, before or after the conversion.
+The findings of a rule that the audit disabled do not count: it was dealt
+with. (What the conversion finds about such a rule afterwards does.)
+Together with a configuration file that accepts what was reviewed, that
+turns the audit into a gate: a new any-to-any rule fails the run, the ones
+that were signed off do not.
+
+### Time
+
+The order checks compare every rule with the rules above it. A policy of
+1000 rules takes under a second, one of 3000 rules about five seconds, one
+of 6000 rules about half a minute (measured on random policies in which a
+third of the rules is dead; a tidy rulebase is faster). A policy in which
+nearly every rule overlaps with many others takes several times as long:
+finding out which rules take part in a dead rule is the expensive part.
+Memory stays in the tens of megabytes.
+
+### Limits of the audit
+
+* It reads the policy, not the traffic: no hit counts, no "unused for a
+  year".
+* Zones have no rank in a configuration. `ANY_SOURCE` from the Internet and
+  from the server network look the same.
+* `NO_LOG` and `NO_PROFILE` are only raised where the model holds what the
+  rule does: logging for PAN-OS and Check Point, profiles for PAN-OS and
+  FortiOS. On FortiOS the default of a policy, `logtraffic utm`, logs
+  security events and not sessions; the model does not hold that
+  difference, so `NO_LOG` is not raised there.
+* What is called dead is dead in the model. Where FWShift read a rule
+  approximately it says so and claims nothing; where a parser is wrong about
+  a rule without knowing it, the audit is wrong with it. A rule that is
+  disabled as dead is still in the output, disabled (for iptables: as a
+  comment), and in the report.
+* NAT rules are checked for shadowing only where one rule applies to a
+  connection. NAT is otherwise not audited.
+* Applications are compared by name. Two applications that overlap on the
+  wire are not known to.
+* The audit is new in 0.4 and has, like the converters, been tested on
+  synthetic policies only.

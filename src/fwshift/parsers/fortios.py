@@ -304,6 +304,13 @@ _KNOWN_KEYS = {
     "delay-tcp-npu-session",
     "comment",
 }
+# What the model holds of a policy itself, or what only names it: everything else a policy sets is
+# what it does with its traffic (Rule.handling).
+_MODELLED_KEYS = {
+    "name", "uuid", "srcintf", "dstintf", "srcaddr", "dstaddr", "srcaddr6", "dstaddr6", "action", "status", "schedule",
+    "service", "logtraffic", "logtraffic-start", "comments", "comment", "global-label", "label", "srcaddr-negate",
+    "dstaddr-negate", "srcaddr6-negate", "dstaddr6-negate", "service-negate",
+}  # fmt: skip
 # NAT details without an equivalent: mentioned, since they do not affect what is allowed.
 _NOTED_KEYS = {"fixedport", "natip", "nat46", "nat64", "natinbound", "natoutbound", "port-preserve"}
 _OFF_VALUES: Tuple[List[str], ...] = (["disable"], ["0"], ["0x00"], [""], [])
@@ -845,6 +852,8 @@ class _Builder:
                     noted.append(key)
             elif key not in _KNOWN_KEYS and values not in _OFF_VALUES:
                 unknown.append(key)
+            if key not in _MODELLED_KEYS and key not in _PROFILE_KEYS and values not in _OFF_VALUES:
+                rule.handling[key] = " ".join(values)
         if noted:
             self.report.add(
                 "rule",

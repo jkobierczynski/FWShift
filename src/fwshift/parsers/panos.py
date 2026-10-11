@@ -331,6 +331,12 @@ def _rule(entry: ET.Element, app_groups: Dict[str, List[str]], app_filters: Set[
     if filters:
         rule.unsupported.append(f"application filter {', '.join(filters)}")
 
+    for tag in ("log-setting", "icmp-unreachable", "option/disable-server-response-inspection"):
+        if _text(entry, tag) not in ("", "no"):
+            rule.handling[tag] = _text(entry, tag)
+    marking = entry.find("qos/marking")
+    if marking is not None and len(marking):
+        rule.handling["qos"] = " ".join(f"{child.tag} {(child.text or '').strip()}".strip() for child in marking.iter() if child is not marking)
     group_profile = _members(entry, "profile-setting/group")
     if group_profile:
         rule.profiles["group"] = ", ".join(group_profile)

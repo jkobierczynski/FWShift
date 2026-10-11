@@ -8,9 +8,9 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.3.0 (alpha) |
+| Version | 0.4.0 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
-| Tests | 657, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
+| Tests | 1345, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA or a Check Point management server |
 | Next | Lab validation of the sample conversions |
 
@@ -34,6 +34,8 @@ src/fwshift/
     transform.py      passes shared by the emitters: hardening of names,
                       references, placeholders, names, application lowering,
                       NAT destination rewriting, NAT order, pruning
+    audit.py          the audit: what rules match as sets, the checks, the
+                      actions (accept, disable, reorder), before and after
     appmap.py         application/port table, protocol tables, reserved names
     netutil.py        IP intervals
     names.py          naming rules of the targets
@@ -54,6 +56,8 @@ tests/
                       and for an emitted script
     test_asa.py       Cisco ASA both ways, with a random ASA that judges
                       packets itself and a strict reader of emitted commands
+    test_audit.py     the audit, against a walk through every packet of a
+                      small world
     test_cli.py       command line, golden files
 docs/MANUAL.md        user manual
 ```
@@ -120,6 +124,13 @@ that it need not know the vendor:
 | `DestNat.spread` | the translation picks one of several addresses per connection (iptables `DNAT` to a range) instead of mapping address for address. A rule for one of them cannot be given "the same part of the other side" |
 | `Rule.nat_added` | the destinations a parser of a post-NAT platform added to reach the pre-NAT model, with the origins of the NAT rules they were added for. A target of the same kind takes exactly these away again and leaves the rest of the rule alone |
 | `named_translations` | a rule of the source that names the object of a destination NAT itself applied to the translated traffic (a FortiOS virtual IP in a policy). Such a member is rewritten for a target of the same kind too |
+
+Two fields are for the audit only:
+
+| Field | Meaning |
+|---|---|
+| `Rule.handling` | what the source rule does to a session besides its verdict, logging and profiles, as far as a parser reads it: NAT and a traffic shaper in a FortiOS policy (and every other key of a policy that the parser does not model and that is not switched off), a PAN-OS log forwarding profile, QoS marking and the like, the track setting of a Check Point rule. Two rules handle traffic "the same way" only when this is equal too. No emitter reads it |
+| `Options.written` | not in the model but next to it: when it is a list, an emitter adds the copy of the policy it writes its output from (zones mapped, names made valid, destinations rewritten for the side of NAT the target matches on). The audit proves on it that a rule it disables changes nothing for the target either |
 
 A finding on a rule that is about one NAT rule carries the origin of that NAT
 rule (`Finding.subject`, not shown in the report). `to_post_nat_lookup` uses
@@ -308,6 +319,9 @@ to 3.13, and on Windows and macOS for 3.12.
 | ASA output: twice NAT for every rule, destination translations `unidirectional` | One line per rule keeps the order of the model. A static rule of an ASA works both ways; the model's destination translation does not. A combining published port is written from the server side because that is the form an ASA combines with source NAT. |
 | NAT order is reported, not emulated | A first-match NAT rulebase and two NAT tables differ in ways `PREROUTING` cannot express (it does not know the outgoing interface). The report names each rule that changes meaning. |
 | Reserved names are renamed | An object called `all` or `HTTP` from another platform would otherwise redefine a FortiOS built-in. |
+| Audit: a rule is called dead only when that is proven, and unknowns count against the claim | The finding has an action, `disable`, that people will use without reading each rule. A wrong "redundant" removes a rule that was needed; a missed one costs nothing. |
+| Audit: `reorder` is carried out but always needs review | Moving a shadowed rule up flips verdicts, and which of the two rules was the mistake is not in the configuration. The tool can do the edit; it cannot make the decision. |
+| Audit after a conversion works on the model, not on the output read back | Three of the five targets have no parser for what is written. It shows what the conversion knows it changed, which is where a lost deny rule shows. |
 | Standard library only | Runs on a bare RHEL box and is easy to audit. |
 | GPL-3.0-or-later | Copyleft: changes to a tool that rewrites security policy stay open to inspection. |
 
@@ -593,6 +607,202 @@ the model denies may only be allowed by an entry of a rule the report flags.
   the iptables emitter were made linear in passing; they have no test of
   their own beyond the ASA one that goes through every emitter.
 
+### 2026-10-11: version 0.4.0
+
+**Built**
+
+* `audit.py` and the command `fwshift audit`; `--audit` and its options on
+  `convert`. Twenty-three checks in four groups: rules that allow a lot, the
+  order of the rules, loose ends, and one that only exists after a conversion.
+* Per check an action (`off`, `accept`, `report`, `disable`, and `reorder`
+  for shadowed rules), per-rule acceptance with a reason, a JSON
+  configuration file, `--audit-fail-on` with exit status 3.
+* In a conversion the audit runs twice: on the policy as read, where the
+  actions are carried out, and on the policy without the rules the
+  conversion wrote disabled or left out. `EXPOSED_BY_CONVERSION` names the
+  allow rules below a blocking rule that was lost.
+
+**How a rule is proven dead**
+
+A rule is a box: source zones, destination zones, whether the two are the
+same zone or different ones, sources, destinations and services. Zones are
+bits of an integer, with one bit for "the zones nobody names", so that `any`
+is more than the zones of the policy; the relation is a dimension of its own,
+which keeps a set of zone pairs at two integers instead of their product (the
+first version had a bit per pair, and 2000 interfaces made integers of four
+million bits). Addresses are the intervals of `netutil`, one IP version per
+box: no packet goes from an IPv4 address to an IPv6 one. Services are
+rectangles per protocol number (source port by destination port, ICMP type
+by code) plus "every other protocol". A rule is dead when its box, with the
+boxes of all earlier rules taken out, is empty.
+
+Every rule has two boxes. *Over*: all it might match. *Under*: what it surely
+matches. They differ where the model cannot say (a host name, a dynamic
+group, a group with excluded members, `application-default`, an unsupported
+object, an object or rule the parser reported as approximated). The rule that
+is covered enters with its over box, the rules that cover with their under
+box, so a wrong claim needs a wrong box, not an unknown. Applications, users,
+URL categories and schedules are not in the boxes: an earlier rule that is
+narrower in one of them than the later rule is left out as a cover. Two lists
+with the same names are equal whatever the names stand for, which is what
+makes rules with host names or `application-default` comparable at all.
+
+What a parser said about its own reading counts (`Reading`, taken from the
+report before anything else is written to it): a rule with a finding of
+severity approximated or higher, other than those about destination NAT, is
+neither called dead nor used as a cover; an object with such a finding
+proves nothing by its addresses. A source that looks rules up after
+destination NAT is read without the pre-NAT addresses its parser added
+(`Rule.nat_added`): those stand for the translated traffic, not for
+everything sent to that address.
+
+The decision is made in three steps, because the obvious one (take the
+earlier rules out in their order) cuts a broad rule under three thousand host
+rules into three thousand pieces before it reaches the clean-up rule that
+holds all of it:
+
+1. *Counting.* If the earlier rules together hold fewer addresses and
+   services of the rule than the rule has, something is left, however they
+   lie. That settles nearly every rule that is alive without cutting anything.
+2. *Largest first.* Otherwise the covers are taken out starting with the
+   largest; then in their order, should that fall into more than 4096 pieces;
+   then the rule is listed as not followed.
+3. *Who takes part* is only asked for a dead rule (and for
+   `OVERLAPPING_RULES`), and answered in the order of the rules, as first
+   match would: a rule takes part when the rules above it leave it something
+   of this rule. In few pieces that is read off while taking the covers out
+   in order; otherwise cover by cover.
+
+Most pairs of rules never get that far: a rule is first tried against the
+others on the lowest and highest address of each side and on its zone bits,
+in one list comprehension.
+
+A dead rule is `REDUNDANT_RULE` when earlier rules with the same kind of
+action that are themselves alive hold all of it, and `SHADOWED_RULE`
+otherwise. A rule that is alive is redundant when a later live rule with the
+same action, logging, profiles and handling holds all of it and every rule
+in between that touches it handles traffic the same way.
+
+**Why disabling them is safe, all at once**
+
+A dead rule is missed by no packet. A rule that "adds nothing" hands each of
+its packets to the next rule that matches it; every such rule up to the one
+that holds it all handles traffic alike, or the finding would not have been
+raised; and the rule that holds it all is alive and therefore not itself
+removed as dead. If it is removed as adding nothing, the same argument goes on
+from there, and the chain ends because it only goes down. Actions that do
+change verdicts (disabling for what a rule allows, reordering) are carried
+out first, and the order is looked at again before anything is disabled as
+dead.
+
+That argument is about one policy, and a conversion has two: what the source
+enforced and what the target will. They differ in more than the rules that
+are lost. A target that matches on the other side of destination NAT has
+other addresses in the same rule; `--zone-map` can make two zones one. So a
+rule is disabled only when it changes nothing in both: in the policy as read
+without the rules the target cannot take, and in the copy the emitter writes
+from (`Options.written`, from a conversion on trial), read as it stands. The
+same is checked once more after the real conversion (`EXPOSED_BY_CONVERSION`,
+"is needed again").
+
+**Tests**
+
+`test_audit.py` has an oracle that shares nothing with the audit's sets: a
+small world (three named zones and two that no rule names, the addresses and
+ports at which any two rules of the policy can differ) in which every packet
+is walked through the rules, first match, with the matching code of the
+iptables tests. For random policies where everything can be read, the rules
+the audit calls dead are exactly the rules that decide no packet, and the two
+findings are told apart as the walk tells them apart. Disabling what the
+audit flags leaves the verdict, logging and action of every packet as it was.
+For policies with host names, applications on default ports, schedules and
+unsupported criteria the same is checked under several ways of filling in
+what the model leaves open. Reordering changes only packets that a moved rule
+now decides. The two ways of finding the rules that take part are run against
+each other, the count of services against "a set is as large as its two
+parts", and iptables rulesets with NAT are disabled-and-compared packet by
+packet.
+
+**Reviewed**
+
+Two rounds by the independent reviewer, who wrote oracles of its own (a world
+of 1.4 million packets with every packet one bit of an integer; a plain
+subtraction in rule order without cap or filter; real parsers and emitters
+with the outputs compared packet by packet with and without `disable`).
+
+*Round 11*, on the first version: 11 findings, all fixed.
+
+| | Finding | Fix |
+|---|---|---|
+| high | iptables, FortiOS, ASA: the pre-NAT addresses a parser added were read as matched, so a rule for the published address was "redundant" next to the rule for the server | the audit reads such a source without `nat_added`; a FortiOS virtual IP in a policy proves nothing about the plain address |
+| high | a group with excluded members (FortiOS), or any unsupported or dynamic group, counted with its listed members as a cover | such a group proves nothing |
+| high | rules the parser itself had reported as approximated (installed on one gateway, unknown attributes, per-policy NAT) were compared as if exact | `Reading`: left out on both sides and listed; `Rule.handling` |
+| high | a rule was disabled as redundant next to a rule the target then could not write | conversion on trial before anything is disabled; the net after the conversion |
+| medium | `NO_LOG=disable` disabled blocking rules | `NO_LOG` and `NO_PROFILE` cannot be `disable`; `NO_LOG` only where the model holds logging |
+| medium | a bit per zone pair: 2000 interfaces took minutes and gigabytes; broad rules under thousands of host rules were "not followed" | zones as three dimensions; counting, largest first |
+| medium | `ANY_ANY_ANY` was never high on an ASA or iptables source, where every rule names its interface | one level lower only when a rule does not reach every other zone |
+| medium | `EXPOSED_BY_CONVERSION` missed the default for traffic inside a zone; the summary counted only the first audit | both |
+| low | a rule from IPv4 addresses to "any" was compared in IPv6 as well | a box per IP version |
+| low | a configuration with an unknown check and only a level ended in a traceback | refused with a message, as every unknown key now is |
+| low | `[` in a rule name was a pattern; an acceptance nothing answered to went unnoticed; `--to json` ignored audit options | names first, two wildcards, *Accepted, but not found*, refused |
+
+*Round 12*, on the fixes: the eleven confirmed fixed; the new decision code
+compared with plain in-order subtraction on 310,000 rules of 2,960 policies
+(identical check, dead set and related rules) and with first match on 9.6
+million packets; six new findings, all fixed.
+
+| | Finding | Fix |
+|---|---|---|
+| high | `disable` was proven on one side of destination NAT and written for the other: iptables to PAN-OS, a drop for the server's address and port was "redundant" and was the rule that blocked the published address there (5 of 2000 random rulesets wider, 9 narrower); PAN-OS to iptables the same in the other direction | the proof is given on the emitter's copy as well (`Options.written`) |
+| medium | `--audit-accept 'no-*'` also accepted the `EXPOSED_BY_CONVERSION` of those rules, which was then not listed anywhere | accepted only by the name of the check; accepted findings of the second audit are listed; a rule that was accepted as dead and matches in the output is still named |
+| low | `--audit-fail-on` counted the other findings of a rule the audit had disabled | they do not count |
+| low | an acceptance pattern with many `*` did not return (a regular expression) | a matcher written out |
+| low | policies in which nearly every rule is dead: 3000 rules in 84 s | rules that take part are read off in order while the rule stays in few pieces: 49 s. Still the slow case |
+| nit | iptables wrote an audit-disabled rule as "disabled in the source"; an object read approximately was listed as a duplicate | both |
+
+The fixes of round 12 were not reviewed again. They are covered by the tests
+at the end of `test_audit.py` and by the reviewer's own scripts, rerun after
+the fixes with the flow of the CLI as it is now: across the two sides of
+destination NAT (iptables to a pre-NAT reading, 1500 rulesets; PAN-OS-kind
+policies to iptables, 600) no packet differs with and without `disable`; nor
+in same-kind conversions (iptables with NAT 400 + 250 seeds, without 250;
+FortiOS 200 + 250; ASA 200 + 150), in the 1.4-million-packet world (500
+static and 600 open policies; reordering and mixed actions 500 each) or
+against the in-order reference (350 policies). In that world four dead rules
+of the 500 static policies are not called dead; what is left of each lies
+between the addresses the world has (the reviewer traced such cases to the
+same conclusion), and with four more addresses in the world the audit and
+the world agree on every rule of those policies.
+
+**Not done, known**
+
+* The audit has seen synthetic policies only.
+* It is quadratic in the number of rules: 3000 rules take about five
+  seconds, 6000 about half a minute on the machine it was written on (random
+  policies, a third of the rules dead). Where nearly every rule is dead it is
+  ten times that.
+* "Never matches" is a statement about the model. The audit leaves out what a
+  parser *said* it read approximately; a parser that is wrong without saying
+  so makes the audit wrong. `audit.run` called without the parser's report
+  knows nothing of either.
+* The proof on what is written uses the emitter's copy of the policy, not
+  the output text. What an emitter decides while writing (the networks an ASA
+  rule is kept to with `--zone-network`, the chains of iptables) is not in it.
+* The second audit lists new findings on the policy as read without the lost
+  rules, not on the emitter's copy: a rule that is dead only as the target
+  matches (after a destination was rewritten) is reported by the NAT findings
+  of the conversion, not by the audit.
+* The reviewer's fuzz across the two sides of destination NAT is not in the
+  repository; `test_audit.py` has the two hand-made cases.
+* No zone ranks, no hit counts, no audit of NAT beyond shadowing, no
+  comparison of the output read back.
+* `NO_LOG` and `NO_PROFILE` rest on what each parser reads of logging and
+  profiles, which was written for the conversion report, not for an audit.
+  `NO_LOG` is not raised for FortiOS: the model does not hold `logtraffic
+  utm` apart from `disable`.
+* A host name on a rule is compared by name only (two rules with the same
+  name are equal, a name and an address never are).
+
 ## To do
 
 1. Load `tests/data/expected/fortios_to_panos.set` on a PAN-OS VM,
@@ -611,7 +821,8 @@ the model denies may only be allowed by an entry of a rule the report flags.
    user/group mapping file.
 7. Differential check as a command: evaluate the source and the converted
    model against sampled flows and report every flow whose verdict changed.
-   The simulators in the tests are the start of it.
+   The simulators in the tests are the start of it, and so is the audit's set
+   arithmetic: the difference of two policies is a set of boxes.
 8. Release workflow that builds a wheel and a single-file `.pyz` on a version tag.
 9. Interface networks in the model (the FortiOS and PAN-OS parsers know
    them), so that `--zone-network` is only needed where the source does not
@@ -623,4 +834,9 @@ the model denies may only be allowed by an entry of a rule the report flags.
     rules for one address), and same-kind round trips for FortiOS and
     iptables with rules that name both sides of a translation. They were run
     from the reviewer's scratch directory for this version and are not in the
-    repository.
+    repository. The same for the audit: `disable` across the two sides of
+    destination NAT (the reviewer's `e6`), and the in-order reference (`e2`).
+12. Audit: a zone-to-zone matrix (what can talk to what, on which services,
+    through which rules) for zone and conduit reviews; zone ranks from a
+    configuration file, so that "any source" from the Internet weighs more;
+    hit counts where a source exports them; findings as SARIF or CSV.

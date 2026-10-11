@@ -171,6 +171,8 @@ def emit(policy: Policy, report: Report, options: Options) -> str:
     probe = _Emitter(p, Report(), options, zone_names)
     written = {nat.origin for nat in p.nat_rules if probe.nat_plan(nat).problem is None}
     transform.to_post_nat_lookup(p, report, written)
+    if options.written is not None:
+        options.written.append(p)
     return _Emitter(p, report, options, zone_names).run()
 
 

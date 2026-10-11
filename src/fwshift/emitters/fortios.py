@@ -84,6 +84,8 @@ def emit(policy: Policy, report: Report, options: Options) -> str:
         and (nat.destination_translation is not None or _reverse_pair(p, nat) is not None)
     }
     transform.to_post_nat_lookup(p, report, emitted)
+    if options.written is not None:
+        options.written.append(p)
     return _Emitter(p, report, options).run()
 
 
