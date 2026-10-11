@@ -1416,8 +1416,9 @@ def _holds_as_written(written: Optional[Policy], lost: Sequence[str], config: Au
     """The rules that change nothing in the model an emitter writes from; None when there is no such model.
 
     A target need not match as the source did: it may look its rules up on the other side of a
-    destination NAT, two zones may have become one, an application may have become ports. What
-    the parser could only read approximately does not matter here: this is about what is written.
+    destination NAT, and two zones may have become one. (What an emitter does while it writes, such
+    as turning applications into ports, is not in that model.) What the parser could only read
+    approximately does not matter here: this is about what is written.
     """
     if written is None:
         return None
@@ -1489,7 +1490,7 @@ def apply(p: Policy, result: AuditResult, config: AuditConfig, lost: Sequence[st
                 finding.done = "disabled (for another finding)"
             elif (finding.check, finding.name) in still and holds is not None and finding.name not in holds:
                 finding.done = ("kept: in the output it decides traffic. The target does not match its rules as the source did "
-                                "(on the other side of a destination NAT, or with zones or services that changed)")  # fmt: skip
+                                "(on the other side of a destination NAT, or with zones that were mapped onto each other)")  # fmt: skip
             elif (finding.check, finding.name) in still:
                 rule.enabled = False
                 finding.done = "disabled; no traffic is decided differently"

@@ -20,7 +20,7 @@ class Severity(IntEnum):
 
 
 _LABEL = {Severity.INFO: "info", Severity.APPROX: "approximated", Severity.REVIEW: "needs-review"}
-_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+_CONTROL = re.compile("[\\x00-\\x1f\\x7f\\x85\u2028\u2029]")  # with the line separators of Unicode
 
 
 def _name(text: str) -> str:

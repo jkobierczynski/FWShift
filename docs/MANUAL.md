@@ -3,7 +3,8 @@
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
 Check Point, Cisco ASA and Linux iptables, and tells you, rule by rule, how
 faithful the result is. It can also audit a policy: rules that allow too much,
-rules that never match, loose ends. This manual covers version 0.4.
+rules that never match, loose ends; and show what each zone may reach in each
+other zone. This manual covers version 0.5.
 
 **Contents**
 
@@ -20,6 +21,7 @@ rules that never match, loose ends. This manual covers version 0.4.
 11. [Errors and troubleshooting](#11-errors-and-troubleshooting)
 12. [Limits](#12-limits)
 13. [Auditing a policy](#13-auditing-a-policy)
+14. [The zone matrix](#14-the-zone-matrix)
 
 ---
 
@@ -47,7 +49,7 @@ FWShift converts the **policy**. It does not convert interfaces, routing, VPN,
 users, security profiles, or system settings, and it is not a substitute for
 testing the result.
 
-> **Status.** Version 0.4 is tested against synthetic configurations. iptables
+> **Status.** Version 0.5 is tested against synthetic configurations. iptables
 > output and input are checked against a Linux kernel (filter rules, one
 > kernel and iptables version). Output for PAN-OS, FortiOS, Check Point and
 > Cisco ASA has not been loaded on a device or management server yet; the
@@ -347,6 +349,25 @@ such as `disable` is shown as what a conversion would do. `--json` writes the
 findings as JSON; `--list-checks` shows the checks, their levels and the
 actions each can take.
 
+### `fwshift matrix`
+
+```
+fwshift matrix INPUT [--from ...] [--vsys ...] [--device-group ...] [--vdom ...] [--layer ...]
+                     [-o FILE] [--json | --csv] [--summary]
+                     [--network-zone NAME[@ZONE]=NETWORK[,NETWORK...]] [--audit-config FILE]
+```
+
+Shows what each zone may reach in each other zone, on which services and
+through which rules (section 14). Nothing is converted.
+
+| Option | Meaning |
+|---|---|
+| `-o FILE` | Where the matrix goes. Default, and `-`: standard output. |
+| `--json`, `--csv` | The matrix as JSON, or as CSV with a line per rule and conduit. |
+| `--summary` | Text output: the grid and what each conduit allows, without the rules. |
+| `--network-zone NAME[@ZONE]=NETWORK[,NETWORK...]` | A zone of your own, given as networks. Repeatable. The matrix is then between these zones. `@ZONE` names the zone (or zones, separated by commas) of the policy the networks lie behind. |
+| `--audit-config FILE` | The configuration file of the audit: its lists of risky and industrial services and applications are used. |
+
 ### `fwshift inspect`
 
 ```
@@ -360,7 +381,7 @@ converted.
 
 | Status | Meaning |
 |---|---|
-| 0 | Converted. The report may still hold findings. |
+| 0 | Done. For a conversion: converted; the report may still hold findings. |
 | 1 | Error: the input could not be read or an option is wrong. A message starting with `fwshift: error:` says why. |
 | 2 | `--strict` was given and something needs review. (An invalid command line also ends with 2.) |
 | 3 | `--audit-fail-on` was given and the audit reported a finding of that level or higher (in a conversion: before or after it) that was not accepted and whose rule was not disabled. Status 2 comes first. |
@@ -1679,4 +1700,179 @@ Memory stays in the tens of megabytes.
 * Applications are compared by name. Two applications that overlap on the
   wire are not known to.
 * The audit is new in 0.4 and has, like the converters, been tested on
+  synthetic policies only.
+
+## 14. The zone matrix
+
+The audit asks rule by rule whether a rule is too wide. The matrix asks the
+question the other way round: **what can this zone reach in that zone, and
+which rules let it?** That is the view of a zone and conduit review (IEC
+62443), of a segmentation check before an audit, and of anyone who has to
+answer "can the office network talk to the PLCs?" from a rulebase of a
+thousand lines.
+
+```sh
+fwshift matrix running-config.xml
+```
+
+```
+What each zone may reach (rows: from, columns: to)
+           trust             untrust           dmz               ot
+  trust    any               app:web-brow… +2  tcp/80 +6         app:modbus +1
+  untrust  -                 any               app:ssl app:smtp  -
+  dmz      -                 app:dns app:ssl~  -                 -
+  ot       -                 -                 -                 any
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+trust -> trust (inside the zone)
+  allowed: any
+  by default, what no rule decides: any
+trust -> untrust
+  ...
+trust -> dmz
+  allowed: tcp/80, tcp/443, tcp/8080, tcp/8443, tcp/9000-9010, app:ssh, app:ping
+  rule 'Admin-SSH': admin-range -> dmz-servers: applications ssh on their default ports (users example\netadmins)
+  rule 'App-Server-Ports': lan-net, lan6-net -> web-1: tcp/80, tcp/443, tcp/8080, tcp/8443, tcp/9000-9010
+  rule 'Not-From-Guests': not 10.10.200.0/24 -> all-servers: applications ping on their default ports
+trust -> ot
+  allowed: app:modbus, app:siemens-s7
+  industrial protocols: modbus (rule 'Engineering to PLCs'); siemens-s7 (rule 'Engineering to PLCs')
+  rule 'Engineering to PLCs': eng-station -> plc-net: applications modbus, siemens-s7 on their default ports
+...
+```
+
+The grid is the overview; under *Conduits* every pair of zones with anything
+allowed is listed with its rules, in the order of the policy. `--summary`
+leaves the rules out, `--json` and `--csv` give the same content for a
+program or a spreadsheet (a line per rule and conduit). A rule that is in
+every conduit with the same content (a rule for any zone, in a policy with
+many zones) is listed once, under *In every conduit*; JSON and CSV repeat it.
+
+### What a cell says
+
+A cell holds every service that the policy allows from **some** address of
+the one zone to **some** address of the other. It does not say that every
+address may: the rules under *Conduits* say who.
+
+* A rule is shown with what the **blocking rules above it** leave of it. A
+  rule "any service" under a rule that blocks telnet is shown as `any except
+  tcp/23`.
+* Rules that **never match** are not shown (the audit names them), nor are
+  disabled rules.
+* **By default**: where the policy lets through what no rule decides (inside
+  a zone on PAN-OS, everywhere on a ruleset whose `FORWARD` policy is
+  `ACCEPT`), a cell shows what is left for that default once every rule took
+  its part. An iptables ruleset is for one IP version: its default is shown
+  for that version, and a note says that the other is not in the file.
+* `app:NAME`: the rule allows an application, not ports. Which ports that is
+  on the wire is not looked up.
+* `svc:NAME`: a service of the source that FWShift cannot read (an
+  application or category object of the vendor). The rule is listed with the
+  name, and not as open for every service.
+* Rules for **users, URL categories or a schedule** are listed with that
+  condition; the cell counts them in full.
+* The lines *cleartext or remote administration* and *industrial protocols*
+  use the lists of the audit (and of `--audit-config`, if given).
+* `(other zones)`: the zones the policy does not name. A rule from or to
+  `any` zone reaches them too; the row and column appear when a rule does,
+  or when everything between zones is open by default.
+
+**Of the rules it read, the matrix shows at most what they allow, never
+less.** Where a rule cannot be read exactly (a host name, a dynamic group,
+an object or rule the parser reported as approximated, a criterion that is
+not in the model), it is shown with everything it might allow and marked
+`~`. A blocking rule that cannot be read exactly takes nothing out of the
+matrix. For the question "can A reach B", a conduit that is shown and does
+not exist costs a look; a conduit that exists and is not shown is the
+mistake.
+
+What FWShift did **not** read is not in the matrix, and the matrix says so
+under *From reading the configuration*: tables a parser does not convert (a
+FortiOS `policy6` or `local-in-policy`), traffic the source lets through
+outside its rules (VPN traffic past the access lists of an ASA, the implied
+rules of Check Point), and, under *Not in the matrix*, rules that could not
+be read at all. Read those lines before you read "nothing is allowed".
+
+### Zones of your own
+
+The zones of a zone model are seldom the interfaces of one firewall: one
+interface carries three VLANs, a Check Point policy has no zones at all.
+With `--network-zone` the matrix is drawn between zones that you give as
+networks:
+
+```sh
+fwshift matrix running-config.xml \
+    --network-zone office@trust=10.10.0.0/16 \
+    --network-zone dmz@dmz=10.20.0.0/24 \
+    --network-zone plant@ot=10.30.0.0/16 \
+    --network-zone internet@untrust=0.0.0.0/0,::/0
+```
+
+```
+              office            dmz               plant             internet
+  office      any               tcp/80 +6         app:modbus +1     app:web-brow… +2
+  dmz         -                 -                 -                 app:dns app:ssl~
+  plant       -                 -                 any               -
+  internet    -                 app:ssl app:smtp  -                 any
+```
+
+* `NAME=NETWORK[,NETWORK...]`: addresses, prefixes or ranges, IPv4 and IPv6.
+  The option is repeatable, also for one zone: its networks, and the zones
+  it lies behind, are taken together.
+* Of two networks, one inside the other, **the smaller one decides**, as a
+  route would: `internet=0.0.0.0/0,::/0` is "everything that is in no other
+  zone". Without such a zone the rest is shown as `(elsewhere)`. Two zones
+  that share addresses in any other way are refused.
+* `NAME@ZONE=...` says that the networks lie **behind zone `ZONE` of the
+  policy** (several zones: `NAME@ZONE1,ZONE2=...`). A rule is then shown for
+  that zone only if it is for one of those zones of the policy. Without
+  `@ZONE` FWShift does not know where the networks lie, and shows a rule
+  wherever its addresses reach: a rule from `any` address is then in every
+  row, whatever zone it names. Say `@ZONE` wherever the policy has zones.
+  A zone that the policy does not name is taken as one of the zones nobody
+  names (an interface without a rule is not in an iptables ruleset): only
+  rules for `any` zone are shown for it, and a note asks you to check the
+  spelling.
+* **`(ZONE: other addresses)`.** A zone of the policy that none of your
+  zones is said to lie behind gets a row and a column of its own, with
+  everything its rules allow (unless a zone of yours without `@ZONE`, or
+  `(elsewhere)`, takes the addresses). The same row takes a rule that
+  *names* an address which, by your networks, lies behind another zone than
+  the rule is for: a rule from zone `inside` for a server address, a rule for
+  a public address that is routed into the DMZ without NAT. The networks you
+  give need not be all there is behind a zone, and such a rule is not left
+  out for it. A rule for `any` address names no such address, and is shown
+  for the zones you gave.
+* **Traffic inside a zone of the policy** that the firewall allows by default
+  is shown between zones of yours that are known (`@ZONE`) to lie behind that
+  zone. For zones without `@ZONE` it is **not in the matrix**, and a note
+  says so.
+* **Destination NAT.** On PAN-OS and Check Point a rule names the published
+  address. The matrix shows such a rule also for the zone of the server
+  behind it, marked *through NAT rule ...*, for every enabled NAT rule that
+  translates a destination, whatever its shape; where the translated address
+  cannot be read (a host name), for every zone the traffic could end in,
+  marked `~`. On FortiOS, iptables and ASA the rule is for the server
+  already. A FortiOS policy that names a virtual IP is taken as traffic to
+  the mapped address, and a blocking policy for the same virtual IP above it
+  takes its part.
+
+### Limits of the matrix
+
+* It is read from the configuration. Routing, the networks that really lie
+  behind an interface, and whether anything listens on a port are not in it.
+* It shows what is allowed, not what is used.
+* Source NAT is not applied: the source zone is where the traffic comes
+  from.
+* The effect of a destination NAT on the *port* is not shown: a rule is
+  listed with the services it names.
+* Applications are names. `app:ssl` and `tcp/443` in one cell are not merged.
+* A rule that falls into more than 4096 pieces under the blocking rules above
+  it is shown as written and marked `~`.
+* A policy of 2000 rules and 30 zones takes about a second. A rule for any
+  zone is in every cell: a thousand such rules on a firewall with fifty
+  zones take ten seconds, a gigabyte of memory, and 280 MB as JSON. The text
+  stays small (such rules are listed once); `--summary` is smaller still.
+* The matrix is new in 0.5 and has, like everything else, been tested on
   synthetic policies only.

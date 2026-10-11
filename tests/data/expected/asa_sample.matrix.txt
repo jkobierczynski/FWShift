@@ -1,0 +1,78 @@
+FWShift zone matrix
+  source: asa (ASA Version 9.12(4))
+  security rules: 18 (1 disabled, 1 never match)
+
+What each zone may reach (rows: from, columns: to)
+           outside           inside            dmz               guest
+  outside  -                 icmp type 0 +1    icmp type 0 +5    icmp type 0 +1
+  inside   any               -                 any               any
+  dmz      tcp/443 +2        tcp/443 +2        -                 tcp/443 +2
+  guest    any               -                 -                 -
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+outside -> inside
+  allowed: icmp type 0, icmp type 8
+  rule 'outside_access_in-3': any -> any: icmp type 0, icmp type 8
+outside -> dmz
+  allowed: icmp type 0, icmp type 8, tcp/25, tcp/587, tcp/8080, tcp/8443
+  rule 'outside_access_in-1': any -> web-srv: tcp/8080
+  rule 'outside_access_in-2': any -> mail-srv: tcp/25, tcp/587, tcp/8443
+  rule 'outside_access_in-3': any -> any: icmp type 0, icmp type 8
+outside -> guest
+  allowed: icmp type 0, icmp type 8
+  rule 'outside_access_in-3': any -> any: icmp type 0, icmp type 8
+inside -> outside
+  allowed: any
+  cleartext or remote administration: rdp (rule 'inside_access_in-7')
+  rule 'inside_access_in-1': inside-net -> any: tcp/53, udp/53, udp/123
+  rule 'inside_access_in-2': internal -> any: tcp/80, tcp/443, tcp/8000-8010
+  rule 'inside_access_in-5': inside-v6 -> ::/0: any
+  rule 'inside_access_in-7': inside-net -> any: tcp/3389 (users LOCAL\alice)
+  rule 'inside_access_in-9': inside-net -> any: icmp type 8
+inside -> dmz
+  allowed: any
+  cleartext or remote administration: rdp (rule 'inside_access_in-7')
+  rule 'inside_access_in-1': inside-net -> any: tcp/53, udp/53, udp/123
+  rule 'inside_access_in-2': internal -> any: tcp/80, tcp/443, tcp/8000-8010
+  rule 'inside_access_in-3': admin-range -> dmz-servers: tcp/22
+  rule 'inside_access_in-5': inside-v6 -> ::/0: any
+  rule 'inside_access_in-6': inside-net -> 10.20.0.50: tcp/5060, udp/5060
+  rule 'inside_access_in-7': inside-net -> any: tcp/3389 (users LOCAL\alice)
+  rule 'inside_access_in-9': inside-net -> any: icmp type 8
+inside -> guest
+  allowed: any
+  cleartext or remote administration: rdp (rule 'inside_access_in-7')
+  rule 'inside_access_in-1': inside-net -> any: tcp/53, udp/53, udp/123
+  rule 'inside_access_in-2': internal -> any: tcp/80, tcp/443, tcp/8000-8010
+  rule 'inside_access_in-5': inside-v6 -> ::/0: any
+  rule 'inside_access_in-7': inside-net -> any: tcp/3389 (users LOCAL\alice)
+  rule 'inside_access_in-9': inside-net -> any: icmp type 8
+dmz -> outside
+  allowed: tcp/443, tcp/25 from port 1024-65535, udp/53
+  rule 'dmz_access_in-1': dmz-servers -> any: udp/53
+  rule 'dmz_access_in-2': mail-srv -> any: tcp/25 from port 1024-65535
+  rule 'dmz_access_in-4': web-srv -> any: tcp/443
+dmz -> inside
+  allowed: tcp/443, tcp/25 from port 1024-65535, udp/53
+  rule 'dmz_access_in-1': dmz-servers -> any: udp/53
+  rule 'dmz_access_in-2': mail-srv -> any: tcp/25 from port 1024-65535
+  rule 'dmz_access_in-4': web-srv -> any: tcp/443
+dmz -> guest
+  allowed: tcp/443, tcp/25 from port 1024-65535, udp/53
+  rule 'dmz_access_in-1': dmz-servers -> any: udp/53
+  rule 'dmz_access_in-2': mail-srv -> any: tcp/25 from port 1024-65535
+  rule 'dmz_access_in-4': web-srv -> any: tcp/443
+guest -> outside
+  allowed: any
+  rule 'implicit-guest': any -> any: any
+
+From reading the configuration
+  UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+
+Notes
+  1 rule(s) never match and are left out; 'fwshift audit' names them.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

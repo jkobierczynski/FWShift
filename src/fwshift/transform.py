@@ -42,7 +42,7 @@ Reason = Tuple[str, str]
 G = TypeVar("G", AddressGroup, ServiceGroup)
 
 
-_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+_CONTROL = re.compile("[\\x00-\\x1f\\x7f\\x85\u2028\u2029]")  # with the line separators of Unicode
 _HOST_NAME = re.compile(r"[A-Za-z0-9_*]([A-Za-z0-9_*.-]*[A-Za-z0-9_*])?\.?")
 _FREE_TEXT = ("description", "raw")  # written as comments only, and cleaned where they are written
 

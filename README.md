@@ -15,11 +15,13 @@ what was approximated and what a person has to look at.
 
 It also **audits** a policy, of any of these formats: rules that allow too
 much, rules that never match because earlier rules cover them, unused and
-duplicate objects. On its own, or before and after a conversion.
+duplicate objects. On its own, or before and after a conversion. And it draws
+the **zone matrix** of a policy: what each zone may reach in each other zone,
+on which services, through which rules.
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.4).** The converter is tested against synthetic
+> **Status: alpha (0.5).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** is checked against the real thing: generated rulesets are
@@ -44,6 +46,7 @@ Pure Python, standard library only, Python 3.9 or newer.
   handled, and how to load the result.
 * **[DEVELOPMENT.md](DEVELOPMENT.md)**: architecture, the rules the code
   follows, how to add a vendor, testing, and the development log.
+* **[TODO.md](TODO.md)**: what is planned, release by release.
 
 ## Why
 
@@ -121,6 +124,12 @@ fwshift audit asa-running.cfg
 # let the published web servers pass the "any source" check
 fwshift convert asa-running.cfg --to panos -o panos.set --report report.txt \
     --audit-action REDUNDANT_RULE=disable --audit-accept 'outside_access_in-*=ANY_SOURCE'
+
+# Who can reach whom? Between the zones of the policy, or between zones of
+# your own, given as networks and the zone of the policy they lie behind
+fwshift matrix running-config.xml
+fwshift matrix running-config.xml --network-zone office@trust=10.10.0.0/16 \
+    --network-zone plant@ot=10.30.0.0/16 --network-zone internet@untrust=0.0.0.0/0,::/0
 ```
 
 The [manual](docs/MANUAL.md#3-getting-the-source-configuration) shows how to
@@ -175,6 +184,34 @@ Five synthetic configurations to try it on, one per format, are in
 [`tests/data`](tests/data), with their conversions in
 [`tests/data/expected`](tests/data/expected).
 
+## Zone matrix
+
+```
+$ fwshift matrix running-config.xml --summary
+What each zone may reach (rows: from, columns: to)
+           trust             untrust           dmz               ot
+  trust    any               app:web-brow… +2  tcp/80 +6         app:modbus +1
+  untrust  -                 any               app:ssl app:smtp  -
+  dmz      -                 app:dns app:ssl~  -                 -
+  ot       -                 -                 -                 any
+
+Conduits
+trust -> ot
+  allowed: app:modbus, app:siemens-s7
+  industrial protocols: modbus (rule 'Engineering to PLCs'); siemens-s7 (rule 'Engineering to PLCs')
+...
+```
+
+Per pair of zones: the services the policy allows there and the rules that
+allow them, each with what the blocking rules above it leave of it; rules
+that never match are left out. Of the rules FWShift read, it shows at most
+what they allow, never less: what cannot be read exactly is shown in full
+and marked, and what a parser did not read is named. Zones can be those
+of the policy or networks of your own (`--network-zone`), which is how the
+zones of an IEC 62443 zone and conduit model are laid over a firewall that
+knows only interfaces. Text, JSON or CSV. See
+[section 14 of the manual](docs/MANUAL.md#14-the-zone-matrix).
+
 ## What is converted
 
 | | PAN-OS | FortiOS |
@@ -219,16 +256,15 @@ VPN, and everything else outside the policy.
 
 ## Roadmap
 
-1. Validation of the output on PAN-OS, FortiOS and ASA lab devices, a Check
-   Point management server and a Linux host.
-2. FortiOS output with per-policy NAT as an alternative to central NAT.
-3. Service correction for port-translating NAT; schedules; user and group mapping.
-4. PAN-OS `set`-format input; nftables; FTD rules from an FMC export.
-5. Differential check for every format: evaluate source and converted policy
-   against sample flows and report every flow whose verdict changed. The test
-   suite does this today for iptables, Check Point and Cisco ASA.
-6. Audit: a zone-to-zone matrix of what can talk to what (for IEC 62443 zone
-   and conduit reviews), zone ranks, hit counts where the source exports them.
+[TODO.md](TODO.md) has the list. In short:
+
+* **More firewall brands, one per release**: Sophos (0.6), Cisco Secure
+  Firewall, formerly Firepower (0.7), pfSense (0.8), SonicWall (0.9),
+  WatchGuard (0.10), Barracuda (0.11), Juniper (0.12).
+* Audit and matrix: the matrix before and after a conversion, a zone and
+  conduit model as a file to check a policy against, an equivalence check as
+  a command, zone ranks, hit counts.
+* Validation of the output on lab devices of every platform.
 
 ## Licence
 

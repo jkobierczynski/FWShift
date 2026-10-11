@@ -1,0 +1,48 @@
+FWShift zone matrix
+  source: panos (vsys1)
+  security rules: 14 (1 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+           trust             untrust           dmz               ot
+  trust    any               app:web-brow… +2  tcp/80 +6         app:modbus +1
+  untrust  -                 any               app:ssl app:smtp  -
+  dmz      -                 app:dns app:ssl~  -                 -
+  ot       -                 -                 -                 any
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+trust -> trust (inside the zone)
+  allowed: any
+  by default, what no rule decides: any
+trust -> untrust
+  allowed: app:web-browsing, app:ssl, app:dns
+  rule 'Allow-Web-Out': lan-net -> any: applications web-browsing, ssl on their default ports
+  rule 'Allow-DNS': any -> dns-servers: applications dns on their default ports
+trust -> dmz
+  allowed: tcp/80, tcp/443, tcp/8080, tcp/8443, tcp/9000-9010, app:ssh, app:ping
+  rule 'Admin-SSH': admin-range -> dmz-servers: applications ssh on their default ports (users example\netadmins)
+  rule 'App-Server-Ports': lan-net, lan6-net -> web-1: tcp/80, tcp/443, tcp/8080, tcp/8443, tcp/9000-9010
+  rule 'Not-From-Guests': not 10.10.200.0/24 -> all-servers: applications ping on their default ports
+trust -> ot
+  allowed: app:modbus, app:siemens-s7
+  industrial protocols: modbus (rule 'Engineering to PLCs'); siemens-s7 (rule 'Engineering to PLCs')
+  rule 'Engineering to PLCs': eng-station -> plc-net: applications modbus, siemens-s7 on their default ports
+untrust -> untrust (inside the zone)
+  allowed: any
+  by default, what no rule decides: any
+untrust -> dmz
+  allowed: app:ssl, app:smtp
+  rule 'Inbound-Web': any -> web-public: applications ssl on tcp/443
+  rule 'Inbound-Mail': any -> mail-public: applications smtp on their default ports
+dmz -> untrust
+  allowed: app:dns, app:ssl ~
+  rule 'Allow-DNS': any -> dns-servers: applications dns on their default ports
+  rule 'Tagged-Servers-Updates': tagged-servers -> updates.example.com: applications ssl on their default ports ~
+ot -> ot (inside the zone)
+  allowed: any
+  by default, what no rule decides: any
+
+Notes
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  app:NAME: allowed for that application only. Which ports it uses is not looked up here.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

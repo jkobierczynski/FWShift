@@ -1,0 +1,46 @@
+FWShift zone matrix
+  source: iptables (IPv4)
+  security rules: 15 (0 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+        eth1              eth0              eth2              eth3
+  eth1  -                 tcp/25 +5~        icmp type 8 +2    tcp/502
+  eth0  -                 -                 tcp/25 tcp/8443   -
+  eth2  -                 tcp/80 tcp/443    -                 -
+  eth3  -                 -                 -                 -
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+eth1 -> eth0
+  allowed: tcp/25, tcp/53, tcp/80, tcp/443, udp/53, ip/47 (gre) ~
+  rule 'LAN web': 0.0.0.0/0 -> any: tcp/80, tcp/443
+  rule 'LAN DNS': 0.0.0.0/0 -> any: udp/53
+  rule 'LAN DNS-2': 0.0.0.0/0 -> any: tcp/53
+  rule 'Rate limited mail': 0.0.0.0/0 -> any: tcp/25 (only with match module 'limit', which is not in the model) ~
+  rule 'Partner tunnel': 0.0.0.0/0 -> any: ip/47 (gre)
+eth1 -> eth2
+  allowed: icmp type 8, tcp/22, tcp/3389
+  cleartext or remote administration: rdp (rule 'Admins RDP')
+  rule 'Admins SSH': 10.10.5.10-10.10.5.20 -> 10.20.0.0/24: tcp/22
+  rule 'Admins RDP': 10.10.5.10-10.10.5.20 -> 10.20.0.0/24: tcp/3389
+  rule 'Ping the DMZ': 0.0.0.0/0 -> any: icmp type 8
+eth1 -> eth3
+  allowed: tcp/502
+  industrial protocols: modbus (rule 'SCADA to PLCs')
+  rule 'SCADA to PLCs': 10.10.7.15/32 -> 10.30.1.0/24: tcp/502
+eth0 -> eth2
+  allowed: tcp/25, tcp/8443
+  rule 'Inbound web': any -> 10.20.0.10/32: tcp/8443
+  rule 'Inbound mail': any -> 10.20.0.25/32: tcp/25
+eth2 -> eth0
+  allowed: tcp/80, tcp/443
+  rule 'DMZ updates': 0.0.0.0/0 -> not 10.0.0.0/8: tcp/80, tcp/443
+
+From reading the configuration
+  PASSIVE_TARGETS: 1 FORWARD rule with target LOG decides nothing and was left out; a LOG rule directly before a rule with the same match sets its logging
+  HOST_CHAIN_NOT_CONVERTED: chain INPUT (3 rules, policy DROP) filters traffic of the host itself, not forwarded traffic, and is not converted
+
+Notes
+  An iptables ruleset is for one IP version, here IPv4: the matrix says nothing about the other.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

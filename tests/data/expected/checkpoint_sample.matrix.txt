@@ -1,0 +1,63 @@
+FWShift zone matrix
+  source: checkpoint (Network)
+  security rules: 18 (1 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 InternalZone      ExternalZone      (other zones)
+  InternalZone   any~              any~              any~
+  ExternalZone   any~              any~              any~
+  (other zones)  any~              any~              any~
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+In every conduit
+  rule 'DNS': lan-net, dmz-net -> dns-servers: tcp/53, udp/53
+  rule 'rule-2': admin-range -> dmz-servers: tcp/22 ~
+  rule 'Social': lan-net -> any: service 'Facebook' (not read) ~
+  rule 'Admins': netadmins -> plc-net: any ~
+  rule 'Updates': dmz-servers -> .updates.example.com: tcp/443 (schedule Work-Hours) ~
+  rule 'Partners': lan-net -> plc-net: any (only with VPN community match Partner-VPN, which is not in the model) ~
+  rule 'IPv6 out': lan6-net -> any: tcp/443
+  rule 'Public web': any -> web-1, web-1_valid_address: tcp/443
+  rule 'DMZ access / Web in': any -> 10.20.0.10/32: tcp/443, tcp/9000-9010
+  rule 'DMZ access / Mail in': any -> mail-1: tcp/25
+  rule 'DMZ access / Ping from LAN': lan-net -> dmz-net: icmp type 8
+  rule 'Tunnels': any -> gw-edge: ip/47 (gre) ~
+
+Conduits
+InternalZone -> InternalZone (inside the zone)
+  allowed: any ~
+  and the 12 listed under 'In every conduit'
+InternalZone -> ExternalZone
+  allowed: any ~
+  rule 'Web out': any -> any: tcp/80, tcp/443
+  and the 12 listed under 'In every conduit'
+InternalZone -> (other zones)
+  allowed: any ~
+  and the 12 listed under 'In every conduit'
+ExternalZone -> InternalZone
+  allowed: any ~
+  and the 12 listed under 'In every conduit'
+ExternalZone -> ExternalZone (inside the zone)
+  allowed: any ~
+  and the 12 listed under 'In every conduit'
+ExternalZone -> (other zones)
+  allowed: any ~
+  and the 12 listed under 'In every conduit'
+(other zones) -> InternalZone
+  allowed: any ~
+  and the 12 listed under 'In every conduit'
+(other zones) -> ExternalZone
+  allowed: any ~
+  and the 12 listed under 'In every conduit'
+(other zones) -> (other zones)
+  allowed: any ~
+  and the 12 listed under 'In every conduit'
+
+From reading the configuration
+  IMPLIED_RULES: Check Point implied rules (global properties) and the other ordered layers of the policy package are not part of the export; only the rules of one layer were read ('Network')
+
+Notes
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  svc:NAME: a service of the source that could not be read (an application or category of the vendor, a service without ports). The rule allows that, whatever it is.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

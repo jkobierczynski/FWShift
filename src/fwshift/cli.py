@@ -13,7 +13,7 @@ import json
 import sys
 from typing import Callable, Dict, List, Optional, Sequence, TextIO, Tuple
 
-from . import __version__, audit, transform
+from . import __version__, audit, matrix, transform
 from .appmap import load_app_map
 from .emitters import asa as emit_asa
 from .emitters import checkpoint as emit_checkpoint
@@ -212,6 +212,9 @@ def _read(path: str) -> bytes:
 
 
 def _write(path: str, text: str) -> None:
+    if path == "-":
+        _print(sys.stdout, text)  # as "-" for the input is standard input
+        return
     try:
         with open(path, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(text)
@@ -307,6 +310,17 @@ def build_parser() -> argparse.ArgumentParser:
     aud.add_argument("--json", action="store_true", help="write the audit as JSON")
     aud.add_argument("--list-checks", action="store_true", help="show the checks, their levels and what can be done with them")
     _audit_options(aud)
+
+    mat = commands.add_parser("matrix", help="show what each zone may reach in each other zone, on which services, through which rules")
+    _source_options(mat)
+    mat.add_argument("-o", "--output", help="write the matrix here (default: standard output)")
+    mat.add_argument("--json", action="store_true", help="write the matrix as JSON")
+    mat.add_argument("--csv", action="store_true", help="write a line per rule and conduit, for a spreadsheet")
+    mat.add_argument("--summary", action="store_true", help="text output: leave out the rules of each conduit")
+    mat.add_argument("--network-zone", action="append", default=[], metavar="NAME[@ZONE]=NETWORK[,NETWORK...]",
+                     help="a zone of your own, as networks; repeatable. With it the matrix is between these zones (and "
+                     "'elsewhere'), not between the zones of the policy. @ZONE names the zone of the policy the networks lie behind")  # fmt: skip
+    mat.add_argument("--audit-config", metavar="FILE", help="JSON file of the audit: its lists of risky and industrial services are used")
 
     insp = commands.add_parser("inspect", help="show what was read from a configuration")
     _source_options(insp)
@@ -411,6 +425,34 @@ def _run_audit(args: argparse.Namespace) -> int:
     return 3 if result.fails(config.fail_on) else 0
 
 
+def _run_matrix(args: argparse.Namespace) -> int:
+    if args.json and args.csv:
+        raise FwshiftError("matrix: --json or --csv, not both")
+    config = audit.AuditConfig()
+    if args.audit_config:
+        config = audit.load_config(_read(args.audit_config).decode("utf-8", errors="replace"), args.audit_config)
+    networks = matrix.parse_networks(args.network_zone)
+    data = _read(args.input)
+    source = args.source or detect_format(data)
+    report = Report()
+    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer)
+    transform.harden(policy, report)
+    result = matrix.build(policy, config, report, networks)
+    if args.json:
+        text = json.dumps({"source": source, "scope": policy.scope, **result.to_dict()}, indent=2, ensure_ascii=False) + "\n"
+    elif args.csv:
+        text = result.to_csv()
+    else:
+        head = (f"FWShift zone matrix\n  source: {source}{f' ({policy.scope})' if policy.scope else ''}\n"
+                f"  security rules: {result.rules} ({result.disabled} disabled, {result.dead} never match)\n\n")  # fmt: skip
+        text = head + result.to_text(args.summary)
+    if args.output:
+        _write(args.output, text)
+    else:
+        _print(sys.stdout, text)
+    return 0
+
+
 def _run_inspect(args: argparse.Namespace) -> int:
     data = _read(args.input)
     source = args.source or detect_format(data)
@@ -444,6 +486,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return _run_convert(args)
         if args.command == "audit":
             return _run_audit(args)
+        if args.command == "matrix":
+            return _run_matrix(args)
         return _run_inspect(args)
     except FwshiftError as exc:
         _print(sys.stderr, f"fwshift: error: {exc}\n")

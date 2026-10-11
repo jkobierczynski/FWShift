@@ -8,9 +8,9 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.4.0 (alpha) |
+| Version | 0.5.0 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
-| Tests | 1345, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
+| Tests | 1652, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA or a Check Point management server |
 | Next | Lab validation of the sample conversions |
 
@@ -36,6 +36,9 @@ src/fwshift/
                       NAT destination rewriting, NAT order, pruning
     audit.py          the audit: what rules match as sets, the checks, the
                       actions (accept, disable, reorder), before and after
+    matrix.py         the zone matrix: what each zone may reach in each other
+                      zone, from the sets of the audit; zones of the policy or
+                      zones given as networks
     appmap.py         application/port table, protocol tables, reserved names
     netutil.py        IP intervals
     names.py          naming rules of the targets
@@ -58,8 +61,11 @@ tests/
                       packets itself and a strict reader of emitted commands
     test_audit.py     the audit, against a walk through every packet of a
                       small world
+    test_matrix.py    the zone matrix, against the same walk: every packet
+                      that gets through is in it, and nothing else
     test_cli.py       command line, golden files
 docs/MANUAL.md        user manual
+TODO.md               what is planned, release by release
 ```
 
 No third-party dependencies at run time. Python 3.9 is the floor because it is
@@ -803,40 +809,122 @@ the world agree on every rule of those policies.
 * A host name on a rule is compared by name only (two rules with the same
   name are equal, a name and an address never are).
 
+### 2026-10-11: version 0.5.0
+
+**Built**
+
+* `matrix.py` and the command `fwshift matrix`: per ordered pair of zones the
+  services the policy allows there and the rules that allow them, as text
+  (a grid and a list of conduits), JSON or CSV.
+* Zones of the policy, or zones given as networks (`--network-zone
+  NAME[@ZONE]=NETWORK,...`), which is how the zones of a zone and conduit
+  model are laid over a firewall that knows interfaces.
+* `TODO.md`, with the to-do list that was at the end of this file and the
+  firewall brands that are planned, one per release.
+
+**How it is made**
+
+The matrix is a second reader of the audit's sets. For every allow rule that
+is enabled and not dead it takes the rule's *over* boxes and takes out the
+*under* boxes of the blocking rules above it (largest first; a rule that
+falls into more than 4096 pieces is shown as written). Earlier allow rules
+are not taken out: what they take is allowed all the same, and the union per
+cell is exact without it. What is left is a list of boxes, and each box is
+laid into the cells it reaches:
+
+* between the zones of the policy, a box reaches every pair of its source and
+  destination zone bits that its relation (same zone, different zones)
+  allows, with the bit for "the zones nobody names" as a row and column of
+  its own;
+* between zones given as networks, every pair of zones its source and
+  destination addresses meet. A zone that is said to lie behind zones of the
+  policy (`@ZONE`) takes a box only when the box is for one of those.
+
+"At most what is allowed, never less" follows from the two boxes: allow rules
+enter with all they might match, blocking rules with what they surely do.
+The default (traffic no rule decides, where the policy lets it through) is a
+pseudo-rule at the end: the universe of a cell minus the under boxes of every
+rule without an application, user, category or schedule.
+
+Decisions that were not obvious:
+
+| Decision | Reason |
+|---|---|
+| Entries per rule are "what no *blocking* rule above takes", not "what the rule decides first" | The union per cell is the same, the subtraction is far smaller, and a reader who looks for "which rules let office reach the DMZ" wants every rule that would. Rules that never match are left out, so the list is not padded with dead rules. |
+| A service that cannot be read is named (`svc:Facebook`), not shown as "any" | A Check Point rule for an application object is not a rule for every service; "any ~" on every such rule made the grid useless. Internally the entry still holds every service, for whoever asks the matrix what could get through. |
+| A FortiOS virtual IP stays a name in the rule, and the box is cut to the mapped address when it is placed | Replacing the name by the address (the first version) broke the comparison by name with a blocking policy for the same virtual IP above it: "deny SSH to the VIP, allow the VIP" showed as any. |
+| A zone of the policy nothing is given for, and an address that lies behind "the wrong" zone, go to a row `(ZONE: other addresses)`; the latter only for rules that name the address | The networks a user gives need not be all there is behind a zone, so a rule must not vanish for it. Showing it under the zones given for its own zone would be a guess (the first fix did that, and "deny telnet from the office, allow the rest of the zone" then showed telnet for the office). Doing it for rules with "any" address would add such a row to every matrix: "any" names no address behind another zone. |
+| Destination NAT of a pre-NAT source is followed for every NAT rule that translates a destination, with "any zone" where the translated address cannot be read | `destination_translations` returns only the shapes the converter can rewrite (one published address). A matrix cannot leave the others out: the first version lost the rule. |
+| What the parser said about the whole policy is printed with the matrix | "Nothing is allowed" next to a `policy6` table that was not read, or to VPN traffic that bypasses the access lists, is a wrong answer however exact the matrix is about what was read. |
+| The intrazone default is not shown for network zones without `@ZONE` | Whether two networks lie in one zone of the firewall is what `@ZONE` says. Without it the default would be in every cell of every PAN-OS matrix. A note says that it is missing. |
+| An iptables ruleset has a default for one IP version | The file is for IPv4 or IPv6; "any" for the other half made every cell "any" under a `FORWARD ACCEPT` policy. |
+
+**Tests**
+
+`test_matrix.py` walks the small world of the audit tests packet by packet
+and notes, per pair of zones, which services each allow rule passes that no
+blocking rule above it takes, which packets each rule decides, and which
+services no rule decides. For policies that can be read exactly the matrix
+equals that, entry by entry, with random defaults (150 seeds) and between
+zones given as networks, unbound, bound and two behind one zone (90 seeds);
+for policies with host names, applications, schedules and unsupported
+criteria every packet that gets through under three ways of filling in the
+unknowns is in its cell (40 seeds). Sixteen deliberate mistakes in
+`matrix.py` (blocks not taken out, dead rules shown, relation ignored,
+bindings ignored, NAT rules of one shape only and so on) are each caught by
+the tests. The random oracle has no NAT: NAT placement, virtual IPs, the
+rest-of-zone rows and the parser notes have hand-made cases.
+
+**Reviewed**
+
+*Round 13* by the independent reviewer, on the matrix and on the fixes of
+round 12. Its own oracles (policy zones: 2500 static and 1500 open policies;
+network zones: 2000 and 900; pre-NAT sources with destination NAT, 1500
+seeds in four ways of declaring zones, 44,563 allowed packets; real parsers
+against packet simulators for iptables, ASA and FortiOS, 500 seeds each)
+found no allowed packet missing. Seven findings came from hand-built cases:
+
+| | Finding | Fix |
+|---|---|---|
+| high | Between network zones with `@ZONE`, a rule for a published address vanished when its NAT rule named two addresses, translated to a host name, or was a static NAT of a range; more generally any rule whose zone and addresses contradicted the networks given vanished without a word | every NAT rule that translates a destination is followed; rows for the rest of a zone; a note should a rule still be in no cell |
+| high | Notes of the parser about traffic outside the model (VPN bypass, implied rules, tables not converted) were not shown: "nothing is allowed" next to an unread `policy6` | printed with the matrix, and in the JSON |
+| medium | An IPv4 iptables ruleset with `FORWARD ACCEPT` showed "any" in every cell: the IPv6 half of the default | the default of an iptables ruleset is for its IP version |
+| medium | FortiOS: deny for a virtual IP, then allow for the same one, showed "any" without a mark | the name stays in the rule |
+| low | A policy named `(default)` or an interface named `(other zones)` passed for the matrix's own entries | a flag instead of a name; another label when the name is taken |
+| low | A thousand rules for any zone on fifty zones: 110 MB of text, 2.6 GB of memory | such rules are listed once in the text (280 kB); cells share entries (1 GB). JSON and CSV are as large as they were |
+| nits | `(elsewhere) -> (elsewhere)` called "inside the zone"; a zone no rule names refused; duplicate networks; `a@=`; DEL and U+2028 in names; a raw line break in an error; `-o -` wrote a file named `-` | all fixed; U+0085, U+2028 and U+2029 are now control characters everywhere names are made safe |
+
+The reviewer confirmed the six fixes of round 12, with a fuzz across the two
+sides of destination NAT in seven directions (PAN-OS-kind to iptables,
+FortiOS and Check Point, with zones merged and with objects renamed;
+iptables to PAN-OS, iptables, FortiOS and Check Point): 2.7 million packets
+compared with and without `disable`, 13,000 rules disabled, none decided
+differently.
+
+The fixes of round 13 were not reviewed again. They have tests at the end of
+`test_matrix.py`, and the reviewer's oracles were rerun on them (policy
+zones 800 static and 500 open policies, network zones 500 and 300, pre-NAT
+with NAT 500 seeds in four modes, real parsers 100 to 200 seeds each, 600
+mutated inputs through the command): no allowed packet missing, no
+traceback.
+
+**Not done, known**
+
+* The matrix has seen synthetic policies only.
+* The random oracle of the tests has no NAT. The reviewer's NAT oracle is
+  not in the repository.
+* Rows for the rest of a zone are checked by hand-made cases only.
+* With network zones and no `@ZONE`, what the firewall allows by default
+  inside a zone is not in the matrix (a note says so).
+* Port translation, source NAT and routing are not applied. Applications are
+  not turned into ports.
+* JSON and CSV repeat a rule for any zone in every cell: a thousand such
+  rules on fifty zones are 280 MB of JSON and a gigabyte of memory.
+* A conversion with `--audit-action ...=disable` converts twice (once on
+  trial) and takes about twice as long as `--audit` alone.
+
 ## To do
 
-1. Load `tests/data/expected/fortios_to_panos.set` on a PAN-OS VM,
-   `panos_to_fortios.conf` on a FortiGate VM and `panos_to_asa.cfg` on an
-   ASAv; record what each CLI rejects and correct the emitters. Work through
-   the assumptions table. Compare `asa_sample.cfg` and the FTD text in
-   `test_asa.py` with what real devices print.
-2. Run `*_to_checkpoint.sh` against a management server in a lab, and export a
-   real rulebase with automatic NAT to compare with the sample. Extend
-   `kernel_check.py` to NAT and IPv6, and run it on the legacy iptables
-   backend.
-3. Correct services for port-translating destination NAT.
-4. FortiOS output with per-policy NAT as an option.
-5. PAN-OS `set`-format parser, which also allows a PAN-OS round-trip test.
-6. Schedule objects (ASA time ranges, FortiOS and PAN-OS schedules); a
-   user/group mapping file.
-7. Differential check as a command: evaluate the source and the converted
-   model against sampled flows and report every flow whose verdict changed.
-   The simulators in the tests are the start of it, and so is the audit's set
-   arithmetic: the difference of two policies is a set of boxes.
-8. Release workflow that builds a wheel and a single-file `.pyz` on a version tag.
-9. Interface networks in the model (the FortiOS and PAN-OS parsers know
-   them), so that `--zone-network` is only needed where the source does not
-   tell; FTD policies from an FMC export.
-10. iptables `NETMAP`, read and written: it is what maps a network address
-    for address, where `DNAT` to a range picks an address per connection.
-11. The reviewer's oracles as tests: every pre-image of a real packet through
-    a destination NAT (pre-NAT model to a post-NAT target, with several NAT
-    rules for one address), and same-kind round trips for FortiOS and
-    iptables with rules that name both sides of a translation. They were run
-    from the reviewer's scratch directory for this version and are not in the
-    repository. The same for the audit: `disable` across the two sides of
-    destination NAT (the reviewer's `e6`), and the in-order reference (`e2`).
-12. Audit: a zone-to-zone matrix (what can talk to what, on which services,
-    through which rules) for zone and conduit reviews; zone ranks from a
-    configuration file, so that "any source" from the Internet weighs more;
-    hit counts where a source exports them; findings as SARIF or CSV.
+See [TODO.md](TODO.md): the firewall brands that are planned, one per
+release, and what else is on the list for the audit, the matrix, the
+conversion and its validation.
