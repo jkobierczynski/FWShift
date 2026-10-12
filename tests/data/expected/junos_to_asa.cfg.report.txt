@@ -1,0 +1,68 @@
+FWShift conversion report
+  source: junos (root)
+  target: asa
+
+Summary
+  Security rules:     14   exact 1, approximated 6, needs review 7 (7 emitted disabled), skipped 0
+  NAT rules:           6   exact 5, approximated 0, needs review 0, skipped 1
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: untrust, trust, dmz, guest. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. 1 destination NAT rule is written as a rule that names the source as well and leaves it as it is: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] JUNOS_FORMAT: read 14 security policies and 6 NAT rules of the root system. Policies are looked up after static and destination NAT; they were brought back to the original destination, as the model has it
+  [info] PREDEFINED_APPLICATIONS: predefined applications are not in the configuration; these were taken from FWShift's table of them: junos-dns-udp, junos-http, junos-https, junos-ping, junos-smtp, junos-ssh
+  [info] HOST_POLICIES: policies for the zone junos-host (traffic to and from the firewall itself) are not read: 'to-box'
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+  [info] FQDN_DNS: objects with a host name need name resolution on the ASA ('dns domain-lookup' and a DNS server group)
+
+Security rules
+  block-bad  ->  approximated  (emitted as trust_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  web-out  ->  needs-review, emitted disabled  (emitted as trust_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, guest, untrust with --zone-network.
+  updates  ->  approximated  (emitted as trust_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  ping-out  ->  needs-review, emitted disabled  (emitted as trust_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, guest, untrust with --zone-network.
+  web-in  ->  approximated  (emitted as untrust_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  mail-in  ->  approximated  (emitted as untrust_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  admin  ->  approximated  (emitted as trust_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  not-servers  ->  approximated  (emitted as trust_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated source is written as the 4 address ranges it leaves
+  dmz-out  ->  needs-review, emitted disabled  (emitted as dmz_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, guest, untrust with --zone-network.
+  guest-web  ->  needs-review, emitted disabled  (emitted as guest_access_in)
+      [needs-review] SCHEDULE: schedule 'work-hours' is not converted; the rule would apply at all times.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, dmz, untrust with --zone-network.
+  guest-ping  ->  needs-review, emitted disabled  (emitted as guest_access_in)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'junos-ping': the predefined application junos-ping: Juniper describes it as ICMP echo, other readers of Junos as every ICMP type.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, dmz, untrust with --zone-network.
+  intra  ->  needs-review, emitted disabled  (emitted as trust_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by trust, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind untrust, dmz, guest, trust with --zone-network.
+  global-block  ->  exact  (emitted as global_access)
+      [info] RESET_ACTION: action reset-client becomes deny; an ASA resets denied TCP connections only with 'service resetinbound' or 'service resetoutside'
+  global-ntp  ->  needs-review, emitted disabled  (emitted as trust_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, guest, untrust with --zone-network.
+
+NAT rules
+  vr-out snat-vr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule set for routing instance 'VR1', which is not read; a rule set that does not say where its traffic comes from
+
+Addresses
+  dmz-net (dmz-book)  ->  exact  (emitted as dmz-net__dmz-book_)
+      [info] RENAMED: renamed to 'dmz-net__dmz-book_' to fit the target's naming rules
+  lan-net (dmz-book)  ->  exact  (emitted as lan-net__dmz-book_)
+      [info] RENAMED: renamed to 'lan-net__dmz-book_' to fit the target's naming rules
+
+Services
+  NAT from-internet dnat-web  ->  exact  (emitted as NAT_from-internet_dnat-web)
+      [info] RENAMED: renamed to 'NAT_from-internet_dnat-web' to fit the target's naming rules

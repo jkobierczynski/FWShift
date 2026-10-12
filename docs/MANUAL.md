@@ -2,10 +2,10 @@
 
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
 Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
-or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda CloudGen Firewall and Linux iptables, and tells you,
+or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX and Linux iptables, and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; and show what each zone may reach in each
-other zone. This manual covers version 0.11.
+other zone. This manual covers version 0.12.
 
 **Contents**
 
@@ -51,10 +51,10 @@ FWShift converts the **policy**. It does not convert interfaces, routing, VPN,
 users, security profiles, or system settings, and it is not a substitute for
 testing the result.
 
-> **Status.** Version 0.11 is tested against synthetic configurations. iptables
+> **Status.** Version 0.12 is tested against synthetic configurations. iptables
 > output and input are checked against a Linux kernel (filter rules, one
 > kernel and iptables version). Output for PAN-OS, FortiOS, Check Point,
-> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall, WatchGuard and Barracuda has
+> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda and Juniper SRX has
 > not been loaded on a device or management server yet; the Check Point input format follows the
 > API documentation, the ASA and FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
@@ -63,7 +63,8 @@ testing the result.
 > What pfSense makes of its configuration is taken from its source code; the
 > SonicWall settings export and the WatchGuard configuration file from the
 > published readers of those formats, and the REST API of a Barracuda CloudGen
-> Firewall from the examples in its documentation.
+> Firewall from the examples in its documentation; Junos from Juniper's
+> documentation and from the grammar of a published reader of it.
 > Use FWShift to produce a draft for a lab.
 
 ## 2. Installation
@@ -469,6 +470,30 @@ API by examples only; the keys FWShift reads are those (`BARRACUDA_FORMAT`).
 The rules of a rule list a rule cascades to, NAT (the actions Dst NAT and
 Map, connection objects) and the host firewall are not read.
 
+**Juniper SRX (Junos OS).** Export the configuration as set commands, with
+what groups give written where it applies:
+
+```
+show configuration | display inheritance no-comments | display set | no-more
+```
+
+Plain `show configuration | display set` and the configuration in braces
+(`show configuration`, or a saved `juniper.conf`) are read as well. A
+configuration that takes parts of its security policy or applications from
+groups (`apply-groups`) without them shown where they apply is refused with
+that reason: export it with `display inheritance`.
+
+```sh
+fwshift inspect srx.conf
+fwshift convert srx.conf --to panos -o panos.set --report report.txt
+```
+
+Only the root system is read; logical systems and tenants are named
+(`PARTS_NOT_READ`). Predefined applications (`junos-http`, ...) are not in a
+configuration: FWShift takes those it knows from a table of its own and says
+which (`PREDEFINED_APPLICATIONS`); one it does not know, or knows two
+definitions of (`junos-ping`), makes the policy unusable.
+
 **Check Point.** There is no configuration file to export. FWShift reads what
 the Management API answers to `show access-rulebase` and `show nat-rulebase`,
 as JSON. On the management server, or on any host with `mgmt_cli`:
@@ -590,7 +615,7 @@ TCP 502 and TCP 102, not the applications themselves.
 ### `fwshift convert`
 
 ```
-fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,sonicwall,watchguard,barracuda,iptables,ip6tables,json} [options]
+fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,sonicwall,watchguard,barracuda,junos,iptables,ip6tables,json} [options]
 ```
 
 `INPUT` is a file, or `-` for standard input.
@@ -599,7 +624,7 @@ fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,
 
 | Option | Meaning |
 |---|---|
-| `--from {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,sonicwall,watchguard,barracuda,iptables,ip6tables}` | Source format. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,sonicwall,watchguard,barracuda,junos,iptables,ip6tables}` | Source format. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
@@ -624,6 +649,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to fdm` | A file for the configuration import of a Cisco Secure Firewall Device Manager: objects, access rules, manual NAT rules (section 10). |
 | `--to sophos` | An `Entities.xml` for *Import export* of a Sophos Firewall (SFOS 18 and later). With `-o NAME.tar`, the archive an import takes. |
 | `--to sonicwall` | Commands of the SonicOS 7 command line, to paste into an SSH session: objects, NAT policies, access rules (section 10). |
+| `--to junos` | `set` commands for an SRX, for `load set`: applications, the global address book, security policies, NAT (section 10). |
 | `--to barracuda` | A shell script that creates network objects, service objects and forwarding rules on a Barracuda CloudGen Firewall through its REST API, with curl (section 10). |
 | `--to watchguard` | The policy part of a Policy Manager configuration file (Fireware 12): address groups, aliases, services, static NAT actions and policies in manual order, to merge into a configuration of the target (section 10). |
 | `--to pfsense` | A configuration file with the areas Aliases, NAT and Firewall Rules, for *Diagnostics > Backup & Restore* of pfSense 2.7 or later. Each restore of an area **replaces** that area (section 10). |
@@ -639,7 +665,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--target-layer NAME` | Check Point: the access layer the rules are written to. Default `Network`. It must exist. |
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
-| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard, Barracuda, Management Center and Device Manager: put `TEXT` in front of the name of every object (on an ASA also every access list) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
+| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center and Device Manager: put `TEXT` in front of the name of every object (on an ASA also every access list) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
 | `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates. Default `FWShift`. The script can be given another name when it is run (`--name`). |
 
 **Adapting the policy**
@@ -852,7 +878,7 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `NAT_ADDRESS_EXPOSED` | R | The rule covers addresses on one side of a destination NAT without the addresses that go with them on the other side, and the two platforms look rules up on different sides of the translation (section 8). The message names the addresses. The rule matches traffic it did not match on the source, or the other way round for a deny. Also raised for a rule that names both sides, for the part that has no counterpart. |
 | `NAT_PORT_EXPOSED` | R | The same for ports: the service of the rule covers the port on one side of a port translation and not the port on the other, so the rule applies to traffic it did not apply to on the source. Looked at for rules to any destination too. Withdrawn where the target looks rules up as the source did and gets the NAT rule. |
 | `NAT_PORT_TRANSLATION` | R | A destination NAT used by this rule also changes the port, and the service of the rule names the port of one side only. FortiOS policies, ASA access lists and iptables rules name the mapped port, PAN-OS and Check Point rules the original one; correct the service by hand. Not raised for a service that holds both ports. |
-| `NAT_DESTINATION_WIDENED` | R | The rule names part of what a destination NAT translates, and that NAT does not map address for address (several addresses to one, or to a pool). On the other side of the translation the part cannot be told apart: the rule now covers all of it. |
+| `NAT_DESTINATION_WIDENED` | R | The rule names part of what a destination NAT translates, and that NAT does not map address for address (several addresses to one, or to a pool). On the other side of the translation the part cannot be told apart: the rule now covers all of it. Or, for a target that looks rules up after destination NAT, the NAT rule translates only some of the services of the rule: for the others the rule now names the translated address, reached directly. |
 | `NAT_REDIRECT` | R | iptables source: a DNAT rule without a destination address sends traffic for every destination to one address, and this rule matched it there. A platform that looks rules up before NAT cannot match that traffic with the converted rule: write the rule for the original destinations. |
 | `NAT_DESTINATION_REWRITTEN` | A | The destination was changed, or extended, to the address on the other side of a destination NAT. A rule for part of a translated network gets the same part of the other side. Check that the rule is meant to cover that traffic. |
 | `DENY_AND_VIP` | A | FortiOS source: a deny policy covers a virtual IP but has no `set match-vip enable`. FortiOS may have let that traffic through to a later policy; the converted rule blocks it. |
@@ -1126,6 +1152,21 @@ Findings and notes that only a Barracuda source or target raises:
 | `ZONE_NETWORK_MISSING` | R | Target (on the rule): a rule that allows names a zone that has neither networks (`--zone-network`) nor, for its source, an interface (`--interface-map`). A rule of the firewall names no zone: the rule is deactivated. |
 | `ZONE_WIDENED` | A | Target (on the rule): a blocking rule names a zone the converter cannot express; it blocks its traffic in every zone. |
 | `INTERFACES_REQUIRED`, `INTERZONE_DEFAULT`, `NEGATION_EXPANDED`, `IP_VERSION_SPLIT`, `NO_COMMON_FAMILY`, `RULE_TYPE`, `RESET_ACTION`, `UNSUPPORTED_SERVICE`, `NAT_NOT_CONVERTED` | | As for the other targets: a rule of the firewall is of one IP version, has no negation and names no zones; NAT is not written. |
+
+Findings and notes that only a Juniper source or target raises:
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `JUNOS_FORMAT` | I | Source: what was read; policies are looked up after static and destination NAT on an SRX, and were brought back to the original destination (`NAT_DESTINATION_REWRITTEN` on the rules where that changed something). |
+| `PREDEFINED_APPLICATIONS` | I | Source: the predefined applications the policies use, taken from FWShift's table of them. |
+| `HOST_POLICIES` | I | Source: policies for the zone `junos-host`, traffic to and from the SRX itself, are not read. |
+| `PARTS_NOT_READ` | R | Source: parts of the security configuration the parser does not read (logical systems, tenants, and others it names). |
+| `OBJECTS_MISSING` | R | Source (as for Barracuda): names the policies or NAT rules use and the configuration does not define; the rules that use them are not used. |
+| `JUNOS_LOAD` | R | Target: how to load the set commands (section 10), where new policies land, and what is assumed. |
+| `DEFAULT_PERMIT` | R | Target: the source allows what no rule matches, written as `default-policy permit-all`, which applies to the whole SRX. |
+| `ZONES_EXPANDED` | I | Target (on the rule): a rule for every zone is written for each pair of the zones the policy knows; other zones of the SRX do not get it. |
+| `NAT_STATIC` | I | Target (on the NAT rule): a destination NAT and the source NAT that undoes it for the way back, written together as one static NAT rule. |
+| `ZONES_REQUIRED`, `INTERZONE_DEFAULT`, `RULE_SPLIT`, `NEGATION_EXPANDED`, `NEGATION_NOT_STATIC`, `RESET_ACTION`, `NAT_AFTER_DNAT`, `NAT_BIDIRECTIONAL`, `NAT_EXEMPTION`, `RULE_TYPE_EMPTY` | | As for the other targets: a policy is for one pair of zones, an application of one protocol and port range per term, a NAT rule set for one zone or pair of zones. |
 
 Notes that only a Cisco Secure Firewall source or target raises (Management
 Center, Device Manager):
@@ -2314,6 +2355,75 @@ development branch) and not the web pages, which say less.
 * **NAT** is not written (`NAT_NOT_CONVERTED`): set Dst NAT, Map or the
   connection object on the rule by hand.
 
+### Juniper SRX
+
+**What is read**
+
+* **Security policies** per pair of zones (`from-zone ... to-zone ...`, a
+  zone with itself too), first match; then the global policies, first match,
+  with `match from-zone` and `to-zone` where they have them; then the default
+  policy (`deny-all` unless `default-policy permit-all`). Permit allows, deny
+  drops, reject answers. A policy without an action, an address or an
+  application is not used.
+* **NAT before the policy.** An SRX applies static and destination NAT before
+  it looks the policy up: a policy names the translated destination and the
+  zone it is routed to. The model has the original destination, and the
+  parser adds it (`NAT_DESTINATION_REWRITTEN`, `NAT_PORT_TRANSLATION`).
+* **Address books.** A name is looked up in the book of the zone (a book
+  attached to it, or the address book of the zone itself), then in the global
+  one; global policies and NAT use the global book. Objects of a zone's book
+  keep their book in their name (`web (dmz-book)`, `web (zone dmz)`); an
+  object whose name looks like an address is renamed (`10.1.1.1 (object)`).
+  Addresses, prefixes, ranges, DNS names; wildcard addresses are not read.
+* **Negation:** `source-address-excluded` and `destination-address-excluded`.
+* **Applications:** protocol, destination and source port (by number, range
+  or name), ICMP and ICMPv6 type and code (by number or name), terms;
+  application sets, nested; the predefined applications of FWShift's table
+  (`PREDEFINED_APPLICATIONS`). An application with a protocol that has ports
+  and no destination port, or with an RPC program or UUID, is not used.
+* **Deactivated** statements are not there: a policy, an address in a policy,
+  a NAT rule.
+* **NAT:** static NAT (as a destination NAT from the zones of its rule set and
+  a static source NAT the other way), destination NAT with pools (one
+  address, or a range picked from per connection, and a port), source NAT to
+  the interface or to a pool (with or without port translation), `off`. Rule
+  sets of an interface before those of a zone. Rule sets of a routing
+  instance are not read.
+* **Not converted:** schedulers, `source-identity` (a user match),
+  `dynamic-application` (unified policies), `url-category`, application
+  services (reported as profiles), policy-based VPN (`permit tunnel`), the
+  zone `junos-host`, logical systems and tenants, screens and
+  `host-inbound-traffic`.
+
+**What is written**
+
+* **Set commands** for `load set`: applications, the global address book,
+  security policies, NAT, in the order the SRX needs them.
+* **Policies.** A rule of the model for given zones becomes a policy in each
+  pair of zones it covers (`RULE_SPLIT`), in the order of the model; zone
+  "any" stands for every zone the policy knows (`ZONES_EXPANDED`). Rules at
+  the end of the model become global policies where that takes fewer
+  policies: the SRX looks at them after the pairs of zones anyway, so only
+  rules at the end can go there. Policies name the destination after NAT.
+* **Negation** is written as `...-excluded` for up to 10 IPv4 addresses;
+  otherwise as the addresses that are left (`NEGATION_EXPANDED`).
+* **Disabled rules** are written and then deactivated (`deactivate security
+  policies ...`), with `FWSHIFT inactive, see the report` in their
+  description; placeholders that match nothing (`192.0.0.8/32`) carry
+  `FWSHIFT PLACEHOLDER`.
+* **Applications:** one term per protocol and port range, source ports, ICMP
+  and ICMPv6 type and code, IP protocols; groups as application sets.
+* **NAT:** destination NAT with a pool per rule, in a rule set per zone the
+  traffic comes from; a destination NAT with the source NAT that undoes it,
+  and a bi-directional static NAT, as static NAT (`NAT_STATIC`,
+  `NAT_BIDIRECTIONAL`); source NAT to the interface or to a pool, in a rule
+  set per pair of zones; a rule without translation as `source-nat off`. A
+  NAT rule of Junos matches one destination prefix and one port range.
+* **Names** of up to 63 characters; objects that start like a name Junos keeps
+  for itself (`junos-`, `static_nat_`) are renamed; a zone name the SRX cannot
+  take is refused (use `--zone-map`). If the source allows what no rule
+  matches, `default-policy permit-all` is written (`DEFAULT_PERMIT`).
+
 ### Names
 
 Names the target would reject are changed: `10.0.0.0/8` becomes `10.0.0.0_8`
@@ -2768,6 +2878,26 @@ settings.
    FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 (`BLOCK_RULE_INACTIVE`). Activate the
    ruleset as the firewall requires.
 
+### Juniper SRX
+
+> **The commands have never been loaded on an SRX.** Their form follows
+> Juniper's documentation and a published reader of Junos; the report lists
+> under `JUNOS_LOAD` what is assumed (names of up to 63 characters, `match
+> from-zone`/`to-zone` in global policies, the predefined applications).
+
+1. Make sure the zones listed in `ZONES_REQUIRED` exist, with their
+   interfaces. The objects go into the global address book; an SRX that keeps
+   address books in its zones (the older way) does not take both.
+2. Load the file in configuration mode: `configure private`, then
+   `load set terminal` and paste it (end with Ctrl-D), or copy it to the SRX
+   and `load set /var/tmp/fwshift.set`.
+3. `show | compare` shows what changes; `commit check` checks it.
+4. New policies go to the end of their pair of zones, after the policies the
+   SRX has there; global policies after those. Move them with `insert
+   security policies from-zone A to-zone B policy NEW before policy OLD` where
+   the SRX's own should not come first.
+5. `commit confirmed 5`, test, then `commit`.
+
 ### After loading
 
 Search the configuration for `FWSHIFT`: every placeholder object and every
@@ -2847,6 +2977,13 @@ the report is the list.)
 | `the network objects of the input hold more than 200000 addresses in all` | Objects that name each other many times over, or a list nobody can mean. Not converted. |
 | `not usable JSON: a string holds half of a UTF-16 pair ...` | A JSON input holds an escape (`\ud800` to `\udfff`) that is no character. The file is damaged. |
 | `--interface-map: '...' is not the name of an interface of a CloudGen Firewall` | To Barracuda: the interface takes letters, digits, period, underscore, hyphen and colon. |
+| `the configuration takes parts of its security policy or applications from groups ...` | Junos source: export with `show configuration \| display inheritance no-comments \| display set` (section 3). |
+| `no 'security' part found ...` | `--from junos` on a configuration without security zones, policies or applications, or on part of one. |
+| `line N: not a line of 'show configuration \| display set' ...` | A set-form file holds a line that is neither `set` nor `deactivate`. |
+| `line N: '...' belongs to a file of commands ...` | The file holds `delete`, `insert` and the like: it is a script of commands, not a configuration. |
+| `line N: the configuration ends inside a statement` | A configuration in braces with a `{` that is never closed, or no `;`: cut short. |
+| `line N: blocks nested more than 64 deep` / `two lists in one statement` | A configuration in braces that no SRX writes. |
+| `zone '...' cannot be the name of a security zone of an SRX` | To Junos: give the zone another name with `--zone-map`. |
 | `--target-nat-zone: '...' is no interface a pfSense rule can name` | pfSense target: give `wan`, `lan`, an `optN` or the name of an interface group. |
 
 **Most rules are "needs review".** Read the first finding of a few rules. A
@@ -2991,6 +3128,13 @@ deliberate: see *IPv4 and IPv6* in section 8.
   zones only as interfaces of source entries or networks, no NAT, host names
   as placeholders; the rule that blocks what no rule matches is created
   deactivated. Nothing has been run against a CloudGen Firewall.
+* Juniper SRX: Junos OS, the root system, from `display set` or the
+  configuration in braces. Not converted: logical systems and tenants,
+  unified policies (`dynamic-application`), users (`source-identity`), URL
+  categories, schedulers, policy-based VPN, the zone `junos-host`, routing
+  instances in NAT, wildcard addresses, predefined applications FWShift does
+  not know. Written: set commands for the global address book, applications,
+  policies and NAT. Nothing has been loaded on an SRX.
 * pfSense: 2.6 and later; OPNsense is not read. Schedules, URL table
   aliases, policy routing, tags, limiters and shaping, match rules, IPv6 NAT,
   NPt, bogon networks, the captive portal, bridges and the rules of packages

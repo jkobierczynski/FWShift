@@ -68,6 +68,12 @@ WATCHGUARD = NameRules(100, re.compile(r"[\x00-\x1f\x7f]"), False)
 # long a name may be. Names are kept to letters, digits, period, underscore and hyphen, and to 32 characters.
 BARRACUDA = NameRules(32, re.compile(r"[^A-Za-z0-9._-]"), True)
 
+# Juniper SRX: names of up to 63 characters that start with a letter or digit (third-party documentation; Juniper's own
+# statement pages could not be read). Objects take letters, digits, ".", "_", "-", ":" and "/"; policies and NAT rules
+# are kept to letters, digits, "_" and "-".
+JUNOS = NameRules(63, re.compile(r"[^A-Za-z0-9._:/-]"), True)
+JUNOS_RULE = NameRules(63, re.compile(r"[^A-Za-z0-9_-]"), True)
+
 
 def clean(name: str, rules: NameRules) -> str:
     out = rules.invalid.sub("_", name).strip()

@@ -1,0 +1,38 @@
+FWShift conversion report
+  source: junos (root)
+  target: iptables
+
+Summary
+  Security rules:     14   exact 11, approximated 1, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           6   exact 3, approximated 2, needs review 0, skipped 1
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IPTABLES_LOAD: the output holds the FORWARD chain only. Plain 'iptables-restore' replaces the whole filter table, INPUT and OUTPUT included: check it with 'iptables-restore --test', then load it with 'iptables-restore --noflush' on a host whose FORWARD chain is empty, or merge it by hand
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names; map each zone to its interface with --zone-map: trust, untrust, dmz, guest
+  [info] JUNOS_FORMAT: read 14 security policies and 6 NAT rules of the root system. Policies are looked up after static and destination NAT; they were brought back to the original destination, as the model has it
+  [info] PREDEFINED_APPLICATIONS: predefined applications are not in the configuration; these were taken from FWShift's table of them: junos-dns-udp, junos-http, junos-https, junos-ping, junos-smtp, junos-ssh
+  [info] HOST_POLICIES: policies for the zone junos-host (traffic to and from the firewall itself) are not read: 'to-box'
+  [info] OTHER_IP_VERSION: some rules also match IPv6; convert with --to ip6tables as well to get that half
+  [info] LOGGING_NOT_CONVERTED: logging settings of the rules are not converted; add LOG or NFLOG rules where needed
+
+Security rules
+  updates  ->  approximated  (emitted as 1 FORWARD rule)
+      [approximated] FQDN_RESOLVED_ONCE: 'updates' is a host name: iptables resolves it once, when the rules are loaded, and keeps the addresses it got then
+  guest-web  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'work-hours' is not converted; the rule would apply at all times.
+  guest-ping  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'junos-ping': the predefined application junos-ping: Juniper describes it as ICMP echo, other readers of Junos as every ICMP type.
+  global-block  ->  exact  (emitted as 2 FORWARD rules)
+      [info] RESET_ACTION: action reset-client becomes a plain REJECT: a TCP reset can only answer TCP
+
+NAT rules
+  trust-out snat-lan  ->  approximated  (emitted as 1 POSTROUTING)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from trust only; POSTROUTING cannot match the input interface, so it applies to traffic from every interface
+  dmz-out snat-dmz  ->  approximated  (emitted as 1 POSTROUTING)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from dmz only; POSTROUTING cannot match the input interface, so it applies to traffic from every interface
+  vr-out snat-vr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule set for routing instance 'VR1', which is not read; a rule set that does not say where its traffic comes from

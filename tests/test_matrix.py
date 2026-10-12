@@ -530,7 +530,8 @@ def test_fortios_virtual_ip_in_a_policy() -> None:
 
 SAMPLES = ["asa_sample.cfg", "checkpoint_sample.json", "fortios_sample.conf", "iptables_sample.rules", "panos_sample.xml",
            "sophos_sample.xml", "fmc_sample.json", "fdm_sample.txt", "pfsense_sample.xml", "sonicwall_sample.exp",
-           "watchguard_sample.xml", "barracuda_sample.json"]  # fmt: skip
+           "watchguard_sample.xml", "barracuda_sample.json",
+           "junos_sample.conf"]  # fmt: skip
 
 
 @pytest.mark.parametrize("sample", SAMPLES)

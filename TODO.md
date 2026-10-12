@@ -4,9 +4,9 @@ What is planned, in the order it is meant to be done. What has been done, and
 why it was done that way, is in the development log of
 [DEVELOPMENT.md](DEVELOPMENT.md).
 
-## Releases planned: one firewall brand per release
+## Firewall brands: one per release
 
-Every brand below gets a release of its own, in this order. A release is done
+Every brand gets a release of its own. A release is done
 when the brand can be read **and** written, and has been through what every
 platform so far went through:
 
@@ -41,17 +41,16 @@ part of it, see below), **0.9.0, SonicWall** (the settings export of
 SonicOS 6.5 and 7, read; commands of the SonicOS 7 command line, written),
 **0.10.0, WatchGuard** (the configuration file of Policy Manager,
 Fireware 12, read; its policy part, to merge into a configuration of the
-target, written), and **0.11.0, Barracuda CloudGen Firewall** (saved answers
+target, written), **0.11.0, Barracuda CloudGen Firewall** (saved answers
 of its REST API, read; a script of calls to that API, written; the
-configuration backup is not readable).
+configuration backup is not readable), and **0.12.0, Juniper SRX**
+(`display set` or the configuration in braces, read; set commands for
+`load set`, written).
 What each rests on and what nobody has checked on a device is in
 the development log.
 
-| Release | Brand | Read (expected) | Write (expected) | What will need care |
-|---|---|---|---|---|
-| 0.12.0 | **Juniper** SRX (Junos) | `show configuration \| display set`, and the same configuration in braces | `set` commands | Policies per zone pair (`from-zone ... to-zone ...`) are looked up first, global policies after them. Address books per zone and global, application sets, source, destination and static NAT rule sets. Destination and static NAT come before the policy lookup, so policies name the real address (`lookup_after_dnat`); source NAT comes after. ScreenOS is not part of this release |
-
-Not on the list, and asked for often enough to keep in mind: nftables,
+The brands that were planned are done. Not planned yet, and asked for often
+enough to come next: nftables,
 OPNsense (planned with pfSense, and left out of 0.8.0: its configuration
 keeps aliases, automatic rules and parts of NAT elsewhere, and its rules have
 other fields; FWShift refuses it with that reason), Huawei USG, Forcepoint, Stormshield,
@@ -157,7 +156,12 @@ MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
     the JSON of the API is known; rule lists (Cascade) read; hostname objects
     written; the PAR backup read, once a real one shows its format; a script
     that fetches the answers FWShift reads.
-14. Static NAT between address sets of different size is reported for ASA and
+14. Juniper: logical systems and tenants; unified policies
+    (`dynamic-application`) as App-IDs where the target has them; schedulers;
+    rule sets of routing instances; the predefined applications taken from a
+    real `junos-defaults`; NAT rule sets of several zones at once instead of
+    one per zone or pair of zones.
+15. Static NAT between address sets of different size is reported for ASA and
     Cisco Secure Firewall targets, which wrap around, and not for PAN-OS,
     where the commit fails.
 
@@ -201,7 +205,15 @@ MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
    `panos_to_barracuda.sh` with `DRY_RUN=1` and then for real, and record
    what the API refuses; check that names are told apart without regard to
    case.
-8. Cisco Secure Firewall, on a Management Center and an FTD device in a lab:
+8. Juniper, on a vSRX (21.4 and 23.4): check that `display inheritance
+   no-comments | display set` is accepted and what it prints for groups;
+   compare `show groups junos-defaults applications | display set` with
+   FWShift's table of predefined applications; load
+   `panos_to_junos.set.conf` and `junos_to_junos.set.conf` with `load set`,
+   `commit check`, and compare `show security policies` and `show security
+   nat` with the model; check names of 63 characters, `match from-zone` in
+   global policies, and the order of NAT rule sets of one context.
+9. Cisco Secure Firewall, on a Management Center and an FTD device in a lab:
    fetch a policy with the calls of the manual and compare the answers with
    `fmc_sample.json` (above all: how a policy says that it inherits, whether
    the list of a child holds the rules of its parent, the fields of a
@@ -210,7 +222,7 @@ MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
    what `--undo` leaves; export a Device Manager, compare with
    `fdm_sample.txt` (the container names of NAT rules, the protocol and ICMP
    names), and import `panos_to_fdm.json`.
-9. The reviewer's oracles as tests: every pre-image of a real packet through
+10. The reviewer's oracles as tests: every pre-image of a real packet through
    a destination NAT (pre-NAT model to a post-NAT target, with several NAT
    rules for one address); same-kind round trips for FortiOS and iptables
    with rules that name both sides of a translation; `disable` across the

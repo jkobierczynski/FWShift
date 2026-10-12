@@ -1,0 +1,28 @@
+FWShift conversion report
+  source: iptables (IPv4)
+  target: junos
+
+Summary
+  Security rules:     15   exact 13, approximated 0, needs review 2 (1 emitted disabled), skipped 0
+  NAT rules:           5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain INPUT (3 rules, policy DROP) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] JUNOS_LOAD: the output is set commands for 'load set' (section 10): 'configure private', 'load set terminal' or 'load set FILE', then 'show | compare', 'commit check' and 'commit confirmed'. New policies go to the end of their pair of zones, after the policies the firewall has there, and the global policies after those: move them with 'insert ... before' where the firewall's own should not come first. Objects go into the global address book, which a firewall with address books in its zones does not accept. Assumed: names of up to 63 characters, 'match from-zone' and 'match to-zone' in global policies, and the definitions of the predefined applications the policies use
+  [needs-review] ZONES_REQUIRED: the policies and NAT rules name these security zones, which must exist on the SRX (or be renamed with --zone-map): eth0, eth1, eth2, eth3
+  [info] PASSIVE_TARGETS: 1 FORWARD rule with target LOG decides nothing and was left out; a LOG rule directly before a rule with the same match sets its logging
+
+Security rules
+  Block bad host  ->  needs-review  (emitted as Block_bad_host)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  Rate limited mail  ->  needs-review, emitted disabled  (emitted as Rate_limited_mail)
+      [needs-review] UNSUPPORTED_MATCH: not converted: match module 'limit'.
+
+NAT rules
+  No NAT to partner  ->  exact  (emitted as source fwshift-source-eth1-eth0 No_NAT_to_partner, source fwshift-source-eth0-eth0 No_NAT_to_partner, source fwshift-source-eth2-eth0 No_NAT_to_partner, source fwshift-source-eth3-eth0 No_NAT_to_partner)
+      [info] NAT_EXEMPTION: a rule without translation, written as 'source-nat off'
+
+Services
+  tcp-80,443  ->  exact  (emitted as tcp-80_443)
+      [info] RENAMED: renamed to 'tcp-80_443' to fit the target's naming rules

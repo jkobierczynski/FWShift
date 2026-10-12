@@ -13,7 +13,7 @@ import pytest
 from helpers import DATA
 
 from fwshift import __version__
-from fwshift.cli import detect_format, main
+from fwshift.cli import VENDORS, detect_format, main
 from fwshift.emitters.cisco import loader_source
 
 GOLDEN = DATA / "expected"
@@ -159,6 +159,31 @@ CASES = [
     ("sonicwall_sample.exp", "barracuda", "sonicwall_to_barracuda.sh"),
     ("watchguard_sample.xml", "barracuda", "watchguard_to_barracuda.sh"),
     ("iptables_sample.rules", "barracuda", "iptables_to_barracuda.sh"),
+    ("junos_sample.conf", "junos", "junos_to_junos.set.conf"),
+    ("junos_sample.conf", "panos", "junos_to_panos.set"),
+    ("junos_sample.conf", "fortios", "junos_to_fortios.conf"),
+    ("junos_sample.conf", "checkpoint", "junos_to_checkpoint.sh"),
+    ("junos_sample.conf", "asa", "junos_to_asa.cfg"),
+    ("junos_sample.conf", "sophos", "junos_to_sophos.xml"),
+    ("junos_sample.conf", "fmc", "junos_to_fmc.policy.txt"),
+    ("junos_sample.conf", "fdm", "junos_to_fdm.json"),
+    ("junos_sample.conf", "pfsense", "junos_to_pfsense.xml"),
+    ("junos_sample.conf", "sonicwall", "junos_to_sonicwall.cli"),
+    ("junos_sample.conf", "watchguard", "junos_to_watchguard.xml"),
+    ("junos_sample.conf", "barracuda", "junos_to_barracuda.sh"),
+    ("junos_sample.conf", "iptables", "junos_to_iptables.rules"),
+    ("panos_sample.xml", "junos", "panos_to_junos.set.conf"),
+    ("fortios_sample.conf", "junos", "fortios_to_junos.set.conf"),
+    ("checkpoint_sample.json", "junos", "checkpoint_to_junos.set.conf"),
+    ("asa_sample.cfg", "junos", "asa_to_junos.set.conf"),
+    ("sophos_sample.xml", "junos", "sophos_to_junos.set.conf"),
+    ("fmc_sample.json", "junos", "fmc_to_junos.set.conf"),
+    ("fdm_sample.txt", "junos", "fdm_to_junos.set.conf"),
+    ("pfsense_sample.xml", "junos", "pfsense_to_junos.set.conf"),
+    ("sonicwall_sample.exp", "junos", "sonicwall_to_junos.set.conf"),
+    ("watchguard_sample.xml", "junos", "watchguard_to_junos.set.conf"),
+    ("barracuda_sample.json", "junos", "barracuda_to_junos.set.conf"),
+    ("iptables_sample.rules", "junos", "iptables_to_junos.set.conf"),
 ]
 
 
@@ -261,10 +286,10 @@ def test_manual_and_code_name_the_same_findings(tmp_path: Path) -> None:
     stale = sorted(code for code in documented if f'"{code}"' not in source)
     assert not stale, stale
     raised = set()
-    samples = ["panos_sample.xml", "fortios_sample.conf", "checkpoint_sample.json", "iptables_sample.rules", "asa_sample.cfg",
-               "sophos_sample.xml", "fmc_sample.json", "fdm_sample.txt"]  # fmt: skip
+    samples = sorted(path.name for path in DATA.iterdir() if path.is_file() and "_sample." in path.name)
+    assert len(samples) >= 13
     for sample in samples:
-        for target in ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "iptables", "ip6tables"):
+        for target in VENDORS:
             report = tmp_path / "report.json"
             args = ["convert", str(DATA / sample), "--to", target, "-o", str(tmp_path / "out"), "--report-json", str(report)]
             assert main(args + ["-q", "--prune-unused"]) == 0

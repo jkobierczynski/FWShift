@@ -2517,3 +2517,171 @@ class BarracudaRest:
     def allows(self, pkt: Any) -> bool:
         rule = self.deciding(pkt)
         return rule is not None and rule["action"]["type"] == "pass"
+
+
+# -- Juniper SRX -------------------------------------------------------------------------------------
+
+
+class JunosConfig:
+    """An SRX configuration as 'display set' prints it, read here without fwshift's parser, and what the SRX would decide
+    for a packet from zone ``pkt.in_if`` to zone ``pkt.out_if`` (no NAT): the policies of that pair of zones in order, then
+    the global policies in order, first match, then the default policy. A deactivated statement is not there. Address
+    names are looked up in the book of the zone, then in the global one; global policies use the global book."""
+
+    APPS = {"junos-http": [("tcp", "80", None)], "junos-https": [("tcp", "443", None)], "junos-ssh": [("tcp", "22", None)],
+            "junos-smtp": [("tcp", "25", None)], "junos-dns-udp": [("udp", "53", None)], "junos-dns-tcp": [("tcp", "53", None)],
+            "junos-ntp": [("udp", "123", None)], "junos-icmp-all": [("icmp", "", None)], "junos-icmp-ping": [("icmp", "", 8)],
+            "junos-icmp6-all": [("icmp6", "", None)]}
+
+    def __init__(self, text: str) -> None:
+        lines = [shlex.split(line) for line in text.splitlines() if line.strip() and not line.startswith("#")]
+        off = {tuple(words[1:]) for words in lines if words[0] == "deactivate"}
+        self.sets = [words[1:] for words in lines if words[0] == "set"
+                     and not any(tuple(words[1:k + 1]) in off for k in range(1, len(words)))]  # fmt: skip
+        assert all(words[0] in ("set", "deactivate") for words in lines), "a line that is neither set nor deactivate"
+        self.books: Dict[str, Dict[str, List[str]]] = {}
+        self.attached: Dict[str, str] = {}
+        self.apps: Dict[str, Dict[str, Dict[str, str]]] = {}
+        self.app_sets: Dict[str, List[str]] = {}
+        self.policies: Dict[str, List[Tuple[str, List[List[str]]]]] = {}
+        self.default = False
+        for words in self.sets:
+            if words[:2] == ["security", "address-book"]:
+                book = words[2]
+                if words[3] == "attach":
+                    self.attached[words[5]] = book
+                elif words[3] == "address" and words[5] != "description":
+                    self.books.setdefault(book, {})[words[4]] = words[5:]
+                elif words[3] == "address-set" and words[5] in ("address", "address-set"):
+                    self.books.setdefault(book, {}).setdefault(words[4], ["set"]).append(words[6])
+            elif words[:3] == ["security", "zones", "security-zone"] and len(words) > 6 and words[4] == "address-book":
+                book = "zone " + words[3]
+                self.attached[words[3]] = book
+                if words[5] == "address":
+                    self.books.setdefault(book, {})[words[6]] = words[7:]
+                elif words[5] == "address-set":
+                    self.books.setdefault(book, {}).setdefault(words[6], ["set"]).append(words[8])
+            elif words[:2] == ["applications", "application"]:
+                term, rest = (words[4], words[5:]) if words[3] == "term" else ("", words[3:])
+                values = self.apps.setdefault(words[2], {}).setdefault(term, {})
+                for index in range(0, len(rest), 2):
+                    values[rest[index]] = rest[index + 1]
+            elif words[:2] == ["applications", "application-set"]:
+                self.app_sets.setdefault(words[2], []).append(words[4])
+            elif words[:3] == ["security", "policies", "default-policy"]:
+                self.default = words[3] == "permit-all"
+            elif words[:3] == ["security", "policies", "from-zone"]:
+                self._policy(f"{words[3]} {words[5]}", words[7], words[8:])
+            elif words[:4] == ["security", "policies", "global", "policy"]:
+                self._policy("global", words[4], words[5:])
+
+    def _policy(self, context: str, name: str, rest: List[str]) -> None:
+        listed = self.policies.setdefault(context, [])
+        for known, statements in listed:
+            if known == name:
+                statements.append(rest)
+                return
+        listed.append((name, [rest]))
+
+    def _holds(self, book_order: List[str], name: str, address: str, seen: frozenset = frozenset()) -> bool:
+        import ipaddress
+
+        ip = ipaddress.ip_address(address)
+        if name == "any":
+            return True
+        if name in ("any-ipv4", "any-ipv6"):
+            return ip.version == (4 if name == "any-ipv4" else 6)
+        for book in book_order:
+            value = self.books.get(book, {}).get(name)
+            if value is None:
+                continue
+            assert (book, name) not in seen
+            if value[0] == "set":
+                return any(self._holds([book], member, address, seen | {(book, name)}) for member in value[1:])
+            if value[0] == "range-address":
+                first, last = ipaddress.ip_address(value[1]), ipaddress.ip_address(value[3])
+                return first.version == ip.version and int(first) <= int(ip) <= int(last)
+            assert value[0] != "dns-name", "the judge cannot resolve host names"
+            net = ipaddress.ip_network(value[0] if "/" in value[0] else value[0] + ("/32" if ":" not in value[0] else "/128"))
+            return net.version == ip.version and ip in net
+        raise AssertionError(f"address {name} is in no book of {book_order}")
+
+    def _app(self, name: str, pkt: Any) -> bool:
+        if name == "any":
+            return True
+        if name in self.app_sets:
+            return any(self._app(member, pkt) for member in self.app_sets[name])
+        terms = [list(self.APPS[name])] if name in self.APPS else None
+        if terms is not None:
+            return any(self._entry(protocol, ports, "", kind, None, pkt) for protocol, ports, kind in terms[0])
+        for values in self.apps[name].values():
+            protocol = values["protocol"]
+            kind = values.get("icmp-type", values.get("icmp6-type"))
+            code = values.get("icmp-code", values.get("icmp6-code"))
+            if "icmp6-type" in values:
+                kind = {"echo-request": "128", "echo-reply": "129", "destination-unreachable": "1", "time-exceeded": "3"}.get(kind or "", kind)
+            else:
+                kind = {"echo-request": "8", "echo-reply": "0", "unreachable": "3", "time-exceeded": "11"}.get(kind or "", kind)
+            if self._entry(protocol, values.get("destination-port", ""), values.get("source-port", ""), int(kind) if kind else None,
+                           int(code) if code else None, pkt):  # fmt: skip
+                return True
+        return False
+
+    @staticmethod
+    def _entry(protocol: str, ports: str, source: str, kind: Optional[int], code: Optional[int], pkt: Any) -> bool:
+        number = {"tcp": "tcp", "udp": "udp", "icmp": "icmp", "icmp6": "icmp6", "6": "tcp", "17": "udp", "1": "icmp", "58": "icmp6",
+                  "gre": "47", "esp": "50", "ospf": "89"}
+        if number.get(protocol, protocol) != pkt.proto:
+            return False
+        if pkt.proto in ("tcp", "udp"):
+            low, _, high = ports.partition("-")
+            if ports and not int(low) <= pkt.dport <= int(high or low):
+                return False
+            low, _, high = source.partition("-")
+            if source and not int(low) <= pkt.sport <= int(high or low):
+                return False
+            return True
+        if pkt.proto in ("icmp", "icmp6"):
+            return kind is None or pkt.icmp_type == kind  # packets here carry no code
+        return True
+
+    def deciding(self, pkt: Any) -> Optional[Tuple[str, str, bool]]:
+        """(context, policy, permits) of the policy that decides; None for the default policy."""
+        for context in (f"{pkt.in_if} {pkt.out_if}", "global"):
+            for name, statements in self.policies.get(context, []):
+                match: Dict[str, List[str]] = {}
+                action = None
+                for words in statements:
+                    if words[0] == "match":
+                        match.setdefault(words[1], []).append(words[2] if len(words) > 2 else "")
+                    elif words[0] == "then" and words[1] in ("permit", "deny", "reject"):
+                        action = words[1]
+                    elif words[0] == "then" and words[1] in ("log", "count"):
+                        pass
+                    else:
+                        assert words[0] == "description", f"the judge does not know {words}"
+                assert action is not None and set(match) <= {"source-address", "destination-address", "application", "from-zone",
+                                                             "to-zone", "source-address-excluded", "destination-address-excluded"}, (name, match)  # fmt: skip
+                if context == "global":
+                    if "from-zone" in match and pkt.in_if not in match["from-zone"]:
+                        continue
+                    if "to-zone" in match and pkt.out_if not in match["to-zone"]:
+                        continue
+                    src_books = dst_books = ["global"]
+                else:
+                    src_books = [self.attached[pkt.in_if], "global"] if pkt.in_if in self.attached else ["global"]
+                    dst_books = [self.attached[pkt.out_if], "global"] if pkt.out_if in self.attached else ["global"]
+                src = any(self._holds(src_books, n, pkt.src) for n in match["source-address"])
+                if src == ("source-address-excluded" in match):
+                    continue
+                dst = any(self._holds(dst_books, n, pkt.dst) for n in match["destination-address"])
+                if dst == ("destination-address-excluded" in match):
+                    continue
+                if not any(self._app(a, pkt) for a in match["application"]):
+                    continue
+                return context, name, action == "permit"
+        return None
+
+    def allows(self, pkt: Any) -> bool:
+        found = self.deciding(pkt)
+        return self.default if found is None else found[2]

@@ -8,11 +8,11 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.11.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
-| Tests | 3027, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, a Check Point management server, a Cisco Management Center or a Device Manager |
-| Next | 0.12.0: Juniper SRX (see `TODO.md`); lab validation of the sample conversions |
+| Version | 0.12.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
+| Tests | 3174, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, a Check Point management server, a Cisco Management Center or a Device Manager |
+| Next | lab validation of the sample conversions; the brands not planned yet (see `TODO.md`) |
 
 ## Layout
 
@@ -36,6 +36,8 @@ src/fwshift/
                       policy per pair of interfaces it names, static NAT actions)
         barracuda.py  CloudGen REST API JSON -> model (interfaces of source
                       entries as zones, exclusions, bi-directional rules)
+        junos.py      SRX set lines or braces -> model (pairs of zones, then
+                      global policies; books of zones; NAT before the policy)
         iptables.py   iptables-save output   -> model (chains flattened)
     emitters/
         panos.py      model -> PAN-OS set commands
@@ -56,6 +58,8 @@ src/fwshift/
                       of zone and address, static NAT actions in policies)
         barracuda.py  model -> a shell script of REST calls (rules created
                       deactivated at the top, then activated in order)
+        junos.py      model -> SRX set commands (policies per pair of zones,
+                      the end of the model as global policies, NAT rule sets)
         iptables.py   model -> iptables-restore / ip6tables-restore file
     transform.py      passes shared by the emitters: hardening of names,
                       references, placeholders, names, application lowering,
@@ -81,14 +85,15 @@ tests/
     data/expected/    their conversions and reports, byte for byte
     tools/            the scripts that write the Check Point sample, the two
                       Cisco Secure Firewall samples and the SonicWall,
-                      WatchGuard and Barracuda samples,
+                      WatchGuard, Barracuda and Juniper samples,
                       and the kernel check
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
                       Check Point, ASA, Sophos and Cisco Secure Firewall output;
                       a pfSense that judges packets from its configuration;
                       a SonicWall that judges by an export and by commands;
                       a Firebox that judges by its configuration file;
-                      a CloudGen Firewall that judges by API answers or a script
+                      a CloudGen Firewall that judges by API answers or a script;
+                      an SRX that judges by set lines
     test_parsers.py   netutil, FortiOS syntax, PAN-OS and FortiOS parsers
     test_emitters.py  PAN-OS and FortiOS emitters
     test_semantics.py one small configuration per semantic trap
@@ -108,6 +113,7 @@ tests/
     test_sonicwall.py SonicWall both ways, against the two judges in helpers.py
     test_watchguard.py WatchGuard both ways, against the judge in helpers.py
     test_barracuda.py Barracuda both ways, against the judge in helpers.py
+    test_junos.py     Juniper SRX both ways, against the judge in helpers.py
     test_audit.py     the audit, against a walk through every packet of a
                       small world
     test_matrix.py    the zone matrix, against the same walk: every packet
@@ -552,6 +558,10 @@ policy behaves unexpectedly.
 | CloudGen REST API: base `/rest/config/v1`, header `X-API-Token`; `GET forwarding-firewall/rules` (with `expand=true`) answers `{"rules": [...]}`; `POST forwarding-firewall/objects/networks` with `name` and `included: [{"entry": {"ip": ...}}]`; `POST .../networks/<name>/included` with `{"entry": {"ip", "interface", "comment"}}`; `POST forwarding-firewall/rules` (or `rules/lists/<list>`) with `name`, `source`/`destination`/`service` as `{"references": ...}`, `action: {"type": "block"}`, `position: {"placement": "top"}`; `PATCH forwarding-firewall/rules/<name>` with `{"deactivated": false}` (Campus examples) | Barracuda parser and emitter |
 | Assumed: `ipVersion` `IPv4`/`IPv6`, `bidirectional`, `comment`, the action types `pass` and `deny`, `excluded` entries, service objects as `entries` of `{"entry": {"protocol", "ports", "clientPortUsed": {"from", "to"}}}`, a reference among the entries of an object, names of up to 32 letters, digits, `.`, `_` and `-` told apart without regard to case | Barracuda parser and emitter, `BARRACUDA_LOAD` |
 | CloudGen semantics: first match, IPv4 and IPv6 rules apart, Block drops, Deny answers, what no rule matches is blocked, the interface of an entry counts in a source only, a bi-directional rule matches the other way round, excluded entries leave addresses out, an ICMP service entry matches every type (Campus) | Barracuda parser, emitter and judge |
+| Juniper, all rows below: from Juniper's documentation (security policies, global policies, address books, predefined applications, application sets, NAT, static NAT, configuration groups, viewing the configuration) where it says so, and from the Junos grammar of Batfish (read, never run) for the exact statements; the rest assumed. Nothing was loaded on an SRX | Juniper parser and emitter |
+| Junos: policies per pair of zones, first match, then global policies, first match, then the default policy (deny-all); static NAT, then destination NAT, then the policy (which sees the translated destination and its zone), then source NAT; NAT rule sets of an interface before those of a zone, first match within a set; an address name is looked up in the book of the zone, then the global one; global policies and NAT use the global book (documentation) | Juniper parser, emitter and judge |
+| Junos syntax: `set security policies from-zone A to-zone B policy P match source-address/destination-address/application ...`, `match source-address-excluded`, `then permit/deny/reject`, `then log session-init/session-close`; `set security address-book global address N prefix / range-address A to B / dns-name H [ipv4-only/ipv6-only]`, `address-set`; `set applications application A [term T] protocol P destination-port N-M source-port ...`, `icmp-type`/`icmp6-type`; NAT `pool ... address A [to B] [port N]`, `rule-set ... from/to zone ...`, `match destination-port N to M`, `then destination-nat pool`, `then source-nat interface/pool/off`, `then static-nat prefix` (Batfish, documentation) | Juniper parser and emitter |
+| Assumed: names of up to 63 characters (third-party documentation); `match from-zone`/`to-zone` in global policies (a published generator writes them); the definitions of the predefined applications of the table (documentation and Batfish agree; `junos-ping` they do not, and it is not used); that `display inheritance \| display set` shows what groups give where it applies; the order of NAT rule sets of one context | Juniper parser and emitter, `JUNOS_LOAD` |
 
 ## Development log
 
@@ -1861,6 +1871,103 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-12: version 0.12.0
+
+**Built**
+
+* Juniper SRX, read and written: `parsers/junos.py` and `emitters/junos.py`,
+  as the format `junos`.
+* Read: `show configuration | display set` (set and deactivate lines), or the
+  configuration in braces, flattened to the same lines first. Zones and their
+  interfaces; the global address book, books attached to zones and the books
+  of zones; applications with terms and application sets; the predefined
+  applications of a table; policies per pair of zones, global policies with
+  their zones, the default policy; negation; deactivated policies and
+  members; static, destination and source NAT with pools, brought back to
+  the model's pre-NAT destinations.
+* Written: set commands for `load set`: applications, the global address
+  book, a policy per pair of zones in the order of the model, the rules at
+  the end that are for every zone as global policies where that takes fewer
+  policies, negation as `...-excluded` or as what is left, deactivated
+  policies; NAT rule sets per zone and pair of zones, a destination NAT and
+  its way back as static NAT.
+* A sample, `junos_sample.conf`, written by `tests/tools/make_junos_sample.py`,
+  with its conversions to every target, its audit and matrix, and the
+  conversions of the other twelve samples to Juniper.
+* The test that the manual and the code name the same findings now converts
+  every sample to every target.
+* Shared: a rule rewritten for a target that looks rules up after destination
+  NAT, where the NAT rule translates only some of its services, is now
+  reported for review (`NAT_DESTINATION_WIDENED`): for the other services it
+  names the translated address, reached directly. Four reports of the
+  FortiOS sample changed accordingly.
+
+**What the platform made necessary**
+
+* *Two places for policies.* A policy is for one pair of zones, and global
+  policies come after those of every pair. Read: the pairs in order, then the
+  global policies. Written: only rules at the end of the model can be global;
+  where they go is chosen by the number of policies it takes.
+* *Policies after destination NAT, source NAT after the policy.* As for the
+  ASA: the parser brings policies back to the pre-NAT destination, the
+  emitter takes them forward again for the NAT rules it writes.
+* *Names per zone.* The same address name can mean different addresses in
+  two zones; such objects keep their book in their name in the model.
+* *Predefined applications that are not in the configuration.* A table of
+  those whose definition the sources agree on; the rest make a policy
+  unusable.
+* *Two forms of one configuration, and groups.* The braces are flattened to
+  set lines; a configuration whose security policy comes from groups not
+  shown where they apply is refused with the export that shows them.
+
+**Sources**
+
+Juniper's documentation (security policies and their order, global policies,
+address books and sets, predefined applications, application sets, NAT and
+its order, static NAT, configuration groups, viewing the configuration) and
+the Junos grammar of Batfish, with the Junos generators of Aerleon and
+Capirca, read and never run. What comes from where, and what is assumed, is
+in the table *Vendor behaviour the code relies on*.
+
+**Review**
+
+*Round 20* by the independent reviewer, with repro scripts of its own (3,000
+mutated set configurations, 20,000 random token sequences in braces). 4 high,
+5 medium, 9 low:
+
+| | Finding | Fix |
+|---|---|---|
+| high | A bi-directional static NAT was written as static NAT, and the policies were not taken forward to the address the SRX sees after it: a deny for the public address no longer matched | they are |
+| high | ICMPv6 types by name were read as ICMPv4 types (`echo-request` 8, not 128) | a table of ICMPv6 names; the judge corrected with it |
+| high | A destination NAT and its way back written as static NAT, which the SRX applies before every destination NAT: an earlier port forward for the same address lost | not paired where an earlier destination NAT meets it |
+| high | Several lists in one statement in braces multiplied: a few KB of input, gigabytes of memory | one list per statement, and blocks no deeper than 64 |
+| medium | Deep braces and very long lines took minutes (the path rebuilt at every block, every prefix of a line looked up) | the path kept as it goes; only the depths that are deactivated looked up |
+| medium | A global object whose name looks like an address took the place of that address in a NAT rule | such objects are renamed in the model |
+| medium | A named book called like a zone and the book of that zone gave objects one name | told apart |
+| medium | (shared) A rule for more services than its destination NAT, taken forward to the translated address for all of them, was only approximated | for review, on every target of that kind |
+| low | `then` of a NAT rule on two lines (mapped port, persistent NAT) read as the last one only; an interzone rule that leaves no pair in the global part reported exact; `ZONES_EXPANDED` said too much; IPv6 addresses written another way refused; a short pool line reported as not read; a reserved prefix after cleaning a name; prompt lines in braces refused; groups shown by `display inheritance` refused; a zone named `any` read as every zone; the new codes not documented | merged; skipped as matching nothing; reworded; compared as addresses; ignored; checked after cleaning; dropped; read; not used; documented, and the test covers every sample and target |
+
+Not changed: the ranking of source NAT rule sets by their `to` context is
+not read (it changes what is translated, not what a policy allows). The
+fixes were not reviewed again; they have tests (the last section of
+`test_junos.py`).
+
+**Verified, and not**
+
+* The tests: `tests/test_junos.py` holds 120 tests, the suite
+  3174. The parser is compared with an independent reading of the set
+  lines on 100 random configurations, the emitter with the model on 60
+  random models, the round trip on 30; the braces against their set lines.
+  NAT has hand tests only. A mutation check with 12 ways to break parser and
+  emitter: all 12 caught.
+* **Nothing was loaded on an SRX.** The statements come from Juniper's
+  documentation and from Batfish's grammar; the judge is written from the
+  same reading.
+* The largest unknowns: the exact predefined applications of a release;
+  whether `display inheritance | display set` is accepted and what it prints
+  for groups; names of 63 characters; `match from-zone` in global policies;
+  the order of NAT rule sets of one context.
 
 ## To do
 

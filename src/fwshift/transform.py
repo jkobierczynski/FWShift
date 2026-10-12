@@ -1368,6 +1368,16 @@ def _rewrite_addresses(
                 f"translates, and it does not map address for address: the rule now covers all of '{new_ref}'",
                 nat.origin,
             )
+        elif to_post_nat and lies_on_old_side and not _services_within(p, rule, nat):
+            report.add(
+                "rule",
+                rule.origin,
+                Severity.REVIEW,
+                "NAT_DESTINATION_WIDENED",
+                f"{how} because of NAT rule '{nat.name}', which translates only some of the services of this rule: "
+                f"for the others the rule now names '{new_ref}', sent there directly, and no longer '{member}'",
+                nat.origin,
+            )
         else:
             report.add(
                 "rule",
@@ -1489,6 +1499,20 @@ def _l4_ranges(p: Policy, names: List[str], ports_only: bool = True) -> Optional
                     return None
                 out.setdefault(protocol, []).append((int(first), int(last or first)))
     return out
+
+
+def _services_within(p: Policy, rule: Rule, nat: NatRule) -> bool:
+    """Whether every service of a rule lies within the service a NAT rule translates (what cannot be read does not)."""
+    if nat.service == ANY:
+        return True
+    if ANY in rule.services or rule.negate_service:
+        return False
+    rule_ports = _l4_ranges(p, rule.services)
+    nat_ports = _l4_ranges(p, [nat.service])
+    if rule_ports is None or nat_ports is None:
+        return False
+    return all(any(low <= first and last <= high for low, high in nat_ports.get(protocol, []))
+               for protocol, ranges in rule_ports.items() for first, last in ranges)  # fmt: skip
 
 
 def _service_sides(p: Policy, rule: Rule, nat: NatRule, port: str) -> Tuple[bool, bool, bool]:

@@ -1,0 +1,60 @@
+FWShift conversion report
+  source: junos (root)
+  target: fdm
+
+Summary
+  Security rules:     14   exact 11, approximated 0, needs review 0, skipped 3
+  NAT rules:           6   exact 1, approximated 3, needs review 0, skipped 2
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FDM_LOAD: the output is a file for the configuration import of a Firewall Device Manager (POST /action/uploadconfigfile, then /action/configimport). Its first object must say the hardware model and software version of the target: copy both from the first object of an export of the target device. The import adds to what the device has: its access rules stay above the rules of this file and decide first, its default action stays what it is, and its NAT rules come first. Nothing is in force until the changes are deployed: look at them in the pending changes before that
+  [needs-review] ZONES_REQUIRED: the rules name these security zones, which must exist on the target (or be renamed with --zone-map): trust, untrust, dmz. Zones are not written: an import would take the interfaces out of a zone that exists
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. 1 destination NAT rule is written as a rule that names the source as well and leaves it as it is: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] JUNOS_FORMAT: read 14 security policies and 6 NAT rules of the root system. Policies are looked up after static and destination NAT; they were brought back to the original destination, as the model has it
+  [info] PREDEFINED_APPLICATIONS: predefined applications are not in the configuration; these were taken from FWShift's table of them: junos-dns-udp, junos-http, junos-https, junos-ping, junos-smtp, junos-ssh
+  [info] HOST_POLICIES: policies for the zone junos-host (traffic to and from the firewall itself) are not read: 'to-box'
+  [info] EXISTING_OBJECTS: an import changes what the device has under the same name: an object or a rule of this file replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] FQDN_DNS: FQDN objects need name resolution on the device (a DNS server group in its platform settings)
+
+Security rules
+  not-servers  ->  exact
+      [info] NEGATION_AS_ADDRESSES: an access rule cannot negate: 'not source servers' is written as the addresses that are left (4 range(s))
+  dmz-out  ->  skipped
+      [info] DISABLED_RULE: disabled on the source: a Device Manager has no rules that are switched off, so it is left out
+  guest-web  ->  skipped
+      [needs-review] SCHEDULE: schedule 'work-hours' is not converted; the rule would apply at all times. The rule is left out: a Device Manager has no rules that are switched off.
+  guest-ping  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'junos-ping': the predefined application junos-ping: Juniper describes it as ICMP echo, other readers of Junos as every ICMP type. The rule is left out: a Device Manager has no rules that are switched off.
+  global-block  ->  exact
+      [info] RESET_ACTION: action reset-client becomes Block, which drops without an answer: a Device Manager has no rule that resets
+  global-ntp  ->  exact  (emitted as global-ntp, global-ntp-2)
+      [info] RULE_SPLIT: written as 2 rules: source ports and destination ports are two conditions of an access rule that must both hold, so each set of source ports gets a rule of its own
+
+NAT rules
+  inbound static-mail  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone untrust only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  from-internet dnat-web  ->  approximated  (emitted as 2 NAT rules)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone untrust only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  trust-out snat-lan  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the rule is for the address of an interface of zone 'trust', and the interfaces of that zone on the target are not known; name them with --interface-map
+  dmz-out snat-dmz  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone dmz only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  vr-out snat-vr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a rule set for routing instance 'VR1', which is not read; a rule set that does not say where its traffic comes from
+
+Addresses
+  dmz-net (dmz-book)  ->  exact  (emitted as dmz-net__dmz-book_)
+      [info] RENAMED: renamed to 'dmz-net__dmz-book_' to fit the target's naming rules
+  lan-net (dmz-book)  ->  exact  (emitted as lan-net__dmz-book_)
+      [info] RENAMED: renamed to 'lan-net__dmz-book_' to fit the target's naming rules
+
+Services
+  app-mail-sub  ->  exact  (emitted as app-mail-sub, tcp-587, tcp-465)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'app-mail-sub' of 'tcp-587', 'tcp-465'
+  NAT from-internet dnat-web  ->  exact  (emitted as NAT_from-internet_dnat-web, junos-http, udp-80)
+      [info] RENAMED: renamed to 'NAT_from-internet_dnat-web' to fit the target's naming rules
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'NAT_from-internet_dnat-web' of 'junos-http', 'udp-80'

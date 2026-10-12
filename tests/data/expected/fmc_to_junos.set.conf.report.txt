@@ -1,0 +1,51 @@
+FWShift conversion report
+  source: fmc (Edge)
+  target: junos
+
+Summary
+  Security rules:     22   exact 16, approximated 3, needs review 2 (2 emitted disabled), skipped 1
+  NAT rules:           7   exact 5, approximated 2, needs review 0, skipped 0
+  Addresses:          16   exact 16, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           24   exact 24, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] JUNOS_LOAD: the output is set commands for 'load set' (section 10): 'configure private', 'load set terminal' or 'load set FILE', then 'show | compare', 'commit check' and 'commit confirmed'. New policies go to the end of their pair of zones, after the policies the firewall has there, and the global policies after those: move them with 'insert ... before' where the firewall's own should not come first. Objects go into the global address book, which a firewall with address books in its zones does not accept. Assumed: names of up to 63 characters, 'match from-zone' and 'match to-zone' in global policies, and the definitions of the predefined applications the policies use
+  [needs-review] ZONES_REQUIRED: the policies and NAT rules name these security zones, which must exist on the SRX (or be renamed with --zone-map): dmz, inside, outside
+  [approximated] OBJECT_OVERRIDES: 1 object(s) can have another value on a device than the one that was read (they allow overrides): ot-net. The values of the manager were converted; check them against the device the policy is for
+
+Security rules
+  pre-partner-gre  ->  approximated
+      [approximated] TUNNEL_RULE: tunnel rule of the prefilter policy: it is converted as a rule for the protocol that carries the tunnel, between the tunnel endpoints. What the source did with the connections inside the tunnel is not converted
+  pre-partner-gre-reverse  ->  exact
+      [info] TUNNEL_RULE: the other direction of tunnel rule 'pre-partner-gre', which matches tunnels from source and destination
+  LAN web  ->  approximated  (emitted as LAN_web)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (file=Block Malware, intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+  Helpdesk RDP  ->  needs-review, emitted disabled  (emitted as Helpdesk_RDP)
+      [needs-review] USER_MATCH: source user match CORP\helpdesk is not converted.
+  Staff social media  ->  needs-review, emitted disabled  (emitted as Staff_social_media)
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Uncategorised web  ->  approximated  (emitted as Uncategorised_web)
+      [approximated] INTERACTIVE_BLOCK: the source showed web users a page from which they could go on to the site (Interactive Block); it is converted as a rule that blocks
+  Reset the rest from inside  ->  exact  (emitted as Reset_the_rest_from_inside)
+      [info] RESET_ACTION: action reset-both becomes reject, which answers the client only
+  Watch DMZ  ->  skipped
+      [info] MONITOR_RULE: rule with the action Monitor: it logs the traffic and leaves the decision to the rules below it. Nothing to convert
+
+NAT rules
+  nat-1  ->  exact  (emitted as source fwshift-source-inside-outside nat-1)
+      [info] NAT_EXEMPTION: a rule without translation, written as 'source-nat off'
+  nat-3  ->  approximated  (emitted as destination fwshift-destination-outside nat-3)
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 203.0.113.2
+  nat-4  ->  exact  (emitted as source fwshift-source-inside-outside nat-4)
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: round robin, flat port range, interface (as fallback)
+  nat-mail-srv  ->  approximated  (emitted as static fwshift-static-outside nat-mail-srv)
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: translate DNS replies
+      [approximated] NAT_BIDIRECTIONAL: written as static NAT, which translates both ways; the outbound way applies to traffic to every zone
+
+Addresses
+  any-ipv4  ->  exact  (emitted as any-ipv4_2)
+      [info] RENAMED: renamed to 'any-ipv4_2' to fit the target's naming rules
+  any-ipv6  ->  exact  (emitted as any-ipv6_2)
+      [info] RENAMED: renamed to 'any-ipv6_2' to fit the target's naming rules

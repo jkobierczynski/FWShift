@@ -1,0 +1,70 @@
+FWShift conversion report
+  source: sophos (API version 2000.1)
+  target: junos
+
+Summary
+  Security rules:     17   exact 4, approximated 8, needs review 4 (3 emitted disabled), skipped 1
+  NAT rules:           6   exact 4, approximated 0, needs review 1, skipped 1
+  Addresses:          14   exact 12, approximated 0, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] JUNOS_LOAD: the output is set commands for 'load set' (section 10): 'configure private', 'load set terminal' or 'load set FILE', then 'show | compare', 'commit check' and 'commit confirmed'. New policies go to the end of their pair of zones, after the policies the firewall has there, and the global policies after those: move them with 'insert ... before' where the firewall's own should not come first. Objects go into the global address book, which a firewall with address books in its zones does not accept. Assumed: names of up to 63 characters, 'match from-zone' and 'match to-zone' in global policies, and the definitions of the predefined applications the policies use
+  [needs-review] ZONES_REQUIRED: the policies and NAT rules name these security zones, which must exist on the SRX (or be renamed with --zone-map): DMZ, LAN, OT, VPN, WAN
+
+Security rules
+  Block countries  ->  needs-review, emitted disabled  (emitted as Block_countries)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocked_countries': country group. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to Internet web  ->  approximated  (emitted as LAN_to_Internet_web)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy, ScanVirus=Enable, WebFilter=Default Policy); attach equivalent inspection on the target
+  Admins to DMZ  ->  approximated  (emitted as Admins_to_DMZ)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN to DMZ web not mail  ->  approximated  (emitted as LAN_to_DMZ_web_not_mail)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN SSH out  ->  approximated  (emitted as LAN_SSH_out)
+      [info] RULE_SPLIT: the rule has exclusions of 2 kinds, which Sophos Firewall applies together (the rule is skipped only for traffic that matches all of them): written as 2 rule(s), one per kind, that match the same traffic between them: 'LAN SSH out-2'
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN SSH out-2  ->  approximated  (emitted as LAN_SSH_out-2)
+      [info] EXCLUSION_AS_ADDRESSES: source lan-net without the excluded admin-range: written as the addresses that are left (10.10.0.0-10.10.5.9, 10.10.5.21-10.11.255.255)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  Internet to web  ->  approximated  (emitted as Internet_to_web)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web-public' with post-NAT 'web-1' because of NAT rule 'Publish_web'; check that this rule is meant to cover the translated traffic
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ); attach equivalent inspection on the target
+  Internet to mail  ->  needs-review  (emitted as Internet_to_mail)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'mail-public' with post-NAT 'mail-1' because of NAT rule 'Publish_mail'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Publish_mail' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ, ScanSMTP=Enable); attach equivalent inspection on the target
+  DMZ updates  ->  approximated  (emitted as DMZ_updates)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (WebFilter=Default Policy); attach equivalent inspection on the target
+  Finance to app  ->  needs-review, emitted disabled  (emitted as Finance_to_app)
+      [needs-review] USER_MATCH: source user match Finance is not converted.
+  DNS in office hours  ->  needs-review, emitted disabled  (emitted as DNS_in_office_hours)
+      [needs-review] SCHEDULE: schedule 'Work hours (5 Day week)' is not converted; the rule would apply at all times.
+  LAN6 to Internet  ->  approximated  (emitted as LAN6_to_Internet)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  Web shop  ->  skipped
+      [needs-review] WAF_RULE: web server protection rule: the firewall answers for the web server itself (a reverse proxy), which is not a forwarding rule and is not converted. Publish the server on the target in its own way
+
+NAT rules
+  No NAT to partner  ->  exact  (emitted as source fwshift-source-LAN-LAN No_NAT_to_partner, source fwshift-source-LAN-WAN No_NAT_to_partner, source fwshift-source-LAN-DMZ No_NAT_to_partner, source fwshift-source-LAN-OT No_NAT_to_partner, source fwshift-source-LAN-VPN No_NAT_to_partner, source fwshift-source-WAN-LAN No_NAT_to_partner, source fwshift-source-WAN-WAN No_NAT_to_partner, source fwshift-source-WAN-DMZ No_NAT_to_partner, source fwshift-source-WAN-OT No_NAT_to_partner, source fwshift-source-WAN-VPN No_NAT_to_partner, source fwshift-source-DMZ-LAN No_NAT_to_partner, source fwshift-source-DMZ-WAN No_NAT_to_partner, source fwshift-source-DMZ-DMZ No_NAT_to_partner, source fwshift-source-DMZ-OT No_NAT_to_partner, source fwshift-source-DMZ-VPN No_NAT_to_partner, source fwshift-source-OT-LAN No_NAT_to_partner, source fwshift-source-OT-WAN No_NAT_to_partner, source fwshift-source-OT-DMZ No_NAT_to_partner, source fwshift-source-OT-OT No_NAT_to_partner, source fwshift-source-OT-VPN No_NAT_to_partner, source fwshift-source-VPN-LAN No_NAT_to_partner, source fwshift-source-VPN-WAN No_NAT_to_partner, source fwshift-source-VPN-DMZ No_NAT_to_partner, source fwshift-source-VPN-OT No_NAT_to_partner, source fwshift-source-VPN-VPN No_NAT_to_partner)
+      [info] NAT_EXEMPTION: a rule without translation, written as 'source-nat off'
+  NAT of LAN to Internet web  ->  skipped
+      [info] NAT_LINKED: linked NAT rule of firewall rule 'LAN to Internet web': it has no match of its own and is written with the zones, addresses and services of that rule
+      [needs-review] NAT_NOT_CONVERTED: not converted: a NAT rule of Junos matches one port range of TCP or UDP
+  Default SNAT IPv4  ->  needs-review  (emitted as source fwshift-source-LAN-WAN Default_SNAT_IPv4, source fwshift-source-WAN-WAN Default_SNAT_IPv4, source fwshift-source-DMZ-WAN Default_SNAT_IPv4, source fwshift-source-OT-WAN Default_SNAT_IPv4, source fwshift-source-VPN-WAN Default_SNAT_IPv4)
+      [needs-review] NAT_ORDER: NAT rule 'NAT_of_LAN_to_Internet_web' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+
+Addresses
+  any-example-org  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard host name '*.example.org' cannot be converted
+  Blocked countries  ->  needs-review  (emitted as Blocked_countries)
+      [needs-review] UNSUPPORTED_ADDRESS: country group cannot be converted
+      [info] RENAMED: renamed to 'Blocked_countries' to fit the target's naming rules
+
+Service groups
+  Web Access  ->  exact  (emitted as Web_Access)
+      [info] RENAMED: renamed to 'Web_Access' to fit the target's naming rules
+  NAT of LAN to Internet web services  ->  exact  (emitted as NAT_of_LAN_to_Internet_web_services)
+      [info] RENAMED: renamed to 'NAT_of_LAN_to_Internet_web_services' to fit the target's naming rules

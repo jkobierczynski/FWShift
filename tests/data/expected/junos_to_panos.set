@@ -1,0 +1,195 @@
+set address bad-net ip-netmask 198.51.100.0/24
+set address bad-host ip-netmask 192.0.2.66
+set address v6-net ip-netmask 2001:db8:10::/48
+set address lan-net ip-netmask 10.10.0.0/16
+set address updates fqdn updates.example.com
+set address web-srv ip-netmask 10.20.0.80
+set address mail-srv ip-netmask 10.20.0.25
+set address admin-range ip-range 10.10.5.10-10.10.5.20
+set address "dmz-net _dmz-book_" ip-netmask 10.20.0.0/24
+set address "lan-net _dmz-book_" ip-netmask 10.20.0.64/26
+set address-group bad static [ bad-net bad-host ]
+set address-group watched static [ bad v6-net ]
+set address-group servers static [ web-srv mail-srv ]
+set service junos-http protocol tcp port 80
+set service junos-https protocol tcp port 443
+set service app-web-alt protocol tcp port 8080-8081
+set service junos-smtp protocol tcp port 25
+set service app-mail-sub protocol tcp port 587,465
+set service junos-ssh protocol tcp port 22
+set service junos-dns-udp protocol udp port 53
+set service app-ntp protocol udp port 123
+set service junos-ping protocol tcp port 1
+set service junos-ping description "FWSHIFT PLACEHOLDER, matches nothing: the predefined application junos-ping: Juniper describes it as ICMP echo, other readers of Junos as every ICMP type"
+set service app-high protocol tcp port 1000-2000
+set service app-high protocol tcp source-port 1024-65535
+set service "NAT from-internet dnat-web-tcp" protocol tcp port 80
+set service "NAT from-internet dnat-web-udp" protocol udp port 80
+set service-group "NAT from-internet dnat-web" members [ "NAT from-internet dnat-web-tcp" "NAT from-internet dnat-web-udp" ]
+set service-group web-all members [ junos-http junos-https app-web-alt ]
+set rulebase security rules block-bad from trust
+set rulebase security rules block-bad to untrust
+set rulebase security rules block-bad source any
+set rulebase security rules block-bad destination watched
+set rulebase security rules block-bad source-user any
+set rulebase security rules block-bad category any
+set rulebase security rules block-bad application any
+set rulebase security rules block-bad service any
+set rulebase security rules block-bad action drop
+set rulebase security rules block-bad log-start yes
+set rulebase security rules block-bad log-end no
+set rulebase security rules web-out from trust
+set rulebase security rules web-out to untrust
+set rulebase security rules web-out source lan-net
+set rulebase security rules web-out destination any
+set rulebase security rules web-out source-user any
+set rulebase security rules web-out category any
+set rulebase security rules web-out application any
+set rulebase security rules web-out service web-all
+set rulebase security rules web-out action allow
+set rulebase security rules web-out log-end yes
+set rulebase security rules web-out description "web for the office"
+set rulebase security rules updates from trust
+set rulebase security rules updates to untrust
+set rulebase security rules updates source lan-net
+set rulebase security rules updates destination updates
+set rulebase security rules updates source-user any
+set rulebase security rules updates category any
+set rulebase security rules updates application any
+set rulebase security rules updates service junos-https
+set rulebase security rules updates action allow
+set rulebase security rules updates log-end no
+set rulebase security rules ping-out from trust
+set rulebase security rules ping-out to untrust
+set rulebase security rules ping-out source any
+set rulebase security rules ping-out destination any
+set rulebase security rules ping-out source-user any
+set rulebase security rules ping-out category any
+set rulebase security rules ping-out application ping
+set rulebase security rules ping-out service application-default
+set rulebase security rules ping-out action allow
+set rulebase security rules ping-out log-end no
+set rulebase security rules web-in from untrust
+set rulebase security rules web-in to dmz
+set rulebase security rules web-in source any
+set rulebase security rules web-in destination [ web-srv 203.0.113.10 ]
+set rulebase security rules web-in source-user any
+set rulebase security rules web-in category any
+set rulebase security rules web-in application any
+set rulebase security rules web-in service app-web-alt
+set rulebase security rules web-in action allow
+set rulebase security rules web-in log-end no
+set rulebase security rules mail-in from untrust
+set rulebase security rules mail-in to dmz
+set rulebase security rules mail-in source any
+set rulebase security rules mail-in destination [ mail-srv 203.0.113.25 ]
+set rulebase security rules mail-in source-user any
+set rulebase security rules mail-in category any
+set rulebase security rules mail-in application any
+set rulebase security rules mail-in service [ junos-smtp app-mail-sub ]
+set rulebase security rules mail-in action allow
+set rulebase security rules mail-in log-end no
+set rulebase security rules admin from trust
+set rulebase security rules admin to dmz
+set rulebase security rules admin source admin-range
+set rulebase security rules admin destination "dmz-net _dmz-book_"
+set rulebase security rules admin source-user any
+set rulebase security rules admin category any
+set rulebase security rules admin application any
+set rulebase security rules admin service junos-ssh
+set rulebase security rules admin action allow
+set rulebase security rules admin log-end no
+set rulebase security rules not-servers from trust
+set rulebase security rules not-servers to dmz
+set rulebase security rules not-servers source servers
+set rulebase security rules not-servers destination "lan-net _dmz-book_"
+set rulebase security rules not-servers source-user any
+set rulebase security rules not-servers category any
+set rulebase security rules not-servers application gre
+set rulebase security rules not-servers service application-default
+set rulebase security rules not-servers action allow
+set rulebase security rules not-servers negate-source yes
+set rulebase security rules not-servers log-end no
+set rulebase security rules dmz-out from dmz
+set rulebase security rules dmz-out to untrust
+set rulebase security rules dmz-out source "dmz-net _dmz-book_"
+set rulebase security rules dmz-out destination any
+set rulebase security rules dmz-out source-user any
+set rulebase security rules dmz-out category any
+set rulebase security rules dmz-out application any
+set rulebase security rules dmz-out service [ junos-dns-udp app-ntp ]
+set rulebase security rules dmz-out action allow
+set rulebase security rules dmz-out log-end no
+set rulebase security rules dmz-out disabled yes
+set rulebase security rules guest-web from guest
+set rulebase security rules guest-web to untrust
+set rulebase security rules guest-web source any
+set rulebase security rules guest-web destination 0.0.0.0/0
+set rulebase security rules guest-web source-user any
+set rulebase security rules guest-web category any
+set rulebase security rules guest-web application any
+set rulebase security rules guest-web service junos-http
+set rulebase security rules guest-web action allow
+set rulebase security rules guest-web log-end no
+set rulebase security rules guest-web disabled yes
+set rulebase security rules guest-web description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules guest-ping from guest
+set rulebase security rules guest-ping to untrust
+set rulebase security rules guest-ping source any
+set rulebase security rules guest-ping destination any
+set rulebase security rules guest-ping source-user any
+set rulebase security rules guest-ping category any
+set rulebase security rules guest-ping application any
+set rulebase security rules guest-ping service junos-ping
+set rulebase security rules guest-ping action allow
+set rulebase security rules guest-ping log-end no
+set rulebase security rules guest-ping disabled yes
+set rulebase security rules guest-ping description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules intra from trust
+set rulebase security rules intra to trust
+set rulebase security rules intra source any
+set rulebase security rules intra destination any
+set rulebase security rules intra source-user any
+set rulebase security rules intra category any
+set rulebase security rules intra application any
+set rulebase security rules intra service any
+set rulebase security rules intra action allow
+set rulebase security rules intra log-end no
+set rulebase security rules global-block from any
+set rulebase security rules global-block to any
+set rulebase security rules global-block source bad
+set rulebase security rules global-block destination any
+set rulebase security rules global-block source-user any
+set rulebase security rules global-block category any
+set rulebase security rules global-block application any
+set rulebase security rules global-block service any
+set rulebase security rules global-block action reset-client
+set rulebase security rules global-block log-end no
+set rulebase security rules global-ntp from trust
+set rulebase security rules global-ntp to untrust
+set rulebase security rules global-ntp source any
+set rulebase security rules global-ntp destination any
+set rulebase security rules global-ntp source-user any
+set rulebase security rules global-ntp category any
+set rulebase security rules global-ntp application any
+set rulebase security rules global-ntp service [ app-ntp app-high ]
+set rulebase security rules global-ntp action allow
+set rulebase security rules global-ntp log-end no
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules "dmz-out snat-dmz" from dmz
+set rulebase nat rules "dmz-out snat-dmz" to untrust
+set rulebase nat rules "dmz-out snat-dmz" source 10.20.0.0/24
+set rulebase nat rules "dmz-out snat-dmz" destination any
+set rulebase nat rules "dmz-out snat-dmz" service any
+set rulebase nat rules "dmz-out snat-dmz" source-translation dynamic-ip-and-port translated-address 203.0.113.50-203.0.113.59

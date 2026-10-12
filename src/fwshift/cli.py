@@ -23,6 +23,7 @@ from .emitters import iptables as emit_iptables
 from .emitters import panos as emit_panos
 from .emitters import pfsense as emit_pfsense
 from .emitters import barracuda as emit_barracuda
+from .emitters import junos as emit_junos
 from .emitters import sonicwall as emit_sonicwall
 from .emitters import sophos as emit_sophos
 from .emitters import watchguard as emit_watchguard
@@ -38,6 +39,7 @@ from .parsers import iptables as parse_iptables
 from .parsers import panos as parse_panos
 from .parsers import pfsense as parse_pfsense
 from .parsers import barracuda as parse_barracuda
+from .parsers import junos as parse_junos
 from .parsers import sonicwall as parse_sonicwall
 from .parsers import sophos as parse_sophos
 from .parsers import watchguard as parse_watchguard
@@ -54,12 +56,13 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "pfsense": emit_pfsense.emit,
     "sonicwall": emit_sonicwall.emit,
     "barracuda": emit_barracuda.emit,
+    "junos": emit_junos.emit,
     "watchguard": emit_watchguard.emit,
     "fmc": emit_cisco.emit_fmc,
     "fdm": emit_cisco.emit_fdm,
 }
-VENDORS = ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "pfsense", "sonicwall", "watchguard", "barracuda", "iptables",
-           "ip6tables")  # fmt: skip
+VENDORS = ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "pfsense", "sonicwall", "watchguard", "barracuda", "junos",
+           "iptables", "ip6tables")  # fmt: skip
 
 
 def detect_format(data: bytes) -> str:
@@ -102,6 +105,8 @@ def detect_format(data: bytes) -> str:
             return "iptables"  # the parser tells IPv4 from IPv6
         if line and not line.startswith(b"#"):
             break
+    if parse_junos.looks_like_junos(head):
+        return "junos"
     if parse_asa.looks_like_asa(head[:1_000_000].decode("utf-8", errors="replace")):
         return "asa"
     return "fortios"
@@ -131,6 +136,8 @@ def load(
         return parse_watchguard.parse(data, report)
     if source == "barracuda":
         return parse_barracuda.parse(data, report)
+    if source == "junos":
+        return parse_junos.parse(data, report)
     if source in ("fmc", "fdm"):
         return parse_cisco.parse(data, report, source, policy=policy, nat_policy=nat_policy)
     if source in ("iptables", "ip6tables"):
@@ -325,7 +332,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="fwshift",
         description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall "
-        "(Management Center and Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda and iptables, with a lossiness "
+        "(Management Center and Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX and iptables, with a lossiness "
         "report.",
     )
     parser.add_argument("--version", action="version", version=f"fwshift {__version__}")
@@ -375,7 +382,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conv.add_argument(
         "--target-prefix", default="", metavar="TEXT",
-        help="Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard, Barracuda and Cisco Secure Firewall targets: prefix for the names of created objects",
+        help="Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard, Barracuda, Juniper and Cisco Secure Firewall targets: prefix for the names of created objects",
     )  # fmt: skip
     conv.add_argument(
         "--target-policy", default="FWShift", metavar="NAME",

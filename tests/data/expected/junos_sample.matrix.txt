@@ -1,0 +1,45 @@
+FWShift zone matrix
+  source: junos (root)
+  security rules: 14 (1 disabled, 1 never match)
+
+What each zone may reach (rows: from, columns: to)
+           untrust           trust             dmz               guest
+  untrust  -                 -                 tcp/25 +3         -
+  trust    icmp type 8 +5    any               tcp/22 +1         -
+  dmz      -                 -                 -                 -
+  guest    tcp/80 +1~        -                 -                 -
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+untrust -> dmz
+  allowed: tcp/25, tcp/465, tcp/587, tcp/8080-8081
+  rule 'web-in': any -> web-srv: tcp/8080-8081
+  rule 'mail-in': any -> mail-srv: tcp/25, tcp/465, tcp/587
+trust -> untrust
+  allowed: icmp type 8, tcp/80, tcp/443, tcp/8080-8081, tcp/1000-2000 from port 1024-65535, udp/123
+  industrial protocols: niagara-fox (rule 'global-ntp')
+  rule 'web-out': lan-net -> any: tcp/80, tcp/443, tcp/8080-8081
+  rule 'ping-out': any -> any: icmp type 8
+  rule 'global-ntp': any -> any: tcp/1000-2000 from port 1024-65535, udp/123
+trust -> trust (inside the zone)
+  allowed: any
+  rule 'intra': any -> any: any
+trust -> dmz
+  allowed: tcp/22, ip/47 (gre)
+  rule 'admin': admin-range -> dmz-net (dmz-book): tcp/22
+  rule 'not-servers': not servers -> lan-net (dmz-book): ip/47 (gre)
+guest -> untrust
+  allowed: tcp/80, svc:junos-ping ~
+  rule 'guest-web': any -> 0.0.0.0/0: tcp/80 (schedule work-hours)
+  rule 'guest-ping': any -> any: service 'junos-ping' (not read) ~
+
+From reading the configuration
+  JUNOS_FORMAT: read 14 security policies and 6 NAT rules of the root system. Policies are looked up after static and destination NAT; they were brought back to the original destination, as the model has it
+  PREDEFINED_APPLICATIONS: predefined applications are not in the configuration; these were taken from FWShift's table of them: junos-dns-udp, junos-http, junos-https, junos-ping, junos-smtp, junos-ssh
+  HOST_POLICIES: policies for the zone junos-host (traffic to and from the firewall itself) are not read: 'to-box'
+
+Notes
+  1 rule(s) never match and are left out; 'fwshift audit' names them.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  svc:NAME: a service of the source that could not be read (an application or category of the vendor, a service without ports). The rule allows that, whatever it is.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

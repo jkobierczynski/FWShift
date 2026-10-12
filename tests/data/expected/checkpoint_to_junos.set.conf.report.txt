@@ -1,0 +1,79 @@
+FWShift conversion report
+  source: checkpoint (Network)
+  target: junos
+
+Summary
+  Security rules:     18   exact 6, approximated 2, needs review 10 (5 emitted disabled), skipped 0
+  NAT rules:           9   exact 7, approximated 0, needs review 2, skipped 0
+  Addresses:          16   exact 13, approximated 1, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IMPLIED_RULES: Check Point implied rules (global properties) and the other ordered layers of the policy package are not part of the export; only the rules of one layer were read ('Network')
+  [needs-review] JUNOS_LOAD: the output is set commands for 'load set' (section 10): 'configure private', 'load set terminal' or 'load set FILE', then 'show | compare', 'commit check' and 'commit confirmed'. New policies go to the end of their pair of zones, after the policies the firewall has there, and the global policies after those: move them with 'insert ... before' where the firewall's own should not come first. Objects go into the global address book, which a firewall with address books in its zones does not accept. Assumed: names of up to 63 characters, 'match from-zone' and 'match to-zone' in global policies, and the definitions of the predefined applications the policies use
+  [needs-review] ZONES_REQUIRED: the policies and NAT rules name these security zones, which must exist on the SRX (or be renamed with --zone-map): ExternalZone, InternalZone
+
+Security rules
+  rule-2  ->  needs-review
+      [needs-review] DEVICE_TARGET: the rule is installed only on gw-edge; decide whether it belongs on the target firewall
+  Guests stay out  ->  exact  (emitted as Guests_stay_out)
+      [info] NEGATION_EXPANDED: a negated destination that Junos cannot negate (IPv6, a host name, more than 10 addresses) is written as the addresses that are left
+  Social  ->  needs-review, emitted disabled
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-6' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Facebook': object of type 'application-site'.
+  Admins  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netadmins': object of type 'access-role'.
+  Updates  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Work-Hours' is not converted; the rule would apply at all times.
+  Old rule  ->  needs-review, emitted disabled  (emitted as Old_rule)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'lan-without-guests': object of type 'group-with-exclusion'.
+  Partners  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: VPN community match Partner-VPN.
+  Public web  ->  approximated  (emitted as Public_web)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web-1_valid_address' with post-NAT 'web-1' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+  DMZ access / Web in  ->  needs-review  (emitted as DMZ_access___Web_in)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web-1', the address NAT rule 'nat-2' translates 'web-1_valid_address' to. The target looks rules up after that translation, so traffic sent to 'web-1_valid_address' now matches this rule; on the source it did not
+  DMZ access / Mail in  ->  needs-review  (emitted as DMZ_access___Mail_in)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail-1', the address NAT rule 'nat-6' translates 'mail-public' to. The target looks rules up after that translation, so traffic sent to 'mail-public' now matches this rule; on the source it did not
+  DMZ access / Ping from LAN  ->  needs-review  (emitted as DMZ_access___Ping_from_LAN)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web-1', the address NAT rule 'nat-2' translates 'web-1_valid_address' to. The target looks rules up after that translation, so traffic sent to 'web-1_valid_address' now matches this rule; on the source it did not
+  DMZ access (cleanup of DMZ-Layer)  ->  needs-review  (emitted as DMZ_access__cleanup_of_DMZ-Layer_)
+      [info] INLINE_CLEANUP: added for the implicit cleanup of inline layer 'DMZ-Layer', which is drop
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web-1', the address NAT rule 'nat-2' translates 'web-1_valid_address' to. The target looks rules up after that translation, so traffic sent to 'web-1_valid_address' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail-1', the address NAT rule 'nat-6' translates 'mail-public' to. The target looks rules up after that translation, so traffic sent to 'mail-public' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+  Tunnels  ->  approximated
+      [approximated] GATEWAY_OBJECT: matches gateway object gw-edge, which stood for every address of the gateway; only its main address is known, so the converted rule no longer applies to its other addresses
+
+NAT rules
+  nat-1  ->  exact
+      [info] NAT_STATIC: written with 'nat-2' as one static NAT rule of Junos
+  nat-2  ->  exact  (emitted as static fwshift-static-InternalZone nat-2, static fwshift-static-ExternalZone nat-2)
+      [info] NAT_STATIC: written with 'nat-1' as one static NAT rule of Junos, which translates both ways
+  nat-3  ->  exact  (emitted as source fwshift-source-InternalZone-InternalZone nat-3, source fwshift-source-InternalZone-ExternalZone nat-3, source fwshift-source-ExternalZone-InternalZone nat-3, source fwshift-source-ExternalZone-ExternalZone nat-3)
+      [info] NAT_EXEMPTION: a rule without translation, written as 'source-nat off'
+  nat-5  ->  exact  (emitted as source fwshift-source-InternalZone-InternalZone nat-5, source fwshift-source-InternalZone-ExternalZone nat-5, source fwshift-source-ExternalZone-InternalZone nat-5, source fwshift-source-ExternalZone-ExternalZone nat-5)
+      [info] NAT_EXEMPTION: a rule without translation, written as 'source-nat off'
+  nat-6  ->  needs-review  (emitted as destination fwshift-destination-InternalZone nat-6, destination fwshift-destination-ExternalZone nat-6)
+      [needs-review] NAT_ORDER: NAT rule 'nat-1' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+      [needs-review] NAT_ORDER: on the source, NAT rule 'nat-4' above this one matches part of its traffic first, and that traffic keeps its destination. The target translates destinations apart from sources: the destination translation of this rule applies to that traffic as well
+  nat-7  ->  needs-review  (emitted as source fwshift-source-InternalZone-InternalZone nat-7, source fwshift-source-InternalZone-ExternalZone nat-7, source fwshift-source-ExternalZone-InternalZone nat-7, source fwshift-source-ExternalZone-ExternalZone nat-7)
+      [needs-review] NAT_ORDER: NAT rule 'nat-1' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+      [needs-review] NAT_ORDER: on the source, traffic forwarded by NAT rules 'nat-2' (to web-1), 'nat-6' (to mail-1) keeps its source address. The target translates sources apart from destinations, after the destination: this rule translates the source of that traffic as well
+
+Addresses
+  web-1  ->  exact
+      [info] AUTOMATIC_NAT: the object has automatic static NAT to 203.0.113.10: as on Check Point, rules and groups that name it also match that address, written as 'web-1_valid_address'
+  netadmins  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: object of type 'access-role' cannot be converted
+  .updates.example.com  ->  exact  (emitted as x.updates.example.com)
+      [info] RENAMED: renamed to 'x.updates.example.com' to fit the target's naming rules
+  lan-without-guests  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: object of type 'group-with-exclusion' cannot be converted
+  gw-edge  ->  approximated
+      [approximated] GATEWAY_OBJECT: a gateway object stands for every address of the gateway; only its main address 198.51.100.1 is in the export
+
+Services
+  Facebook  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: object of type 'application-site': not converted
