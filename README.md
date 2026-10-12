@@ -16,6 +16,7 @@ what was approximated and what a person has to look at.
 | Sophos Firewall (SFOS 18 and later) | the export of *Import export* (`.tar` or its `Entities.xml`) | the same, for import |
 | pfSense (2.6 and later; CE and Plus) | the configuration backup (`config.xml`) | the areas Aliases, NAT and Firewall Rules, for *Backup & Restore* |
 | SonicWall (SonicOS 6.5 and 7) | the settings export (`.exp`) | commands of the SonicOS 7 command line |
+| WatchGuard (Fireware 12) | the configuration file of Policy Manager (XML) | its policy part, to merge into a configuration of the target |
 | Linux iptables / ip6tables | `iptables-save` output | `iptables-restore` file |
 
 It also **audits** a policy, of any of these formats: rules that allow too
@@ -26,7 +27,7 @@ on which services, through which rules.
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.9).** The converter is tested against synthetic
+> **Status: alpha (0.10).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** is checked against the real thing: generated rulesets are
@@ -35,7 +36,7 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   rules on one kernel (iptables 1.8.10, nf_tables backend); NAT rules and
 >   IPv6 rulesets are loaded but no packets are sent through them.
 > * **PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall,
->   Sophos Firewall, pfSense and SonicWall** output has **not been loaded on a
+>   Sophos Firewall, pfSense, SonicWall and WatchGuard** output has **not been loaded on a
 >   device or management server**. The Check Point input format is taken from the API
 >   documentation, not from a real export, the ASA and FTD syntax from Cisco's
 >   command references, and the Sophos format from the documentation of its
@@ -49,8 +50,10 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   checked against a model of it written for the tests, not against pf. The
 >   SonicWall settings export is undocumented beyond its encoding: its keys are
 >   those the published readers of the format agree on, and the commands are
->   those of SonicWall's knowledge base, a few of them assumed. Several conversion rules rest on vendor behaviour taken
->   from documentation rather than from a lab.
+>   those of SonicWall's knowledge base, a few of them assumed. The WatchGuard
+>   configuration file is not documented at all: its elements are those the
+>   published readers of the format agree on. Several conversion rules rest on
+>   vendor behaviour taken from documentation rather than from a lab.
 >
 > Treat the output as a draft for a lab, read the report, and never load it in
 > production unreviewed.
@@ -104,8 +107,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.9.0.pyz --version
-python3 fwshift-0.9.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.10.0.pyz --version
+python3 fwshift-0.10.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -180,6 +183,13 @@ fwshift convert sonicwall.exp --to fortios -o fortigate.conf --report report.txt
 fwshift convert running-config.xml --to sonicwall -o sonicwall.cli --report report.txt \
     --zone-map trust=LAN --zone-map untrust=WAN --interface-map ethernet1/1=X1
 
+# WatchGuard: the file Policy Manager saves (File > Save > As File). To a
+# Firebox, the output is the policy part of such a file: merge it into the
+# configuration of the target in Policy Manager; zones are interfaces there
+fwshift convert firebox.xml --to fortios -o fortigate.conf --report report.txt
+fwshift convert running-config.xml --to watchguard -o policies.xml --report report.txt \
+    --zone-map trust=Trusted --zone-map untrust=External
+
 # What did the parser read?
 fwshift inspect fgt-backup.conf
 
@@ -204,7 +214,7 @@ calls, for an ASA `show running-config`, for a Sophos Firewall an export under
 *Backup & firmware > Import export*, for a Management Center a handful of
 `curl` calls to its REST API, for a Device Manager its configuration export,
 for a pfSense the backup under *Diagnostics > Backup & Restore*, for a
-SonicWall *Export Settings*.
+SonicWall *Export Settings*, for a WatchGuard the file Policy Manager saves.
 
 The report starts with a summary and then lists every rule that is not exact:
 
@@ -250,7 +260,7 @@ proves nothing about another rule: the audit lists it instead.
 `--audit-fail-on high` makes it a gate for a pipeline. See
 [section 13 of the manual](docs/MANUAL.md#13-auditing-a-policy).
 
-Eight synthetic configurations to try it on, one per format, are in
+Synthetic configurations to try it on, one per format, are in
 [`tests/data`](tests/data), with their conversions in
 [`tests/data/expected`](tests/data/expected).
 
@@ -350,6 +360,16 @@ knows only interfaces. Text, JSON or CSV. See
 | NAT | NAT policies, first match: source, destination and service translated in one policy, interfaces as zones, reflexive policies as a policy of their own. Written the same way, one policy per pair of interfaces |
 | Scope | SonicOS 6.5 and 7 in Classic mode; the whole export |
 
+| | WatchGuard |
+|---|---|
+| Address objects | address groups of hosts, networks, ranges and host names; `Firebox`, from the interfaces of the file. Written: the same |
+| Address groups | aliases, nested, whose members are an address at an interface. Written: aliases |
+| Services | TCP and UDP ports and ranges, ICMP and ICMPv6 type and code, IP protocols |
+| Service groups | none: a service holds several members. Written: one service per rule that needs several |
+| Security rules | policies, first match, in the order of the file; allow (proxy policies too), deny; enabled; interfaces as zones, a policy split into one rule per pair of interfaces it names. Written: one policy per rule, in manual order, with aliases of every zone and address it names; negation as the addresses that are left |
+| NAT | static NAT actions of a policy, as a NAT rule of their own. Written: a NAT rule that translates the destination to one address, as the static NAT action of the policy that allows exactly its traffic |
+| Scope | Fireware 12; the whole file. Written: the policy part of a file, not a file to restore |
+
 Not converted, and reported where a rule depends on it: security profiles,
 schedules, user and group matches, URL categories, HIP profiles, application
 filters, wildcard-mask and geography addresses, external dynamic lists,
@@ -367,16 +387,17 @@ tags, limiters and traffic shaping, match rules, NPt, IPv6 NAT, bogon
 networks, the rules of the captive portal and of packages, OPNsense
 configurations, SonicWall ICMP service objects, users, schedules, source-port
 services and the security services of a rule (Geo-IP, botnet filter), its
-IPv6 and MAC address objects and Policy mode (SonicOSX), routing, interfaces, VPN, and everything else outside the
-policy.
+IPv6 and MAC address objects and Policy mode (SonicOSX), WatchGuard network
+dynamic NAT and 1-to-1 NAT, proxy actions and schedules, routing, interfaces,
+VPN, and everything else outside the policy.
 
 ## Roadmap
 
 [TODO.md](TODO.md) has the list. In short:
 
-* **More firewall brands, one per release**: WatchGuard (0.10), Barracuda
-  (0.11), Juniper (0.12). Sophos Firewall was 0.6, Cisco Secure Firewall
-  (formerly Firepower) 0.7, pfSense 0.8, SonicWall 0.9.
+* **More firewall brands, one per release**: Barracuda (0.11), Juniper
+  (0.12). Sophos Firewall was 0.6, Cisco Secure Firewall (formerly
+  Firepower) 0.7, pfSense 0.8, SonicWall 0.9, WatchGuard 0.10.
 * Audit and matrix: the matrix before and after a conversion, a zone and
   conduit model as a file to check a policy against, an equivalence check as
   a command, zone ranks, hit counts.

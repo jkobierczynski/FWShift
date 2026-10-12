@@ -1,0 +1,158 @@
+set address Web-Server.1.alm ip-netmask 10.20.0.10
+set address Mail-Server.1.alm ip-netmask 10.20.0.25
+set address Admins.1.alm ip-range 10.10.5.10-10.10.5.20
+set address Bad-Nets.1.alm ip-netmask 203.0.113.0/25
+set address Bad-Nets.2.alm ip-netmask 192.0.2.66
+set address "Update-Site.1.alm updates.example.com" fqdn updates.example.com
+set address Web-Public.1.snat ip-netmask 198.51.100.10
+set address Web-Public.2.snat ip-netmask 10.20.0.10
+set address Mail-Public.1.snat ip-netmask 198.51.100.11
+set address Mail-Public.2.snat ip-netmask 10.20.0.25
+set address-group Update-Site.1.alm static "Update-Site.1.alm updates.example.com"
+set address h-198.51.100.2 ip-netmask 198.51.100.2
+set address h-10.10.0.1 ip-netmask 10.10.0.1
+set address h-10.20.0.1 ip-netmask 10.20.0.1
+set address h-10.30.0.1 ip-netmask 10.30.0.1
+set address h-10.40.0.1 ip-netmask 10.40.0.1
+set address-group Firebox static [ h-198.51.100.2 h-10.10.0.1 h-10.20.0.1 h-10.30.0.1 h-10.40.0.1 ]
+set address-group Firebox description "the addresses of the interfaces of the Firebox"
+set service SSH protocol tcp port 22
+set service "Web Out" protocol tcp port 80,443,8000-8010
+set service HTTPS protocol tcp port 443
+set service SMTP protocol tcp port 25
+set service "Staff Only" protocol tcp port 3389
+set service DNS-tcp protocol tcp port 53
+set service DNS-udp protocol udp port 53
+set service-group DNS members [ DNS-tcp DNS-udp ]
+set rulebase security rules "Block Bad" from [ Trusted Guests ]
+set rulebase security rules "Block Bad" to any
+set rulebase security rules "Block Bad" source any
+set rulebase security rules "Block Bad" destination [ Bad-Nets.1.alm Bad-Nets.2.alm ]
+set rulebase security rules "Block Bad" source-user any
+set rulebase security rules "Block Bad" category any
+set rulebase security rules "Block Bad" application any
+set rulebase security rules "Block Bad" service any
+set rulebase security rules "Block Bad" action deny
+set rulebase security rules "Block Bad" log-end yes
+set rulebase security rules "Block Bad" disabled yes
+set rulebase security rules "Block Bad" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Admin SSH" from Trusted
+set rulebase security rules "Admin SSH" to External
+set rulebase security rules "Admin SSH" source Admins.1.alm
+set rulebase security rules "Admin SSH" destination any
+set rulebase security rules "Admin SSH" source-user any
+set rulebase security rules "Admin SSH" category any
+set rulebase security rules "Admin SSH" application any
+set rulebase security rules "Admin SSH" service SSH
+set rulebase security rules "Admin SSH" action allow
+set rulebase security rules "Admin SSH" log-end yes
+set rulebase security rules "Web Out" from [ Trusted Guests DMZ ]
+set rulebase security rules "Web Out" to External
+set rulebase security rules "Web Out" source any
+set rulebase security rules "Web Out" destination any
+set rulebase security rules "Web Out" source-user any
+set rulebase security rules "Web Out" category any
+set rulebase security rules "Web Out" application any
+set rulebase security rules "Web Out" service "Web Out"
+set rulebase security rules "Web Out" action allow
+set rulebase security rules "Web Out" log-end yes
+set rulebase security rules "Web In" from External
+set rulebase security rules "Web In" to any
+set rulebase security rules "Web In" source any
+set rulebase security rules "Web In" destination Web-Public.1.snat
+set rulebase security rules "Web In" source-user any
+set rulebase security rules "Web In" category any
+set rulebase security rules "Web In" application any
+set rulebase security rules "Web In" service HTTPS
+set rulebase security rules "Web In" action allow
+set rulebase security rules "Web In" log-end yes
+set rulebase security rules "Mail In" from External
+set rulebase security rules "Mail In" to any
+set rulebase security rules "Mail In" source any
+set rulebase security rules "Mail In" destination Mail-Public.1.snat
+set rulebase security rules "Mail In" source-user any
+set rulebase security rules "Mail In" category any
+set rulebase security rules "Mail In" application any
+set rulebase security rules "Mail In" service SMTP
+set rulebase security rules "Mail In" action allow
+set rulebase security rules "Mail In" log-end yes
+set rulebase security rules "DMZ Updates" from DMZ
+set rulebase security rules "DMZ Updates" to any
+set rulebase security rules "DMZ Updates" source any
+set rulebase security rules "DMZ Updates" destination Update-Site.1.alm
+set rulebase security rules "DMZ Updates" source-user any
+set rulebase security rules "DMZ Updates" category any
+set rulebase security rules "DMZ Updates" application any
+set rulebase security rules "DMZ Updates" service HTTPS
+set rulebase security rules "DMZ Updates" action allow
+set rulebase security rules "DMZ Updates" log-end yes
+set rulebase security rules "DMZ Updates" disabled yes
+set rulebase security rules "DMZ Updates" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Guests Out" from Guests
+set rulebase security rules "Guests Out" to External
+set rulebase security rules "Guests Out" source any
+set rulebase security rules "Guests Out" destination any
+set rulebase security rules "Guests Out" source-user any
+set rulebase security rules "Guests Out" category any
+set rulebase security rules "Guests Out" application any
+set rulebase security rules "Guests Out" service DNS
+set rulebase security rules "Guests Out" action allow
+set rulebase security rules "Guests Out" log-end yes
+set rulebase security rules "Guests Out" disabled yes
+set rulebase security rules "Staff Only" from Trusted
+set rulebase security rules "Staff Only" to any
+set rulebase security rules "Staff Only" source any
+set rulebase security rules "Staff Only" destination Web-Server.1.alm
+set rulebase security rules "Staff Only" source-user Staff
+set rulebase security rules "Staff Only" category any
+set rulebase security rules "Staff Only" application any
+set rulebase security rules "Staff Only" service "Staff Only"
+set rulebase security rules "Staff Only" action allow
+set rulebase security rules "Staff Only" log-end yes
+set rulebase security rules Ping from [ Trusted Guests ]
+set rulebase security rules Ping to any
+set rulebase security rules Ping source any
+set rulebase security rules Ping destination any
+set rulebase security rules Ping source-user any
+set rulebase security rules Ping category any
+set rulebase security rules Ping application ping
+set rulebase security rules Ping service application-default
+set rulebase security rules Ping action allow
+set rulebase security rules Ping log-end yes
+set rulebase security rules "Lab Tunnel" from Lab
+set rulebase security rules "Lab Tunnel" to External
+set rulebase security rules "Lab Tunnel" source any
+set rulebase security rules "Lab Tunnel" destination any
+set rulebase security rules "Lab Tunnel" source-user any
+set rulebase security rules "Lab Tunnel" category any
+set rulebase security rules "Lab Tunnel" application gre
+set rulebase security rules "Lab Tunnel" service application-default
+set rulebase security rules "Lab Tunnel" action allow
+set rulebase security rules "Lab Tunnel" log-end yes
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules "Web-Public _Web In_" from External
+set rulebase nat rules "Web-Public _Web In_" to External
+set rulebase nat rules "Web-Public _Web In_" source any
+set rulebase nat rules "Web-Public _Web In_" destination Web-Public.1.snat
+set rulebase nat rules "Web-Public _Web In_" service HTTPS
+set rulebase nat rules "Web-Public _Web In_" destination-translation translated-address Web-Public.2.snat
+set rulebase nat rules "Web-Public _Web In_" description "static NAT action Web-Public of policy Web In"
+set rulebase nat rules "Mail-Public _Mail In_" from External
+set rulebase nat rules "Mail-Public _Mail In_" to External
+set rulebase nat rules "Mail-Public _Mail In_" source any
+set rulebase nat rules "Mail-Public _Mail In_" destination Mail-Public.1.snat
+set rulebase nat rules "Mail-Public _Mail In_" service SMTP
+set rulebase nat rules "Mail-Public _Mail In_" destination-translation translated-address Mail-Public.2.snat
+set rulebase nat rules "Mail-Public _Mail In_" destination-translation translated-port 2525
+set rulebase nat rules "Mail-Public _Mail In_" description "static NAT action Mail-Public of policy Mail In"

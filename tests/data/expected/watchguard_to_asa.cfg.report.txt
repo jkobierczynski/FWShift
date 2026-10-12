@@ -1,0 +1,52 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: asa
+
+Summary
+  Security rules:     10   exact 2, approximated 1, needs review 7 (6 emitted disabled), skipped 0
+  NAT rules:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: External, Trusted, DMZ, Guests, Lab. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+  [info] FQDN_DNS: objects with a host name need name resolution on the ASA ('dns domain-lookup' and a DNS server group)
+
+Security rules
+  Admin SSH  ->  needs-review, emitted disabled  (emitted as Trusted_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by External, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind DMZ, Guests, Lab, External with --zone-network.
+  Web Out  ->  needs-review, emitted disabled  (emitted as Trusted_access_in, Guests_access_in, DMZ_access_in)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by External, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind DMZ, Guests, Lab, External, Trusted with --zone-network.
+  Web In  ->  approximated  (emitted as External_access_in)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Web-Public.1.snat' with post-NAT 'Web-Public.2.snat' because of NAT rule 'Web-Public__Web_In_'; check that this rule is meant to cover the translated traffic
+  Mail In  ->  needs-review  (emitted as External_access_in)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Mail-Public.1.snat' with post-NAT 'Mail-Public.2.snat' because of NAT rule 'Mail-Public__Mail_In_'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Mail-Public__Mail_In_' also translates the port to 2525; the service of this rule still names the pre-NAT port and must be adjusted
+  DMZ Updates  ->  needs-review, emitted disabled  (emitted as DMZ_access_in)
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+  Guests Out  ->  needs-review, emitted disabled  (emitted as Guests_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by External, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Trusted, DMZ, Lab, External with --zone-network.
+  Staff Only  ->  needs-review, emitted disabled  (emitted as Trusted_access_in)
+      [needs-review] USER_MATCH: source user match Staff is not converted.
+  Lab Tunnel  ->  needs-review, emitted disabled  (emitted as Lab_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by External, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Trusted, DMZ, Guests, External with --zone-network.
+
+Addresses
+  Update-Site.1.alm updates.example.com  ->  exact  (emitted as Update-Site.1.alm_updates.example.com)
+      [info] RENAMED: renamed to 'Update-Site.1.alm_updates.example.com' to fit the target's naming rules
+
+Services
+  Block Bad  ->  exact  (emitted as Block_Bad)
+      [info] RENAMED: renamed to 'Block_Bad' to fit the target's naming rules
+  Web Out  ->  exact  (emitted as Web_Out)
+      [info] RENAMED: renamed to 'Web_Out' to fit the target's naming rules
+  Staff Only  ->  exact  (emitted as Staff_Only)
+      [info] RENAMED: renamed to 'Staff_Only' to fit the target's naming rules
+  Lab Tunnel  ->  exact  (emitted as Lab_Tunnel)
+      [info] RENAMED: renamed to 'Lab_Tunnel' to fit the target's naming rules

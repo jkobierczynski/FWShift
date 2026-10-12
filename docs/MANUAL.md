@@ -2,10 +2,10 @@
 
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
 Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
-or by its Device Manager), Sophos Firewall, pfSense, SonicWall and Linux iptables, and tells you,
+or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard and Linux iptables, and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; and show what each zone may reach in each
-other zone. This manual covers version 0.9.
+other zone. This manual covers version 0.10.
 
 **Contents**
 
@@ -51,17 +51,18 @@ FWShift converts the **policy**. It does not convert interfaces, routing, VPN,
 users, security profiles, or system settings, and it is not a substitute for
 testing the result.
 
-> **Status.** Version 0.9 is tested against synthetic configurations. iptables
+> **Status.** Version 0.10 is tested against synthetic configurations. iptables
 > output and input are checked against a Linux kernel (filter rules, one
 > kernel and iptables version). Output for PAN-OS, FortiOS, Check Point,
-> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense and SonicWall has
+> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall and WatchGuard has
 > not been loaded on a device or management server yet; the Check Point input format follows the
 > API documentation, the ASA and FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
 > Sophos's own SDK, and the JSON of a Management Center and of a Device
 > Manager their API documentation and the tooling Cisco publishes for them.
 > What pfSense makes of its configuration is taken from its source code; the
-> SonicWall settings export from the published readers of the format.
+> SonicWall settings export and the WatchGuard configuration file from the
+> published readers of those formats.
 > Use FWShift to produce a draft for a lab.
 
 ## 2. Installation
@@ -422,6 +423,25 @@ give it with `--interface-address X1=198.51.100.7/24`.
 Firewalls in Policy mode (SonicOS 7 *SonicOSX*, NSsp) keep security
 policies of another kind, which are not read.
 
+**WatchGuard (Fireware 12).** Open the configuration in Policy Manager and
+save it with *File > Save > As File*: an XML file whose root is `<profile>`.
+The Web UI downloads the same file, zipped (*System > Configuration File*):
+unzip it first.
+
+```sh
+fwshift inspect firebox.xml
+fwshift convert firebox.xml --to panos -o panos.set --report report.txt
+```
+
+WatchGuard does not document this file. FWShift reads the elements the
+published readers of the format agree on (interfaces, address groups,
+aliases, services, policies and the static NAT actions they use) and says so
+in the report (`WATCHGUARD_FORMAT`). In automatic policy order the Firebox
+orders the policies itself; FWShift reads them in the order of the file and
+says so (`POLICY_ORDER_AUTOMATIC`): switch Policy Manager to manual order
+before you save the file, and the order of the file is the order of the
+Firebox.
+
 **Check Point.** There is no configuration file to export. FWShift reads what
 the Management API answers to `show access-rulebase` and `show nat-rulebase`,
 as JSON. On the management server, or on any host with `mgmt_cli`:
@@ -543,7 +563,7 @@ TCP 502 and TCP 102, not the applications themselves.
 ### `fwshift convert`
 
 ```
-fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,sonicwall,iptables,ip6tables,json} [options]
+fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,sonicwall,watchguard,iptables,ip6tables,json} [options]
 ```
 
 `INPUT` is a file, or `-` for standard input.
@@ -552,7 +572,7 @@ fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,
 
 | Option | Meaning |
 |---|---|
-| `--from {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,sonicwall,iptables,ip6tables}` | Source format. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; other XML is PAN-OS; JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,sonicwall,watchguard,iptables,ip6tables}` | Source format. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; other XML is PAN-OS; JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
@@ -577,6 +597,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to fdm` | A file for the configuration import of a Cisco Secure Firewall Device Manager: objects, access rules, manual NAT rules (section 10). |
 | `--to sophos` | An `Entities.xml` for *Import export* of a Sophos Firewall (SFOS 18 and later). With `-o NAME.tar`, the archive an import takes. |
 | `--to sonicwall` | Commands of the SonicOS 7 command line, to paste into an SSH session: objects, NAT policies, access rules (section 10). |
+| `--to watchguard` | The policy part of a Policy Manager configuration file (Fireware 12): address groups, aliases, services, static NAT actions and policies in manual order, to merge into a configuration of the target (section 10). |
 | `--to pfsense` | A configuration file with the areas Aliases, NAT and Firewall Rules, for *Diagnostics > Backup & Restore* of pfSense 2.7 or later. Each restore of an area **replaces** that area (section 10). |
 | `--to iptables` | A file for `iptables-restore`: the IPv4 half of the policy. |
 | `--to ip6tables` | A file for `ip6tables-restore`: the IPv6 half. |
@@ -590,7 +611,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--target-layer NAME` | Check Point: the access layer the rules are written to. Default `Network`. It must exist. |
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
-| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, SonicWall, Management Center and Device Manager: put `TEXT` in front of the name of every object (on an ASA also every access list) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
+| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard, Management Center and Device Manager: put `TEXT` in front of the name of every object (on an ASA also every access list) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
 | `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates. Default `FWShift`. The script can be given another name when it is run (`--name`). |
 
 **Adapting the policy**
@@ -1043,6 +1064,19 @@ Notes that only a SonicWall source or target raises:
 | `DEFAULT_DENY_ADDED` | I | Target: a rule that denies was added at the end of each pair of zones and IP version, because SonicOS allows some pairs by itself and the source did not. |
 | `ICMP_AS_DEFAULT` | I | Target (on the service): ICMP echo request is written as the default service `Ping` of SonicOS. |
 | `ZONES_REQUIRED`, `EXISTING_OBJECTS`, `IP_VERSION_SPLIT`, `GROUP_SPLIT`, `SERVICE_SPLIT`, `NEGATION_EXPANDED`, `NEGATION_NOT_STATIC`, `NAT_INTERFACE`, `NAT_OUTBOUND_INTERFACE`, `NAT_ZONES`, `NAT_DESTINATION_ZONE`, `NAT_DYNAMIC_IP`, `NAT_BIDIRECTIONAL` | | As for Sophos Firewall and ASA: a SonicOS address group and rule are of one IP version, a service object of one protocol and range, and a NAT policy matches one inbound and one outbound interface. |
+
+Findings and notes that only a WatchGuard source or target raises:
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `WATCHGUARD_FORMAT` | I | Source: the configuration file of Policy Manager is not documented by WatchGuard; the elements read are those the published readers of the format agree on. |
+| `POLICY_ORDER_AUTOMATIC` | R | Source: the configuration orders its policies automatically, or does not say. The Firebox then orders them itself, by how specific they are, and the order of the file was read. Switch to manual order in Policy Manager and save the file again, or check the order of the result against Policy Manager. |
+| `POLICY_SPLIT` | I | Source (on the rule): the From and To lists of a policy name members of several interfaces. It became one rule per pair of From and To members, which together match what the policy matched. |
+| `NAT_NOT_READ` | R | Source: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read, because where the file keeps them is not known. Static NAT actions in the To list of a policy are read. Traffic those translate is in the result untranslated. |
+| `WATCHGUARD_LOAD` | R | Target: the output is the policy part of a configuration file, not a file to restore as it is; how to merge it (section 10), and that the words for the action of a policy are assumed. |
+| `NAT_NOT_IN_POLICY` | R | Target (on the rule): the rule allows the destination of a NAT rule, but for other services, zones or sources than the NAT rule translates, or another NAT rule comes first for that traffic. On a Firebox the translation is part of the policy; this policy names the public address without translating it. |
+| `NAT_ZONE_DROPPED` | A | Target (on the rule): the rule carries a static NAT action, which names the public address with no interface to the server. The policy allows the translated traffic to the server wherever it is, not only in the zone of the rule. |
+| `NAT_NO_POLICY` | I | Target (on the NAT rule): no rule allows exactly the traffic the NAT rule translates. The static NAT action is written, and no policy uses it. |
 
 Notes that only a Cisco Secure Firewall source or target raises (Management
 Center, Device Manager):
@@ -2092,6 +2126,74 @@ development branch) and not the web pages, which say less.
   the address of the outgoing interface is translation to `Xn IP`.
   Bi-directional static NAT is two policies.
 
+### WatchGuard
+
+**What is read**
+
+* **Policies** are first match, in the order of the file (`abs-policy-list`).
+  Allow and the proxy policies allow; Deny blocks. A policy that does not say
+  whether it is enabled, or whose rule in `policy-list` says otherwise than
+  the policy, is disabled. In automatic order the Firebox orders policies
+  itself (`POLICY_ORDER_AUTOMATIC`, section 3).
+* **Interfaces are the zones.** A policy names no zones: its From and To
+  lists hold aliases, and an alias holds members that are an address *at* an
+  interface (`Any-Trusted`, `External`, a named interface), or other aliases.
+  `Any-Trusted`, `Any-External` and `Any-Optional` become the interfaces of
+  that type (when an interface does not say its type, a member of these is
+  not read); `Any` and `Firebox` as an interface are every zone. A policy
+  whose lists hold members of several interfaces becomes one rule per pair of
+  From and To members, which together match what the policy matched
+  (`POLICY_SPLIT`). A member that names a VPN (`Any-BOVPN`, `Any-MUVPN`,
+  `SSL-VPN`) is not read, and its policy is disabled.
+* **Users.** A user in the From list is a user match (`USER_MATCH` on every
+  target); a user in the To list is not read, and its policy is disabled.
+* **Static NAT.** A static NAT action in the To list of a policy is read as
+  the model has it: the rule names the public address, to any zone, and a NAT
+  rule translates it to the server, for the sources and the service of that
+  policy (one NAT rule per policy and per interface of its sources). Network
+  dynamic NAT and 1-to-1 NAT are not read (`NAT_NOT_READ`).
+* **Objects.** Address groups of hosts, networks, ranges and host names;
+  `Firebox`, the addresses of the interfaces of the configuration. Services:
+  TCP and UDP ports and ranges, ICMP and ICMPv6 type and code (255 is any),
+  other IP protocols; protocol 0 is any.
+* **Default.** The Firebox denies what no policy allows.
+* **Not converted:** proxy actions (reported as profiles, approximated),
+  schedules, policy-based routing, the NAT settings of a policy,
+  application control, intrusion prevention and the other subscription
+  services of a policy, and everything outside the policy.
+
+**What is written**
+
+* **The policy part of a configuration file** of Policy Manager: address
+  groups, services, static NAT actions, aliases and policies, and the setting
+  for manual policy order. Not interfaces, not system settings (section 10).
+* **Policies** in the order of the model, manual order: the first that
+  matches decides, and the Firebox denies the rest (`INTERZONE_DEFAULT` when
+  the source allowed it). Each rule becomes one policy with an alias
+  `<rule>.1.from` and `<rule>.1.to` that holds every pair of zone and address
+  the rule names; zone "any" is the interface `Any`. The zones must be
+  interfaces of the Firebox under those names (`INTERFACES_REQUIRED`; rename
+  them with `--zone-map`); a zone named like an interface class of Fireware
+  (`Any-Trusted`, `Firebox`) is refused. A rule written disabled has
+  `FWSHIFT inactive, see the report` in its description.
+* **No negation:** a negated list is written as the addresses that are left
+  (`NEGATION_EXPANDED`).
+* **Objects** are address groups (a placeholder that matches nothing,
+  `192.0.0.8`, for one that cannot be written), groups of the model are
+  aliases. Services: TCP and UDP ports and ranges, ICMP and ICMPv6, IP
+  protocols. Source ports, SCTP ports, port 0 alone and protocol 0 alone
+  cannot be named, and the rules that use them are disabled.
+* **Static NAT.** A NAT rule that translates the destination to one IPv4
+  address, from one public IPv4 address or range, becomes a static NAT
+  action. It goes into the To list of the policy that allows exactly its
+  traffic: the same destination, the same service and zones, sources within
+  those of the NAT rule, and no other NAT rule before it. A rule that allows
+  the public address otherwise names it untranslated (`NAT_NOT_IN_POLICY`).
+  The action has no interface to the server, so a rule for one destination
+  zone then allows the translated traffic in any (`NAT_ZONE_DROPPED`). An
+  action no policy uses is still written (`NAT_NO_POLICY`). Source NAT is
+  dynamic NAT on a Firebox and is not written (`NAT_NOT_CONVERTED`).
+
 ### Names
 
 Names the target would reject are changed: `10.0.0.0/8` becomes `10.0.0.0_8`
@@ -2498,6 +2600,31 @@ empty). It is restored with the restore of one area at a time, which
 5. An object of the same name as one the firewall has is changed or refused:
    convert with `--target-prefix` to keep them apart.
 
+### WatchGuard
+
+> **The file has never been opened in Policy Manager.** WatchGuard publishes
+> no schema of it; the elements follow the published readers of the format,
+> and the words for the action of a policy (`Allow`, `Deny`) are assumed
+> (`WATCHGUARD_LOAD`).
+
+The output is **not a configuration to restore**: a restore replaces the
+whole configuration, and this file holds no interfaces and no system
+settings.
+
+1. Save the configuration of the target from Policy Manager (*File > Save >
+   As File*) and keep a copy.
+2. Make sure the interfaces listed in `INTERFACES_REQUIRED` exist under those
+   names.
+3. Copy the entries of each list of the output (`address-group-list`,
+   `service-list`, `nat-list`, `alias-list`, `abs-policy-list`,
+   `policy-list`) into the list of the same name in the saved file, and set
+   `auto-order-enabled` to `0` there, so the order of the policies stays the
+   order of the file. An entry of the same name as one the file has collides:
+   convert with `--target-prefix` to keep them apart.
+4. Open the result in Policy Manager. Check that it reads every policy, and
+   compare the policies and their order with the summary of the report.
+5. Save it to the Firebox from Policy Manager.
+
 ### After loading
 
 Search the configuration for `FWSHIFT`: every placeholder object and every
@@ -2566,6 +2693,11 @@ the report is the list.)
 | `--interface-address: no interface '...' in the configuration; it has ...` | Name the interface as the configuration does, by name or description: the message lists them. |
 | `--interface-address: two IPv4 addresses for '...'` | One address per IP version and interface. |
 | `--interface-address is for a pfSense or SonicWall source` | The option was given for another source. |
+| `not a configuration of a Firebox: the first element is <...>, not <profile>` | `--from watchguard` on XML that is something else. |
+| `the configuration holds no <abs-policy-list>: is it the file Policy Manager saves?` | WatchGuard source: the XML starts like a configuration and holds no policies. Save it again with *File > Save > As File*. |
+| `alias '...' is defined twice` | WatchGuard source: two aliases, address groups or services of one name. Policy Manager does not save such a file; it was edited by hand or two files were joined. |
+| `the aliases of the configuration hold more than 200000 members in all` | Aliases that name each other many times over. Not converted. |
+| `zone '...' cannot be the name of a Firebox interface here` | To WatchGuard: a zone named like an interface class of Fireware (`Any`, `Firebox`, `Any-Trusted`, ...) or holding characters a name cannot have. Give it another name with `--zone-map`. |
 | `--target-nat-zone: '...' is no interface a pfSense rule can name` | pfSense target: give `wan`, `lan`, an `optN` or the name of an interface group. |
 
 **Most rules are "needs review".** Read the first finding of a few rules. A
@@ -2693,6 +2825,15 @@ deliberate: see *IPv4 and IPv6* in section 8.
   filtering, Policy mode. Written: TCP and UDP services and ICMP echo only;
   objects, groups, rules and NAT policies, not zones or interfaces. Nothing
   has been run on a SonicWall.
+* WatchGuard: Fireware 12, from the configuration file of Policy Manager,
+  which WatchGuard does not document: the elements read are those of the
+  published readers of the format. Not converted: network dynamic NAT and
+  1-to-1 NAT (read and written), users in the To list, VPN interfaces,
+  schedules, proxy actions, policy-based routing. In automatic policy order
+  the order is the file's, not the Firebox's. Written: the policy part of a
+  configuration file, to merge into one of the target, with static NAT only
+  as an action of a policy that allows exactly its traffic. Nothing has been
+  opened in Policy Manager or loaded on a Firebox.
 * pfSense: 2.6 and later; OPNsense is not read. Schedules, URL table
   aliases, policy routing, tags, limiters and shaping, match rules, IPv6 NAT,
   NPt, bogon networks, the captive portal, bridges and the rules of packages

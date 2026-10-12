@@ -1,0 +1,53 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: checkpoint
+
+Summary
+  Security rules:     10   exact 6, approximated 1, needs review 3 (3 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 2, needs review 0, skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] CHECKPOINT_SCRIPT: the output is a shell script of mgmt_cli calls. It changes one session and publishes nothing: log in, run it, review the session in SmartConsole, then publish and install the policy yourself. It stops at the first call the server refuses; discard the session before running it again
+  [needs-review] IMPLIED_RULES: Check Point applies implied rules (Global Properties) next to the rulebase, and every ordered layer of the policy package must accept a connection. Neither is part of the conversion: check that they allow no more and no less than intended
+  [needs-review] ZONES_REQUIRED: the rules use these security zones, which must be assigned to the interfaces of the gateway (or renamed with --zone-map): Trusted, External, Guests, DMZ, Lab. Rules that name a zone and addresses on the same side are sorted into 1 inline layers, one per pair of zones. An interface without a zone only reaches the rules that name no zone
+  [needs-review] NAT_MANUAL_RULES: 2 NAT rules are written as manual rules at the bottom of the NAT rulebase, below the automatic ones. Manual NAT does not answer ARP for translated addresses: add proxy ARP on the gateway for every translated address that is not routed to it
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] LAYER_PLACEMENT: the rules are written to the top of access layer 'Network', in order, and end in a cleanup rule; rules the layer held before stay below it and are no longer reached. Choose another layer with --target-layer
+  [info] NAME_COLLISIONS: Check Point predefines several hundred objects (http, https, ssh, ...). If the script stops because a name exists already, convert again with --target-prefix to give every created object a prefix
+  [info] DOMAIN_OBJECTS: host names are written as domain objects, named after the domain with a leading dot; the gateway needs DNS to enforce them: .updates.example.com
+
+Security rules
+  Block Bad  ->  needs-review, emitted disabled  (emitted as layer Network_Trusted_to_External, layer Network)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Block_Bad': a service that matches every IP protocol cannot be an object. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Web Out  ->  approximated  (emitted as layer Network_Trusted_to_External, layer Network)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+  DMZ Updates  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+  Staff Only  ->  needs-review, emitted disabled  (emitted as layer Network_Trusted_to_External, layer Network)
+      [needs-review] USER_MATCH: source user match Staff is not converted.
+
+NAT rules
+  Web-Public (Web In)  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from External only; it is written without zones and applies whatever the zone the traffic comes from
+      [approximated] NAT_ZONES: the rule applied to traffic to External only; it is written without zones
+  Mail-Public (Mail In)  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from External only; it is written without zones and applies whatever the zone the traffic comes from
+      [approximated] NAT_ZONES: the rule applied to traffic to External only; it is written without zones
+
+Addresses
+  Update-Site.1.alm updates.example.com  ->  exact  (emitted as Update-Site.1.alm_updates.example.com)
+      [info] RENAMED: renamed to 'Update-Site.1.alm_updates.example.com' to fit the target's naming rules
+
+Services
+  Block Bad  ->  exact  (emitted as Block_Bad)
+      [info] RENAMED: renamed to 'Block_Bad' to fit the target's naming rules
+  Web Out  ->  exact  (emitted as Web_Out)
+      [info] RENAMED: renamed to 'Web_Out' to fit the target's naming rules
+  Staff Only  ->  exact  (emitted as Staff_Only)
+      [info] RENAMED: renamed to 'Staff_Only' to fit the target's naming rules
+  Lab Tunnel  ->  exact  (emitted as Lab_Tunnel)
+      [info] RENAMED: renamed to 'Lab_Tunnel' to fit the target's naming rules

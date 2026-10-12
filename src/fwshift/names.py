@@ -60,6 +60,10 @@ PFSENSE_TEXT = NameRules(200, re.compile(r"[\x00-\x1f\x7f]"), False)
 SONICWALL = NameRules(32, re.compile(r"[^ -~]|[\"'\\]"), True)
 SONICWALL_NATIVE = NameRules(32, SONICWALL.invalid, False)
 
+# WatchGuard: no limit or character set of a name is published. Control characters are left out, and names are kept
+# to 100 characters.
+WATCHGUARD = NameRules(100, re.compile(r"[\x00-\x1f\x7f]"), False)
+
 
 def clean(name: str, rules: NameRules) -> str:
     out = rules.invalid.sub("_", name).strip()

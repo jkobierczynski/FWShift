@@ -1,0 +1,28 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: panos
+
+Summary
+  Security rules:     10   exact 5, approximated 3, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): Trusted, Guests, External, DMZ, Lab
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] INTRAZONE_DENY_ADDED: appended 'fwshift-intrazone-deny': PAN-OS allows traffic inside a zone by default, the source denies it
+
+Security rules
+  Block Bad  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Block Bad': IP protocol without a known App-ID. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Web Out  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+  DMZ Updates  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+  Ping  ->  approximated
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping. Verify these names against the App-ID release in use
+  Lab Tunnel  ->  approximated
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: gre. Verify these names against the App-ID release in use

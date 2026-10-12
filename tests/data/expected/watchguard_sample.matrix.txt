@@ -1,0 +1,121 @@
+FWShift zone matrix
+  source: watchguard (Fireware 12.10.4)
+  security rules: 10 (1 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 External          Trusted           DMZ               Guests            Lab               (other zones)
+  External       tcp/25 tcp/443    tcp/25 tcp/443    tcp/25 tcp/443    tcp/25 tcp/443    tcp/25 tcp/443    tcp/25 tcp/443
+  Trusted        icmp type 8 +5    icmp type 8 +1    icmp type 8 +1    icmp type 8 +1    icmp type 8 +1    icmp type 8 +1
+  DMZ            tcp/80 +2~        tcp/443~          tcp/443~          tcp/443~          tcp/443~          tcp/443~
+  Guests         icmp type 8 +3    icmp type 8       icmp type 8       icmp type 8       icmp type 8       icmp type 8
+  Lab            ip/47 (gre)       -                 -                 -                 -                 -
+  (other zones)  -                 -                 -                 -                 -                 -
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+External -> External (inside the zone)
+  allowed: tcp/25, tcp/443
+  rule 'Web In': any -> Web-Public.1.snat: tcp/443
+  rule 'Mail In': any -> Mail-Public.1.snat: tcp/25
+External -> Trusted
+  allowed: tcp/25, tcp/443
+  rule 'Web In': any -> Web-Public.1.snat: tcp/443
+  rule 'Mail In': any -> Mail-Public.1.snat: tcp/25
+External -> DMZ
+  allowed: tcp/25, tcp/443
+  rule 'Web In': any -> Web-Public.1.snat: tcp/443
+  rule 'Mail In': any -> Mail-Public.1.snat: tcp/25
+External -> Guests
+  allowed: tcp/25, tcp/443
+  rule 'Web In': any -> Web-Public.1.snat: tcp/443
+  rule 'Mail In': any -> Mail-Public.1.snat: tcp/25
+External -> Lab
+  allowed: tcp/25, tcp/443
+  rule 'Web In': any -> Web-Public.1.snat: tcp/443
+  rule 'Mail In': any -> Mail-Public.1.snat: tcp/25
+External -> (other zones)
+  allowed: tcp/25, tcp/443
+  rule 'Web In': any -> Web-Public.1.snat: tcp/443
+  rule 'Mail In': any -> Mail-Public.1.snat: tcp/25
+Trusted -> External
+  allowed: icmp type 8, tcp/22, tcp/80, tcp/443, tcp/3389, tcp/8000-8010
+  cleartext or remote administration: rdp (rule 'Staff Only')
+  rule 'Admin SSH': Admins.1.alm -> any: tcp/22
+  rule 'Web Out': any -> any: tcp/80, tcp/443, tcp/8000-8010
+  rule 'Staff Only': any -> Web-Server.1.alm: tcp/3389 (users Staff)
+  rule 'Ping': any -> any: icmp type 8
+Trusted -> Trusted (inside the zone)
+  allowed: icmp type 8, tcp/3389
+  cleartext or remote administration: rdp (rule 'Staff Only')
+  rule 'Staff Only': any -> Web-Server.1.alm: tcp/3389 (users Staff)
+  rule 'Ping': any -> any: icmp type 8
+Trusted -> DMZ
+  allowed: icmp type 8, tcp/3389
+  cleartext or remote administration: rdp (rule 'Staff Only')
+  rule 'Staff Only': any -> Web-Server.1.alm: tcp/3389 (users Staff)
+  rule 'Ping': any -> any: icmp type 8
+Trusted -> Guests
+  allowed: icmp type 8, tcp/3389
+  cleartext or remote administration: rdp (rule 'Staff Only')
+  rule 'Staff Only': any -> Web-Server.1.alm: tcp/3389 (users Staff)
+  rule 'Ping': any -> any: icmp type 8
+Trusted -> Lab
+  allowed: icmp type 8, tcp/3389
+  cleartext or remote administration: rdp (rule 'Staff Only')
+  rule 'Staff Only': any -> Web-Server.1.alm: tcp/3389 (users Staff)
+  rule 'Ping': any -> any: icmp type 8
+Trusted -> (other zones)
+  allowed: icmp type 8, tcp/3389
+  cleartext or remote administration: rdp (rule 'Staff Only')
+  rule 'Staff Only': any -> Web-Server.1.alm: tcp/3389 (users Staff)
+  rule 'Ping': any -> any: icmp type 8
+DMZ -> External
+  allowed: tcp/80, tcp/443, tcp/8000-8010 ~
+  rule 'Web Out': any -> any: tcp/80, tcp/443, tcp/8000-8010
+  rule 'DMZ Updates': any -> Update-Site.1.alm: tcp/443 (schedule Business Hours) ~
+DMZ -> Trusted
+  allowed: tcp/443 ~
+  rule 'DMZ Updates': any -> Update-Site.1.alm: tcp/443 (schedule Business Hours) ~
+DMZ -> DMZ (inside the zone)
+  allowed: tcp/443 ~
+  rule 'DMZ Updates': any -> Update-Site.1.alm: tcp/443 (schedule Business Hours) ~
+DMZ -> Guests
+  allowed: tcp/443 ~
+  rule 'DMZ Updates': any -> Update-Site.1.alm: tcp/443 (schedule Business Hours) ~
+DMZ -> Lab
+  allowed: tcp/443 ~
+  rule 'DMZ Updates': any -> Update-Site.1.alm: tcp/443 (schedule Business Hours) ~
+DMZ -> (other zones)
+  allowed: tcp/443 ~
+  rule 'DMZ Updates': any -> Update-Site.1.alm: tcp/443 (schedule Business Hours) ~
+Guests -> External
+  allowed: icmp type 8, tcp/80, tcp/443, tcp/8000-8010
+  rule 'Web Out': any -> any: tcp/80, tcp/443, tcp/8000-8010
+  rule 'Ping': any -> any: icmp type 8
+Guests -> Trusted
+  allowed: icmp type 8
+  rule 'Ping': any -> any: icmp type 8
+Guests -> DMZ
+  allowed: icmp type 8
+  rule 'Ping': any -> any: icmp type 8
+Guests -> Guests (inside the zone)
+  allowed: icmp type 8
+  rule 'Ping': any -> any: icmp type 8
+Guests -> Lab
+  allowed: icmp type 8
+  rule 'Ping': any -> any: icmp type 8
+Guests -> (other zones)
+  allowed: icmp type 8
+  rule 'Ping': any -> any: icmp type 8
+Lab -> External
+  allowed: ip/47 (gre)
+  rule 'Lab Tunnel': any -> any: ip/47 (gre)
+
+From reading the configuration
+  NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+
+Notes
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

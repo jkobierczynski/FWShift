@@ -2233,3 +2233,136 @@ class SonicWallExp:
         if pkt.in_if == pkt.out_if:
             return False
         return (self.zone_type(pkt.in_if), self.zone_type(pkt.out_if)) in SONICWALL_DEFAULT_ALLOW
+
+
+# -- WatchGuard --------------------------------------------------------------------------------------
+
+
+class WatchGuardXml:
+    """A Policy Manager configuration file, read here without fwshift's parser, and what a Firebox would decide.
+
+    Policies in the order of the file, first match; a policy matches when a member of its From list holds the source
+    at the interface the packet arrives on, a member of its To list the destination at the interface it leaves by,
+    and its service the packet. ``kinds`` gives trusted/external/optional for interfaces the file does not list."""
+
+    def __init__(self, text: str, kinds: Optional[Dict[str, str]] = None) -> None:
+        import xml.etree.ElementTree as ET
+
+        self.root = ET.fromstring(text)
+        assert self.root.tag == "profile"
+        self.kinds: Dict[str, str] = dict(kinds or {})
+        for interface in self.root.findall("interface-list/interface"):
+            for item in interface.iter():
+                if item.tag in ("if-property", "vif-property"):
+                    self.kinds[interface.findtext("name") or ""] = {"1": "trusted", "2": "external", "3": "optional"}.get(item.text or "", "custom")
+        self.groups = {g.findtext("name"): g for g in self.root.findall("address-group-list/address-group")}
+        self.aliases = {a.findtext("name"): a for a in self.root.findall("alias-list/alias")}
+        self.services = {s.findtext("name"): s for s in self.root.findall("service-list/service")}
+        self.nats = {n.findtext("name"): n for n in self.root.findall("nat-list/nat")}
+        names = [a.findtext("name") for a in self.aliases.values()]
+        assert len(names) == len(set(names)), "an alias defined twice"
+
+    def _in_group(self, name: str, address: str) -> bool:
+        import ipaddress
+
+        if name == "Any":
+            return True
+        group = self.groups.get(name)
+        assert group is not None, f"address group {name} is not in the file"
+        ip = ipaddress.ip_address(address)
+        for member in group.findall("addr-group-member/member"):
+            kind = member.findtext("type")
+            if kind == "1" and ip == ipaddress.ip_address(member.findtext("host-ip-addr") or ""):
+                return True
+            if kind == "2" and ip.version == 4 and ip in ipaddress.ip_network(f"{member.findtext('ip-network-addr')}/{member.findtext('ip-mask')}"):
+                return True
+            if kind == "3":
+                first, last = ipaddress.ip_address(member.findtext("start-ip-addr") or ""), ipaddress.ip_address(member.findtext("end-ip-addr") or "")
+                if first.version == ip.version and int(first) <= int(ip) <= int(last):
+                    return True
+        return False
+
+    def _at(self, interface: str, actual: str) -> bool:
+        low = interface.lower()
+        if low == "any":
+            return True
+        if low in ("any-trusted", "any-external", "any-optional"):
+            return self.kinds.get(actual) == low[4:]
+        return interface == actual
+
+    def _members(self, alias: str, seen: frozenset = frozenset()) -> List[Tuple[str, str, str, bool]]:
+        """(address group, interface, user, whether it is a static NAT action) of an alias."""
+        if alias in seen:
+            return []
+        node = self.aliases.get(alias)
+        assert node is not None, f"alias {alias} is not in the file"
+        out: List[Tuple[str, str, str, bool]] = []
+        for member in node.findall("alias-member-list/alias-member"):
+            if member.findtext("type") == "2":
+                out += self._members(member.findtext("alias-name") or "", seen | {alias})
+            else:
+                snat = alias.endswith(".snat") and alias[:-5] in self.nats
+                out.append((member.findtext("address") or "", member.findtext("interface") or "", member.findtext("user") or "Any", snat))
+        return out
+
+    def _service(self, name: str, pkt: Any) -> bool:
+        service = self.services.get(name)
+        assert service is not None, f"service {name} is not in the file"
+        proto = {"tcp": 6, "udp": 17, "icmp": 1, "icmp6": 58}.get(pkt.proto) or int(pkt.proto)
+        for member in service.findall("service-item/member"):
+            protocol = int(member.findtext("protocol") or "-1")
+            if protocol == 0:
+                return True
+            if protocol != proto:
+                continue
+            if protocol in (6, 17):
+                if member.findtext("type") == "2":
+                    if int(member.findtext("start-server-port") or 0) <= pkt.dport <= int(member.findtext("end-server-port") or 0):
+                        return True
+                elif int(member.findtext("server-port") or 0) in (0, pkt.dport):
+                    return True
+            elif protocol in (1, 58):
+                kind = int(member.findtext("icmp-type") or 255)
+                if kind in (255, pkt.icmp_type):
+                    return True
+            else:
+                return True
+        return False
+
+    def deciding(self, pkt: Any) -> Optional[Any]:
+        for policy in self.root.findall("abs-policy-list/abs-policy"):
+            if (policy.findtext("enabled") or "") != "true":
+                continue
+            froms = [m for a in policy.findall("from-alias-list/alias") for m in self._members(a.text or "")]
+            tos = [m for a in policy.findall("to-alias-list/alias") for m in self._members(a.text or "")]
+            if not any(user == "Any" and self._at(iface, pkt.in_if) and self._in_group(addr, pkt.src) for addr, iface, user, _ in froms):
+                continue
+            if not any(user == "Any" and (snat or self._at(iface, pkt.out_if)) and self._in_group(addr, pkt.dst) for addr, iface, user, snat in tos):
+                continue
+            if not self._service(policy.findtext("service") or "", pkt):
+                continue
+            return policy
+        return None
+
+    def allows(self, pkt: Any) -> bool:
+        policy = self.deciding(pkt)
+        return policy is not None and (policy.findtext("firewall") or "") in ("Allow", "Proxy")
+
+    def translation(self, pkt: Any) -> Tuple[str, str]:
+        """(destination, port) after the static NAT of the policy that decides; "Original" for what stays."""
+        import ipaddress
+
+        policy = self.deciding(pkt)
+        if policy is None or (policy.findtext("firewall") or "") not in ("Allow", "Proxy"):
+            return ("Original", "Original")
+        for alias in policy.findall("to-alias-list/alias"):
+            for addr, _, _, snat in self._members(alias.text or ""):
+                if snat and self._in_group(addr, pkt.dst):
+                    nat = next(n for n in self.nats.values() if any(m.findtext("ext-addr-name") == addr for m in n.iter("member")))
+                    member = nat.find("nat-item/member")
+                    assert member is not None
+                    inside = self.groups[member.findtext("addr-name")].find("addr-group-member/member")
+                    assert inside is not None
+                    port = member.findtext("port") or "0"
+                    return (str(ipaddress.ip_address(inside.findtext("host-ip-addr") or "")), "Original" if port == "0" else port)
+        return ("Original", "Original")

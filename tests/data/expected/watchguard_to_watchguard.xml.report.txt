@@ -1,0 +1,23 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: watchguard
+
+Summary
+  Security rules:     10   exact 7, approximated 1, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] WATCHGUARD_LOAD: the output is the policy part of a configuration file of Policy Manager: address groups, aliases, services, static NAT actions and policies in manual order. It holds no interfaces and no system settings, so it is not a file to restore on a Firebox as it is (a restore replaces the whole configuration). Merge its lists into a configuration saved from the target, open the result in Policy Manager and check it there before it goes to the Firebox. WatchGuard publishes no schema of the file: the elements are those of the published readers of the format, and the words for the action of a policy (Allow, Deny) are assumed
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+
+Security rules
+  Web Out  ->  approximated  (emitted as Web Out.2)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+  DMZ Updates  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+  Staff Only  ->  needs-review, emitted disabled  (emitted as Staff Only.2)
+      [needs-review] USER_MATCH: source user match Staff is not converted.

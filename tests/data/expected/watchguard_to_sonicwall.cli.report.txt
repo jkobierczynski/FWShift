@@ -1,0 +1,69 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: sonicwall
+
+Summary
+  Security rules:     10   exact 6, approximated 1, needs review 3 (3 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 2, skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 8, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, address-object fqdn, nat-policy name and comment, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): Trusted, Guests, External, DMZ, Lab
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] DEFAULT_DENY_ADDED: 50 rules that deny were added, one at the end of each pair of zones and IP version: SonicOS allows some traffic between zones by itself (from LAN to WAN, for example), and the source did not
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 4 rule(s) match IPv4 and IPv6 traffic and were written twice: SonicOS has address objects and access rules per IP version
+
+Security rules
+  Block Bad  ->  exact  (emitted as Block Bad, Block Bad 2, Block Bad 3, Block Bad 4, Block Bad 5, Block Bad 6, Block Bad 7, Block Bad 8, Block Bad 9, Block Bad 10)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 10 rules
+  Web Out  ->  approximated  (emitted as Web Out, Web Out 2, Web Out 3, Web Out 4, Web Out 5, Web Out 6)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  Web In  ->  exact  (emitted as Web In, Web In 2, Web In 3, Web In 4, Web In 5)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+  Mail In  ->  exact  (emitted as Mail In, Mail In 2, Mail In 3, Mail In 4, Mail In 5)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+  DMZ Updates  ->  needs-review, emitted disabled  (emitted as DMZ Updates, DMZ Updates 2, DMZ Updates 3, DMZ Updates 4, DMZ Updates 5, DMZ Updates 6, DMZ Updates 7, DMZ Updates 8, DMZ Updates 9, DMZ Updates 10)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+  Staff Only  ->  needs-review, emitted disabled  (emitted as Staff Only, Staff Only 2, Staff Only 3, Staff Only 4, Staff Only 5)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+      [needs-review] USER_MATCH: source user match Staff is not converted.
+  Ping  ->  exact  (emitted as Ping, Ping 2, Ping 3, Ping 4, Ping 5, Ping 6, Ping 7, Ping 8, Ping 9, Ping 10)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 10 rules
+  Lab Tunnel  ->  needs-review, emitted disabled  (emitted as Lab Tunnel, Lab Tunnel 2)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Lab Tunnel': IP protocol 47, for which FWShift does not know the command of SonicOS.
+
+NAT rules
+  Web-Public (Web In)  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from External only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  Mail-Public (Mail In)  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from External only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+
+Addresses
+  Update-Site.1.alm updates.example.com  ->  exact  (emitted as Update-Site.1.alm updates.exampl)
+      [info] RENAMED: renamed to 'Update-Site.1.alm updates.exampl' to fit the target's naming rules
+
+Address groups
+  Update-Site.1.alm  ->  exact  (emitted as Update-Site.1.alm, Update-Site.1.alm v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'Update-Site.1.alm', 'Update-Site.1.alm v6'
+
+Services
+  SSH  ->  exact  (emitted as SSH 2)
+      [info] RENAMED: renamed to 'SSH 2' to fit the target's naming rules
+  Web Out  ->  exact  (emitted as Web Out, Web Out tcp 80, Web Out tcp 443, Web Out tcp 8000-8010)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'Web Out' of 'Web Out tcp 80', 'Web Out tcp 443', 'Web Out tcp 8000-8010'
+  HTTPS  ->  exact  (emitted as HTTPS 2)
+      [info] RENAMED: renamed to 'HTTPS 2' to fit the target's naming rules
+  Ping  ->  exact  (emitted as Ping 2)
+      [info] RENAMED: renamed to 'Ping 2' to fit the target's naming rules
+      [info] ICMP_AS_DEFAULT: ICMP echo request is written as the default service 'Ping' of SonicOS, which is taken to be that
+  Lab Tunnel  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 47, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  DNS  ->  exact  (emitted as DNS, DNS tcp 53, DNS udp 53)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'DNS' of 'DNS tcp 53', 'DNS udp 53'

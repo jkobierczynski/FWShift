@@ -8,11 +8,11 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.9.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
-| Tests | 2693, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Check Point management server, a Cisco Management Center or a Device Manager |
-| Next | 0.10.0: WatchGuard (see `TODO.md`); lab validation of the sample conversions |
+| Version | 0.10.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
+| Tests | 2821, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a Check Point management server, a Cisco Management Center or a Device Manager |
+| Next | 0.11.0: Barracuda CloudGen Firewall (see `TODO.md`); lab validation of the sample conversions |
 
 ## Layout
 
@@ -32,6 +32,8 @@ src/fwshift/
                       groups, port forwards and the rules pfSense adds itself)
         sonicwall.py  SonicOS settings export -> model (rules per pair of zones,
                       default rules, objects of SonicOS from the interfaces)
+        watchguard.py Policy Manager XML     -> model (interfaces as zones, a
+                      policy per pair of interfaces it names, static NAT actions)
         iptables.py   iptables-save output   -> model (chains flattened)
     emitters/
         panos.py      model -> PAN-OS set commands
@@ -48,6 +50,8 @@ src/fwshift/
                       configuration (a rule per arrival interface)
         sonicwall.py  model -> SonicOS 7 commands (a rule per pair of zones and
                       IP version, a rule that denies at the end of each pair)
+        watchguard.py model -> the policy part of a Policy Manager file (aliases
+                      of zone and address, static NAT actions in policies)
         iptables.py   model -> iptables-restore / ip6tables-restore file
     transform.py      passes shared by the emitters: hardening of names,
                       references, placeholders, names, application lowering,
@@ -72,12 +76,14 @@ tests/
     data/             one synthetic sample per format
     data/expected/    their conversions and reports, byte for byte
     tools/            the scripts that write the Check Point sample, the two
-                      Cisco Secure Firewall samples and the SonicWall sample,
+                      Cisco Secure Firewall samples and the SonicWall and
+                      WatchGuard samples,
                       and the kernel check
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
                       Check Point, ASA, Sophos and Cisco Secure Firewall output;
                       a pfSense that judges packets from its configuration;
-                      a SonicWall that judges by an export and by commands
+                      a SonicWall that judges by an export and by commands;
+                      a Firebox that judges by its configuration file
     test_parsers.py   netutil, FortiOS syntax, PAN-OS and FortiOS parsers
     test_emitters.py  PAN-OS and FortiOS emitters
     test_semantics.py one small configuration per semantic trap
@@ -95,6 +101,7 @@ tests/
     test_pfsense.py   pfSense both ways: random configurations against the
                       judge in helpers.py, emitted files restored into it
     test_sonicwall.py SonicWall both ways, against the two judges in helpers.py
+    test_watchguard.py WatchGuard both ways, against the judge in helpers.py
     test_audit.py     the audit, against a walk through every packet of a
                       small world
     test_matrix.py    the zone matrix, against the same walk: every packet
@@ -531,6 +538,10 @@ policy behaves unexpectedly.
 | SonicOS: access rules per pair of zones, first match by priority, the default ("Any") rule at the bottom of each pair; by default LAN/WLAN to WAN/DMZ and DMZ to WAN allowed, the reverse denied (documented); other security types not documented | parser (`_default_rules`), emitter (deny tails) |
 | SonicOS: an access rule names the original (public) destination and the zone of the server; NAT policies one table, first match by priority, matching inbound and outbound interface; a reflexive policy adds its mirror (the shape of the mirror assumed) | SonicWall parser and emitter |
 | SonicOS CLI: `configure terminal` (7; `configure` on 6.5), `commit`; `address-object ipv4 "N" host|network|range ... zone Z`, `address-group ipv4 "G"` with member lines, `service-object "N" TCP a b`, `service-group`, `access-rule ipv4 from Z to Z action allow source address any|name|group ... service ... destination address ...` with `name` and `no enable`, `nat-policy inbound ... translated-service ...` (KB). Assumed: `priority manual N`, `access-rule ipv6`, `address-object ipv6` and `fqdn`, the `name` and `comment` of a NAT policy, zone names with a space in double quotes | SonicWall emitter, `SONICWALL_LOAD` |
+| WatchGuard, all rows below: from WatchGuard's Help Center where it says so, otherwise from the published readers of the configuration file (ins1gn1a/WatchGuard-Config-Parser, watchguard-toolbox-project/xmlcheck, MattParkin14/Watchguard-Firewall-Mapping on GitHub; read, never run). Nothing was opened in Policy Manager or loaded on a Firebox | WatchGuard parser and emitter |
+| Policy Manager file: root `<profile>`; `address-group-list` (member type 1 host, 2 network with mask, 3 range, 8 domain), `service-list` (member protocol number, type 1 one port, 2 range, ICMP type and code with 255 any, protocol 0 any), `alias-list` (member type 1 address at an interface with a user, type 2 another alias), `abs-policy-list` (the policies in order, `firewall`, `enabled`, `from-alias-list`, `to-alias-list`, `service`), `policy-list` (the rule of each, `-00`), `interface-list` (`if-property`/`vif-property` 1 trusted, 2 external, 3 optional, 8 custom: one reader's reading), `nat-list` (static NAT `.snat`, type 7) (the readers agree where not said) | WatchGuard parser and emitter |
+| Fireware: policies are first match in manual order; automatic order sorts them by how specific they are (Help Center), and the flag `auto-order-enabled` is found in two places by two readers (searched anywhere); the Firebox denies what no policy allows (Help Center); static NAT is an action in the To list of a policy, which names the public address (Help Center) | WatchGuard parser and emitter |
+| Assumed when writing: `Allow` and `Deny` as the text of `firewall` in `abs-policy-list` (the readers show numbers and words), the members of a static NAT action as they are written, and that Policy Manager reads a file of policies whose aliases name interfaces by name | WatchGuard emitter, `WATCHGUARD_LOAD` |
 
 ## Development log
 
@@ -1649,6 +1660,101 @@ default rule, `Port1 0`). The fixes were not reviewed again; they have tests
   0 and 1 is deny; how an export stores ICMP services, IPv6 and MAC objects;
   whether the default rules of a pair are rows of every export; the shape of
   a reflexive mirror.
+
+### 2026-10-12: version 0.10.0
+
+**Built**
+
+* WatchGuard, read and written: `parsers/watchguard.py` and
+  `emitters/watchguard.py`, as the format `watchguard`.
+* Read: the configuration file of Policy Manager (Fireware 12). Interfaces
+  as zones with their types, address groups, aliases (members that are an
+  address at an interface, and other aliases), services, policies in the
+  order of the file with their action and whether they are enabled, and the
+  static NAT actions of their To lists as NAT rules of their own. A policy
+  that names members of several interfaces becomes one rule per pair of
+  From and To members. Automatic policy order is reported.
+* Written: the policy part of a configuration file, to merge into one of
+  the target: address groups, services, aliases of every zone and address a
+  rule names, policies in manual order, and static NAT actions in the
+  policies that allow exactly their traffic. Placeholders and disabled
+  policies carry `FWSHIFT` in their description.
+* A sample, `watchguard_sample.xml`, written by
+  `tests/tools/make_watchguard_sample.py`, with its conversions to every
+  target, its audit and matrix, and the conversions of the other ten samples
+  to WatchGuard.
+
+**What the platform made necessary**
+
+* *An undocumented format.* WatchGuard publishes no schema and no sample of
+  the file. The parser reads what three published readers agree on, says so
+  in a note, and makes a policy unusable where an element it needs is not
+  there (whether it is enabled, its service, an alias it names) rather than
+  reading "any".
+* *No zones, addresses at interfaces.* A member of an alias is an address
+  and an interface together; the interfaces are the zones. A policy can
+  name members of several interfaces on each side; the model's rule has one
+  list of zones and one of addresses per side, so it becomes a rule per
+  pair of member groups, which together match what the policy matched.
+* *Automatic order.* By default the Firebox orders policies itself, by a
+  cascade of how specific they are. That order is not worked out: the
+  report says the file's order was read, and the output switches to manual
+  order.
+* *NAT inside the policy.* A static NAT action is part of the policy that
+  uses it, so a NAT rule of the model can only be written into a policy
+  that allows exactly its traffic, and is translated only there. Network
+  dynamic NAT and 1-to-1 NAT are where none of the readers found them: not
+  read and not written, and the report says so.
+
+**Sources**
+
+WatchGuard's Help Center (the file and how to get it, aliases and their
+members, policy precedence and automatic order, unhandled packets, SNAT,
+dynamic and 1-to-1 NAT, the default policies) and three published readers
+of the file for the element names, read and never run. What comes from
+where, and what is assumed, is in the table *Vendor behaviour the code
+relies on*.
+
+**Review**
+
+*Round 18* by the independent reviewer, with repro scripts of its own
+(hostile files through the command line, and the parser and emitter
+against the judge). 5 high, 5 medium, 4 low:
+
+| | Finding | Fix |
+|---|---|---|
+| high | A static NAT action was written into any policy for its public address, whatever its service, zones and sources: traffic the NAT rule did not translate was translated, and the reverse | only into a policy that allows exactly the NAT rule's traffic, which is enabled, allows, and has no other NAT rule before it; otherwise `NAT_NOT_IN_POLICY` |
+| high | Read: one NAT rule for a static NAT action, for any source: the translation of one policy applied to traffic of others | one NAT rule per policy and source interface, with the sources, service and state of the policy |
+| high | A user in the To list was dropped: the policy matched every user | the policy is unusable (written disabled) |
+| high | Aliases that name each other many times over multiplied their members without end (memory) | members de-duplicated as they are read, and a cap on members in all, which is an error that says why |
+| high | WatchGuard to WatchGuard: a policy naming the Firebox itself crashed the emitter (an assertion) | the Firebox is named as an alias, as Fireware has it |
+| medium | Automatic order was taken to be off unless the flag said `1`; another value or no flag at all went unreported | anything but `0` is automatic, and a file without the flag is reported too |
+| medium | An interface without a type took part in no class: `Any-Trusted` silently lost it | a member of a class is unusable when an interface of the file does not say its type |
+| medium | `Firebox` as the interface of a member was read as no interface | it stands for every zone, as `Any` does |
+| medium | A static NAT action named directly in the To list, not inside an alias, was not found | found both ways |
+| medium | A policy with many members on both sides became thousands of rules | more than 1000 pairs makes the policy unusable |
+| low | An ICMP member without a type was ICMP of any type; port 0 alone and protocol 0 were written as "every port" and "every protocol"; two objects of one name, the later one won; a policy and its rule in `policy-list` that disagree were not noticed | unusable; not written, and the rules that use them disabled; an error; the policy is unusable |
+
+The judge was corrected with the code where it shared a mistake (a static
+NAT member matches whatever interface the traffic leaves by). The fixes were
+not reviewed again; they have tests (the last section of
+`test_watchguard.py`).
+
+**Verified, and not**
+
+* The tests: `tests/test_watchguard.py` holds 105 tests, the suite
+  2821. The parser is compared with an independent reading of the file
+  on 80 random configurations, the emitter with the model on 60 random
+  models, the round trip on 30. A mutation check with 12 ways to break parser and
+  emitter: all 12 caught.
+* **Nothing was opened in Policy Manager or loaded on a Firebox.** The
+  format comes from third-party readers, one of which works from a sample it
+  generated itself; the judge is written from the same reading. NAT has hand
+  tests only.
+* The largest unknowns: whether Policy Manager accepts a file merged from
+  these lists, and the words it writes for the action of a policy; where the
+  file keeps dynamic NAT, 1-to-1 NAT and the NAT settings of a policy; the
+  codes of interface types (one reader); where `auto-order-enabled` sits.
 
 ## To do
 
