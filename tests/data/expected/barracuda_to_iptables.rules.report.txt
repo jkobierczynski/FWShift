@@ -1,0 +1,47 @@
+FWShift conversion report
+  source: barracuda (forwarding firewall)
+  target: iptables
+
+Summary
+  Security rules:     17   exact 9, approximated 3, needs review 3 (3 emitted disabled), skipped 2
+  Addresses:           8   exact 8, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CONNECTION_NOT_READ: rules whose connection object translates the source address: 'LAN-2-INTERNET'. Source NAT is not read; the rules are, as they match
+  [needs-review] IPTABLES_LOAD: the output holds the FORWARD chain only. Plain 'iptables-restore' replaces the whole filter table, INPUT and OUTPUT included: check it with 'iptables-restore --test', then load it with 'iptables-restore --noflush' on a host whose FORWARD chain is empty, or merge it by hand
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names; map each zone to its interface with --zone-map: port2, port1
+  [info] BARRACUDA_FORMAT: read 15 forwarding rules, 10 network objects and 8 service objects from 19 answers of the REST API. Barracuda documents that API by examples only: the keys read are those its examples and published tools show, and a key of a rule, an object or an entry this parser does not know makes it unusable
+  [info] ICMP_LIMITS: service objects that limit the size or rate of ICMP echo requests: 'Ping'. The limits are not converted: the rules allow ICMP of any size and rate
+  [info] OTHER_IP_VERSION: 2 rules match the other IP version only; convert with --to ip6tables as well
+  [info] LOGGING_NOT_CONVERTED: logging settings of the rules are not converted; add LOG or NFLOG rules where needed
+
+Security rules
+  BLOCK-BAD-V6  ->  skipped
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  ADMIN-SSH (port2)  ->  exact  (emitted as 2 FORWARD rules)
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+  ADMIN-SSH (port1)  ->  exact  (emitted as 1 FORWARD rule)
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+  WEB-IN  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Dst NAT: how the API spells its target list is not known, so the translation is not read.
+  SERVER-SYNC  ->  exact  (emitted as 1 FORWARD rule)
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  SERVER-SYNC (back)  ->  exact  (emitted as 1 FORWARD rule)
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  PING-ALL  ->  approximated  (emitted as 1 FORWARD rule)
+      [approximated] ICMP_LIMITS: service 'Ping' limits the size or rate of ICMP echo requests; the limits are not converted
+  UPDATES  ->  approximated  (emitted as 1 FORWARD rule)
+      [approximated] FQDN_RESOLVED_ONCE: 'updates.example.com (IPv4)' is a host name: iptables resolves it once, when the rules are loaded, and keeps the addresses it got then
+  V6-WEB  ->  skipped
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  DENY-LAN-DMZ  ->  exact  (emitted as 1 FORWARD rule)
+      [info] RESET_ACTION: action reset-client becomes a plain REJECT: a TCP reset can only answer TCP
+  GRE-LAB  ->  approximated  (emitted as 1 FORWARD rule)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application=urlFilter, ips=Default); attach equivalent inspection on the target
+  TO-LAB  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Cascade: the rules of the rule list it hands traffic to are not read, and they decide that traffic. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ODD  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule '{"type": "recurring", "name": "Work-Hours"}' is not converted; the rule would apply at all times.

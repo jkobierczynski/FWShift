@@ -1,0 +1,230 @@
+set address DMZ-Servers ip-range 10.20.0.16-10.20.0.255
+set address Mail-Server ip-netmask 10.20.0.25
+set address Office-LAN ip-netmask 10.10.0.0/16
+set address Office-LAN description "the office"
+set address Public-Web ip-netmask 203.0.113.10
+set address updates.example.com fqdn updates.example.com
+set address V6-Servers ip-netmask 2001:db8:20::/64
+set address Web-Server ip-netmask 10.20.0.80
+set address "updates.example.com _IPv4_" fqdn updates.example.com
+set address h-10.10.5.10 ip-netmask 10.10.5.10
+set address h-10.10.5.11 ip-netmask 10.10.5.11
+set address h-192.0.2.50 ip-netmask 192.0.2.50
+set address-group Admin-Hosts static [ h-10.10.5.10 h-10.10.5.11 h-192.0.2.50 ]
+set address n-198.51.100.0_24 ip-netmask 198.51.100.0/24
+set address n-2001_db8_bad___48 ip-netmask 2001:db8:bad::/48
+set address-group Blocked-Nets static [ n-198.51.100.0_24 n-2001_db8_bad___48 ]
+set address h-10.20.0.80 ip-netmask 10.20.0.80
+set address h-10.20.0.25 ip-netmask 10.20.0.25
+set address-group Server-Group static [ h-10.20.0.80 h-10.20.0.25 ]
+set address-group Updates static updates.example.com
+set address-group "Blocked-Nets _IPv4_" static n-198.51.100.0_24
+set address-group "Blocked-Nets _IPv4_" description "the addresses of 'Blocked-Nets' of IPv4"
+set address-group "Blocked-Nets _IPv6_" static n-2001_db8_bad___48
+set address-group "Blocked-Nets _IPv6_" description "the addresses of 'Blocked-Nets' of IPv6"
+set address-group "Admin-Hosts _port2_" static [ h-10.10.5.10 h-10.10.5.11 ]
+set address-group "Admin-Hosts _port2_" description "the addresses of 'Admin-Hosts' at interface port2"
+set address-group "Admin-Hosts _port1_" static h-192.0.2.50
+set address-group "Admin-Hosts _port1_" description "the addresses of 'Admin-Hosts' at interface port1"
+set address-group "Updates _IPv4_" static "updates.example.com _IPv4_"
+set address-group "Updates _IPv4_" description "the addresses of 'Updates' of IPv4"
+set service DNS-tcp protocol tcp port 53
+set service DNS-udp protocol udp port 53
+set service-group DNS members [ DNS-tcp DNS-udp ]
+set service HTTP_S protocol tcp port 80,443
+set service Odd-Ports protocol tcp port 1000-2000
+set service Odd-Ports protocol tcp source-port 1024-65535
+set service SMTP protocol tcp port 25
+set service SSH protocol tcp port 22
+set service "Web-Group entries" protocol tcp port 8080
+set service-group Web-Group members [ HTTP_S "Web-Group entries" ]
+set rulebase security rules BLOCK-BAD from any
+set rulebase security rules BLOCK-BAD to any
+set rulebase security rules BLOCK-BAD source "Blocked-Nets _IPv4_"
+set rulebase security rules BLOCK-BAD destination 0.0.0.0/0
+set rulebase security rules BLOCK-BAD source-user any
+set rulebase security rules BLOCK-BAD category any
+set rulebase security rules BLOCK-BAD application any
+set rulebase security rules BLOCK-BAD service any
+set rulebase security rules BLOCK-BAD action drop
+set rulebase security rules BLOCK-BAD log-end yes
+set rulebase security rules BLOCK-BAD description "known bad networks"
+set rulebase security rules BLOCK-BAD-V6 from any
+set rulebase security rules BLOCK-BAD-V6 to any
+set rulebase security rules BLOCK-BAD-V6 source "Blocked-Nets _IPv6_"
+set rulebase security rules BLOCK-BAD-V6 destination ::/0
+set rulebase security rules BLOCK-BAD-V6 source-user any
+set rulebase security rules BLOCK-BAD-V6 category any
+set rulebase security rules BLOCK-BAD-V6 application any
+set rulebase security rules BLOCK-BAD-V6 service any
+set rulebase security rules BLOCK-BAD-V6 action drop
+set rulebase security rules BLOCK-BAD-V6 log-end yes
+set rulebase security rules "ADMIN-SSH _port2_" from port2
+set rulebase security rules "ADMIN-SSH _port2_" to any
+set rulebase security rules "ADMIN-SSH _port2_" source "Admin-Hosts _port2_"
+set rulebase security rules "ADMIN-SSH _port2_" destination DMZ-Servers
+set rulebase security rules "ADMIN-SSH _port2_" source-user any
+set rulebase security rules "ADMIN-SSH _port2_" category any
+set rulebase security rules "ADMIN-SSH _port2_" application any
+set rulebase security rules "ADMIN-SSH _port2_" service SSH
+set rulebase security rules "ADMIN-SSH _port2_" action allow
+set rulebase security rules "ADMIN-SSH _port2_" log-end yes
+set rulebase security rules "ADMIN-SSH _port1_" from port1
+set rulebase security rules "ADMIN-SSH _port1_" to any
+set rulebase security rules "ADMIN-SSH _port1_" source "Admin-Hosts _port1_"
+set rulebase security rules "ADMIN-SSH _port1_" destination DMZ-Servers
+set rulebase security rules "ADMIN-SSH _port1_" source-user any
+set rulebase security rules "ADMIN-SSH _port1_" category any
+set rulebase security rules "ADMIN-SSH _port1_" application any
+set rulebase security rules "ADMIN-SSH _port1_" service SSH
+set rulebase security rules "ADMIN-SSH _port1_" action allow
+set rulebase security rules "ADMIN-SSH _port1_" log-end yes
+set rulebase security rules LAN-2-INTERNET from any
+set rulebase security rules LAN-2-INTERNET to any
+set rulebase security rules LAN-2-INTERNET source Office-LAN
+set rulebase security rules LAN-2-INTERNET destination 0.0.0.0/0
+set rulebase security rules LAN-2-INTERNET source-user any
+set rulebase security rules LAN-2-INTERNET category any
+set rulebase security rules LAN-2-INTERNET application any
+set rulebase security rules LAN-2-INTERNET service HTTP_S
+set rulebase security rules LAN-2-INTERNET action allow
+set rulebase security rules LAN-2-INTERNET log-end yes
+set rulebase security rules WEB-IN from any
+set rulebase security rules WEB-IN to any
+set rulebase security rules WEB-IN source 0.0.0.0/0
+set rulebase security rules WEB-IN destination Public-Web
+set rulebase security rules WEB-IN source-user any
+set rulebase security rules WEB-IN category any
+set rulebase security rules WEB-IN application any
+set rulebase security rules WEB-IN service HTTP_S
+set rulebase security rules WEB-IN action allow
+set rulebase security rules WEB-IN log-end yes
+set rulebase security rules WEB-IN disabled yes
+set rulebase security rules WEB-IN description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules SERVER-SYNC from any
+set rulebase security rules SERVER-SYNC to any
+set rulebase security rules SERVER-SYNC source DMZ-Servers
+set rulebase security rules SERVER-SYNC destination Office-LAN
+set rulebase security rules SERVER-SYNC source-user any
+set rulebase security rules SERVER-SYNC category any
+set rulebase security rules SERVER-SYNC application any
+set rulebase security rules SERVER-SYNC service Web-Group
+set rulebase security rules SERVER-SYNC action allow
+set rulebase security rules SERVER-SYNC log-end yes
+set rulebase security rules "SERVER-SYNC _back_" from any
+set rulebase security rules "SERVER-SYNC _back_" to any
+set rulebase security rules "SERVER-SYNC _back_" source Office-LAN
+set rulebase security rules "SERVER-SYNC _back_" destination DMZ-Servers
+set rulebase security rules "SERVER-SYNC _back_" source-user any
+set rulebase security rules "SERVER-SYNC _back_" category any
+set rulebase security rules "SERVER-SYNC _back_" application any
+set rulebase security rules "SERVER-SYNC _back_" service Web-Group
+set rulebase security rules "SERVER-SYNC _back_" action allow
+set rulebase security rules "SERVER-SYNC _back_" log-end yes
+set rulebase security rules DNS-OUT from any
+set rulebase security rules DNS-OUT to any
+set rulebase security rules DNS-OUT source Server-Group
+set rulebase security rules DNS-OUT destination 0.0.0.0/0
+set rulebase security rules DNS-OUT source-user any
+set rulebase security rules DNS-OUT category any
+set rulebase security rules DNS-OUT application any
+set rulebase security rules DNS-OUT service DNS
+set rulebase security rules DNS-OUT action allow
+set rulebase security rules DNS-OUT log-end yes
+set rulebase security rules DNS-OUT disabled yes
+set rulebase security rules PING-ALL from any
+set rulebase security rules PING-ALL to any
+set rulebase security rules PING-ALL source Office-LAN
+set rulebase security rules PING-ALL destination 0.0.0.0/0
+set rulebase security rules PING-ALL source-user any
+set rulebase security rules PING-ALL category any
+set rulebase security rules PING-ALL application [ icmp ping ]
+set rulebase security rules PING-ALL service application-default
+set rulebase security rules PING-ALL action allow
+set rulebase security rules PING-ALL log-end yes
+set rulebase security rules UPDATES from any
+set rulebase security rules UPDATES to any
+set rulebase security rules UPDATES source DMZ-Servers
+set rulebase security rules UPDATES destination "Updates _IPv4_"
+set rulebase security rules UPDATES source-user any
+set rulebase security rules UPDATES category any
+set rulebase security rules UPDATES application any
+set rulebase security rules UPDATES service HTTP_S
+set rulebase security rules UPDATES action allow
+set rulebase security rules UPDATES log-end yes
+set rulebase security rules V6-WEB from any
+set rulebase security rules V6-WEB to any
+set rulebase security rules V6-WEB source ::/0
+set rulebase security rules V6-WEB destination V6-Servers
+set rulebase security rules V6-WEB source-user any
+set rulebase security rules V6-WEB category any
+set rulebase security rules V6-WEB application any
+set rulebase security rules V6-WEB service HTTP_S
+set rulebase security rules V6-WEB action allow
+set rulebase security rules V6-WEB log-end yes
+set rulebase security rules DENY-LAN-DMZ from any
+set rulebase security rules DENY-LAN-DMZ to any
+set rulebase security rules DENY-LAN-DMZ source Office-LAN
+set rulebase security rules DENY-LAN-DMZ destination DMZ-Servers
+set rulebase security rules DENY-LAN-DMZ source-user any
+set rulebase security rules DENY-LAN-DMZ category any
+set rulebase security rules DENY-LAN-DMZ application any
+set rulebase security rules DENY-LAN-DMZ service any
+set rulebase security rules DENY-LAN-DMZ action reset-client
+set rulebase security rules DENY-LAN-DMZ log-end yes
+set rulebase security rules GRE-LAB from any
+set rulebase security rules GRE-LAB to any
+set rulebase security rules GRE-LAB source Office-LAN
+set rulebase security rules GRE-LAB destination Mail-Server
+set rulebase security rules GRE-LAB source-user any
+set rulebase security rules GRE-LAB category any
+set rulebase security rules GRE-LAB application gre
+set rulebase security rules GRE-LAB service application-default
+set rulebase security rules GRE-LAB action allow
+set rulebase security rules GRE-LAB log-end yes
+set rulebase security rules TO-LAB from any
+set rulebase security rules TO-LAB to any
+set rulebase security rules TO-LAB source Office-LAN
+set rulebase security rules TO-LAB destination 0.0.0.0/0
+set rulebase security rules TO-LAB source-user any
+set rulebase security rules TO-LAB category any
+set rulebase security rules TO-LAB application any
+set rulebase security rules TO-LAB service any
+set rulebase security rules TO-LAB action drop
+set rulebase security rules TO-LAB log-end yes
+set rulebase security rules TO-LAB disabled yes
+set rulebase security rules TO-LAB description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules ODD from any
+set rulebase security rules ODD to any
+set rulebase security rules ODD source Office-LAN
+set rulebase security rules ODD destination 0.0.0.0/0
+set rulebase security rules ODD source-user any
+set rulebase security rules ODD category any
+set rulebase security rules ODD application any
+set rulebase security rules ODD service Odd-Ports
+set rulebase security rules ODD action allow
+set rulebase security rules ODD log-end yes
+set rulebase security rules ODD disabled yes
+set rulebase security rules ODD description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules BLOCKALL from any
+set rulebase security rules BLOCKALL to any
+set rulebase security rules BLOCKALL source 0.0.0.0/0
+set rulebase security rules BLOCKALL destination 0.0.0.0/0
+set rulebase security rules BLOCKALL source-user any
+set rulebase security rules BLOCKALL category any
+set rulebase security rules BLOCKALL application any
+set rulebase security rules BLOCKALL service any
+set rulebase security rules BLOCKALL action drop
+set rulebase security rules BLOCKALL log-end yes
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."

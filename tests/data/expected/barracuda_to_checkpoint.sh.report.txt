@@ -1,0 +1,64 @@
+FWShift conversion report
+  source: barracuda (forwarding firewall)
+  target: checkpoint
+
+Summary
+  Security rules:     17   exact 12, approximated 2, needs review 3 (3 emitted disabled), skipped 0
+  Addresses:           8   exact 8, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CONNECTION_NOT_READ: rules whose connection object translates the source address: 'LAN-2-INTERNET'. Source NAT is not read; the rules are, as they match
+  [needs-review] CHECKPOINT_SCRIPT: the output is a shell script of mgmt_cli calls. It changes one session and publishes nothing: log in, run it, review the session in SmartConsole, then publish and install the policy yourself. It stops at the first call the server refuses; discard the session before running it again
+  [needs-review] IMPLIED_RULES: Check Point applies implied rules (Global Properties) next to the rulebase, and every ordered layer of the policy package must accept a connection. Neither is part of the conversion: check that they allow no more and no less than intended
+  [needs-review] ZONES_REQUIRED: the rules use these security zones, which must be assigned to the interfaces of the gateway (or renamed with --zone-map): port2, port1. Rules that name a zone and addresses on the same side are sorted into 2 inline layers, one per pair of zones. An interface without a zone only reaches the rules that name no zone
+  [info] BARRACUDA_FORMAT: read 15 forwarding rules, 10 network objects and 8 service objects from 19 answers of the REST API. Barracuda documents that API by examples only: the keys read are those its examples and published tools show, and a key of a rule, an object or an entry this parser does not know makes it unusable
+  [info] ICMP_LIMITS: service objects that limit the size or rate of ICMP echo requests: 'Ping'. The limits are not converted: the rules allow ICMP of any size and rate
+  [info] LAYER_PLACEMENT: the rules are written to the top of access layer 'Network', in order, and end in a cleanup rule; rules the layer held before stay below it and are no longer reached. Choose another layer with --target-layer
+  [info] NAME_COLLISIONS: Check Point predefines several hundred objects (http, https, ssh, ...). If the script stops because a name exists already, convert again with --target-prefix to give every created object a prefix
+  [info] DOMAIN_OBJECTS: host names are written as domain objects, named after the domain with a leading dot; the gateway needs DNS to enforce them: .updates.example.com
+  [info] ANY_ONE_IP_VERSION: 'any address of one IP version' is written as a range object covering that version (All-IPv4, All-IPv6)
+
+Security rules
+  ADMIN-SSH (port2)  ->  exact  (emitted as layer Network_port2_to_any)
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+  ADMIN-SSH (port1)  ->  exact  (emitted as layer Network_port1_to_any)
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+  WEB-IN  ->  needs-review, emitted disabled  (emitted as layer Network_port2_to_any, layer Network_port1_to_any, layer Network)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Dst NAT: how the API spells its target list is not known, so the translation is not read.
+  SERVER-SYNC  ->  exact  (emitted as layer Network_port2_to_any, layer Network_port1_to_any, layer Network)
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  SERVER-SYNC (back)  ->  exact  (emitted as layer Network_port2_to_any, layer Network_port1_to_any, layer Network)
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  PING-ALL  ->  approximated  (emitted as layer Network_port2_to_any, layer Network_port1_to_any, layer Network)
+      [approximated] ICMP_LIMITS: service 'Ping' limits the size or rate of ICMP echo requests; the limits are not converted
+  GRE-LAB  ->  approximated  (emitted as layer Network_port2_to_any, layer Network_port1_to_any, layer Network)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application=urlFilter, ips=Default); attach equivalent inspection on the target
+  TO-LAB  ->  needs-review, emitted disabled  (emitted as layer Network_port2_to_any, layer Network_port1_to_any, layer Network)
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Cascade: the rules of the rule list it hands traffic to are not read, and they decide that traffic. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ODD  ->  needs-review, emitted disabled  (emitted as layer Network_port2_to_any, layer Network_port1_to_any, layer Network)
+      [needs-review] SCHEDULE: schedule '{"type": "recurring", "name": "Work-Hours"}' is not converted; the rule would apply at all times.
+
+Addresses
+  updates.example.com (IPv4)  ->  exact  (emitted as updates.example.com__IPv4_)
+      [info] RENAMED: renamed to 'updates.example.com__IPv4_' to fit the target's naming rules
+
+Address groups
+  Blocked-Nets (IPv4)  ->  exact  (emitted as Blocked-Nets__IPv4_)
+      [info] RENAMED: renamed to 'Blocked-Nets__IPv4_' to fit the target's naming rules
+  Blocked-Nets (IPv6)  ->  exact  (emitted as Blocked-Nets__IPv6_)
+      [info] RENAMED: renamed to 'Blocked-Nets__IPv6_' to fit the target's naming rules
+  Admin-Hosts (port2)  ->  exact  (emitted as Admin-Hosts__port2_)
+      [info] RENAMED: renamed to 'Admin-Hosts__port2_' to fit the target's naming rules
+  Admin-Hosts (port1)  ->  exact  (emitted as Admin-Hosts__port1_)
+      [info] RENAMED: renamed to 'Admin-Hosts__port1_' to fit the target's naming rules
+  Updates (IPv4)  ->  exact  (emitted as Updates__IPv4_)
+      [info] RENAMED: renamed to 'Updates__IPv4_' to fit the target's naming rules
+
+Services
+  HTTP+S  ->  exact  (emitted as HTTP_S)
+      [info] RENAMED: renamed to 'HTTP_S' to fit the target's naming rules
+  Web-Group entries  ->  exact  (emitted as Web-Group_entries)
+      [info] RENAMED: renamed to 'Web-Group_entries' to fit the target's naming rules

@@ -1527,6 +1527,7 @@ def sanitize_names(
     one_namespace: bool = False,
     prefix: str = "",
     keep: AbstractSet[str] = frozenset(),
+    fold_case: bool = False,
 ) -> None:
     """Rename objects and rules that the target platform would reject.
 
@@ -1534,7 +1535,8 @@ def sanitize_names(
     happens to carry one is renamed, so that it neither redefines the predefined
     object nor is mistaken for it. With ``one_namespace`` a service may not carry
     the name of an address either. ``prefix`` is put in front of every object
-    name; objects in ``keep`` exist on the target as they are and keep theirs.
+    name; objects in ``keep`` exist on the target as they are and keep theirs. With ``fold_case``
+    the target does not tell upper from lower case in names: ``LAN`` and ``lan`` are one name.
     """
     address_map = _rename(
         [(n, "address") for n in p.addresses] + [(n, "address-group") for n in p.address_groups],
@@ -1543,6 +1545,7 @@ def sanitize_names(
         reserved_addresses,
         prefix,
         keep,
+        fold_case,
     )
     if one_namespace:
         used = {address_map.get(name, name) for name in list(p.addresses) + list(p.address_groups)}
@@ -1554,15 +1557,29 @@ def sanitize_names(
         reserved_services,
         prefix,
         keep,
+        fold_case,
     )
 
     rename_objects(p, address_map, service_map)
+    pick = _unique_folded if fold_case else unique
     taken: Set[str] = set()
     for rule in p.rules:
-        rule.name = unique(rule.name, taken, rule_rules)
+        rule.name = pick(rule.name, taken, rule_rules)
     taken = set()
     for nat in p.nat_rules:
-        nat.name = unique(nat.name, taken, obj_rules)
+        nat.name = pick(nat.name, taken, obj_rules)
+
+
+def _unique_folded(name: str, taken: Set[str], rules: NameRules) -> str:
+    """As names.unique, for a target to which upper and lower case are the same: ``taken`` holds lower case."""
+    base = clean(name, rules)
+    candidate, counter = base, 2
+    while candidate.lower() in taken:
+        suffix = f"_{counter}"
+        candidate = base[: rules.max_len - len(suffix)].rstrip() + suffix
+        counter += 1
+    taken.add(candidate.lower())
+    return candidate
 
 
 def rename_objects(p: Policy, address_map: Mapping[str, str], service_map: Mapping[str, str]) -> None:
@@ -1617,19 +1634,32 @@ def _rename(
     reserved: AbstractSet[str],
     prefix: str = "",
     keep: AbstractSet[str] = frozenset(),
+    fold_case: bool = False,
 ) -> Dict[str, str]:
     """Old name -> new name for every object that cannot keep its name."""
-    stays = {
-        name
-        for name, _ in names
-        if name in keep or (not prefix and clean(name, rules) == name and name not in reserved)
-    }
-    taken = set(stays) | set(reserved)
+    if fold_case:
+        folded_reserved = {name.lower() for name in reserved}
+        stays: Set[str] = set()
+        seen: Set[str] = set()
+        for name, _ in names:
+            if name in keep or (not prefix and clean(name, rules) == name and name.lower() not in folded_reserved
+                                and name.lower() not in seen):  # fmt: skip
+                stays.add(name)
+                seen.add(name.lower())
+        taken = seen | folded_reserved
+    else:
+        stays = {
+            name
+            for name, _ in names
+            if name in keep or (not prefix and clean(name, rules) == name and name not in reserved)
+        }
+        taken = set(stays) | set(reserved)
+    pick = _unique_folded if fold_case else unique
     mapping: Dict[str, str] = {}
     for name, kind in names:
         if name in stays:
             continue
-        new = unique(prefix + name, taken, rules)
+        new = pick(prefix + name, taken, rules)
         mapping[name] = new
         report.item(kind, name).emitted_as = [new]
         if new != prefix + name:

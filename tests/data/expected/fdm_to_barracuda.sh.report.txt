@@ -1,0 +1,70 @@
+FWShift conversion report
+  source: fdm (FTD 7.2.5-208 on Cisco Firepower 1010 Threat Defense)
+  target: barracuda
+
+Summary
+  Security rules:      8   exact 0, approximated 1, needs review 7 (7 emitted disabled), skipped 0
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 9, approximated 0, needs review 2, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] BARRACUDA_LOAD: the output is a shell script that creates network objects, service objects and forwarding rules through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. The rules go to the top of the rule list, above the rules the firewall has, deactivated, and are then activated in order, first rule first: if a call is refused the script stops, and only the rules above that one are active, with the rules the firewall had below them. Barracuda documents the API by examples: assumed are the keys of a service object and its entries (protocol, ports, client ports), the interface of an entry of a network object, the IP version and action types of a rule other than block, and names of up to 32 letters, digits, periods, underscores and hyphens
+  [needs-review] BLOCK_RULE_INACTIVE: the source blocks what no rule matches. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that do so follow the converted rules, deactivated: until they are activated, the rules the firewall has below them decide that traffic. Look at those rules (management access, the default rules) and activate the two
+
+Security rules
+  Block_IoT_to_office  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'office-lan' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone inside_zone; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone inside_zone; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Inside_Outside_web  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside_zone, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind inside_zone with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside_zone, and a rule of the firewall names no zone: give the networks behind outside_zone with --zone-network.
+  IoT_telemetry  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'vendor-cloud': a host name: how the API spells a hostname object is not known.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside_zone, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind inside_zone with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside_zone, and a rule of the firewall names no zone: give the networks behind outside_zone with --zone-network.
+  NAS_from_Internet  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'outside-interface' next to 'nas' because of NAT rule 'NAS_published'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'NAS_published' also translates the port to 5001; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'nas' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside_zone, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind outside_zone with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone inside_zone, and a rule of the firewall names no zone: give the networks behind inside_zone with --zone-network.
+  Head_office_v6  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'nas-public' next to 'office-devices' because of NAT rule 'nas_static'; check that this rule is meant to cover the translated traffic
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'echo-request': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside_zone, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind outside_zone with --zone-network.
+  DNS_answers  ->  needs-review, emitted disabled  (emitted as DNS_answers, DNS_answers-v6)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside_zone, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind outside_zone with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone inside_zone, and a rule of the firewall names no zone: give the networks behind inside_zone with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Staff_streaming  ->  needs-review, emitted disabled  (emitted as Staff_streaming, Staff_streaming-v6)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone inside_zone; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone outside_zone; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Guests_by_time  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'port-unreachable': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside_zone, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind inside_zone with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside_zone, and a rule of the firewall names no zone: give the networks behind outside_zone with --zone-network.
+
+NAT rules
+  NAS_published  ->  skipped
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 192.0.2.2
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  nas_static  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  InsideOutsideNatRule  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  IoT_out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+
+Services
+  echo-request  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated
+  port-unreachable  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated

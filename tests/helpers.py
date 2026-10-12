@@ -2366,3 +2366,154 @@ class WatchGuardXml:
                     port = member.findtext("port") or "0"
                     return (str(ipaddress.ip_address(inside.findtext("host-ip-addr") or "")), "Original" if port == "0" else port)
         return ("Original", "Original")
+
+
+# -- Barracuda CloudGen Firewall -------------------------------------------------------------------------
+
+
+class BarracudaRest:
+    """Forwarding rules of a CloudGen Firewall, read here without fwshift's parser: from answers of its REST API or from
+    the script FWShift writes, whose rules are placed at the top of the list one after the other (the last call ends up
+    first). What the firewall would decide: rules in order, first match, deactivated ones skipped; a rule of the IP version
+    of the packet; its source object holds the source (an entry that names an interface only where the packet arrives),
+    its destination object the destination, its service the packet; bi-directional rules the other way round as well.
+    Pass passes, Block and Deny block, what no rule matches is blocked. The script creates its rules deactivated and
+    activates them with PATCH calls afterwards; only the activations it makes count."""
+
+    def __init__(self, text: str) -> None:
+        import json
+        import re
+
+        self.networks: Dict[str, Dict[str, Any]] = {}
+        self.services: Dict[str, Dict[str, Any]] = {}
+        self.rules: List[Dict[str, Any]] = []
+        if text.startswith("#!/bin/sh"):
+            calls = re.findall(r"^call (POST|PATCH) (\S+) <<'FWSHIFT_JSON'\n(.*?)\nFWSHIFT_JSON$", text, re.S | re.M)
+            assert calls, "no calls in the script"
+            posted: List[Dict[str, Any]] = []
+            for method, endpoint, body in calls:
+                value = json.loads(body)
+                if method == "PATCH":
+                    assert endpoint.startswith("rules/") and value == {"deactivated": False}, (endpoint, value)
+                    target = [r for r in posted if r["name"] == endpoint[len("rules/"):]]
+                    assert len(target) == 1, endpoint
+                    target[0]["deactivated"] = False
+                elif endpoint == "objects/networks":
+                    self._add(self.networks, value)
+                elif endpoint == "objects/services":
+                    self._add(self.services, value)
+                else:
+                    assert endpoint == "rules" and value["position"] == {"placement": "top"}, endpoint
+                    assert value["deactivated"] is True, "a rule created active"
+                    posted.append(value)
+            self.rules = list(reversed(posted))
+        else:
+            decoder, position = json.JSONDecoder(), 0
+            while True:
+                while position < len(text) and text[position] in " \t\r\n":
+                    position += 1
+                if position >= len(text):
+                    break
+                value, position = decoder.raw_decode(text, position)
+                if "rules" in value:
+                    self.rules += value["rules"]
+                elif "entries" in value:
+                    self._add(self.services, value)
+                else:
+                    self._add(self.networks, value)
+        names = [rule["name"] for rule in self.rules]
+        assert len(names) == len(set(n.lower() for n in names)), "two rules of one name"
+
+    @staticmethod
+    def _add(store: Dict[str, Dict[str, Any]], value: Dict[str, Any]) -> None:
+        assert value["name"].lower() not in {n.lower() for n in store}, f"object {value['name']} twice"
+        store[value["name"]] = value
+
+    def _holds(self, name: str, address: str, interface: Optional[str], seen: frozenset = frozenset()) -> bool:
+        import ipaddress
+
+        if name == "Any":
+            return True
+        assert name not in seen
+        obj = self.networks[name]
+        ip = ipaddress.ip_address(address)
+
+        def inside(entry: Dict[str, Any]) -> bool:
+            if "-" in entry["ip"]:
+                first, last = (ipaddress.ip_address(part) for part in entry["ip"].split("-"))
+                return first.version == ip.version and int(first) <= int(ip) <= int(last)
+            net = ipaddress.ip_network(entry["ip"], strict=False)
+            return net.version == ip.version and ip in net
+
+        for item in obj.get("excluded", []):
+            if inside(item["entry"]):
+                return False
+        for item in obj.get("included", []):
+            if "references" in item:
+                if self._holds(item["references"], address, interface, seen | {name}):
+                    return True
+                continue
+            entry = item["entry"]
+            if entry.get("interface") and interface is not None and entry["interface"] != interface:
+                continue
+            if inside(entry):
+                return True
+        return False
+
+    def _service(self, name: str, pkt: Any) -> bool:
+        if name == "Any":
+            return True
+        numbers = {"tcp": "tcp", "udp": "udp", "icmp": "icmp", "icmpv6": "icmp6", "6": "tcp", "17": "udp", "1": "icmp", "58": "icmp6"}
+        for item in self.services[name]["entries"]:
+            if "references" in item:
+                if self._service(item["references"], pkt):
+                    return True
+                continue
+            entry = item["entry"]
+            protocol = numbers.get(str(entry["protocol"]).lower(), str(entry["protocol"]))
+            if protocol != pkt.proto:
+                continue
+            if protocol not in ("tcp", "udp"):
+                return True
+            ports = entry["ports"]
+            dport = pkt.dport
+            if not ("*" in ports or any(int(p.split("-")[0]) <= dport <= int(p.split("-")[-1]) for p in ports)):
+                continue
+            client = entry.get("clientPortUsed")
+            if client and not client["from"] <= pkt.sport <= client["to"]:
+                continue
+            return True
+        return False
+
+    def _interfaces(self, name: str, seen: frozenset = frozenset()) -> bool:
+        if name == "Any" or name in seen:
+            return False
+        for item in self.networks[name].get("included", []):
+            if "references" in item and self._interfaces(item["references"], seen | {name}):
+                return True
+            if "entry" in item and item["entry"].get("interface"):
+                return True
+        return False
+
+    def deciding(self, pkt: Any) -> Optional[Dict[str, Any]]:
+        import ipaddress
+
+        version = ipaddress.ip_address(pkt.src).version
+        for rule in self.rules:
+            assert isinstance(rule["deactivated"], bool) and isinstance(rule.get("bidirectional", False), bool)
+            if rule["deactivated"] is True or rule["ipVersion"] != f"IPv{version}":
+                continue
+            kind = rule["action"]["type"]
+            assert kind in ("pass", "block", "deny"), f"the judge does not know action {kind}"
+            src, dst, svc = (rule[key]["references"] for key in ("source", "destination", "service"))
+            if self._holds(src, pkt.src, pkt.in_if) and self._holds(dst, pkt.dst, None) and self._service(svc, pkt):
+                return rule
+            if rule.get("bidirectional") is True:
+                assert not self._interfaces(src) and not self._interfaces(dst), "a bi-directional rule with interfaces: not known"
+                if self._holds(dst, pkt.src, None) and self._holds(src, pkt.dst, None) and self._service(svc, pkt):
+                    return rule
+        return None
+
+    def allows(self, pkt: Any) -> bool:
+        rule = self.deciding(pkt)
+        return rule is not None and rule["action"]["type"] == "pass"

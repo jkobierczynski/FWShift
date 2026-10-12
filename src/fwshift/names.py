@@ -64,6 +64,10 @@ SONICWALL_NATIVE = NameRules(32, SONICWALL.invalid, False)
 # to 100 characters.
 WATCHGUARD = NameRules(100, re.compile(r"[\x00-\x1f\x7f]"), False)
 
+# Barracuda CloudGen Firewall: the REST API refuses some characters in a rule name and does not say which, nor how
+# long a name may be. Names are kept to letters, digits, period, underscore and hyphen, and to 32 characters.
+BARRACUDA = NameRules(32, re.compile(r"[^A-Za-z0-9._-]"), True)
+
 
 def clean(name: str, rules: NameRules) -> str:
     out = rules.invalid.sub("_", name).strip()

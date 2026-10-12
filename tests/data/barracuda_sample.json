@@ -1,0 +1,669 @@
+{
+  "rules": [
+    {
+      "name": "BLOCK-BAD",
+      "comment": "known bad networks",
+      "ipVersion": "IPv4",
+      "deactivated": false,
+      "dynamic": false,
+      "bidirectional": false,
+      "source": {
+        "references": "Blocked-Nets"
+      },
+      "destination": {
+        "references": "Any"
+      },
+      "service": {
+        "references": "Any"
+      },
+      "action": {
+        "type": "block"
+      },
+      "policies": {
+        "schedule": {
+          "type": "always"
+        }
+      }
+    },
+    {
+      "name": "BLOCK-BAD-V6",
+      "comment": "",
+      "ipVersion": "IPv6",
+      "deactivated": false,
+      "dynamic": false,
+      "bidirectional": false,
+      "source": {
+        "references": "Blocked-Nets"
+      },
+      "destination": {
+        "references": "Any"
+      },
+      "service": {
+        "references": "Any"
+      },
+      "action": {
+        "type": "block"
+      },
+      "policies": {
+        "schedule": {
+          "type": "always"
+        }
+      }
+    },
+    {
+      "name": "ADMIN-SSH",
+      "comment": "",
+      "ipVersion": "IPv4",
+      "deactivated": false,
+      "dynamic": false,
+      "bidirectional": false,
+      "source": {
+        "references": "Admin-Hosts"
+      },
+      "destination": {
+        "references": "DMZ-Servers"
+      },
+      "service": {
+        "references": "SSH"
+      },
+      "action": {
+        "type": "pass"
+      },
+      "policies": {
+        "schedule": {
+          "type": "always"
+        }
+      }
+    },
+    {
+      "name": "LAN-2-INTERNET",
+      "comment": "",
+      "ipVersion": "IPv4",
+      "deactivated": false,
+      "dynamic": false,
+      "bidirectional": false,
+      "source": {
+        "references": "Office-LAN"
+      },
+      "destination": {
+        "references": "Any"
+      },
+      "service": {
+        "references": "HTTP+S"
+      },
+      "action": {
+        "type": "pass",
+        "connection": {
+          "references": "Dynamic NAT"
+        }
+      },
+      "policies": {
+        "schedule": {
+          "type": "always"
+        }
+      }
+    },
+    {
+      "name": "WEB-IN",
+      "comment": "",
+      "ipVersion": "IPv4",
+      "deactivated": false,
+      "dynamic": false,
+      "bidirectional": false,
+      "source": {
+        "references": "Any"
+      },
+      "destination": {
+        "references": "Public-Web"
+      },
+      "service": {
+        "references": "HTTP+S"
+      },
+      "action": {
+        "type": "dnat"
+      },
+      "policies": {
+        "schedule": {
+          "type": "always"
+        }
+      }
+    },
+    {
+      "name": "SERVER-SYNC",
+      "comment": "",
+      "ipVersion": "IPv4",
+      "deactivated": false,
+      "dynamic": false,
+      "bidirectional": true,
+      "source": {
+        "references": "DMZ-Servers"
+      },
+      "destination": {
+        "references": "Office-LAN"
+      },
+      "service": {
+        "references": "Web-Group"
+      },
+      "action": {
+        "type": "pass"
+      },
+      "policies": {
+        "schedule": {
+          "type": "always"
+        }
+      }
+    },
+    {
+      "name": "DNS-OUT",
+      "comment": "",
+      "ipVersion": "IPv4",
+      "deactivated": true,
+      "dynamic": false,
+      "bidirectional": false,
+      "source": {
+        "references": "Server-Group"
+      },
+      "destination": {
+        "references": "Any"
+      },
+      "service": {
+        "references": "DNS"
+      },
+      "action": {
+        "type": "pass"
+      },
+      "policies": {
+        "schedule": {
+          "type": "always"
+        }
+      }
+    },
+    {
+      "name": "PING-ALL",
+      "comment": "",
+      "ipVersion": "IPv4",
+      "deactivated": false,
+      "dynamic": false,
+      "bidirectional": false,
+      "source": {
+        "references": "Office-LAN"
+      },
+      "destination": {
+        "references": "Any"
+      },
+      "service": {
+        "references": "Ping"
+      },
+      "action": {
+        "type": "pass"
+      },
+      "policies": {
+        "schedule": {
+          "type": "always"
+        }
+      }
+    },
+    {
+      "name": "UPDATES",
+      "comment": "",
+      "ipVersion": "IPv4",
+      "deactivated": false,
+      "dynamic": false,
+      "bidirectional": false,
+      "source": {
+        "references": "DMZ-Servers"
+      },
+      "destination": {
+        "references": "Updates"
+      },
+      "service": {
+        "references": "HTTP+S"
+      },
+      "action": {
+        "type": "pass"
+      },
+      "policies": {
+        "schedule": {
+          "type": "always"
+        }
+      }
+    },
+    {
+      "name": "V6-WEB",
+      "comment": "",
+      "ipVersion": "IPv6",
+      "deactivated": false,
+      "dynamic": false,
+      "bidirectional": false,
+      "source": {
+        "references": "Any"
+      },
+      "destination": {
+        "references": "V6-Servers"
+      },
+      "service": {
+        "references": "HTTP+S"
+      },
+      "action": {
+        "type": "pass"
+      },
+      "policies": {
+        "schedule": {
+          "type": "always"
+        }
+      }
+    },
+    {
+      "name": "DENY-LAN-DMZ",
+      "comment": "",
+      "ipVersion": "IPv4",
+      "deactivated": false,
+      "dynamic": false,
+      "bidirectional": false,
+      "source": {
+        "references": "Office-LAN"
+      },
+      "destination": {
+        "references": "DMZ-Servers"
+      },
+      "service": {
+        "references": "Any"
+      },
+      "action": {
+        "type": "deny"
+      },
+      "policies": {
+        "schedule": {
+          "type": "always"
+        }
+      }
+    },
+    {
+      "name": "GRE-LAB",
+      "comment": "",
+      "ipVersion": "IPv4",
+      "deactivated": false,
+      "dynamic": false,
+      "bidirectional": false,
+      "source": {
+        "references": "Office-LAN"
+      },
+      "destination": {
+        "references": "Mail-Server"
+      },
+      "service": {
+        "references": "GRE"
+      },
+      "action": {
+        "type": "pass"
+      },
+      "policies": {
+        "application": {
+          "applicationControl": false,
+          "urlFilter": true
+        },
+        "ips": "Default",
+        "schedule": {
+          "type": "always"
+        }
+      }
+    },
+    {
+      "name": "TO-LAB",
+      "comment": "",
+      "ipVersion": "IPv4",
+      "deactivated": false,
+      "dynamic": false,
+      "bidirectional": false,
+      "source": {
+        "references": "Office-LAN"
+      },
+      "destination": {
+        "references": "Any"
+      },
+      "service": {
+        "references": "Any"
+      },
+      "action": {
+        "type": "cascade"
+      },
+      "policies": {
+        "schedule": {
+          "type": "always"
+        }
+      }
+    },
+    {
+      "name": "ODD",
+      "comment": "",
+      "ipVersion": "IPv4",
+      "deactivated": false,
+      "dynamic": false,
+      "bidirectional": false,
+      "source": {
+        "references": "Office-LAN"
+      },
+      "destination": {
+        "references": "Any"
+      },
+      "service": {
+        "references": "Odd-Ports"
+      },
+      "action": {
+        "type": "pass"
+      },
+      "policies": {
+        "schedule": {
+          "type": "recurring",
+          "name": "Work-Hours"
+        }
+      }
+    },
+    {
+      "name": "BLOCKALL",
+      "comment": "",
+      "ipVersion": "IPv4",
+      "deactivated": false,
+      "dynamic": false,
+      "bidirectional": false,
+      "source": {
+        "references": "Any"
+      },
+      "destination": {
+        "references": "Any"
+      },
+      "service": {
+        "references": "Any"
+      },
+      "action": {
+        "type": "block"
+      },
+      "policies": {
+        "schedule": {
+          "type": "always"
+        }
+      }
+    }
+  ]
+}
+{
+  "name": "Office-LAN",
+  "type": "generic",
+  "comment": "the office",
+  "included": [
+    {
+      "entry": {
+        "ip": "10.10.0.0/16"
+      }
+    }
+  ],
+  "excluded": []
+}
+{
+  "name": "DMZ-Servers",
+  "type": "generic",
+  "comment": "",
+  "included": [
+    {
+      "entry": {
+        "ip": "10.20.0.0/24"
+      }
+    }
+  ],
+  "excluded": [
+    {
+      "entry": {
+        "ip": "10.20.0.0/28"
+      }
+    }
+  ]
+}
+{
+  "name": "Web-Server",
+  "type": "singleIPv4Address",
+  "comment": "",
+  "included": [
+    {
+      "entry": {
+        "ip": "10.20.0.80"
+      }
+    }
+  ],
+  "excluded": []
+}
+{
+  "name": "Mail-Server",
+  "type": "singleIPv4Address",
+  "comment": "",
+  "included": [
+    {
+      "entry": {
+        "ip": "10.20.0.25"
+      }
+    }
+  ],
+  "excluded": []
+}
+{
+  "name": "Public-Web",
+  "type": "singleIPv4Address",
+  "comment": "",
+  "included": [
+    {
+      "entry": {
+        "ip": "203.0.113.10"
+      }
+    }
+  ],
+  "excluded": []
+}
+{
+  "name": "Admin-Hosts",
+  "type": "generic",
+  "comment": "",
+  "included": [
+    {
+      "entry": {
+        "ip": "10.10.5.10",
+        "interface": "port2"
+      }
+    },
+    {
+      "entry": {
+        "ip": "10.10.5.11",
+        "interface": "port2"
+      }
+    },
+    {
+      "entry": {
+        "ip": "192.0.2.50",
+        "interface": "port1",
+        "comment": "remote admin"
+      }
+    }
+  ],
+  "excluded": []
+}
+{
+  "name": "Blocked-Nets",
+  "type": "generic",
+  "comment": "",
+  "included": [
+    {
+      "entry": {
+        "ip": "198.51.100.0/24"
+      }
+    },
+    {
+      "entry": {
+        "ip": "2001:db8:bad::/48"
+      }
+    }
+  ],
+  "excluded": []
+}
+{
+  "name": "Server-Group",
+  "type": "generic",
+  "comment": "",
+  "included": [
+    {
+      "references": "Web-Server"
+    },
+    {
+      "references": "Mail-Server"
+    }
+  ],
+  "excluded": []
+}
+{
+  "name": "Updates",
+  "type": "hostname",
+  "comment": "",
+  "included": [
+    {
+      "entry": {
+        "ip": "updates.example.com"
+      }
+    }
+  ],
+  "excluded": []
+}
+{
+  "name": "V6-Servers",
+  "type": "singleIPv6Network",
+  "comment": "",
+  "included": [
+    {
+      "entry": {
+        "ip": "2001:db8:20::/64"
+      }
+    }
+  ],
+  "excluded": []
+}
+{
+  "name": "HTTP+S",
+  "comment": "",
+  "entries": [
+    {
+      "entry": {
+        "protocol": "tcp",
+        "ports": [
+          "80",
+          "443"
+        ]
+      }
+    }
+  ]
+}
+{
+  "name": "SSH",
+  "comment": "",
+  "entries": [
+    {
+      "entry": {
+        "protocol": "tcp",
+        "ports": [
+          "22"
+        ],
+        "sessionTimeout": 86400
+      }
+    }
+  ]
+}
+{
+  "name": "SMTP",
+  "comment": "",
+  "entries": [
+    {
+      "entry": {
+        "protocol": "tcp",
+        "ports": [
+          "25"
+        ]
+      }
+    }
+  ]
+}
+{
+  "name": "DNS",
+  "comment": "",
+  "entries": [
+    {
+      "entry": {
+        "protocol": "tcp",
+        "ports": [
+          "53"
+        ]
+      }
+    },
+    {
+      "entry": {
+        "protocol": "udp",
+        "ports": [
+          "53"
+        ]
+      }
+    }
+  ]
+}
+{
+  "name": "Ping",
+  "comment": "",
+  "entries": [
+    {
+      "entry": {
+        "protocol": "icmp",
+        "maxPingSize": 1024,
+        "minDelay": 10
+      }
+    }
+  ]
+}
+{
+  "name": "Web-Group",
+  "comment": "",
+  "entries": [
+    {
+      "references": "HTTP+S"
+    },
+    {
+      "entry": {
+        "protocol": "tcp",
+        "ports": [
+          "8080"
+        ]
+      }
+    }
+  ]
+}
+{
+  "name": "GRE",
+  "comment": "",
+  "entries": [
+    {
+      "entry": {
+        "protocol": "47"
+      }
+    }
+  ]
+}
+{
+  "name": "Odd-Ports",
+  "comment": "",
+  "entries": [
+    {
+      "entry": {
+        "protocol": "tcp",
+        "ports": [
+          "1000-2000"
+        ],
+        "clientPortUsed": {
+          "from": 1024,
+          "to": 65535
+        }
+      }
+    }
+  ]
+}

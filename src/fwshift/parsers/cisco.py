@@ -239,6 +239,12 @@ def _documents(data: bytes) -> List[Any]:
             raise ParseError(f"not valid JSON{after}: {exc}") from None
         except RecursionError:
             raise ParseError("not usable JSON: nested too deeply") from None
+        try:
+            json.dumps(value, ensure_ascii=False).encode("utf-8")
+        except UnicodeEncodeError:
+            raise ParseError("not usable JSON: a string holds half of a UTF-16 pair (a lone \\ud800 to \\udfff escape)") from None
+        except (RecursionError, ValueError):
+            raise ParseError("not usable JSON: nested too deeply, or a number JSON cannot hold") from None
         out.append(value)
     return out
 

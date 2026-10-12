@@ -8,11 +8,11 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.10.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
-| Tests | 2821, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a Check Point management server, a Cisco Management Center or a Device Manager |
-| Next | 0.11.0: Barracuda CloudGen Firewall (see `TODO.md`); lab validation of the sample conversions |
+| Version | 0.11.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
+| Tests | 3027, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, a Check Point management server, a Cisco Management Center or a Device Manager |
+| Next | 0.12.0: Juniper SRX (see `TODO.md`); lab validation of the sample conversions |
 
 ## Layout
 
@@ -34,6 +34,8 @@ src/fwshift/
                       default rules, objects of SonicOS from the interfaces)
         watchguard.py Policy Manager XML     -> model (interfaces as zones, a
                       policy per pair of interfaces it names, static NAT actions)
+        barracuda.py  CloudGen REST API JSON -> model (interfaces of source
+                      entries as zones, exclusions, bi-directional rules)
         iptables.py   iptables-save output   -> model (chains flattened)
     emitters/
         panos.py      model -> PAN-OS set commands
@@ -52,6 +54,8 @@ src/fwshift/
                       IP version, a rule that denies at the end of each pair)
         watchguard.py model -> the policy part of a Policy Manager file (aliases
                       of zone and address, static NAT actions in policies)
+        barracuda.py  model -> a shell script of REST calls (rules created
+                      deactivated at the top, then activated in order)
         iptables.py   model -> iptables-restore / ip6tables-restore file
     transform.py      passes shared by the emitters: hardening of names,
                       references, placeholders, names, application lowering,
@@ -76,14 +80,15 @@ tests/
     data/             one synthetic sample per format
     data/expected/    their conversions and reports, byte for byte
     tools/            the scripts that write the Check Point sample, the two
-                      Cisco Secure Firewall samples and the SonicWall and
-                      WatchGuard samples,
+                      Cisco Secure Firewall samples and the SonicWall,
+                      WatchGuard and Barracuda samples,
                       and the kernel check
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
                       Check Point, ASA, Sophos and Cisco Secure Firewall output;
                       a pfSense that judges packets from its configuration;
                       a SonicWall that judges by an export and by commands;
-                      a Firebox that judges by its configuration file
+                      a Firebox that judges by its configuration file;
+                      a CloudGen Firewall that judges by API answers or a script
     test_parsers.py   netutil, FortiOS syntax, PAN-OS and FortiOS parsers
     test_emitters.py  PAN-OS and FortiOS emitters
     test_semantics.py one small configuration per semantic trap
@@ -102,6 +107,7 @@ tests/
                       judge in helpers.py, emitted files restored into it
     test_sonicwall.py SonicWall both ways, against the two judges in helpers.py
     test_watchguard.py WatchGuard both ways, against the judge in helpers.py
+    test_barracuda.py Barracuda both ways, against the judge in helpers.py
     test_audit.py     the audit, against a walk through every packet of a
                       small world
     test_matrix.py    the zone matrix, against the same walk: every packet
@@ -542,6 +548,10 @@ policy behaves unexpectedly.
 | Policy Manager file: root `<profile>`; `address-group-list` (member type 1 host, 2 network with mask, 3 range, 8 domain), `service-list` (member protocol number, type 1 one port, 2 range, ICMP type and code with 255 any, protocol 0 any), `alias-list` (member type 1 address at an interface with a user, type 2 another alias), `abs-policy-list` (the policies in order, `firewall`, `enabled`, `from-alias-list`, `to-alias-list`, `service`), `policy-list` (the rule of each, `-00`), `interface-list` (`if-property`/`vif-property` 1 trusted, 2 external, 3 optional, 8 custom: one reader's reading), `nat-list` (static NAT `.snat`, type 7) (the readers agree where not said) | WatchGuard parser and emitter |
 | Fireware: policies are first match in manual order; automatic order sorts them by how specific they are (Help Center), and the flag `auto-order-enabled` is found in two places by two readers (searched anywhere); the Firebox denies what no policy allows (Help Center); static NAT is an action in the To list of a policy, which names the public address (Help Center) | WatchGuard parser and emitter |
 | Assumed when writing: `Allow` and `Deny` as the text of `firewall` in `abs-policy-list` (the readers show numbers and words), the members of a static NAT action as they are written, and that Policy Manager reads a file of policies whose aliases name interfaces by name | WatchGuard emitter, `WATCHGUARD_LOAD` |
+| Barracuda, all rows below: from Barracuda Campus (the REST API pages and the how-to articles whose examples use it) where it says so; the rest assumed, and the keys of a rule also as an MCP server for the API on GitHub (LanceHardwoodXXX/Barracuda-MCP-v2; read, never run) sends them. Nothing was run against a CloudGen Firewall | Barracuda parser and emitter |
+| CloudGen REST API: base `/rest/config/v1`, header `X-API-Token`; `GET forwarding-firewall/rules` (with `expand=true`) answers `{"rules": [...]}`; `POST forwarding-firewall/objects/networks` with `name` and `included: [{"entry": {"ip": ...}}]`; `POST .../networks/<name>/included` with `{"entry": {"ip", "interface", "comment"}}`; `POST forwarding-firewall/rules` (or `rules/lists/<list>`) with `name`, `source`/`destination`/`service` as `{"references": ...}`, `action: {"type": "block"}`, `position: {"placement": "top"}`; `PATCH forwarding-firewall/rules/<name>` with `{"deactivated": false}` (Campus examples) | Barracuda parser and emitter |
+| Assumed: `ipVersion` `IPv4`/`IPv6`, `bidirectional`, `comment`, the action types `pass` and `deny`, `excluded` entries, service objects as `entries` of `{"entry": {"protocol", "ports", "clientPortUsed": {"from", "to"}}}`, a reference among the entries of an object, names of up to 32 letters, digits, `.`, `_` and `-` told apart without regard to case | Barracuda parser and emitter, `BARRACUDA_LOAD` |
+| CloudGen semantics: first match, IPv4 and IPv6 rules apart, Block drops, Deny answers, what no rule matches is blocked, the interface of an entry counts in a source only, a bi-directional rule matches the other way round, excluded entries leave addresses out, an ICMP service entry matches every type (Campus) | Barracuda parser, emitter and judge |
 
 ## Development log
 
@@ -1755,6 +1765,102 @@ not reviewed again; they have tests (the last section of
   these lists, and the words it writes for the action of a policy; where the
   file keeps dynamic NAT, 1-to-1 NAT and the NAT settings of a policy; the
   codes of interface types (one reader); where `auto-order-enabled` sits.
+
+### 2026-10-12: version 0.11.0
+
+**Built**
+
+* Barracuda CloudGen Firewall, read and written: `parsers/barracuda.py` and
+  `emitters/barracuda.py`, as the format `barracuda`.
+* Read: saved answers of the REST API of the firewall (8.0 and later), one
+  after the other: the forwarding rules and the network and service objects
+  they name. Rules of both IP versions, first match; pass, block and deny;
+  deactivated; bi-directional rules as two rules; the interfaces of the
+  entries of a source object as zones, a rule per interface; excluded entries
+  subtracted; references between objects; TCP and UDP with client ports,
+  ICMP, IP protocols.
+* Written: a shell script of curl calls to the same API. Objects; then every
+  rule, deactivated, at the top of the list, last rule first; then the rules
+  that are to be active are activated, first rule first, so that a refused
+  call leaves only the start of the policy active. Zones as the interfaces of
+  source entries or as networks; a rule that blocks the rest, deactivated.
+  `DRY_RUN=1` prints the calls.
+* A sample, `barracuda_sample.json`, written by
+  `tests/tools/make_barracuda_sample.py`, with its conversions to every
+  target, its audit and matrix, and the conversions of the other eleven
+  samples to Barracuda.
+* Names are told apart without regard to case where a target asks for it
+  (`sanitize_names(fold_case=True)`); a lone UTF-16 surrogate in any JSON
+  input is an error instead of a traceback when the report is written.
+
+**What the platform made necessary**
+
+* *No export.* The configuration backup of a CloudGen Firewall (PAR, PCA,
+  PGZ) is in a format of its own that Barracuda does not document, and
+  Firewall Admin copies rules only between its own windows. The REST API is
+  the one way out a program can read, and the one way in: input and output
+  are both JSON of that API, documented by examples only. What is not in an
+  example is assumed, and listed.
+* *No zones.* A rule names addresses; the way out is the routes. The
+  interface of an entry of a source object is the only interface a rule
+  matches, and becomes the zone. Written, a zone is that interface or the
+  networks behind it.
+* *A list that is already there.* The script cannot replace the rules of the
+  firewall, only add to them: its rules go above, its rule that blocks the
+  rest is deactivated for a person to switch on, and rules are activated in
+  order so that a stop half way never leaves an allow without the blocks
+  above it.
+* *NAT in the rule.* Dst NAT and Map are actions, source NAT a connection
+  object, in a JSON no example shows: not read and not written, and said so.
+
+**Sources**
+
+Barracuda Campus (REST API, access rules, actions, bi-directional rules,
+cascading rule lists, network, service and connection objects, the CSV import
+of network objects, backup and restore) and the examples in its integration
+articles; a published MCP server for the API for the keys of a rule, read and
+never run. What comes from where, and what is assumed, is in the table
+*Vendor behaviour the code relies on*.
+
+**Review**
+
+*Round 19* by the independent reviewer, with repro scripts of its own (14,508
+mutated inputs through the parser and three emitters, a fake curl that
+refuses a call). 2 high, 7 medium, 9 low:
+
+| | Finding | Fix |
+|---|---|---|
+| high | The script created rules active, last first, and stopped at the first refused call: a later allow could be active without the blocks above it | rules are created deactivated and activated first rule first; the report says what a stop leaves |
+| high | Names were told apart by case when written and not when read: an object `ANY` became a reference the firewall, and FWShift itself, take for the object Any | names are told apart without regard to case when written; read, only `Any` is Any, and an object of that name in the input wins |
+| medium | Every rule made its own copy of the addresses of an object it needed by IP version or interface: 3 MB of input took 3 GB | a group per object, interface and IP version, made once |
+| medium | A lone UTF-16 surrogate in JSON gave a traceback when the report was written (every JSON source) | an error that says why |
+| medium | A user condition not spelled as a reference was read as any user; `bidirectional: 1` as one-way | read strictly, otherwise the rule is not used |
+| medium | A bi-directional rule whose destination names interfaces: the way back was read for every interface | not used |
+| medium | A rule that expires was converted as permanent, reported as information | an allowing rule that expires is not used; a blocking one is approximated |
+| medium | Keys inside the protocol settings of a service entry were not checked; a null at the top hid client ports below | checked, and two values of one key are refused |
+| low | ICMP limits were a note only; a service group naming a missing service went unreported; an interface `0` or `[]` read as none; the range shorthand `192.168.50-100` read as a host name; generated rule names could collide with names of the input; IP protocol 6 written without ports; ICMPv4 written into IPv6 rules; destinations an ASA worked out from its routes needed networks; the codes were not documented, curl hid the answer of a refused call and the token was visible to `ps` | on the rule; reported, and the rule not used; refused; refused; made unique; TCP with every port; only into the rule of its version; taken as they are; documented, `--fail-with-body`, the token in a file |
+
+The judge was corrected with the code where it shared a mistake (the way back
+of a bi-directional rule with interfaces; `"false"` as a flag). The fixes
+were not reviewed again; they have tests (the last section of
+`test_barracuda.py`).
+
+**Verified, and not**
+
+* The tests: `tests/test_barracuda.py` holds 181 tests, the suite
+  3027. The parser is compared with an independent reading of the
+  answers on 100 random inputs, the emitter with the model on 60 random models
+  in two ways (zones as interfaces, zones as networks), the round trip on 30.
+  The script itself runs in `sh` against a fake curl. A mutation check with
+  12 ways to break parser and emitter: all 12 caught.
+* **Nothing was run against a CloudGen Firewall.** The keys come from the
+  examples in Barracuda's documentation and one published tool; the judge is
+  written from the same reading.
+* The largest unknowns: the JSON of a service object and its entries; whether
+  `ipVersion`, `bidirectional`, the action `pass` and `deny` and `excluded`
+  are spelled so; the limits of names; whether the API resolves names with
+  regard to case; what `expand=true` holds for rule lists; the JSON of Dst
+  NAT, Map and connection objects.
 
 ## To do
 

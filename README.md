@@ -17,6 +17,7 @@ what was approximated and what a person has to look at.
 | pfSense (2.6 and later; CE and Plus) | the configuration backup (`config.xml`) | the areas Aliases, NAT and Firewall Rules, for *Backup & Restore* |
 | SonicWall (SonicOS 6.5 and 7) | the settings export (`.exp`) | commands of the SonicOS 7 command line |
 | WatchGuard (Fireware 12) | the configuration file of Policy Manager (XML) | its policy part, to merge into a configuration of the target |
+| Barracuda CloudGen Firewall (8.0 and later) | the answers of its REST API (JSON) | a shell script that creates the rules through that API |
 | Linux iptables / ip6tables | `iptables-save` output | `iptables-restore` file |
 
 It also **audits** a policy, of any of these formats: rules that allow too
@@ -27,7 +28,7 @@ on which services, through which rules.
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.10).** The converter is tested against synthetic
+> **Status: alpha (0.11).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** is checked against the real thing: generated rulesets are
@@ -36,7 +37,7 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   rules on one kernel (iptables 1.8.10, nf_tables backend); NAT rules and
 >   IPv6 rulesets are loaded but no packets are sent through them.
 > * **PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall,
->   Sophos Firewall, pfSense, SonicWall and WatchGuard** output has **not been loaded on a
+>   Sophos Firewall, pfSense, SonicWall, WatchGuard and Barracuda** output has **not been loaded on a
 >   device or management server**. The Check Point input format is taken from the API
 >   documentation, not from a real export, the ASA and FTD syntax from Cisco's
 >   command references, and the Sophos format from the documentation of its
@@ -52,7 +53,9 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   those the published readers of the format agree on, and the commands are
 >   those of SonicWall's knowledge base, a few of them assumed. The WatchGuard
 >   configuration file is not documented at all: its elements are those the
->   published readers of the format agree on. Several conversion rules rest on
+>   published readers of the format agree on. The REST API of a Barracuda
+>   CloudGen Firewall is documented by examples only, and so is what FWShift
+>   reads and writes of it. Several conversion rules rest on
 >   vendor behaviour taken from documentation rather than from a lab.
 >
 > Treat the output as a draft for a lab, read the report, and never load it in
@@ -107,8 +110,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.10.0.pyz --version
-python3 fwshift-0.10.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.11.0.pyz --version
+python3 fwshift-0.11.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -190,6 +193,16 @@ fwshift convert firebox.xml --to fortios -o fortigate.conf --report report.txt
 fwshift convert running-config.xml --to watchguard -o policies.xml --report report.txt \
     --zone-map trust=Trusted --zone-map untrust=External
 
+# Barracuda CloudGen Firewall: what its REST API answers, saved to one file, is
+# the input. To one, the output is a script of REST calls; a rule there names
+# no zone, so give the interface behind each source zone and the networks
+# behind every zone
+fwshift convert barracuda.json --to fortios -o fortigate.conf --report report.txt
+fwshift convert running-config.xml --to barracuda -o rules.sh --report report.txt \
+    --interface-map trust=port2 --interface-map untrust=port1 \
+    --zone-network trust=10.10.0.0/16 --zone-network untrust=0.0.0.0/0,::/0
+DRY_RUN=1 sh rules.sh
+
 # What did the parser read?
 fwshift inspect fgt-backup.conf
 
@@ -214,7 +227,8 @@ calls, for an ASA `show running-config`, for a Sophos Firewall an export under
 *Backup & firmware > Import export*, for a Management Center a handful of
 `curl` calls to its REST API, for a Device Manager its configuration export,
 for a pfSense the backup under *Diagnostics > Backup & Restore*, for a
-SonicWall *Export Settings*, for a WatchGuard the file Policy Manager saves.
+SonicWall *Export Settings*, for a WatchGuard the file Policy Manager saves,
+for a Barracuda a few `curl` calls to its REST API.
 
 The report starts with a summary and then lists every rule that is not exact:
 
@@ -370,6 +384,16 @@ knows only interfaces. Text, JSON or CSV. See
 | NAT | static NAT actions of a policy, as a NAT rule of their own. Written: a NAT rule that translates the destination to one address, as the static NAT action of the policy that allows exactly its traffic |
 | Scope | Fireware 12; the whole file. Written: the policy part of a file, not a file to restore |
 
+| | Barracuda CloudGen Firewall |
+|---|---|
+| Address objects | network objects: addresses, networks, ranges, host names, excluded entries subtracted, the interface of an entry where the object is a source. Written: addresses and networks (a range as its networks), host names as placeholders |
+| Address groups | references between network objects, nested. Written: the addresses, in one object |
+| Services | TCP and UDP ports and client ports, ICMP and ICMPv6 (every type), IP protocols |
+| Service groups | references between service objects. Written: the entries, in one object |
+| Security rules | forwarding rules, first match; pass, block, deny; IPv4 and IPv6; deactivated; bi-directional as two rules; interfaces of source entries as zones. Written: one rule per IP version, created deactivated at the top of the list and activated in order; zones as interfaces of the source or as networks; negation as the addresses that are left |
+| NAT | not read and not written: Dst NAT, Map and connection objects are reported |
+| Scope | the forwarding firewall of one box. Written: rules and objects through the REST API, above the rules the firewall has |
+
 Not converted, and reported where a rule depends on it: security profiles,
 schedules, user and group matches, URL categories, HIP profiles, application
 filters, wildcard-mask and geography addresses, external dynamic lists,
@@ -388,16 +412,17 @@ networks, the rules of the captive portal and of packages, OPNsense
 configurations, SonicWall ICMP service objects, users, schedules, source-port
 services and the security services of a rule (Geo-IP, botnet filter), its
 IPv6 and MAC address objects and Policy mode (SonicOSX), WatchGuard network
-dynamic NAT and 1-to-1 NAT, proxy actions and schedules, routing, interfaces,
-VPN, and everything else outside the policy.
+dynamic NAT and 1-to-1 NAT, proxy actions and schedules, Barracuda rule lists
+(Cascade), NAT, App Redirect and the host firewall, routing, interfaces, VPN,
+and everything else outside the policy.
 
 ## Roadmap
 
 [TODO.md](TODO.md) has the list. In short:
 
-* **More firewall brands, one per release**: Barracuda (0.11), Juniper
-  (0.12). Sophos Firewall was 0.6, Cisco Secure Firewall (formerly
-  Firepower) 0.7, pfSense 0.8, SonicWall 0.9, WatchGuard 0.10.
+* **More firewall brands, one per release**: Juniper (0.12). Sophos
+  Firewall was 0.6, Cisco Secure Firewall (formerly Firepower) 0.7, pfSense
+  0.8, SonicWall 0.9, WatchGuard 0.10, Barracuda 0.11.
 * Audit and matrix: the matrix before and after a conversion, a zone and
   conduit model as a file to check a policy against, an equivalence check as
   a command, zone ranks, hit counts.

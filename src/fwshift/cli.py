@@ -22,6 +22,7 @@ from .emitters import fortios as emit_fortios
 from .emitters import iptables as emit_iptables
 from .emitters import panos as emit_panos
 from .emitters import pfsense as emit_pfsense
+from .emitters import barracuda as emit_barracuda
 from .emitters import sonicwall as emit_sonicwall
 from .emitters import sophos as emit_sophos
 from .emitters import watchguard as emit_watchguard
@@ -36,6 +37,7 @@ from .parsers import fortios as parse_fortios
 from .parsers import iptables as parse_iptables
 from .parsers import panos as parse_panos
 from .parsers import pfsense as parse_pfsense
+from .parsers import barracuda as parse_barracuda
 from .parsers import sonicwall as parse_sonicwall
 from .parsers import sophos as parse_sophos
 from .parsers import watchguard as parse_watchguard
@@ -51,11 +53,13 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "sophos": emit_sophos.emit,
     "pfsense": emit_pfsense.emit,
     "sonicwall": emit_sonicwall.emit,
+    "barracuda": emit_barracuda.emit,
     "watchguard": emit_watchguard.emit,
     "fmc": emit_cisco.emit_fmc,
     "fdm": emit_cisco.emit_fdm,
 }
-VENDORS = ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "pfsense", "sonicwall", "watchguard", "iptables", "ip6tables")
+VENDORS = ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "pfsense", "sonicwall", "watchguard", "barracuda", "iptables",
+           "ip6tables")  # fmt: skip
 
 
 def detect_format(data: bytes) -> str:
@@ -85,6 +89,8 @@ def detect_format(data: bytes) -> str:
         return "sonicwall"
     if parse_watchguard.looks_like_watchguard(data):
         return "watchguard"
+    if parse_barracuda.looks_like_barracuda(data):
+        return "barracuda"
     head = data.lstrip(b"\xef\xbb\xbf \t\r\n")
     if head.startswith(b"<"):
         return "panos"
@@ -123,6 +129,8 @@ def load(
         return parse_sonicwall.parse(data, report, interface_addresses=interface_addresses)
     if source == "watchguard":
         return parse_watchguard.parse(data, report)
+    if source == "barracuda":
+        return parse_barracuda.parse(data, report)
     if source in ("fmc", "fdm"):
         return parse_cisco.parse(data, report, source, policy=policy, nat_policy=nat_policy)
     if source in ("iptables", "ip6tables"):
@@ -317,7 +325,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="fwshift",
         description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall "
-        "(Management Center and Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard and iptables, with a lossiness "
+        "(Management Center and Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda and iptables, with a lossiness "
         "report.",
     )
     parser.add_argument("--version", action="version", version=f"fwshift {__version__}")
@@ -336,7 +344,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conv.add_argument(
         "--zone-network", action="append", default=[], metavar="ZONE=NET[,NET]",
-        help="ASA and pfSense targets: the networks behind a zone, so that rules for other zones can leave them out. Give them "
+        help="ASA, pfSense and Barracuda targets: the networks behind a zone, so that rules for other zones can leave them out. Give them "
         "for every zone; 0.0.0.0/0,::/0 for the zone with the default route",
     )  # fmt: skip
     conv.add_argument("--app-map", metavar="FILE", help="JSON file: application name -> list of port specs")
@@ -367,7 +375,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conv.add_argument(
         "--target-prefix", default="", metavar="TEXT",
-        help="Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard and Cisco Secure Firewall targets: prefix for the names of created objects",
+        help="Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard, Barracuda and Cisco Secure Firewall targets: prefix for the names of created objects",
     )  # fmt: skip
     conv.add_argument(
         "--target-policy", default="FWShift", metavar="NAME",

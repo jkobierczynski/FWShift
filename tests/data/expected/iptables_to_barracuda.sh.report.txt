@@ -1,0 +1,84 @@
+FWShift conversion report
+  source: iptables (IPv4)
+  target: barracuda
+
+Summary
+  Security rules:     15   exact 0, approximated 2, needs review 13 (12 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Services:           11   exact 10, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain INPUT (3 rules, policy DROP) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] BARRACUDA_LOAD: the output is a shell script that creates network objects, service objects and forwarding rules through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. The rules go to the top of the rule list, above the rules the firewall has, deactivated, and are then activated in order, first rule first: if a call is refused the script stops, and only the rules above that one are active, with the rules the firewall had below them. Barracuda documents the API by examples: assumed are the keys of a service object and its entries (protocol, ports, client ports), the interface of an entry of a network object, the IP version and action types of a rule other than block, and names of up to 32 letters, digits, periods, underscores and hyphens
+  [needs-review] BLOCK_RULE_INACTIVE: the source blocks what no rule matches. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that do so follow the converted rules, deactivated: until they are activated, the rules the firewall has below them decide that traffic. Look at those rules (management access, the default rules) and activate the two
+  [info] PASSIVE_TARGETS: 1 FORWARD rule with target LOG decides nothing and was left out; a LOG rule directly before a rule with the same match sets its logging
+
+Security rules
+  Block bad host  ->  needs-review  (emitted as Block_bad_host)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  Guests stay in  ->  approximated  (emitted as Guests_stay_in)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone eth1; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone eth0; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  LAN web  ->  needs-review, emitted disabled  (emitted as LAN_web)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a rule of the firewall names no zone: give the networks behind eth0 with --zone-network.
+  LAN DNS  ->  needs-review, emitted disabled  (emitted as LAN_DNS)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a rule of the firewall names no zone: give the networks behind eth0 with --zone-network.
+  LAN DNS-2  ->  needs-review, emitted disabled  (emitted as LAN_DNS-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a rule of the firewall names no zone: give the networks behind eth0 with --zone-network.
+  Inbound web  ->  needs-review, emitted disabled  (emitted as Inbound_web)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10/32' next to '10.20.0.10/32' because of NAT rule 'Web DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Web DNAT' also translates the port to 8443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth0, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind eth0 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of the firewall names no zone: give the networks behind eth2 with --zone-network.
+  Inbound mail  ->  needs-review, emitted disabled  (emitted as Inbound_mail)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25/32' next to '10.20.0.25/32' because of NAT rule 'Mail DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth0, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind eth0 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of the firewall names no zone: give the networks behind eth2 with --zone-network.
+  Admins SSH  ->  needs-review, emitted disabled  (emitted as Admins_SSH)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of the firewall names no zone: give the networks behind eth2 with --zone-network.
+  Admins RDP  ->  needs-review, emitted disabled  (emitted as Admins_RDP)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of the firewall names no zone: give the networks behind eth2 with --zone-network.
+  SCADA to PLCs  ->  needs-review, emitted disabled  (emitted as SCADA_to_PLCs)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth3, and a rule of the firewall names no zone: give the networks behind eth3 with --zone-network.
+  OT no internet  ->  approximated  (emitted as OT_no_internet)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone eth3; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone eth0; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  DMZ updates  ->  needs-review, emitted disabled  (emitted as DMZ_updates)
+      [info] NEGATION_EXPANDED: the firewall has no negation in a rule: 'not destination 10.0.0.0/8' is written as the addresses that are left
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth2, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind eth2 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a rule of the firewall names no zone: give the networks behind eth0 with --zone-network.
+  Rate limited mail  ->  needs-review, emitted disabled  (emitted as Rate_limited_mail)
+      [needs-review] UNSUPPORTED_MATCH: not converted: match module 'limit'.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a rule of the firewall names no zone: give the networks behind eth0 with --zone-network.
+  Ping the DMZ  ->  needs-review, emitted disabled  (emitted as Ping_the_DMZ)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-8': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of the firewall names no zone: give the networks behind eth2 with --zone-network.
+  Partner tunnel  ->  needs-review, emitted disabled  (emitted as Partner_tunnel)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a rule of the firewall names no zone: give the networks behind eth0 with --zone-network.
+
+NAT rules
+  Web DNAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  Mail DNAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  No NAT to partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  DMZ out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  LAN out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+
+Services
+  tcp-80,443  ->  exact  (emitted as tcp-80_443)
+      [info] RENAMED: renamed to 'tcp-80_443' to fit the target's naming rules
+  icmp-8  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated

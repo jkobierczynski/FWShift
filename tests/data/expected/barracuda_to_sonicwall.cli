@@ -1,0 +1,368 @@
+configure terminal
+address-object ipv4 "DMZ-Servers" range 10.20.0.16 10.20.0.255 zone port1
+address-object ipv4 "Mail-Server" host 10.20.0.25 zone port1
+address-object ipv4 "Office-LAN" network 10.10.0.0 255.255.0.0 zone port1
+address-object ipv4 "Public-Web" host 203.0.113.10 zone port1
+address-object fqdn "updates.example.com" domain "updates.example.com" zone port1
+address-object ipv6 "V6-Servers" network 2001:db8:20:: /64 zone port1
+address-object ipv4 "Web-Server" host 10.20.0.80 zone port1
+address-object fqdn "updates.example.com (IPv4)" domain "updates.example.com" zone port1
+address-object ipv4 "h 10.10.5.10" host 10.10.5.10 zone port1
+address-object ipv4 "h 10.10.5.11" host 10.10.5.11 zone port1
+address-object ipv4 "h 192.0.2.50" host 192.0.2.50 zone port1
+address-object ipv4 "n 198.51.100.0_24" network 198.51.100.0 255.255.255.0 zone port1
+address-object ipv6 "n 2001:db8:bad::_48" network 2001:db8:bad:: /48 zone port1
+address-group ipv4 "Admin-Hosts"
+    address-object ipv4 "h 10.10.5.10"
+    address-object ipv4 "h 10.10.5.11"
+    address-object ipv4 "h 192.0.2.50"
+    exit
+address-group ipv4 "Blocked-Nets"
+    address-object ipv4 "n 198.51.100.0_24"
+    exit
+address-group ipv6 "Blocked-Nets v6"
+    address-object ipv6 "n 2001:db8:bad::_48"
+    exit
+address-group ipv4 "Server-Group"
+    address-object ipv4 "Web-Server"
+    address-object ipv4 "Mail-Server"
+    exit
+address-group ipv4 "Updates"
+    address-object fqdn "updates.example.com"
+    exit
+address-group ipv6 "Updates v6"
+    address-object fqdn "updates.example.com"
+    exit
+address-group ipv4 "Blocked-Nets (IPv4)"
+    address-object ipv4 "n 198.51.100.0_24"
+    exit
+address-group ipv6 "Blocked-Nets (IPv6)"
+    address-object ipv6 "n 2001:db8:bad::_48"
+    exit
+address-group ipv4 "Admin-Hosts (port2)"
+    address-object ipv4 "h 10.10.5.10"
+    address-object ipv4 "h 10.10.5.11"
+    exit
+address-group ipv4 "Admin-Hosts (port1)"
+    address-object ipv4 "h 192.0.2.50"
+    exit
+address-group ipv4 "Updates (IPv4)"
+    address-object fqdn "updates.example.com (IPv4)"
+    exit
+service-object "DNS tcp 53" TCP 53 53
+service-object "DNS udp 53" UDP 53 53
+service-group "DNS"
+    service-object "DNS tcp 53"
+    service-object "DNS udp 53"
+    exit
+service-object "HTTP+S tcp 80" TCP 80 80
+service-object "HTTP+S tcp 443" TCP 443 443
+service-group "HTTP+S"
+    service-object "HTTP+S tcp 80"
+    service-object "HTTP+S tcp 443"
+    exit
+service-object "SMTP" TCP 25 25
+service-object "SSH 2" TCP 22 22
+service-object "Web-Group entries" TCP 8080 8080
+service-group "Web-Group"
+    service-group "HTTP+S"
+    service-object "Web-Group entries"
+    exit
+access-rule ipv4 from port1 to port1 action discard source address group "Blocked-Nets (IPv4)" service any destination address any
+    name "BLOCK-BAD"
+    priority manual 1
+    exit
+access-rule ipv4 from port1 to port2 action discard source address group "Blocked-Nets (IPv4)" service any destination address any
+    name "BLOCK-BAD 2"
+    priority manual 1
+    exit
+access-rule ipv4 from port2 to port1 action discard source address group "Blocked-Nets (IPv4)" service any destination address any
+    name "BLOCK-BAD 3"
+    priority manual 1
+    exit
+access-rule ipv4 from port2 to port2 action discard source address group "Blocked-Nets (IPv4)" service any destination address any
+    name "BLOCK-BAD 4"
+    priority manual 1
+    exit
+access-rule ipv6 from port1 to port1 action discard source address group "Blocked-Nets (IPv6)" service any destination address any
+    name "BLOCK-BAD-V6"
+    priority manual 1
+    exit
+access-rule ipv6 from port1 to port2 action discard source address group "Blocked-Nets (IPv6)" service any destination address any
+    name "BLOCK-BAD-V6 2"
+    priority manual 1
+    exit
+access-rule ipv6 from port2 to port1 action discard source address group "Blocked-Nets (IPv6)" service any destination address any
+    name "BLOCK-BAD-V6 3"
+    priority manual 1
+    exit
+access-rule ipv6 from port2 to port2 action discard source address group "Blocked-Nets (IPv6)" service any destination address any
+    name "BLOCK-BAD-V6 4"
+    priority manual 1
+    exit
+access-rule ipv4 from port2 to port1 action allow source address group "Admin-Hosts (port2)" service name "SSH 2" destination address name "DMZ-Servers"
+    name "ADMIN-SSH (port2)"
+    priority manual 2
+    exit
+access-rule ipv4 from port2 to port2 action allow source address group "Admin-Hosts (port2)" service name "SSH 2" destination address name "DMZ-Servers"
+    name "ADMIN-SSH (port2) 2"
+    priority manual 2
+    exit
+access-rule ipv4 from port1 to port1 action allow source address group "Admin-Hosts (port1)" service name "SSH 2" destination address name "DMZ-Servers"
+    name "ADMIN-SSH (port1)"
+    priority manual 2
+    exit
+access-rule ipv4 from port1 to port2 action allow source address group "Admin-Hosts (port1)" service name "SSH 2" destination address name "DMZ-Servers"
+    name "ADMIN-SSH (port1) 2"
+    priority manual 2
+    exit
+access-rule ipv4 from port1 to port1 action allow source address name "Office-LAN" service group "HTTP+S" destination address any
+    name "LAN-2-INTERNET"
+    priority manual 3
+    exit
+access-rule ipv4 from port1 to port2 action allow source address name "Office-LAN" service group "HTTP+S" destination address any
+    name "LAN-2-INTERNET 2"
+    priority manual 3
+    exit
+access-rule ipv4 from port2 to port1 action allow source address name "Office-LAN" service group "HTTP+S" destination address any
+    name "LAN-2-INTERNET 3"
+    priority manual 3
+    exit
+access-rule ipv4 from port2 to port2 action allow source address name "Office-LAN" service group "HTTP+S" destination address any
+    name "LAN-2-INTERNET 4"
+    priority manual 3
+    exit
+access-rule ipv4 from port1 to port1 action allow source address any service group "HTTP+S" destination address name "Public-Web"
+    name "WEB-IN"
+    priority manual 4
+    no enable
+    exit
+access-rule ipv4 from port1 to port2 action allow source address any service group "HTTP+S" destination address name "Public-Web"
+    name "WEB-IN 2"
+    priority manual 4
+    no enable
+    exit
+access-rule ipv4 from port2 to port1 action allow source address any service group "HTTP+S" destination address name "Public-Web"
+    name "WEB-IN 3"
+    priority manual 4
+    no enable
+    exit
+access-rule ipv4 from port2 to port2 action allow source address any service group "HTTP+S" destination address name "Public-Web"
+    name "WEB-IN 4"
+    priority manual 4
+    no enable
+    exit
+access-rule ipv4 from port1 to port1 action allow source address name "DMZ-Servers" service group "Web-Group" destination address name "Office-LAN"
+    name "SERVER-SYNC"
+    priority manual 5
+    exit
+access-rule ipv4 from port1 to port2 action allow source address name "DMZ-Servers" service group "Web-Group" destination address name "Office-LAN"
+    name "SERVER-SYNC 2"
+    priority manual 5
+    exit
+access-rule ipv4 from port2 to port1 action allow source address name "DMZ-Servers" service group "Web-Group" destination address name "Office-LAN"
+    name "SERVER-SYNC 3"
+    priority manual 5
+    exit
+access-rule ipv4 from port2 to port2 action allow source address name "DMZ-Servers" service group "Web-Group" destination address name "Office-LAN"
+    name "SERVER-SYNC 4"
+    priority manual 5
+    exit
+access-rule ipv4 from port1 to port1 action allow source address name "Office-LAN" service group "Web-Group" destination address name "DMZ-Servers"
+    name "SERVER-SYNC (back)"
+    priority manual 6
+    exit
+access-rule ipv4 from port1 to port2 action allow source address name "Office-LAN" service group "Web-Group" destination address name "DMZ-Servers"
+    name "SERVER-SYNC (back) 2"
+    priority manual 6
+    exit
+access-rule ipv4 from port2 to port1 action allow source address name "Office-LAN" service group "Web-Group" destination address name "DMZ-Servers"
+    name "SERVER-SYNC (back) 3"
+    priority manual 6
+    exit
+access-rule ipv4 from port2 to port2 action allow source address name "Office-LAN" service group "Web-Group" destination address name "DMZ-Servers"
+    name "SERVER-SYNC (back) 4"
+    priority manual 6
+    exit
+access-rule ipv4 from port1 to port1 action allow source address group "Server-Group" service group "DNS" destination address any
+    name "DNS-OUT"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from port1 to port2 action allow source address group "Server-Group" service group "DNS" destination address any
+    name "DNS-OUT 2"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from port2 to port1 action allow source address group "Server-Group" service group "DNS" destination address any
+    name "DNS-OUT 3"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from port2 to port2 action allow source address group "Server-Group" service group "DNS" destination address any
+    name "DNS-OUT 4"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from port1 to port1 action allow source address name "Office-LAN" service any destination address any
+    name "PING-ALL"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from port1 to port2 action allow source address name "Office-LAN" service any destination address any
+    name "PING-ALL 2"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from port2 to port1 action allow source address name "Office-LAN" service any destination address any
+    name "PING-ALL 3"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from port2 to port2 action allow source address name "Office-LAN" service any destination address any
+    name "PING-ALL 4"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from port1 to port1 action allow source address name "DMZ-Servers" service group "HTTP+S" destination address group "Updates (IPv4)"
+    name "UPDATES"
+    priority manual 9
+    exit
+access-rule ipv4 from port1 to port2 action allow source address name "DMZ-Servers" service group "HTTP+S" destination address group "Updates (IPv4)"
+    name "UPDATES 2"
+    priority manual 9
+    exit
+access-rule ipv4 from port2 to port1 action allow source address name "DMZ-Servers" service group "HTTP+S" destination address group "Updates (IPv4)"
+    name "UPDATES 3"
+    priority manual 9
+    exit
+access-rule ipv4 from port2 to port2 action allow source address name "DMZ-Servers" service group "HTTP+S" destination address group "Updates (IPv4)"
+    name "UPDATES 4"
+    priority manual 9
+    exit
+access-rule ipv6 from port1 to port1 action allow source address any service group "HTTP+S" destination address name "V6-Servers"
+    name "V6-WEB"
+    priority manual 2
+    exit
+access-rule ipv6 from port1 to port2 action allow source address any service group "HTTP+S" destination address name "V6-Servers"
+    name "V6-WEB 2"
+    priority manual 2
+    exit
+access-rule ipv6 from port2 to port1 action allow source address any service group "HTTP+S" destination address name "V6-Servers"
+    name "V6-WEB 3"
+    priority manual 2
+    exit
+access-rule ipv6 from port2 to port2 action allow source address any service group "HTTP+S" destination address name "V6-Servers"
+    name "V6-WEB 4"
+    priority manual 2
+    exit
+access-rule ipv4 from port1 to port1 action deny source address name "Office-LAN" service any destination address name "DMZ-Servers"
+    name "DENY-LAN-DMZ"
+    priority manual 10
+    exit
+access-rule ipv4 from port1 to port2 action deny source address name "Office-LAN" service any destination address name "DMZ-Servers"
+    name "DENY-LAN-DMZ 2"
+    priority manual 10
+    exit
+access-rule ipv4 from port2 to port1 action deny source address name "Office-LAN" service any destination address name "DMZ-Servers"
+    name "DENY-LAN-DMZ 3"
+    priority manual 10
+    exit
+access-rule ipv4 from port2 to port2 action deny source address name "Office-LAN" service any destination address name "DMZ-Servers"
+    name "DENY-LAN-DMZ 4"
+    priority manual 10
+    exit
+access-rule ipv4 from port1 to port1 action allow source address name "Office-LAN" service any destination address name "Mail-Server"
+    name "GRE-LAB"
+    priority manual 11
+    no enable
+    exit
+access-rule ipv4 from port1 to port2 action allow source address name "Office-LAN" service any destination address name "Mail-Server"
+    name "GRE-LAB 2"
+    priority manual 11
+    no enable
+    exit
+access-rule ipv4 from port2 to port1 action allow source address name "Office-LAN" service any destination address name "Mail-Server"
+    name "GRE-LAB 3"
+    priority manual 11
+    no enable
+    exit
+access-rule ipv4 from port2 to port2 action allow source address name "Office-LAN" service any destination address name "Mail-Server"
+    name "GRE-LAB 4"
+    priority manual 11
+    no enable
+    exit
+access-rule ipv4 from port1 to port1 action discard source address name "Office-LAN" service any destination address any
+    name "TO-LAB"
+    priority manual 12
+    no enable
+    exit
+access-rule ipv4 from port1 to port2 action discard source address name "Office-LAN" service any destination address any
+    name "TO-LAB 2"
+    priority manual 12
+    no enable
+    exit
+access-rule ipv4 from port2 to port1 action discard source address name "Office-LAN" service any destination address any
+    name "TO-LAB 3"
+    priority manual 12
+    no enable
+    exit
+access-rule ipv4 from port2 to port2 action discard source address name "Office-LAN" service any destination address any
+    name "TO-LAB 4"
+    priority manual 12
+    no enable
+    exit
+access-rule ipv4 from port1 to port1 action allow source address name "Office-LAN" service any destination address any
+    name "ODD"
+    priority manual 13
+    no enable
+    exit
+access-rule ipv4 from port1 to port2 action allow source address name "Office-LAN" service any destination address any
+    name "ODD 2"
+    priority manual 13
+    no enable
+    exit
+access-rule ipv4 from port2 to port1 action allow source address name "Office-LAN" service any destination address any
+    name "ODD 3"
+    priority manual 13
+    no enable
+    exit
+access-rule ipv4 from port2 to port2 action allow source address name "Office-LAN" service any destination address any
+    name "ODD 4"
+    priority manual 13
+    no enable
+    exit
+access-rule ipv4 from port1 to port1 action discard source address any service any destination address any
+    name "BLOCKALL"
+    priority manual 14
+    exit
+access-rule ipv4 from port1 to port2 action discard source address any service any destination address any
+    name "BLOCKALL 2"
+    priority manual 14
+    exit
+access-rule ipv4 from port2 to port1 action discard source address any service any destination address any
+    name "BLOCKALL 3"
+    priority manual 14
+    exit
+access-rule ipv4 from port2 to port2 action discard source address any service any destination address any
+    name "BLOCKALL 4"
+    priority manual 14
+    exit
+access-rule ipv6 from port1 to port1 action deny source address any service any destination address any
+    name "FWSHIFT port1 to port1 v6"
+    priority manual 3
+    exit
+access-rule ipv6 from port1 to port2 action deny source address any service any destination address any
+    name "FWSHIFT port1 to port2 v6"
+    priority manual 3
+    exit
+access-rule ipv6 from port2 to port1 action deny source address any service any destination address any
+    name "FWSHIFT port2 to port1 v6"
+    priority manual 3
+    exit
+access-rule ipv6 from port2 to port2 action deny source address any service any destination address any
+    name "FWSHIFT port2 to port2 v6"
+    priority manual 3
+    exit
+commit
+exit

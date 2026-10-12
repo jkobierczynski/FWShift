@@ -39,15 +39,16 @@ written), and **0.8.0, pfSense** (`config.xml` of 2.6 and later, read; the
 areas Aliases, NAT and Firewall Rules for a restore, written; OPNsense is not
 part of it, see below), **0.9.0, SonicWall** (the settings export of
 SonicOS 6.5 and 7, read; commands of the SonicOS 7 command line, written),
-and **0.10.0, WatchGuard** (the configuration file of Policy Manager,
+**0.10.0, WatchGuard** (the configuration file of Policy Manager,
 Fireware 12, read; its policy part, to merge into a configuration of the
-target, written).
+target, written), and **0.11.0, Barracuda CloudGen Firewall** (saved answers
+of its REST API, read; a script of calls to that API, written; the
+configuration backup is not readable).
 What each rests on and what nobody has checked on a device is in
 the development log.
 
 | Release | Brand | Read (expected) | Write (expected) | What will need care |
 |---|---|---|---|---|
-| 0.11.0 | **Barracuda** CloudGen Firewall | the export of a forwarding ruleset with its firewall objects | the same format | To be found out first: which export exists outside Firewall Admin. NAT is part of a rule (the action Dst NAT, Map, App Redirect, and connection objects for source NAT), not a table of its own |
 | 0.12.0 | **Juniper** SRX (Junos) | `show configuration \| display set`, and the same configuration in braces | `set` commands | Policies per zone pair (`from-zone ... to-zone ...`) are looked up first, global policies after them. Address books per zone and global, application sets, source, destination and static NAT rule sets. Destination and static NAT come before the policy lookup, so policies name the real address (`lookup_after_dnat`); source NAT comes after. ScreenOS is not part of this release |
 
 Not on the list, and asked for often enough to keep in mind: nftables,
@@ -152,7 +153,11 @@ MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
     Center) instead of reported; users, schedules and proxy actions written
     back WatchGuard to WatchGuard; a whole configuration file for a restore,
     from a configuration of the target given as an option.
-13. Static NAT between address sets of different size is reported for ASA and
+13. Barracuda: Dst NAT, Map and connection objects, read and written, once
+    the JSON of the API is known; rule lists (Cascade) read; hostname objects
+    written; the PAR backup read, once a real one shows its format; a script
+    that fetches the answers FWShift reads.
+14. Static NAT between address sets of different size is reported for ASA and
     Cisco Secure Firewall targets, which wrap around, and not for PAN-OS,
     where the commit fails.
 
@@ -190,7 +195,13 @@ MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
    and record what it refuses (the words of the action, the members of a
    static NAT action); save a configuration with dynamic and 1-to-1 NAT and
    automatic order and compare it with `watchguard_sample.xml`.
-7. Cisco Secure Firewall, on a Management Center and an FTD device in a lab:
+7. Barracuda, on a CloudGen Firewall VM (8.x or 9.x): fetch the answers of
+   the manual and compare them with `barracuda_sample.json` (above all the
+   service objects, `ipVersion`, `excluded`, rule lists); run
+   `panos_to_barracuda.sh` with `DRY_RUN=1` and then for real, and record
+   what the API refuses; check that names are told apart without regard to
+   case.
+8. Cisco Secure Firewall, on a Management Center and an FTD device in a lab:
    fetch a policy with the calls of the manual and compare the answers with
    `fmc_sample.json` (above all: how a policy says that it inherits, whether
    the list of a child holds the rules of its parent, the fields of a
@@ -199,7 +210,7 @@ MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
    what `--undo` leaves; export a Device Manager, compare with
    `fdm_sample.txt` (the container names of NAT rules, the protocol and ICMP
    names), and import `panos_to_fdm.json`.
-8. The reviewer's oracles as tests: every pre-image of a real packet through
+9. The reviewer's oracles as tests: every pre-image of a real packet through
    a destination NAT (pre-NAT model to a post-NAT target, with several NAT
    rules for one address); same-kind round trips for FortiOS and iptables
    with rules that name both sides of a translation; `disable` across the

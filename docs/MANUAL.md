@@ -2,10 +2,10 @@
 
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
 Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
-or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard and Linux iptables, and tells you,
+or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda CloudGen Firewall and Linux iptables, and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; and show what each zone may reach in each
-other zone. This manual covers version 0.10.
+other zone. This manual covers version 0.11.
 
 **Contents**
 
@@ -51,10 +51,10 @@ FWShift converts the **policy**. It does not convert interfaces, routing, VPN,
 users, security profiles, or system settings, and it is not a substitute for
 testing the result.
 
-> **Status.** Version 0.10 is tested against synthetic configurations. iptables
+> **Status.** Version 0.11 is tested against synthetic configurations. iptables
 > output and input are checked against a Linux kernel (filter rules, one
 > kernel and iptables version). Output for PAN-OS, FortiOS, Check Point,
-> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall and WatchGuard has
+> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall, WatchGuard and Barracuda has
 > not been loaded on a device or management server yet; the Check Point input format follows the
 > API documentation, the ASA and FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
@@ -62,7 +62,8 @@ testing the result.
 > Manager their API documentation and the tooling Cisco publishes for them.
 > What pfSense makes of its configuration is taken from its source code; the
 > SonicWall settings export and the WatchGuard configuration file from the
-> published readers of those formats.
+> published readers of those formats, and the REST API of a Barracuda CloudGen
+> Firewall from the examples in its documentation.
 > Use FWShift to produce a draft for a lab.
 
 ## 2. Installation
@@ -442,6 +443,32 @@ says so (`POLICY_ORDER_AUTOMATIC`): switch Policy Manager to manual order
 before you save the file, and the order of the file is the order of the
 Firebox.
 
+**Barracuda CloudGen Firewall (8.0 and later).** The firewall has no export of
+its rules that another program can read: its configuration backup (a PAR
+file) is in a format Barracuda does not document. FWShift reads what the REST
+API of the firewall answers, saved one answer after the other in one file.
+Switch the API on (*Configuration Tree > Box > Infrastructure Services > REST
+API Service*, HTTPS) and create an access token for an administrator who may
+read the configuration. Then fetch the forwarding rules and every network and
+service object they name:
+
+```sh
+FW=https://fw.example.net:8443
+H="X-API-Token: <token>"
+curl -sS -H "$H" "$FW/rest/config/v1/forwarding-firewall/rules?expand=true&envelope=false" > barracuda.json
+curl -sS -H "$H" "$FW/rest/config/v1/forwarding-firewall/objects/networks/Office-LAN" >> barracuda.json
+curl -sS -H "$H" "$FW/rest/config/v1/forwarding-firewall/objects/services/HTTP%2BS" >> barracuda.json
+fwshift inspect barracuda.json
+```
+
+`GET .../objects/networks` and `.../objects/services` list the names of the
+objects; fetch each one the rules name. What is still missing, `fwshift
+inspect` lists (`OBJECTS_MISSING`): the rules that name it are not used until
+it is there. Only the name `Any` is the object Any. Barracuda documents the
+API by examples only; the keys FWShift reads are those (`BARRACUDA_FORMAT`).
+The rules of a rule list a rule cascades to, NAT (the actions Dst NAT and
+Map, connection objects) and the host firewall are not read.
+
 **Check Point.** There is no configuration file to export. FWShift reads what
 the Management API answers to `show access-rulebase` and `show nat-rulebase`,
 as JSON. On the management server, or on any host with `mgmt_cli`:
@@ -563,7 +590,7 @@ TCP 502 and TCP 102, not the applications themselves.
 ### `fwshift convert`
 
 ```
-fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,sonicwall,watchguard,iptables,ip6tables,json} [options]
+fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,sonicwall,watchguard,barracuda,iptables,ip6tables,json} [options]
 ```
 
 `INPUT` is a file, or `-` for standard input.
@@ -572,7 +599,7 @@ fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,
 
 | Option | Meaning |
 |---|---|
-| `--from {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,sonicwall,watchguard,iptables,ip6tables}` | Source format. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; other XML is PAN-OS; JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,sonicwall,watchguard,barracuda,iptables,ip6tables}` | Source format. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
@@ -597,6 +624,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to fdm` | A file for the configuration import of a Cisco Secure Firewall Device Manager: objects, access rules, manual NAT rules (section 10). |
 | `--to sophos` | An `Entities.xml` for *Import export* of a Sophos Firewall (SFOS 18 and later). With `-o NAME.tar`, the archive an import takes. |
 | `--to sonicwall` | Commands of the SonicOS 7 command line, to paste into an SSH session: objects, NAT policies, access rules (section 10). |
+| `--to barracuda` | A shell script that creates network objects, service objects and forwarding rules on a Barracuda CloudGen Firewall through its REST API, with curl (section 10). |
 | `--to watchguard` | The policy part of a Policy Manager configuration file (Fireware 12): address groups, aliases, services, static NAT actions and policies in manual order, to merge into a configuration of the target (section 10). |
 | `--to pfsense` | A configuration file with the areas Aliases, NAT and Firewall Rules, for *Diagnostics > Backup & Restore* of pfSense 2.7 or later. Each restore of an area **replaces** that area (section 10). |
 | `--to iptables` | A file for `iptables-restore`: the IPv4 half of the policy. |
@@ -611,7 +639,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--target-layer NAME` | Check Point: the access layer the rules are written to. Default `Network`. It must exist. |
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
-| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard, Management Center and Device Manager: put `TEXT` in front of the name of every object (on an ASA also every access list) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
+| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard, Barracuda, Management Center and Device Manager: put `TEXT` in front of the name of every object (on an ASA also every access list) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
 | `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates. Default `FWShift`. The script can be given another name when it is run (`--name`). |
 
 **Adapting the policy**
@@ -619,8 +647,8 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | Option | Meaning |
 |---|---|
 | `--zone-map SRC=DST` | Use `DST` wherever the source names zone or interface `SRC`. Repeatable. For iptables and ASA this is how a zone becomes an interface name, and the other way round; for pfSense how it becomes an interface (`lan`, `opt1`) or an interface group. |
-| `--zone-network ZONE=NET[,NET...]` | ASA and pfSense targets: the networks that lie behind a zone (SonicWall: the zone an address object is created in) (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
-| `--interface-map SRC=DST` | Map a source interface to a target interface: zone members written for FortiOS, source NAT to an interface address on PAN-OS, and the interfaces of a NAT rule on Sophos Firewall, SonicWall and a Device Manager, which match interfaces and not zones (SonicWall: `X1`, `X3:V10`). For those two, map every interface of a zone the NAT rules name (for an iptables or ASA source, whose zones are interfaces, that is the zone name itself); for a Device Manager `DST` is the logical name of the interface (`inside`, `outside`). Repeatable. |
+| `--zone-network ZONE=NET[,NET...]` | ASA, pfSense and Barracuda targets: the networks that lie behind a zone (SonicWall: the zone an address object is created in; Barracuda: both sides of a rule, which names no zone) (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
+| `--interface-map SRC=DST` | Map a source interface to a target interface: zone members written for FortiOS, source NAT to an interface address on PAN-OS, and the interfaces of a NAT rule on Sophos Firewall, SonicWall and a Device Manager, which match interfaces and not zones (SonicWall: `X1`, `X3:V10`); for a Barracuda target, the interface of the entries of the source of a rule in that zone (`port2`). For those two, map every interface of a zone the NAT rules name (for an iptables or ASA source, whose zones are interfaces, that is the zone name itself); for a Device Manager `DST` is the logical name of the interface (`inside`, `outside`). Repeatable. |
 | `--app-map FILE` | JSON file that adds or overrides application port definitions (section 9). |
 | `--prune-unused` | Leave out objects that no rule or NAT rule uses, directly or through a group. |
 
@@ -1077,6 +1105,27 @@ Findings and notes that only a WatchGuard source or target raises:
 | `NAT_NOT_IN_POLICY` | R | Target (on the rule): the rule allows the destination of a NAT rule, but for other services, zones or sources than the NAT rule translates, or another NAT rule comes first for that traffic. On a Firebox the translation is part of the policy; this policy names the public address without translating it. |
 | `NAT_ZONE_DROPPED` | A | Target (on the rule): the rule carries a static NAT action, which names the public address with no interface to the server. The policy allows the translated traffic to the server wherever it is, not only in the zone of the rule. |
 | `NAT_NO_POLICY` | I | Target (on the NAT rule): no rule allows exactly the traffic the NAT rule translates. The static NAT action is written, and no policy uses it. |
+
+Findings and notes that only a Barracuda source or target raises:
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `BARRACUDA_FORMAT` | I | Source: what was read from the answers of the REST API, and that a key of a rule, an object or an entry the parser does not know makes it unusable: the API is documented by examples only. |
+| `RULES_JOINED` | I | Source: the input holds several lists of rules; they were read one after the other, as pages of one list. |
+| `ANSWERS_NOT_READ` | R | Source: JSON documents of the input that are no rules and no objects the parser knows. |
+| `OBJECTS_MISSING` | R | Source: objects the rules name are not in the input. The rules that name them are not used; fetch the objects and add them (section 3). |
+| `CONNECTION_NOT_READ` | R | Source: rules whose connection object translates the source address. Source NAT is not read; the rules are. |
+| `ICMP_LIMITS` | A | Source (note, and on each rule that uses such a service): a service object limits the size or rate of ICMP echo requests; the limits are not converted. |
+| `INTERFACE_SPLIT` | I | Source (on the rule): the source of a rule holds entries of several interfaces. It became one rule per interface, the interfaces as zones. |
+| `BIDIRECTIONAL_SPLIT` | I | Source (on the rule): a bi-directional rule became two rules, the second one with source and destination swapped. |
+| `DYNAMIC_RULE` | A | Source (on the rule): a dynamic rule, which the firewall switches on and off at run time, read as it stood when the input was saved (approximated for an active rule that allows). |
+| `RULE_EXPIRES` | A | Source (on the rule): a blocking rule that expires blocks for good once converted. An allowing rule that expires is not used. |
+| `BARRACUDA_LOAD` | R | Target: how the script works (section 10): objects, then the rules deactivated, then activated in order; which keys of the API are assumed. |
+| `BLOCK_RULE_INACTIVE` | R | Target: the rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that block what no converted rule matches are created deactivated. Until they are activated, the rules the firewall has below them decide that traffic. |
+| `ZONE_BY_NETWORKS` | I/A | Target (on the rule): a zone of the rule is written as the networks given for it with `--zone-network` (approximated when addresses that lie in no network given were left out of an allowing rule). |
+| `ZONE_NETWORK_MISSING` | R | Target (on the rule): a rule that allows names a zone that has neither networks (`--zone-network`) nor, for its source, an interface (`--interface-map`). A rule of the firewall names no zone: the rule is deactivated. |
+| `ZONE_WIDENED` | A | Target (on the rule): a blocking rule names a zone the converter cannot express; it blocks its traffic in every zone. |
+| `INTERFACES_REQUIRED`, `INTERZONE_DEFAULT`, `NEGATION_EXPANDED`, `IP_VERSION_SPLIT`, `NO_COMMON_FAMILY`, `RULE_TYPE`, `RESET_ACTION`, `UNSUPPORTED_SERVICE`, `NAT_NOT_CONVERTED` | | As for the other targets: a rule of the firewall is of one IP version, has no negation and names no zones; NAT is not written. |
 
 Notes that only a Cisco Secure Firewall source or target raises (Management
 Center, Device Manager):
@@ -2194,6 +2243,77 @@ development branch) and not the web pages, which say less.
   action no policy uses is still written (`NAT_NO_POLICY`). Source NAT is
   dynamic NAT on a Firebox and is not written (`NAT_NOT_CONVERTED`).
 
+### Barracuda
+
+**What is read**
+
+* **Forwarding rules**, first match, in the order of the answer. A rule names
+  one IP version (`ipVersion`), a source, a destination and a service, each a
+  reference to an object or `Any`. Pass allows; Block drops; Deny answers with
+  a reset or an ICMP message. A rule that does not say whether it is
+  deactivated, or holds a key the parser does not know, is not used.
+  Bi-directional rules become two rules (`BIDIRECTIONAL_SPLIT`). What no rule
+  matches is blocked.
+* **Interfaces as zones.** A rule has no zones: the firewall picks the way out
+  by its routes. An entry of a network object can name the interface traffic
+  arrives by, which counts where the object is the source of a rule: such a
+  rule becomes one rule per interface, the interfaces as zones
+  (`INTERFACE_SPLIT`). In a destination the interface of an entry does not
+  count. A bi-directional rule whose objects name interfaces is not used.
+* **Network objects:** addresses, networks, ranges and host names, references
+  to other objects, nested; excluded entries are subtracted. Where a rule of
+  one IP version names an object that holds both, or names interfaces, a
+  group of what the rule uses is made once (`Office-LAN (IPv4)`, `Admins
+  (port2)`). Geolocation, wildcard, external and dynamic objects, and entries
+  with a MAC address, are not read.
+* **Service objects:** TCP and UDP ports and client (source) ports, ICMP and
+  ICMPv6 (every type: a service entry of the firewall names none), other IP
+  protocols; references to other service objects. The limits of ICMP echo
+  requests are not converted (`ICMP_LIMITS`).
+* **Not converted:** the actions Dst NAT, Map, App Redirect and
+  Broad-Multicast (the rule is not used), Cascade and Cascade Back (read as a
+  rule that blocks and is not used: the rules of the list it hands traffic to
+  are not read), connection objects (`CONNECTION_NOT_READ`), schedules and
+  users (on every target), application control, URL filter and IPS (reported
+  as profiles), the mismatch policy of a rule, the host firewall, and a
+  Control Center.
+
+**What is written**
+
+* **A shell script** of curl calls to the REST API (section 10): network
+  objects, service objects, then every rule, deactivated, at the top of the
+  list, last rule first, so that they end up in the order of the model above
+  the rules the firewall has; then the rules that are to be active are
+  activated, first rule first.
+* **Rules** of one IP version each (`IP_VERSION_SPLIT`), each side one
+  object: the object of the model where the rule names just that one, else an
+  object of the rule (`<rule>.src`, `<rule>.dst`, `<rule>.svc`). Ranges become
+  the networks that make them up; a negated list, the addresses that are left
+  (`NEGATION_EXPANDED`). A rule written deactivated has `FWSHIFT inactive, see
+  the report` in its comment.
+* **Zones.** A zone of the source is written as the interface of the entries
+  of the source object, where the interface is known (`--interface-map`, or a
+  CloudGen source), otherwise as the networks behind it (`--zone-network`); a
+  zone of the destination as its networks (`ZONE_BY_NETWORKS`), except where
+  the source worked the zones out from the routes itself. Where neither is
+  given, a rule that allows is deactivated (`ZONE_NETWORK_MISSING`) and a rule
+  that blocks blocks in every zone (`ZONE_WIDENED`).
+* **What no rule matches.** The model blocks it; the firewall blocks it only
+  at the end of its own list. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6
+  follow the converted rules and block everything, deactivated
+  (`BLOCK_RULE_INACTIVE`): activate them once the rules below them (management
+  access, default rules) have been looked at.
+* **Services:** TCP and UDP ports with client ports, ICMP and ICMPv6 of every
+  type, other IP protocols. A service with an ICMP type or code cannot be
+  written, and the rules that use it are deactivated. ICMP goes only into the
+  rule of its IP version.
+* **Names** are kept to 32 letters, digits, periods, underscores and hyphens,
+  and told apart without regard to case (`RENAMED`). Host names are written as
+  placeholders that match nothing, since how the API spells a hostname object
+  is not known.
+* **NAT** is not written (`NAT_NOT_CONVERTED`): set Dst NAT, Map or the
+  connection object on the rule by hand.
+
 ### Names
 
 Names the target would reject are changed: `10.0.0.0/8` becomes `10.0.0.0_8`
@@ -2625,6 +2745,29 @@ settings.
    compare the policies and their order with the summary of the report.
 5. Save it to the Firebox from Policy Manager.
 
+### Barracuda
+
+> **The script has never run against a CloudGen Firewall.** The calls and keys
+> follow the examples in Barracuda's documentation; those the report lists
+> under `BARRACUDA_LOAD` (the keys of a service object, the interface of an
+> entry, the IP version and actions of a rule other than block, the limits of
+> names) are assumed.
+
+1. Switch on the REST API and create an access token (section 3). Make sure
+   the interfaces listed in `INTERFACES_REQUIRED` exist under those names.
+2. Read the calls first: `DRY_RUN=1 sh rules.sh` prints them and makes none.
+3. Run it: `BARRACUDA=https://fw.example.net:8443 TOKEN=<token> sh rules.sh`.
+   It needs curl 7.76 or later. The token goes to curl in a file that only the
+   script reads and that is removed at the end.
+4. The script stops at the first call the firewall refuses and shows its
+   answer. What was created before it stays; of the rules, only those before
+   the refused one are active, above the rules the firewall had. An object or
+   rule of the same name as one the firewall has is refused: convert with
+   `--target-prefix`.
+5. Look at the rules of the firewall below the converted ones, then activate
+   FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 (`BLOCK_RULE_INACTIVE`). Activate the
+   ruleset as the firewall requires.
+
 ### After loading
 
 Search the configuration for `FWSHIFT`: every placeholder object and every
@@ -2698,6 +2841,12 @@ the report is the list.)
 | `alias '...' is defined twice` | WatchGuard source: two aliases, address groups or services of one name. Policy Manager does not save such a file; it was edited by hand or two files were joined. |
 | `the aliases of the configuration hold more than 200000 members in all` | Aliases that name each other many times over. Not converted. |
 | `zone '...' cannot be the name of a Firebox interface here` | To WatchGuard: a zone named like an interface class of Fireware (`Any`, `Firebox`, `Any-Trusted`, ...) or holding characters a name cannot have. Give it another name with `--zone-map`. |
+| `no rules and no objects of a CloudGen Firewall found; ...` | `--from barracuda` on JSON that holds no forwarding rules and no network or service objects of the REST API. |
+| `rule '...' is in the input twice` | Barracuda source: the answer of the rules was saved twice, or two pages overlap. The same for network and service objects. |
+| `an item of a list of rules is not a rule (not a JSON object)` | Barracuda source: the answer is damaged or is not one of the forwarding rules. |
+| `the network objects of the input hold more than 200000 addresses in all` | Objects that name each other many times over, or a list nobody can mean. Not converted. |
+| `not usable JSON: a string holds half of a UTF-16 pair ...` | A JSON input holds an escape (`\ud800` to `\udfff`) that is no character. The file is damaged. |
+| `--interface-map: '...' is not the name of an interface of a CloudGen Firewall` | To Barracuda: the interface takes letters, digits, period, underscore, hyphen and colon. |
 | `--target-nat-zone: '...' is no interface a pfSense rule can name` | pfSense target: give `wan`, `lan`, an `optN` or the name of an interface group. |
 
 **Most rules are "needs review".** Read the first finding of a few rules. A
@@ -2834,6 +2983,14 @@ deliberate: see *IPv4 and IPv6* in section 8.
   configuration file, to merge into one of the target, with static NAT only
   as an action of a policy that allows exactly its traffic. Nothing has been
   opened in Policy Manager or loaded on a Firebox.
+* Barracuda: CloudGen Firewall 8.0 and later, from saved answers of its REST
+  API, which Barracuda documents by examples only. Not converted: rule lists
+  (Cascade), NAT (Dst NAT, Map, connection objects), App Redirect, the
+  mismatch policy, schedules, users, the host firewall, a Control Center,
+  geolocation, wildcard and external objects. Written: a script of REST calls,
+  zones only as interfaces of source entries or networks, no NAT, host names
+  as placeholders; the rule that blocks what no rule matches is created
+  deactivated. Nothing has been run against a CloudGen Firewall.
 * pfSense: 2.6 and later; OPNsense is not read. Schedules, URL table
   aliases, policy routing, tags, limiters and shaping, match rules, IPv6 NAT,
   NPt, bogon networks, the captive portal, bridges and the rules of packages
