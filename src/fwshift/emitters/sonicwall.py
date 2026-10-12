@@ -57,6 +57,8 @@ _PING = "Ping"
 _MAX_ZONES = 100
 
 
+_NOT_IN_COMMENT = re.compile(r"[^ -~]|[\"'\\\\]")
+
 def _q(name: str) -> str:
     return f'"{name}"'
 
@@ -872,11 +874,12 @@ class _Emitter:
     def _write_nat(self, name: str, inbound: str, outbound: str, src: str, trans_src: str, dst: str, trans_dst: str, service: str,
                    trans_service: str, enabled: bool, comment: str) -> None:  # fmt: skip
         self.unconfirmed.add("nat-policy name and comment")
+        text = " ".join(_NOT_IN_COMMENT.sub(" ", comment).split())[:32].rstrip()  # no expression with a backslash in an f-string: Python 3.9
         self.nat += [
             f"nat-policy inbound {inbound} outbound {outbound} source {src} translated-source {trans_src} destination {dst} "
             f"translated-destination {trans_dst} service {service} translated-service {trans_service}",
             f"    name {_q(name)}",
-            f"    comment {_q(' '.join(re.sub(r'[^ -~]|[\"\'\\\\]', ' ', comment).split())[:32].rstrip())}",
+            f"    comment {_q(text)}",
         ]
         if not enabled:
             self.nat.append("    no enable")

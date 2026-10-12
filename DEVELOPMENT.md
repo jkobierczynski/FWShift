@@ -8,7 +8,7 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.12.1 (alpha) |
+| Version | 0.12.2 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
 | Tests | 3174, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, a Check Point management server, a Cisco Management Center or a Device Manager |
@@ -412,7 +412,10 @@ To release:
 1. Set `__version__` in `src/fwshift/__init__.py`, and write the entry
    `### <date>: version X.Y.Z` in the development log below. What stands under
    its `**Built**` becomes the text of the release.
-2. Commit, then tag and push the tag:
+2. Run the tests with the oldest Python the package supports (3.9) as well as
+   a current one: syntax that only newer releases take (a backslash in an
+   expression of an f-string, before 3.12) compiles here and fails there.
+3. Commit, then tag and push the tag:
 
    ```sh
    git tag v0.7.0
@@ -1871,6 +1874,23 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-12: version 0.12.2
+
+**Built**
+
+* Python 3.9 to 3.11: the SonicWall emitter (0.9.0) had a backslash in an
+  expression of an f-string, which only Python 3.12 and later accept; on older
+  releases no module that imports the command line could be loaded. The
+  expression is now outside the f-string. A variable used for two types in the
+  Barracuda emitter, which the mypy of Python 3.9 finds, is split in two.
+
+**Verified, and not**
+
+* Every source and test file compiles with Python 3.9, 3.10 and 3.11; the
+  whole suite (3174 tests) passes with Python 3.9 and with 3.13; mypy
+  `--strict` passes with the mypy that pip installs for 3.9, 3.10, 3.11 and
+  3.12. The release steps now name the oldest Python.
 
 ### 2026-10-12: version 0.12.1
 

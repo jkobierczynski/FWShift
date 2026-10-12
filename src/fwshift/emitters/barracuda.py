@@ -158,8 +158,8 @@ class _Emitter:
             out += [f"call POST {endpoint} <<'FWSHIFT_JSON'", body, "FWSHIFT_JSON"]
         out.append("")
         out.append("# Rules, deactivated: each goes to the top of the list, last rule first.")
-        for _, body, _ in reversed(self.rules):
-            out += ["call POST rules <<'FWSHIFT_JSON'", _json(body), "FWSHIFT_JSON"]
+        for _, rule_body, _ in reversed(self.rules):
+            out += ["call POST rules <<'FWSHIFT_JSON'", _json(rule_body), "FWSHIFT_JSON"]
         out.append("")
         out.append("# The rules that are to be active, first rule first.")
         for name, _, active in self.rules:
