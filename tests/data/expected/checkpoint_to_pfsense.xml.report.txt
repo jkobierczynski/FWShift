@@ -1,0 +1,116 @@
+FWShift conversion report
+  source: checkpoint (Network)
+  target: pfsense
+
+Summary
+  Security rules:     18   exact 5, approximated 2, needs review 11 (6 emitted disabled), skipped 0
+  NAT rules:           9   exact 1, approximated 0, needs review 1, skipped 7
+  Addresses:          16   exact 13, approximated 1, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IMPLIED_RULES: Check Point implied rules (global properties) and the other ordered layers of the policy package are not part of the export; only the rules of one layer were read ('Network')
+  [needs-review] PFSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of a pfSense configuration. Under Diagnostics > Backup & Restore, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every rule, every alias, every NAT rule that is there now is gone, with the separators, the rules pfSense linked to port forwards and the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. The NAT area holds 4 port forwards and 0 1:1 rules, and switches outbound NAT off, as the source translates no source address. Keep a backup, and look at the rules before anything depends on them: pfSense does not check what it restores, and a rule it cannot resolve is not loaded. Written for pfSense 2.7 and later
+  [needs-review] INTERFACES_REQUIRED: pfSense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: InternalZone, ExternalZone
+  [info] SELF_EXCLUDED: on pfSense the rules of an interface are also the rules for traffic to the firewall itself. Rules of the source that pass traffic to any destination are written for any destination but the firewall itself ('not This Firewall'). A rule that names addresses of the firewall still reaches them
+
+Security rules
+  rule-2  ->  needs-review  (emitted as InternalZone, ExternalZone)
+      [needs-review] DEVICE_TARGET: the rule is installed only on gw-edge; decide whether it belongs on the target firewall
+  Web out  ->  needs-review, emitted disabled  (emitted as InternalZone)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by ExternalZone, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind InternalZone, ExternalZone with --zone-network.
+  Social  ->  needs-review, emitted disabled  (emitted as InternalZone, ExternalZone)
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-6' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Facebook': object of type 'application-site'.
+  Admins  ->  needs-review, emitted disabled  (emitted as InternalZone, ExternalZone)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netadmins': object of type 'access-role'.
+  Updates  ->  needs-review, emitted disabled  (emitted as InternalZone, ExternalZone)
+      [needs-review] SCHEDULE: schedule 'Work-Hours' is not converted; the rule would apply at all times.
+  Old rule  ->  needs-review, emitted disabled  (emitted as InternalZone, ExternalZone)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'lan_without_guests': object of type 'group-with-exclusion'.
+  Partners  ->  needs-review, emitted disabled  (emitted as InternalZone, ExternalZone)
+      [needs-review] UNSUPPORTED_MATCH: not converted: VPN community match Partner-VPN.
+  Public web  ->  approximated  (emitted as InternalZone, ExternalZone)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web_1_valid_address' with post-NAT 'web_1' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+  DMZ access / Web in  ->  needs-review  (emitted as InternalZone, ExternalZone)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web_1', the address NAT rule 'nat-2' translates 'web_1_valid_address' to. The target looks rules up after that translation, so traffic sent to 'web_1_valid_address' now matches this rule; on the source it did not
+  DMZ access / Mail in  ->  needs-review  (emitted as InternalZone, ExternalZone)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail_1', the address NAT rule 'nat-6' translates 'mail_public' to. The target looks rules up after that translation, so traffic sent to 'mail_public' now matches this rule; on the source it did not
+  DMZ access / Ping from LAN  ->  needs-review  (emitted as InternalZone, ExternalZone)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web_1', the address NAT rule 'nat-2' translates 'web_1_valid_address' to. The target looks rules up after that translation, so traffic sent to 'web_1_valid_address' now matches this rule; on the source it did not
+  DMZ access (cleanup of DMZ-Layer)  ->  needs-review  (emitted as InternalZone, ExternalZone)
+      [info] INLINE_CLEANUP: added for the implicit cleanup of inline layer 'DMZ-Layer', which is drop
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'web_1', the address NAT rule 'nat-2' translates 'web_1_valid_address' to. The target looks rules up after that translation, so traffic sent to 'web_1_valid_address' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers 'mail_1', the address NAT rule 'nat-6' translates 'mail_public' to. The target looks rules up after that translation, so traffic sent to 'mail_public' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+  Tunnels  ->  approximated  (emitted as InternalZone, ExternalZone)
+      [approximated] GATEWAY_OBJECT: matches gateway object gw-edge, which stood for every address of the gateway; only its main address is known, so the converted rule no longer applies to its other addresses
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] NAT_INTERFACE: the rule names no zone its traffic leaves by: outbound NAT of pfSense is per interface. Name one with --target-nat-zone
+  nat-3  ->  skipped
+      [needs-review] NAT_INTERFACE: the rule names no zone its traffic leaves by: outbound NAT of pfSense is per interface. Name one with --target-nat-zone
+  nat-4  ->  skipped
+      [needs-review] NAT_INTERFACE: the rule names no zone its traffic leaves by: outbound NAT of pfSense is per interface. Name one with --target-nat-zone
+  nat-5  ->  skipped
+      [needs-review] NAT_INTERFACE: the rule names no zone its traffic leaves by: outbound NAT of pfSense is per interface. Name one with --target-nat-zone
+  nat-6  ->  needs-review  (emitted as 2 port forwards)
+      [needs-review] NAT_ORDER: NAT rule 'nat-1' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+      [needs-review] NAT_ORDER: NAT rule 'nat-4' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+  nat-7  ->  skipped
+      [needs-review] NAT_INTERFACE: the rule names no zone its traffic leaves by: outbound NAT of pfSense is per interface. Name one with --target-nat-zone
+  nat-8  ->  skipped
+      [needs-review] NAT_INTERFACE: the rule names no zone its traffic leaves by: outbound NAT of pfSense is per interface. Name one with --target-nat-zone
+  nat-9  ->  skipped
+      [needs-review] NAT_INTERFACE: the rule names no zone its traffic leaves by: outbound NAT of pfSense is per interface. Name one with --target-nat-zone
+
+Addresses
+  lan-net  ->  exact  (emitted as lan_net)
+      [info] RENAMED: renamed to 'lan_net' to fit the target's naming rules
+  dmz-net  ->  exact  (emitted as dmz_net)
+      [info] RENAMED: renamed to 'dmz_net' to fit the target's naming rules
+  dns-1  ->  exact  (emitted as dns_1)
+      [info] RENAMED: renamed to 'dns_1' to fit the target's naming rules
+  admin-range  ->  exact  (emitted as admin_range)
+      [info] RENAMED: renamed to 'admin_range' to fit the target's naming rules
+  web-1  ->  exact  (emitted as web_1)
+      [info] AUTOMATIC_NAT: the object has automatic static NAT to 203.0.113.10: as on Check Point, rules and groups that name it also match that address, written as 'web-1_valid_address'
+      [info] RENAMED: renamed to 'web_1' to fit the target's naming rules
+  web-1_valid_address  ->  exact  (emitted as web_1_valid_address)
+      [info] RENAMED: renamed to 'web_1_valid_address' to fit the target's naming rules
+  mail-1  ->  exact  (emitted as mail_1)
+      [info] RENAMED: renamed to 'mail_1' to fit the target's naming rules
+  guest-net  ->  exact  (emitted as guest_net)
+      [info] RENAMED: renamed to 'guest_net' to fit the target's naming rules
+  netadmins  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: object of type 'access-role' cannot be converted
+  plc-net  ->  exact  (emitted as plc_net)
+      [info] RENAMED: renamed to 'plc_net' to fit the target's naming rules
+  .updates.example.com  ->  exact  (emitted as x_updates_example_com)
+      [info] RENAMED: renamed to 'x_updates_example_com' to fit the target's naming rules
+  lan-without-guests  ->  needs-review  (emitted as lan_without_guests)
+      [needs-review] UNSUPPORTED_ADDRESS: object of type 'group-with-exclusion' cannot be converted
+      [info] RENAMED: renamed to 'lan_without_guests' to fit the target's naming rules
+  lan6-net  ->  exact  (emitted as lan6_net)
+      [info] RENAMED: renamed to 'lan6_net' to fit the target's naming rules
+  gw-edge  ->  approximated  (emitted as gw_edge)
+      [approximated] GATEWAY_OBJECT: a gateway object stands for every address of the gateway; only its main address 198.51.100.1 is in the export
+      [info] RENAMED: renamed to 'gw_edge' to fit the target's naming rules
+  mail-public  ->  exact  (emitted as mail_public)
+      [info] RENAMED: renamed to 'mail_public' to fit the target's naming rules
+  nat-out  ->  exact  (emitted as nat_out)
+      [info] RENAMED: renamed to 'nat_out' to fit the target's naming rules
+
+Address groups
+  dns-2  ->  exact  (emitted as dns_2)
+      [info] RENAMED: renamed to 'dns_2' to fit the target's naming rules
+  dns-servers  ->  exact  (emitted as dns_servers)
+      [info] RENAMED: renamed to 'dns_servers' to fit the target's naming rules
+  dmz-servers  ->  exact  (emitted as dmz_servers)
+      [info] RENAMED: renamed to 'dmz_servers' to fit the target's naming rules
+
+Services
+  Facebook  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: object of type 'application-site': not converted

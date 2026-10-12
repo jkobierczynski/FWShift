@@ -49,6 +49,11 @@ CISCO_FMC_RULE = NameRules(50, re.compile(r"[^A-Za-z0-9 ._-]"), True)
 CISCO_FDM_RULE = NameRules(128, CISCO.invalid, True)
 # Names that come from the same manager are valid there: only what its API refuses anywhere is replaced.
 CISCO_NATIVE = NameRules(128, re.compile(r"[\x00-\x1f\x7f;]"), False)
+# pfSense: an alias has up to 31 letters, digits and underscores (is_validaliasname). A name of digits only, a word
+# of pf, a protocol and a service name are refused as well; the emitter sees to those.
+PFSENSE = NameRules(31, re.compile(r"[^A-Za-z0-9_]"), True)
+# The description of a rule is free text.
+PFSENSE_TEXT = NameRules(200, re.compile(r"[\x00-\x1f\x7f]"), False)
 
 
 def clean(name: str, rules: NameRules) -> str:

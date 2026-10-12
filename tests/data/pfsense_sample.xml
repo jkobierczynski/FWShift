@@ -1,0 +1,706 @@
+<?xml version="1.0"?>
+<pfsense>
+	<version>23.3</version>
+	<lastchange></lastchange>
+	<system>
+		<optimization>normal</optimization>
+		<hostname>fw-sample</hostname>
+		<domain>example.net</domain>
+		<timezone>Etc/UTC</timezone>
+		<webgui>
+			<protocol>https</protocol>
+		</webgui>
+		<enablenatreflectionpurenat>yes</enablenatreflectionpurenat>
+		<ipv6allow></ipv6allow>
+	</system>
+	<interfaces>
+		<wan>
+			<enable></enable>
+			<if>igb0</if>
+			<descr><![CDATA[WAN]]></descr>
+			<ipaddr>198.51.100.2</ipaddr>
+			<subnet>24</subnet>
+			<gateway>WANGW</gateway>
+			<ipaddrv6>2001:db8:ffff::2</ipaddrv6>
+			<subnetv6>64</subnetv6>
+			<gatewayv6>WANGW6</gatewayv6>
+			<blockpriv></blockpriv>
+			<blockbogons></blockbogons>
+		</wan>
+		<lan>
+			<enable></enable>
+			<if>igb1</if>
+			<descr><![CDATA[LAN]]></descr>
+			<ipaddr>192.168.10.1</ipaddr>
+			<subnet>24</subnet>
+			<ipaddrv6>2001:db8:10::1</ipaddrv6>
+			<subnetv6>64</subnetv6>
+		</lan>
+		<opt1>
+			<enable></enable>
+			<if>igb2</if>
+			<descr><![CDATA[DMZ]]></descr>
+			<ipaddr>192.168.20.1</ipaddr>
+			<subnet>24</subnet>
+			<ipaddrv6>2001:db8:20::1</ipaddrv6>
+			<subnetv6>64</subnetv6>
+		</opt1>
+		<opt2>
+			<enable></enable>
+			<if>igb3</if>
+			<descr><![CDATA[GUEST]]></descr>
+			<ipaddr>192.168.30.1</ipaddr>
+			<subnet>24</subnet>
+		</opt2>
+		<opt3>
+			<if>igb4</if>
+			<descr><![CDATA[SPARE]]></descr>
+			<ipaddr>192.168.40.1</ipaddr>
+			<subnet>24</subnet>
+		</opt3>
+	</interfaces>
+	<gateways>
+		<gateway_item>
+			<interface>wan</interface>
+			<gateway>198.51.100.1</gateway>
+			<name>WANGW</name>
+			<ipprotocol>inet</ipprotocol>
+			<descr><![CDATA[Provider]]></descr>
+		</gateway_item>
+		<gateway_item>
+			<interface>wan</interface>
+			<gateway>2001:db8:ffff::1</gateway>
+			<name>WANGW6</name>
+			<ipprotocol>inet6</ipprotocol>
+			<descr><![CDATA[Provider IPv6]]></descr>
+		</gateway_item>
+		<gateway_item>
+			<interface>lan</interface>
+			<gateway>192.168.10.254</gateway>
+			<name>CORE</name>
+			<ipprotocol>inet</ipprotocol>
+			<descr><![CDATA[Core router]]></descr>
+		</gateway_item>
+	</gateways>
+	<staticroutes>
+		<route>
+			<network>10.50.0.0/16</network>
+			<gateway>CORE</gateway>
+			<descr><![CDATA[Plant network behind the core router]]></descr>
+		</route>
+	</staticroutes>
+	<ifgroups>
+		<ifgroupentry>
+			<ifname>INSIDE</ifname>
+			<members>lan opt2</members>
+			<descr><![CDATA[Networks of users]]></descr>
+		</ifgroupentry>
+	</ifgroups>
+	<virtualip>
+		<vip>
+			<mode>ipalias</mode>
+			<interface>wan</interface>
+			<uniqid>5f3a0c1e2b001</uniqid>
+			<descr><![CDATA[Web]]></descr>
+			<type>single</type>
+			<subnet_bits>32</subnet_bits>
+			<subnet>198.51.100.10</subnet>
+		</vip>
+		<vip>
+			<mode>ipalias</mode>
+			<interface>wan</interface>
+			<uniqid>5f3a0c1e2b002</uniqid>
+			<descr><![CDATA[Mail]]></descr>
+			<type>single</type>
+			<subnet_bits>32</subnet_bits>
+			<subnet>198.51.100.11</subnet>
+		</vip>
+	</virtualip>
+	<schedules>
+		<schedule>
+			<name>OfficeHours</name>
+			<descr><![CDATA[Monday to Friday]]></descr>
+			<timerange>
+				<position>1,2,3,4,5</position>
+				<hour>8:00-18:00</hour>
+				<rangedescr></rangedescr>
+			</timerange>
+			<schedlabel>5f3a0c1e2b0aa</schedlabel>
+		</schedule>
+	</schedules>
+	<aliases>
+		<alias>
+			<name>WebServers</name>
+			<type>host</type>
+			<address>192.168.20.10 192.168.20.11</address>
+			<descr><![CDATA[Web servers in the DMZ]]></descr>
+			<detail><![CDATA[web1||web2]]></detail>
+		</alias>
+		<alias>
+			<name>DmzServers</name>
+			<type>network</type>
+			<address>WebServers 192.168.20.25 192.168.20.64/28 2001:db8:20::10</address>
+			<descr><![CDATA[Everything that serves in the DMZ]]></descr>
+			<detail><![CDATA[the web servers||mail||application servers||web1 over IPv6]]></detail>
+		</alias>
+		<alias>
+			<name>Private</name>
+			<type>network</type>
+			<address>10.0.0.0/8 172.16.0.0/12 192.168.0.0/16</address>
+			<descr><![CDATA[RFC 1918]]></descr>
+			<detail><![CDATA[a||b||c]]></detail>
+		</alias>
+		<alias>
+			<name>Updates</name>
+			<type>host</type>
+			<address>updates.example.com mirror.example.org 203.0.113.80</address>
+			<descr><![CDATA[Where the servers get their updates]]></descr>
+			<detail><![CDATA[vendor||mirror||fallback]]></detail>
+		</alias>
+		<alias>
+			<name>Admins</name>
+			<type>host</type>
+			<address>192.168.10.21 192.168.10.22</address>
+			<descr><![CDATA[Workstations of the administrators]]></descr>
+			<detail><![CDATA[a||b]]></detail>
+		</alias>
+		<alias>
+			<name>WebPorts</name>
+			<type>port</type>
+			<address>80 443 8080:8090</address>
+			<descr><![CDATA[HTTP and HTTPS]]></descr>
+			<detail><![CDATA[http||https||alternative]]></detail>
+		</alias>
+		<alias>
+			<name>MailPorts</name>
+			<type>port</type>
+			<address>25 465 587</address>
+			<descr><![CDATA[Mail submission]]></descr>
+			<detail><![CDATA[smtp||smtps||submission]]></detail>
+		</alias>
+		<alias>
+			<name>Blocklist</name>
+			<type>urltable</type>
+			<url>https://lists.example.org/drop.txt</url>
+			<updatefreq>1</updatefreq>
+			<address>https://lists.example.org/drop.txt</address>
+			<descr><![CDATA[Addresses nobody should talk to]]></descr>
+			<detail><![CDATA[list]]></detail>
+		</alias>
+	</aliases>
+	<nat>
+		<outbound>
+			<mode>hybrid</mode>
+			<rule>
+				<source>
+					<network>192.168.20.0/24</network>
+				</source>
+				<sourceport></sourceport>
+				<descr><![CDATA[DMZ leaves with the web address]]></descr>
+				<target>198.51.100.10</target>
+				<target_subnet></target_subnet>
+				<interface>wan</interface>
+				<poolopts></poolopts>
+				<source_hash_key></source_hash_key>
+				<destination>
+					<any></any>
+				</destination>
+			</rule>
+			<rule>
+				<source>
+					<network>192.168.10.0/24</network>
+				</source>
+				<sourceport></sourceport>
+				<descr><![CDATA[No NAT towards the partner]]></descr>
+				<target></target>
+				<target_subnet></target_subnet>
+				<interface>wan</interface>
+				<poolopts></poolopts>
+				<source_hash_key></source_hash_key>
+				<nonat></nonat>
+				<destination>
+					<network>203.0.113.0/24</network>
+				</destination>
+			</rule>
+		</outbound>
+		<rule>
+			<source>
+				<any></any>
+			</source>
+			<destination>
+				<address>198.51.100.10</address>
+				<port>443</port>
+			</destination>
+			<ipprotocol>inet</ipprotocol>
+			<protocol>tcp</protocol>
+			<target>192.168.20.10</target>
+			<local-port>443</local-port>
+			<interface>wan</interface>
+			<descr><![CDATA[Web server HTTPS]]></descr>
+			<associated-rule-id>nat_5f3a0c1e2b101</associated-rule-id>
+		</rule>
+		<rule>
+			<source>
+				<any></any>
+			</source>
+			<destination>
+				<address>198.51.100.10</address>
+				<port>8000-8010</port>
+			</destination>
+			<ipprotocol>inet</ipprotocol>
+			<protocol>tcp</protocol>
+			<target>192.168.20.11</target>
+			<local-port>9000</local-port>
+			<interface>wan</interface>
+			<descr><![CDATA[Application ports]]></descr>
+			<associated-rule-id>nat_5f3a0c1e2b102</associated-rule-id>
+		</rule>
+		<rule>
+			<source>
+				<address>203.0.113.0/24</address>
+			</source>
+			<destination>
+				<network>wanip</network>
+				<port>2222</port>
+			</destination>
+			<ipprotocol>inet</ipprotocol>
+			<protocol>tcp</protocol>
+			<target>192.168.20.25</target>
+			<local-port>22</local-port>
+			<interface>wan</interface>
+			<descr><![CDATA[SSH for the partner]]></descr>
+			<associated-rule-id>pass</associated-rule-id>
+			<natreflection>disable</natreflection>
+		</rule>
+		<onetoone>
+			<external>198.51.100.11</external>
+			<descr><![CDATA[Mail server]]></descr>
+			<interface>wan</interface>
+			<source>
+				<address>192.168.20.25</address>
+			</source>
+			<destination>
+				<any></any>
+			</destination>
+			<ipprotocol>inet</ipprotocol>
+		</onetoone>
+	</nat>
+	<filter>
+		<rule>
+			<id></id>
+			<tracker>1700000001</tracker>
+			<type>block</type>
+			<interface>wan</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<direction>out</direction>
+			<quick>yes</quick>
+			<floating>yes</floating>
+			<source>
+				<any></any>
+			</source>
+			<destination>
+				<address>203.0.113.128/25</address>
+			</destination>
+			<log></log>
+			<descr><![CDATA[Nothing leaves towards the sinkhole]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000002</tracker>
+			<type>pass</type>
+			<interface>lan,opt1</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<direction>in</direction>
+			<quick>yes</quick>
+			<floating>yes</floating>
+			<protocol>icmp</protocol>
+			<icmptype>echoreq</icmptype>
+			<source>
+				<any></any>
+			</source>
+			<destination>
+				<any></any>
+			</destination>
+			<descr><![CDATA[Ping from the inside]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000003</tracker>
+			<type>block</type>
+			<interface>any</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<direction>in</direction>
+			<floating>yes</floating>
+			<protocol>tcp</protocol>
+			<source>
+				<any></any>
+			</source>
+			<destination>
+				<any></any>
+				<port>23</port>
+			</destination>
+			<log></log>
+			<descr><![CDATA[Telnet unless a rule says otherwise]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000010</tracker>
+			<type>pass</type>
+			<interface>wan</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<protocol>tcp</protocol>
+			<source>
+				<any></any>
+			</source>
+			<destination>
+				<address>192.168.20.10</address>
+				<port>443</port>
+			</destination>
+			<descr><![CDATA[NAT Web server HTTPS]]></descr>
+			<associated-rule-id>nat_5f3a0c1e2b101</associated-rule-id>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000011</tracker>
+			<type>pass</type>
+			<interface>wan</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<protocol>tcp</protocol>
+			<source>
+				<any></any>
+			</source>
+			<destination>
+				<address>192.168.20.11</address>
+				<port>9000-9010</port>
+			</destination>
+			<descr><![CDATA[NAT Application ports]]></descr>
+			<associated-rule-id>nat_5f3a0c1e2b102</associated-rule-id>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000012</tracker>
+			<type>pass</type>
+			<interface>wan</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<protocol>tcp</protocol>
+			<source>
+				<any></any>
+			</source>
+			<destination>
+				<address>192.168.20.25</address>
+				<port>MailPorts</port>
+			</destination>
+			<descr><![CDATA[Mail in]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000013</tracker>
+			<type>pass</type>
+			<interface>wan</interface>
+			<ipprotocol>inet6</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<protocol>tcp</protocol>
+			<source>
+				<any></any>
+			</source>
+			<destination>
+				<address>2001:db8:20::10</address>
+				<port>443</port>
+			</destination>
+			<descr><![CDATA[Web server over IPv6]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000014</tracker>
+			<type>pass</type>
+			<interface>wan</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<protocol>icmp</protocol>
+			<icmptype>echoreq,timex,unreach</icmptype>
+			<source>
+				<any></any>
+			</source>
+			<destination>
+				<network>wanip</network>
+			</destination>
+			<descr><![CDATA[Ping and errors to the firewall]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000020</tracker>
+			<type>pass</type>
+			<interface>INSIDE</interface>
+			<ipprotocol>inet46</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<protocol>tcp/udp</protocol>
+			<source>
+				<any></any>
+			</source>
+			<destination>
+				<network>(self)</network>
+				<port>53</port>
+			</destination>
+			<descr><![CDATA[DNS from the firewall]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000030</tracker>
+			<type>pass</type>
+			<interface>lan</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<protocol>tcp</protocol>
+			<source>
+				<address>Admins</address>
+			</source>
+			<destination>
+				<address>DmzServers</address>
+				<port>22</port>
+			</destination>
+			<log></log>
+			<descr><![CDATA[Administrators to the servers]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000031</tracker>
+			<type>pass</type>
+			<interface>lan</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<protocol>tcp</protocol>
+			<source>
+				<network>lan</network>
+			</source>
+			<destination>
+				<address>WebServers</address>
+				<port>WebPorts</port>
+			</destination>
+			<descr><![CDATA[Users to the web servers]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000032</tracker>
+			<type>pass</type>
+			<interface>lan</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<protocol>tcp</protocol>
+			<source>
+				<network>lan</network>
+			</source>
+			<destination>
+				<address>198.51.100.10</address>
+				<port>443</port>
+			</destination>
+			<descr><![CDATA[Users to the web server by its outside address]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000033</tracker>
+			<type>reject</type>
+			<interface>lan</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<source>
+				<network>lan</network>
+			</source>
+			<destination>
+				<address>Private</address>
+			</destination>
+			<descr><![CDATA[No other private network from the LAN]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000034</tracker>
+			<type>pass</type>
+			<interface>lan</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<source>
+				<network>lan</network>
+			</source>
+			<destination>
+				<any></any>
+			</destination>
+			<descr><![CDATA[Default allow LAN to any rule]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000035</tracker>
+			<type>pass</type>
+			<interface>lan</interface>
+			<ipprotocol>inet6</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<source>
+				<network>lan</network>
+			</source>
+			<destination>
+				<any></any>
+			</destination>
+			<descr><![CDATA[Default allow LAN IPv6 to any rule]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000040</tracker>
+			<type>pass</type>
+			<interface>opt1</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<protocol>tcp</protocol>
+			<source>
+				<address>DmzServers</address>
+			</source>
+			<destination>
+				<address>Updates</address>
+				<port>WebPorts</port>
+			</destination>
+			<descr><![CDATA[Servers fetch their updates]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000041</tracker>
+			<type>pass</type>
+			<interface>opt1</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<protocol>tcp</protocol>
+			<source>
+				<address>192.168.20.25</address>
+			</source>
+			<destination>
+				<address>Private</address>
+				<not></not>
+				<port>25</port>
+			</destination>
+			<descr><![CDATA[Mail out, not to the inside]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000042</tracker>
+			<type>pass</type>
+			<interface>opt1</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<protocol>udp</protocol>
+			<source>
+				<network>opt1</network>
+			</source>
+			<destination>
+				<address>192.168.10.5</address>
+				<port>514</port>
+			</destination>
+			<descr><![CDATA[Syslog to the collector]]></descr>
+			<sched>OfficeHours</sched>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000043</tracker>
+			<type>block</type>
+			<interface>opt1</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<source>
+				<address>Blocklist</address>
+			</source>
+			<destination>
+				<any></any>
+			</destination>
+			<descr><![CDATA[Nothing from the list]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000044</tracker>
+			<type>pass</type>
+			<interface>opt1</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<protocol>esp</protocol>
+			<source>
+				<address>192.168.20.70</address>
+			</source>
+			<destination>
+				<address>203.0.113.7</address>
+			</destination>
+			<disabled></disabled>
+			<descr><![CDATA[Tunnel of the old application]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000050</tracker>
+			<type>block</type>
+			<interface>opt2</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<source>
+				<network>opt2</network>
+			</source>
+			<destination>
+				<address>Private</address>
+			</destination>
+			<log></log>
+			<descr><![CDATA[Guests reach nothing private]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000051</tracker>
+			<type>pass</type>
+			<interface>opt2</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<protocol>tcp</protocol>
+			<source>
+				<network>opt2</network>
+			</source>
+			<destination>
+				<any></any>
+				<port>WebPorts</port>
+			</destination>
+			<descr><![CDATA[Guests browse]]></descr>
+			<gateway>WANGW</gateway>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000052</tracker>
+			<type>pass</type>
+			<interface>opt2</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<tagged>VOICE</tagged>
+			<protocol>udp</protocol>
+			<source>
+				<network>opt2</network>
+			</source>
+			<destination>
+				<address>203.0.113.40</address>
+				<port>5060-5061</port>
+			</destination>
+			<descr><![CDATA[Phones of the guests]]></descr>
+		</rule>
+		<rule>
+			<id></id>
+			<tracker>1700000060</tracker>
+			<type>pass</type>
+			<interface>opt3</interface>
+			<ipprotocol>inet</ipprotocol>
+			<statetype><![CDATA[keep state]]></statetype>
+			<source>
+				<network>opt3</network>
+			</source>
+			<destination>
+				<any></any>
+			</destination>
+			<descr><![CDATA[Spare network, not in use]]></descr>
+		</rule>
+		<separator>
+			<wan></wan>
+			<lan></lan>
+		</separator>
+	</filter>
+</pfsense>

@@ -1403,3 +1403,491 @@ class CiscoConfig:
                 continue
             return rule
         return None
+
+
+_LITERALS: Dict[str, Any] = {}
+
+
+def _literal(text: str) -> Any:
+    """parse_literal, remembered: the judges ask for the same few addresses a million times."""
+    if text not in _LITERALS:
+        _LITERALS[text] = parse_literal(text)
+    return _LITERALS[text]
+
+
+class PfSense:
+    """A pfSense firewall, as far as its ``config.xml`` says what it does with a packet it forwards.
+
+    Written from pfSense's own ``filter.inc`` and from pf, and not from the parser of FWShift: it reads
+    the XML itself. What it does not know raises, so that a test never passes on something it took
+    for something else. Host names in aliases match nothing here.
+    """
+
+    PRIVATE = ("10.0.0.0/8", "127.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7")
+    NUMBERS = {"tcp": 6, "udp": 17, "icmp": 1, "icmp6": 58, "sctp": 132, "esp": 50, "ah": 51, "gre": 47, "etherip": 97,
+               "ipv6": 41, "igmp": 2, "pim": 103, "ospf": 89, "carp": 112, "pfsync": 249}  # fmt: skip
+    ICMP = {"echorep": 0, "unreach": 3, "squench": 4, "redir": 5, "althost": 6, "echoreq": 8, "routeradv": 9, "routersol": 10,
+            "timex": 11, "paramprob": 12, "timereq": 13, "timerep": 14, "inforeq": 15, "inforep": 16, "maskreq": 17,
+            "maskrep": 18, "trace": 30, "dataconv": 31, "mobredir": 32, "ipv6-where": 33, "ipv6-here": 34,
+            "mobregreq": 35, "mobregrep": 36, "skip": 39, "photuris": 40}  # fmt: skip
+    ICMP6 = {"unreach": 1, "toobig": 2, "timex": 3, "paramprob": 4, "echoreq": 128, "echorep": 129, "groupqry": 130,
+             "listqry": 130, "grouprep": 131, "listenrep": 131, "groupterm": 132, "listendone": 132, "routersol": 133,
+             "routeradv": 134, "neighbrsol": 135, "neighbradv": 136, "redir": 137, "routrrenum": 138, "wrureq": 139,
+             "wrurep": 140, "fqdnreq": 139, "fqdnrep": 140, "niqry": 139, "nirep": 140, "mtraceresp": 200, "mtrace": 201}  # fmt: skip
+    KNOWN = {"id", "tracker", "type", "interface", "ipprotocol", "statetype", "protocol", "icmptype", "source", "destination",
+             "disabled", "log", "descr", "floating", "quick", "direction", "associated-rule-id", "created", "updated", "tag",
+             "max", "max-src-nodes", "max-src-conn", "max-src-states", "statetimeout", "gateway", "sched", "os", "tagged",
+             "target", "local-port", "natreflection", "nordr", "nosync"}  # fmt: skip
+
+    def __init__(self, text: str) -> None:
+        import xml.etree.ElementTree as ET
+
+        self.root = ET.fromstring(text)
+        assert self.root.tag == "pfsense", self.root.tag
+        self._cache: Dict[str, Any] = {}
+
+    # -- reading ---------------------------------------------------------------------------------
+
+    def restore(self, text: str) -> None:
+        """What Diagnostics > Backup & Restore does with a file, once per area: the area is replaced."""
+        import xml.etree.ElementTree as ET
+
+        other = ET.fromstring(text)
+        assert other.tag == "pfsense", other.tag
+        for area in ("aliases", "nat", "filter"):
+            new = other.find(area)
+            if new is None or (len(new) == 0 and not (new.text or "").strip()):
+                continue  # an area that is not in the file, or is empty, is refused: the old one stays
+            assert f"<{area}>" in text
+            old = self.root.find(area)
+            if old is not None:
+                self.root.remove(old)
+            self.root.append(new)
+        self._cache = {}
+
+    def _t(self, node: Any, tag: str) -> str:
+        if node is None:
+            return ""
+        texts = self._cache.setdefault("texts", {})
+        key = (id(node), tag)
+        if key not in texts:
+            found = node.findall(tag)
+            assert len(found) <= 1, f"<{tag}> twice"
+            texts[key] = (found[0].text or "").strip() if found else ""
+        return texts[key]  # type: ignore[no-any-return]
+
+    def _has(self, node: Any, tag: str) -> bool:
+        if node is None:
+            return False
+        flags = self._cache.setdefault("flags", {})
+        key = (id(node), tag)
+        if key not in flags:
+            flags[key] = node.find(tag) is not None
+        return flags[key]  # type: ignore[no-any-return]
+
+    def _find(self, node: Any, tag: str) -> Any:
+        found = self._cache.setdefault("nodes", {})
+        key = (id(node), tag)
+        if key not in found:
+            found[key] = node.find(tag)
+        return found[key]
+
+    def version(self) -> float:
+        return float(self._t(self.root, "version") or 99)
+
+    def interfaces(self) -> Dict[str, Dict[str, Any]]:
+        """Enabled interfaces: key -> description, addresses, whether it has a gateway."""
+        import ipaddress
+
+        if "interfaces" in self._cache:
+            return self._cache["interfaces"]  # type: ignore[no-any-return]
+        out: Dict[str, Dict[str, Any]] = {}
+        self._cache["interfaces"] = out
+        for node in self.root.find("interfaces") if self.root.find("interfaces") is not None else []:
+            if not self._has(node, "enable"):
+                continue
+            entry: Dict[str, Any] = {"descr": self._t(node, "descr") or node.tag.upper(), "v4": None, "v6": None, "vips": []}
+            address, bits = self._t(node, "ipaddr"), self._t(node, "subnet")
+            if address and address[0].isdigit() and bits:
+                entry["v4"] = ipaddress.ip_interface(f"{address}/{bits}")
+            address, bits = self._t(node, "ipaddrv6"), self._t(node, "subnetv6")
+            if ":" in address and bits:
+                entry["v6"] = ipaddress.ip_interface(f"{address}/{bits}")
+            entry["gateway"] = bool(self._t(node, "gateway")) or self._t(node, "ipaddr") in ("dhcp", "pppoe", "pptp", "l2tp", "ppp")
+            entry["blockpriv"] = self._has(node, "blockpriv")
+            out[node.tag] = entry
+        vips = self.root.findall("virtualip/vip")
+        parents = {"_vip" + self._t(vip, "uniqid"): self._t(vip, "interface") for vip in vips if self._t(vip, "uniqid")}
+        for vip in vips:
+            owner = out.get(parents.get(self._t(vip, "interface"), self._t(vip, "interface")))
+            if owner is not None:
+                owner["vips"].append((ipaddress.ip_interface(f"{self._t(vip, 'subnet')}/{self._t(vip, 'subnet_bits') or 32}"), self._t(vip, "mode")))
+        return out
+
+    def key(self, zone: str) -> str:
+        """The interface a description (or a key) stands for."""
+        for key, entry in self.interfaces().items():
+            if zone in (key, entry["descr"]):
+                return key
+        raise AssertionError(f"no interface {zone}")
+
+    def groups(self) -> Dict[str, List[str]]:
+        if "groups" not in self._cache:
+            self._cache["groups"] = {
+                self._t(entry, "ifname"): self._t(entry, "members").split() for entry in self.root.findall("ifgroups/ifgroupentry")
+            }
+        return self._cache["groups"]  # type: ignore[no-any-return]
+
+    def aliases(self) -> Dict[str, Tuple[str, List[str]]]:
+        if "aliases" not in self._cache:
+            self._cache["aliases"] = {
+                self._t(alias, "name"): (self._t(alias, "type"), self._t(alias, "address").split()) for alias in self.root.findall("aliases/alias")
+            }
+        return self._cache["aliases"]  # type: ignore[no-any-return]
+
+    # -- matching --------------------------------------------------------------------------------
+
+    @staticmethod
+    def _within(address: str, network: str) -> bool:
+        a, b = _literal(address), _literal(network)
+        return a is not None and b is not None and a[0] == b[0] and b[1] <= a[1] <= b[2]
+
+    def _alias_holds(self, name: str, address: str, seen: Tuple[str, ...] = ()) -> bool:
+        kind, entries = self.aliases()[name]
+        assert kind in ("host", "network"), f"alias {name} of type {kind} as an address"
+        for entry in entries:
+            if entry in self.aliases():
+                if entry not in seen and self._alias_holds(entry, address, seen + (name,)):
+                    return True
+            elif _literal(entry) is not None and "-" not in entry:
+                if self._within(address, entry):
+                    return True
+            else:
+                assert not entry[0].isdigit() and ":" not in entry, f"entry {entry} of alias {name}"  # a host name
+        return False
+
+    def _ports_of(self, text: str, seen: Tuple[str, ...] = ()) -> Optional[List[Tuple[int, int]]]:
+        """Port ranges of a port, a range or an alias; None when pfSense cannot resolve it."""
+        if text in self.aliases():
+            kind, entries = self.aliases()[text]
+            if kind != "port" or text in seen or not entries:
+                return None
+            out: List[Tuple[int, int]] = []
+            for entry in entries:
+                found = self._ports_of(entry, seen + (text,))
+                if found is None:
+                    return None
+                out += found
+            return out
+        names = {"http": 80, "https": 443, "ssh": 22, "smtp": 25, "domain": 53}  # /etc/services, as far as the tests go
+        if text in names:
+            return [(names[text], names[text])]
+        first, _, last = text.replace(":", "-").partition("-")
+        if not first.isdigit() or (last and not last.isdigit()):
+            return None
+        return [(int(first), int(last or first))]
+
+    def _network(self, word: str, family: int) -> Optional[List[str]]:
+        """The networks a word of pfSense stands for; None when it stands for nothing of this IP version."""
+        interfaces = self.interfaces()
+        which = "v4" if family == 4 else "v6"
+        if word == "(self)":
+            out = [str(entry[which].ip) for entry in interfaces.values() if entry[which] is not None]
+            for entry in interfaces.values():
+                out += [str(vip.ip) for vip, mode in entry["vips"] if vip.version == family and mode in ("carp", "ipalias")]
+            return out
+        if word.endswith("ip") and word[:-2] in interfaces:
+            own = interfaces[word[:-2]][which]
+            return [str(own.ip)] if own is not None else None
+        members = self.groups().get(word, [word])
+        out = []
+        for key in members:
+            entry = interfaces.get(key)
+            if entry is None:
+                continue
+            if entry[which] is not None:
+                out.append(str(entry[which].network))
+            out += [str(vip.network) for vip, _ in entry["vips"] if vip.version == family]
+        return out or None
+
+    def _side(self, node: Any, address: str, family: int) -> Optional[bool]:
+        """Whether an address matches a side of a rule; None when the rule is not loaded for this IP version."""
+        negated = self._has(node, "not")
+        if node is None:
+            return None
+        if self._has(node, "any"):
+            return True
+        word = self._t(node, "network")
+        if word:
+            networks = self._network(word, family)
+            if networks is None:
+                return None
+            return any(self._within(address, network) for network in networks) != negated
+        text = self._t(node, "address")
+        if not text:
+            return None
+        if text in self.aliases():
+            if self.aliases()[text][0] not in ("host", "network"):
+                return None
+            return self._alias_holds(text, address) != negated
+        literal = _literal(text)
+        if literal is None or "-" in text or literal[0] != family:
+            return None
+        return self._within(address, text) != negated
+
+    def _matches(self, rule: Any, pkt: Any, src: str, dst: str, dport: int) -> Optional[bool]:
+        """Whether a rule matches; None when pfSense does not load it (for this IP version)."""
+        unknown = self._cache.setdefault("tags", {}).setdefault(id(rule), {child.tag for child in rule} - self.KNOWN)
+        assert not unknown and not self._t(rule, "os"), unknown
+        if self._t(rule, "tagged"):
+            return False  # no packet of the tests carries a mark of another rule
+        family = 6 if ":" in src else 4
+        wanted = {"inet6": [6], "inet46": [4, 6]}.get(self._t(rule, "ipprotocol"), [4])
+        if family not in wanted:
+            return False
+        source = self._side(self._find(rule, "source"), src, family)
+        destination = self._side(self._find(rule, "destination"), dst, family)
+        if source is None or destination is None:
+            return None
+        protocol = self._t(rule, "protocol")
+        sport_text, dport_text = self._t(self._find(rule, "source"), "port"), self._t(self._find(rule, "destination"), "port")
+        if not protocol and (sport_text or dport_text):
+            return bool(source and destination and pkt.proto == "tcp")  # filter.inc: proto tcp, and no port without a protocol
+        ok = True
+        if protocol in ("tcp", "udp", "tcp/udp", "sctp"):
+            for text, port in ((sport_text, pkt.sport), (dport_text, dport)):
+                if text:
+                    ranges = self._ports_of(text)
+                    if ranges is None:
+                        return None
+                    ok = ok and any(low <= port <= high for low, high in ranges)
+            ok = ok and pkt.proto in protocol.split("/")
+        elif protocol == "icmp":
+            table, name = (self.ICMP6, "icmp6") if family == 6 else (self.ICMP, "icmp")
+            types = [word for word in self._t(rule, "icmptype").split(",") if word and word != "any"]
+            ok = pkt.proto == name and (not types or pkt.icmp_type in [table[word] for word in types])
+        elif protocol and protocol != "any":
+            ok = str(self.NUMBERS[protocol]) == str(self.NUMBERS.get(pkt.proto, pkt.proto))
+        return bool(ok and source and destination)
+
+    # -- the ruleset -----------------------------------------------------------------------------
+
+    def _on(self, rule: Any, key: str) -> bool:
+        """Whether a rule is for an interface."""
+        names = self._t(rule, "interface")
+        if self._has(rule, "floating"):
+            if names == "any" and self.version() <= 22.2:
+                return False  # pfSense 2.6 looks for an interface called "any", and has none
+            if names in ("", "any"):
+                return True
+            listed = names.split(",")
+        else:
+            listed = [names]
+        return any(key == name or key in self.groups().get(name, []) for name in listed)
+
+    def _ordered(self) -> List[Any]:
+        """User rules in the order pfSense writes them: floating, groups, interfaces."""
+        if "ordered" in self._cache:
+            return self._cache["ordered"]  # type: ignore[no-any-return]
+        rules = [rule for rule in self.root.findall("filter/rule") if not self._has(rule, "disabled")]
+        floating = [rule for rule in rules if self._has(rule, "floating")]
+        groups = list(self.groups())
+        tier = [rule for rule in rules if not self._has(rule, "floating") and self._t(rule, "interface") in groups]
+        if self.version() > 23.3:
+            tier.sort(key=lambda rule: groups.index(self._t(rule, "interface")))
+        rest = [rule for rule in rules if not self._has(rule, "floating") and self._t(rule, "interface") not in groups]
+        self._cache["ordered"] = floating + tier + rest
+        return floating + tier + rest
+
+    def _decide(self, direction: str, key: str, pkt: Any, src: str, dst: str, dport: int) -> Optional[bool]:
+        """What the user rules say about a packet that arrives on or leaves by an interface; None when none matches."""
+        rule = self._deciding(direction, key, pkt, src, dst, dport)
+        return None if rule is None else (self._t(rule, "type") or "pass") == "pass"
+
+    def _deciding(self, direction: str, key: str, pkt: Any, src: str, dst: str, dport: int) -> Any:
+        """The user rule that decides about a packet that arrives on or leaves by an interface, or None."""
+        last: Any = None
+        for rule in self._ordered():
+            floating = self._has(rule, "floating")
+            if floating:
+                way = (self._t(rule, "direction") or "any") if self._t(rule, "floating") == "yes" else "in"
+                if way not in (direction, "any"):
+                    continue
+            elif direction != "in":
+                continue
+            kind = self._t(rule, "type") or "pass"
+            if kind == "match" or not self._on(rule, key):
+                continue
+            if not self._matches(rule, pkt, src, dst, dport):
+                continue
+            if not floating or self._has(rule, "quick"):
+                return rule
+            last = rule
+        return last
+
+    # -- NAT -------------------------------------------------------------------------------------
+
+    def _arriving(self, key: str, pkt: Any) -> Tuple[str, int, bool, str]:
+        """(destination, port, whether the packet is passed without a rule, the rule) after port forwards and 1:1 NAT."""
+        import ipaddress
+
+        if ":" in pkt.dst:
+            return pkt.dst, pkt.dport, False, ""
+        interfaces = self.interfaces()
+        system = self.root.find("system")
+        for rule in self.root.findall("nat/rule"):
+            if self._has(rule, "disabled"):
+                continue
+            where = self._t(rule, "interface") or "wan"
+            own = self._t(rule, "natreflection")
+            on = [where]
+            if own in ("purenat",) or (not own and not self._has(system, "disablenatreflection") and self._has(system, "enablenatreflectionpurenat")):
+                on += [other for other, entry in interfaces.items() if other != where and not entry["gateway"]]
+            else:
+                assert own in ("disable", "") and (own or self._has(system, "disablenatreflection")), "NAT reflection by proxy"
+            on = [member for name in on for member in self.groups().get(name, [name])]  # a group: each of its interfaces
+            if key not in on or not any(name in interfaces for name in on):
+                continue
+            if not self._matches(rule, pkt, pkt.src, pkt.dst, pkt.dport):
+                continue
+            if self._has(rule, "nordr"):
+                return pkt.dst, pkt.dport, False, self._t(rule, "descr")
+            target = self._t(rule, "target")
+            if target.endswith("ip") and target[:-2] in interfaces:
+                target = str(interfaces[target[:-2]]["v4"].ip)
+            elif target in self.aliases():
+                target = self.aliases()[target][1][0]
+            port = pkt.dport
+            local, listed = self._t(rule, "local-port"), self._t(self._find(rule, "destination"), "port")
+            if local and listed and self._t(rule, "protocol") in ("tcp", "udp", "tcp/udp", "sctp"):
+                if listed in self.aliases():
+                    # An alias of ports goes to the same ports, or all of it to the one port that is given.
+                    assert local == listed or local.isdigit(), "port forward to an alias of ports"
+                    port = pkt.dport if local == listed else int(local)
+                else:
+                    assert local.isdigit(), "port forward to an alias of ports"
+                    port = int(local) + (pkt.dport - int(listed.split("-")[0]))
+            return target, port, self._t(rule, "associated-rule-id") == "pass" and key == where, self._t(rule, "descr")
+        for rule in self.root.findall("nat/onetoone"):
+            if self._has(rule, "disabled") or (self._t(rule, "interface") or "wan") != key:
+                continue
+            inside = self._t(self._find(rule, "source"), "address")
+            assert inside and self._has(self._find(rule, "destination"), "any") and not self._has(rule, "nobinat"), "1:1 rule the judge does not know"
+            reflection = self._t(rule, "natreflection")
+            assert reflection == "disable" or (not reflection and not self._has(system, "enablebinatreflection")), "1:1 NAT with reflection"
+            network = ipaddress.ip_network(inside, strict=False)
+            outside = ipaddress.ip_network(f"{self._t(rule, 'external')}/{network.prefixlen}", strict=False)
+            address = ipaddress.ip_address(pkt.dst)
+            if address in outside:
+                return str(network.network_address + (int(address) - int(outside.network_address))), pkt.dport, False, self._t(rule, "descr")
+        return pkt.dst, pkt.dport, False, ""
+
+    def _leaving(self, key: str, pkt: Any, dst: str, dport: int) -> Tuple[str, str]:
+        """(source after 1:1 NAT and outbound NAT on the interface a packet leaves by, the rule)."""
+        import ipaddress
+
+        if ":" in pkt.src:
+            return pkt.src, ""
+        interfaces = self.interfaces()
+        for rule in self.root.findall("nat/onetoone"):
+            if self._has(rule, "disabled") or (self._t(rule, "interface") or "wan") != key:
+                continue
+            network = ipaddress.ip_network(self._t(self._find(rule, "source"), "address"), strict=False)
+            outside = ipaddress.ip_network(f"{self._t(rule, 'external')}/{network.prefixlen}", strict=False)
+            address = ipaddress.ip_address(pkt.src)
+            if address in network:
+                return str(outside.network_address + (int(address) - int(network.network_address))), self._t(rule, "descr")
+        outbound = self.root.find("nat/outbound")
+        mode = self._t(outbound, "mode") or "automatic"
+        if mode in ("advanced", "hybrid"):
+            for rule in outbound.findall("rule") if outbound is not None else []:
+                if self._has(rule, "disabled") or self._t(rule, "interface") != key:
+                    continue
+                if not self._outbound_side(self._t(self._find(rule, "source"), "network"), pkt.src):
+                    continue
+                target = self._find(rule, "destination")
+                network = self._t(target, "network") or self._t(target, "address")
+                assert not self._has(target, "not"), "negated destination in outbound NAT"
+                if not self._has(target, "any") and not self._outbound_side(network, dst):
+                    continue
+                protocol = self._t(rule, "protocol")
+                if protocol and pkt.proto not in protocol.split("/"):
+                    continue
+                for text, port in ((self._t(rule, "sourceport"), pkt.sport), (self._t(rule, "dstport"), dport)):
+                    if text:
+                        ranges = self._ports_of(text)
+                        assert ranges is not None, text
+                        if pkt.proto not in ("tcp", "udp") or not any(low <= port <= high for low, high in ranges):
+                            break
+                else:
+                    if self._has(rule, "nonat"):
+                        return pkt.src, self._t(rule, "descr")
+                    to, bits = self._t(rule, "target"), self._t(rule, "target_subnet")
+                    if to == "other-subnet":
+                        to, bits = self._t(rule, "targetip"), self._t(rule, "targetip_subnet")
+                    if not to or (to.endswith("ip") and to[:-2] in interfaces):
+                        return str(interfaces[key]["v4"].ip) if interfaces[key]["v4"] is not None else "MASQ", self._t(rule, "descr")
+                    if to in self.aliases():
+                        return ",".join(self.aliases()[to][1]), self._t(rule, "descr")
+                    return (to if not bits or bits == "32" else f"{to}/{bits}"), self._t(rule, "descr")
+        if mode in ("automatic", "hybrid") and interfaces[key]["gateway"]:
+            inside = [str(entry["v4"].network) for other, entry in interfaces.items() if not entry["gateway"] and entry["v4"] is not None]
+            gateways = {self._t(g, "name"): self._t(g, "interface") for g in self.root.findall("gateways/gateway_item")}
+            for route in self.root.findall("staticroutes/route"):
+                via = interfaces.get(gateways.get(self._t(route, "gateway"), ""))
+                if via is not None and not via["gateway"] and not self._has(route, "disabled"):
+                    inside.append(self._t(route, "network"))
+            if any(self._within(pkt.src, network) for network in inside):
+                return str(interfaces[key]["v4"].ip) if interfaces[key]["v4"] is not None else "MASQ", "automatic"
+        return pkt.src, ""
+
+    def _outbound_side(self, text: str, address: str) -> bool:
+        if text == "any":
+            return True
+        if text in self.aliases():
+            return self._alias_holds(text, address)
+        networks = self._network(text, 4) if text == "(self)" or text in self.interfaces() or text in self.groups() else [text]
+        return any(self._within(address, network) for network in networks or [])
+
+    # -- verdicts --------------------------------------------------------------------------------
+
+    def allows(self, pkt: Any) -> bool:
+        """Whether a packet that opens a connection gets through: in on one interface, out by another."""
+        arrival, departure = self.key(pkt.in_if), self.key(pkt.out_if)
+        if ":" in pkt.src and not self._has(self.root.find("system"), "ipv6allow"):
+            return False
+        dst, dport, passed, _ = self._arriving(arrival, pkt)
+        if not passed:
+            if self.interfaces()[arrival]["blockpriv"] and any(self._within(pkt.src, network) for network in self.PRIVATE):
+                return False
+            if not self._decide("in", arrival, pkt, pkt.src, dst, dport):
+                return False  # the default is to block
+        src, _ = self._leaving(departure, pkt, dst, dport)
+        if "," in src or "/" in src or src == "MASQ":
+            src = pkt.src if src == "MASQ" else src.split(",")[0].split("/")[0]
+        return self._decide("out", departure, pkt, src, dst, dport) is not False  # the default is to pass what leaves
+
+    def deciding(self, pkt: Any) -> str:
+        """The description of the rule that decides about a packet: the one that blocks it when it leaves, or
+        the one of the interface it arrives on; "" when no rule matches."""
+        arrival, departure = self.key(pkt.in_if), self.key(pkt.out_if)
+        dst, dport, passed, name = self._arriving(arrival, pkt)
+        src, _ = self._leaving(departure, pkt, dst, dport)
+        if "," in src or "/" in src or src == "MASQ":
+            src = pkt.src if src == "MASQ" else src.split(",")[0].split("/")[0]
+        leaving = self._deciding("out", departure, pkt, src, dst, dport)
+        if leaving is not None and self._t(leaving, "type") != "pass":
+            return self._t(leaving, "descr")
+        if passed:
+            return name
+        rule = self._deciding("in", arrival, pkt, pkt.src, dst, dport)
+        return "" if rule is None else self._t(rule, "descr")
+
+    def translation(self, pkt: Any) -> Tuple[str, str, str]:
+        """(source, destination, port) a forwarded packet has when it leaves; "Original" for what stays."""
+        dst, dport, _, _ = self._arriving(self.key(pkt.in_if), pkt)
+        src, _ = self._leaving(self.key(pkt.out_if), pkt, dst, dport)
+        return (
+            "Original" if src == pkt.src else src, "Original" if dst == pkt.dst else dst,
+            "Original" if dport == pkt.dport else str(dport),
+        )  # fmt: skip

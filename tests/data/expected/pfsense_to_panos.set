@@ -1,0 +1,390 @@
+set address updates.example.com fqdn updates.example.com
+set address mirror.example.org fqdn mirror.example.org
+set address "WAN address" ip-netmask 198.51.100.2/32
+set address "WAN address" description "address of interface WAN in the configuration"
+set address "LAN net" ip-netmask 192.168.10.0/24
+set address "LAN net" description "network of interface LAN in the configuration"
+set address "LAN net IPv6" ip-netmask 2001:db8:10::/64
+set address "LAN net IPv6" description "network of interface LAN in the configuration"
+set address "DMZ net" ip-netmask 192.168.20.0/24
+set address "DMZ net" description "network of interface DMZ in the configuration"
+set address "GUEST net" ip-netmask 192.168.30.0/24
+set address "GUEST net" description "network of interface GUEST in the configuration"
+set address h-192.168.20.10 ip-netmask 192.168.20.10
+set address h-192.168.20.11 ip-netmask 192.168.20.11
+set address-group WebServers static [ h-192.168.20.10 h-192.168.20.11 ]
+set address-group WebServers description "Web servers in the DMZ"
+set address h-192.168.20.25 ip-netmask 192.168.20.25
+set address n-192.168.20.64_28 ip-netmask 192.168.20.64/28
+set address h-2001_db8_20__10 ip-netmask 2001:db8:20::10
+set address-group DmzServers static [ WebServers h-192.168.20.25 n-192.168.20.64_28 h-2001_db8_20__10 ]
+set address-group DmzServers description "Everything that serves in the DMZ"
+set address n-10.0.0.0_8 ip-netmask 10.0.0.0/8
+set address n-172.16.0.0_12 ip-netmask 172.16.0.0/12
+set address n-192.168.0.0_16 ip-netmask 192.168.0.0/16
+set address-group Private static [ n-10.0.0.0_8 n-172.16.0.0_12 n-192.168.0.0_16 ]
+set address-group Private description "RFC 1918"
+set address h-203.0.113.80 ip-netmask 203.0.113.80
+set address-group Updates static [ updates.example.com mirror.example.org h-203.0.113.80 ]
+set address-group Updates description "Where the servers get their updates"
+set address h-192.168.10.21 ip-netmask 192.168.10.21
+set address h-192.168.10.22 ip-netmask 192.168.10.22
+set address-group Admins static [ h-192.168.10.21 h-192.168.10.22 ]
+set address-group Admins description "Workstations of the administrators"
+set address Blocklist ip-netmask 0.0.0.0/32
+set address Blocklist description "FWSHIFT PLACEHOLDER, matches nothing: a URL table: its addresses are in a file on the firewall, not in the configuration"
+set address h-198.51.100.2 ip-netmask 198.51.100.2
+set address h-198.51.100.10 ip-netmask 198.51.100.10
+set address h-198.51.100.11 ip-netmask 198.51.100.11
+set address h-192.168.10.1 ip-netmask 192.168.10.1
+set address h-192.168.20.1 ip-netmask 192.168.20.1
+set address h-192.168.30.1 ip-netmask 192.168.30.1
+set address-group "This Firewall" static [ h-198.51.100.2 h-198.51.100.10 h-198.51.100.11 h-192.168.10.1 h-192.168.20.1 h-192.168.30.1 ]
+set address-group "This Firewall" description "the addresses of the firewall itself in the configuration"
+set address h-2001_db8_ffff__2 ip-netmask 2001:db8:ffff::2
+set address h-2001_db8_10__1 ip-netmask 2001:db8:10::1
+set address h-2001_db8_20__1 ip-netmask 2001:db8:20::1
+set address-group "This Firewall IPv6" static [ h-2001_db8_ffff__2 h-2001_db8_10__1 h-2001_db8_20__1 ]
+set address-group "This Firewall IPv6" description "the addresses of the firewall itself in the configuration"
+set address-group "DmzServers IPv4" static [ WebServers h-192.168.20.25 n-192.168.20.64_28 ]
+set address-group "DmzServers IPv4" description "the IPv4 addresses of DmzServers"
+set service tcp-443 protocol tcp port 443
+set service tcp-8000-8010 protocol tcp port 8000-8010
+set service tcp-2222 protocol tcp port 2222
+set service tcp-22 protocol tcp port 22
+set service tcp-23 protocol tcp port 23
+set service tcp-9000-9010 protocol tcp port 9000-9010
+set service MailPorts protocol tcp port 25,465,587
+set service MailPorts description "ports of alias MailPorts"
+set service tcp-udp-53-tcp protocol tcp port 53
+set service tcp-udp-53-udp protocol udp port 53
+set service-group tcp-udp-53 members [ tcp-udp-53-tcp tcp-udp-53-udp ]
+set service WebPorts protocol tcp port 80,443,8080-8090
+set service WebPorts description "ports of alias WebPorts"
+set service tcp-25 protocol tcp port 25
+set service udp-514 protocol udp port 514
+set service udp-5060-5061 protocol udp port 5060-5061
+set rulebase security rules "Nothing leaves towards the sinkhole" from any
+set rulebase security rules "Nothing leaves towards the sinkhole" to WAN
+set rulebase security rules "Nothing leaves towards the sinkhole" source 0.0.0.0/0
+set rulebase security rules "Nothing leaves towards the sinkhole" destination 203.0.113.128/25
+set rulebase security rules "Nothing leaves towards the sinkhole" source-user any
+set rulebase security rules "Nothing leaves towards the sinkhole" category any
+set rulebase security rules "Nothing leaves towards the sinkhole" application any
+set rulebase security rules "Nothing leaves towards the sinkhole" service any
+set rulebase security rules "Nothing leaves towards the sinkhole" action drop
+set rulebase security rules "Nothing leaves towards the sinkhole" log-start yes
+set rulebase security rules "Nothing leaves towards the sinkhole" log-end no
+set rulebase security rules "SSH for the partner - pass" from WAN
+set rulebase security rules "SSH for the partner - pass" to any
+set rulebase security rules "SSH for the partner - pass" source 203.0.113.0/24
+set rulebase security rules "SSH for the partner - pass" destination [ 192.168.20.25 "WAN address" 198.51.100.11 ]
+set rulebase security rules "SSH for the partner - pass" source-user any
+set rulebase security rules "SSH for the partner - pass" category any
+set rulebase security rules "SSH for the partner - pass" application any
+set rulebase security rules "SSH for the partner - pass" service tcp-22
+set rulebase security rules "SSH for the partner - pass" action allow
+set rulebase security rules "SSH for the partner - pass" log-end no
+set rulebase security rules "SSH for the partner - pass" description "what the port forward passes by itself (filter rule association 'Pass')"
+set rulebase security rules "Block private networks from WAN" from WAN
+set rulebase security rules "Block private networks from WAN" to any
+set rulebase security rules "Block private networks from WAN" source [ 10.0.0.0/8 127.0.0.0/8 172.16.0.0/12 192.168.0.0/16 fc00::/7 ]
+set rulebase security rules "Block private networks from WAN" destination any
+set rulebase security rules "Block private networks from WAN" source-user any
+set rulebase security rules "Block private networks from WAN" category any
+set rulebase security rules "Block private networks from WAN" application any
+set rulebase security rules "Block private networks from WAN" service any
+set rulebase security rules "Block private networks from WAN" action drop
+set rulebase security rules "Block private networks from WAN" log-start yes
+set rulebase security rules "Block private networks from WAN" log-end no
+set rulebase security rules "Block private networks from WAN" description "what 'Block private networks and loopback addresses' of the interface does on pfSense"
+set rulebase security rules "Ping from the inside" from [ LAN DMZ ]
+set rulebase security rules "Ping from the inside" to any
+set rulebase security rules "Ping from the inside" source 0.0.0.0/0
+set rulebase security rules "Ping from the inside" destination 0.0.0.0/0
+set rulebase security rules "Ping from the inside" source-user any
+set rulebase security rules "Ping from the inside" category any
+set rulebase security rules "Ping from the inside" application ping
+set rulebase security rules "Ping from the inside" service application-default
+set rulebase security rules "Ping from the inside" action allow
+set rulebase security rules "Ping from the inside" log-end no
+set rulebase security rules "DNS from the firewall" from [ LAN GUEST ]
+set rulebase security rules "DNS from the firewall" to any
+set rulebase security rules "DNS from the firewall" source any
+set rulebase security rules "DNS from the firewall" destination [ "This Firewall" "This Firewall IPv6" ]
+set rulebase security rules "DNS from the firewall" source-user any
+set rulebase security rules "DNS from the firewall" category any
+set rulebase security rules "DNS from the firewall" application any
+set rulebase security rules "DNS from the firewall" service tcp-udp-53
+set rulebase security rules "DNS from the firewall" action allow
+set rulebase security rules "DNS from the firewall" log-end no
+set rulebase security rules "NAT Web server HTTPS" from WAN
+set rulebase security rules "NAT Web server HTTPS" to any
+set rulebase security rules "NAT Web server HTTPS" source 0.0.0.0/0
+set rulebase security rules "NAT Web server HTTPS" destination [ 192.168.20.10 198.51.100.10 ]
+set rulebase security rules "NAT Web server HTTPS" source-user any
+set rulebase security rules "NAT Web server HTTPS" category any
+set rulebase security rules "NAT Web server HTTPS" application any
+set rulebase security rules "NAT Web server HTTPS" service tcp-443
+set rulebase security rules "NAT Web server HTTPS" action allow
+set rulebase security rules "NAT Web server HTTPS" log-end no
+set rulebase security rules "NAT Application ports" from WAN
+set rulebase security rules "NAT Application ports" to any
+set rulebase security rules "NAT Application ports" source 0.0.0.0/0
+set rulebase security rules "NAT Application ports" destination 192.168.20.11
+set rulebase security rules "NAT Application ports" source-user any
+set rulebase security rules "NAT Application ports" category any
+set rulebase security rules "NAT Application ports" application any
+set rulebase security rules "NAT Application ports" service tcp-9000-9010
+set rulebase security rules "NAT Application ports" action allow
+set rulebase security rules "NAT Application ports" log-end no
+set rulebase security rules "Mail in" from WAN
+set rulebase security rules "Mail in" to any
+set rulebase security rules "Mail in" source 0.0.0.0/0
+set rulebase security rules "Mail in" destination [ 192.168.20.25 198.51.100.11 ]
+set rulebase security rules "Mail in" source-user any
+set rulebase security rules "Mail in" category any
+set rulebase security rules "Mail in" application any
+set rulebase security rules "Mail in" service MailPorts
+set rulebase security rules "Mail in" action allow
+set rulebase security rules "Mail in" log-end no
+set rulebase security rules "Web server over IPv6" from WAN
+set rulebase security rules "Web server over IPv6" to any
+set rulebase security rules "Web server over IPv6" source ::/0
+set rulebase security rules "Web server over IPv6" destination 2001:db8:20::10
+set rulebase security rules "Web server over IPv6" source-user any
+set rulebase security rules "Web server over IPv6" category any
+set rulebase security rules "Web server over IPv6" application any
+set rulebase security rules "Web server over IPv6" service tcp-443
+set rulebase security rules "Web server over IPv6" action allow
+set rulebase security rules "Web server over IPv6" log-end no
+set rulebase security rules "Ping and errors to the firewall" from WAN
+set rulebase security rules "Ping and errors to the firewall" to any
+set rulebase security rules "Ping and errors to the firewall" source 0.0.0.0/0
+set rulebase security rules "Ping and errors to the firewall" destination "WAN address"
+set rulebase security rules "Ping and errors to the firewall" source-user any
+set rulebase security rules "Ping and errors to the firewall" category any
+set rulebase security rules "Ping and errors to the firewall" application [ ping icmp ]
+set rulebase security rules "Ping and errors to the firewall" service application-default
+set rulebase security rules "Ping and errors to the firewall" action allow
+set rulebase security rules "Ping and errors to the firewall" log-end no
+set rulebase security rules "Administrators to the servers" from LAN
+set rulebase security rules "Administrators to the servers" to any
+set rulebase security rules "Administrators to the servers" source Admins
+set rulebase security rules "Administrators to the servers" destination DmzServers
+set rulebase security rules "Administrators to the servers" source-user any
+set rulebase security rules "Administrators to the servers" category any
+set rulebase security rules "Administrators to the servers" application any
+set rulebase security rules "Administrators to the servers" service tcp-22
+set rulebase security rules "Administrators to the servers" action allow
+set rulebase security rules "Administrators to the servers" log-start yes
+set rulebase security rules "Administrators to the servers" log-end no
+set rulebase security rules "Users to the web servers" from LAN
+set rulebase security rules "Users to the web servers" to any
+set rulebase security rules "Users to the web servers" source "LAN net"
+set rulebase security rules "Users to the web servers" destination [ WebServers 198.51.100.10 ]
+set rulebase security rules "Users to the web servers" source-user any
+set rulebase security rules "Users to the web servers" category any
+set rulebase security rules "Users to the web servers" application any
+set rulebase security rules "Users to the web servers" service WebPorts
+set rulebase security rules "Users to the web servers" action allow
+set rulebase security rules "Users to the web servers" log-end no
+set rulebase security rules "Users to the web server by its outside address" from LAN
+set rulebase security rules "Users to the web server by its outside address" to any
+set rulebase security rules "Users to the web server by its outside address" source "LAN net"
+set rulebase security rules "Users to the web server by its outside address" destination 198.51.100.10
+set rulebase security rules "Users to the web server by its outside address" source-user any
+set rulebase security rules "Users to the web server by its outside address" category any
+set rulebase security rules "Users to the web server by its outside address" application any
+set rulebase security rules "Users to the web server by its outside address" service tcp-443
+set rulebase security rules "Users to the web server by its outside address" action allow
+set rulebase security rules "Users to the web server by its outside address" log-end no
+set rulebase security rules "No other private network from the LAN" from LAN
+set rulebase security rules "No other private network from the LAN" to any
+set rulebase security rules "No other private network from the LAN" source "LAN net"
+set rulebase security rules "No other private network from the LAN" destination [ Private 198.51.100.10 ]
+set rulebase security rules "No other private network from the LAN" source-user any
+set rulebase security rules "No other private network from the LAN" category any
+set rulebase security rules "No other private network from the LAN" application any
+set rulebase security rules "No other private network from the LAN" service any
+set rulebase security rules "No other private network from the LAN" action reset-client
+set rulebase security rules "No other private network from the LAN" log-end no
+set rulebase security rules "Default allow LAN to any rule" from LAN
+set rulebase security rules "Default allow LAN to any rule" to any
+set rulebase security rules "Default allow LAN to any rule" source "LAN net"
+set rulebase security rules "Default allow LAN to any rule" destination 0.0.0.0/0
+set rulebase security rules "Default allow LAN to any rule" source-user any
+set rulebase security rules "Default allow LAN to any rule" category any
+set rulebase security rules "Default allow LAN to any rule" application any
+set rulebase security rules "Default allow LAN to any rule" service any
+set rulebase security rules "Default allow LAN to any rule" action allow
+set rulebase security rules "Default allow LAN to any rule" log-end no
+set rulebase security rules "Default allow LAN IPv6 to any rule" from LAN
+set rulebase security rules "Default allow LAN IPv6 to any rule" to any
+set rulebase security rules "Default allow LAN IPv6 to any rule" source "LAN net IPv6"
+set rulebase security rules "Default allow LAN IPv6 to any rule" destination ::/0
+set rulebase security rules "Default allow LAN IPv6 to any rule" source-user any
+set rulebase security rules "Default allow LAN IPv6 to any rule" category any
+set rulebase security rules "Default allow LAN IPv6 to any rule" application any
+set rulebase security rules "Default allow LAN IPv6 to any rule" service any
+set rulebase security rules "Default allow LAN IPv6 to any rule" action allow
+set rulebase security rules "Default allow LAN IPv6 to any rule" log-end no
+set rulebase security rules "Servers fetch their updates" from DMZ
+set rulebase security rules "Servers fetch their updates" to any
+set rulebase security rules "Servers fetch their updates" source "DmzServers IPv4"
+set rulebase security rules "Servers fetch their updates" destination Updates
+set rulebase security rules "Servers fetch their updates" source-user any
+set rulebase security rules "Servers fetch their updates" category any
+set rulebase security rules "Servers fetch their updates" application any
+set rulebase security rules "Servers fetch their updates" service WebPorts
+set rulebase security rules "Servers fetch their updates" action allow
+set rulebase security rules "Servers fetch their updates" log-end no
+set rulebase security rules "Mail out_ not to the inside" from DMZ
+set rulebase security rules "Mail out_ not to the inside" to any
+set rulebase security rules "Mail out_ not to the inside" source 192.168.20.25
+set rulebase security rules "Mail out_ not to the inside" destination Private
+set rulebase security rules "Mail out_ not to the inside" source-user any
+set rulebase security rules "Mail out_ not to the inside" category any
+set rulebase security rules "Mail out_ not to the inside" application any
+set rulebase security rules "Mail out_ not to the inside" service tcp-25
+set rulebase security rules "Mail out_ not to the inside" action allow
+set rulebase security rules "Mail out_ not to the inside" negate-destination yes
+set rulebase security rules "Mail out_ not to the inside" log-end no
+set rulebase security rules "Mail out_ not to the inside" disabled yes
+set rulebase security rules "Mail out_ not to the inside" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Syslog to the collector" from DMZ
+set rulebase security rules "Syslog to the collector" to any
+set rulebase security rules "Syslog to the collector" source "DMZ net"
+set rulebase security rules "Syslog to the collector" destination 192.168.10.5
+set rulebase security rules "Syslog to the collector" source-user any
+set rulebase security rules "Syslog to the collector" category any
+set rulebase security rules "Syslog to the collector" application any
+set rulebase security rules "Syslog to the collector" service udp-514
+set rulebase security rules "Syslog to the collector" action allow
+set rulebase security rules "Syslog to the collector" log-end no
+set rulebase security rules "Syslog to the collector" disabled yes
+set rulebase security rules "Syslog to the collector" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Nothing from the list" from DMZ
+set rulebase security rules "Nothing from the list" to any
+set rulebase security rules "Nothing from the list" source Blocklist
+set rulebase security rules "Nothing from the list" destination 0.0.0.0/0
+set rulebase security rules "Nothing from the list" source-user any
+set rulebase security rules "Nothing from the list" category any
+set rulebase security rules "Nothing from the list" application any
+set rulebase security rules "Nothing from the list" service any
+set rulebase security rules "Nothing from the list" action drop
+set rulebase security rules "Nothing from the list" log-end no
+set rulebase security rules "Nothing from the list" disabled yes
+set rulebase security rules "Nothing from the list" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Tunnel of the old application" from DMZ
+set rulebase security rules "Tunnel of the old application" to any
+set rulebase security rules "Tunnel of the old application" source 192.168.20.70
+set rulebase security rules "Tunnel of the old application" destination 203.0.113.7
+set rulebase security rules "Tunnel of the old application" source-user any
+set rulebase security rules "Tunnel of the old application" category any
+set rulebase security rules "Tunnel of the old application" application ipsec-esp
+set rulebase security rules "Tunnel of the old application" service application-default
+set rulebase security rules "Tunnel of the old application" action allow
+set rulebase security rules "Tunnel of the old application" log-end no
+set rulebase security rules "Tunnel of the old application" disabled yes
+set rulebase security rules "Guests reach nothing private" from GUEST
+set rulebase security rules "Guests reach nothing private" to any
+set rulebase security rules "Guests reach nothing private" source "GUEST net"
+set rulebase security rules "Guests reach nothing private" destination [ Private 198.51.100.10 ]
+set rulebase security rules "Guests reach nothing private" source-user any
+set rulebase security rules "Guests reach nothing private" category any
+set rulebase security rules "Guests reach nothing private" application any
+set rulebase security rules "Guests reach nothing private" service any
+set rulebase security rules "Guests reach nothing private" action drop
+set rulebase security rules "Guests reach nothing private" log-start yes
+set rulebase security rules "Guests reach nothing private" log-end no
+set rulebase security rules "Guests browse" from GUEST
+set rulebase security rules "Guests browse" to any
+set rulebase security rules "Guests browse" source "GUEST net"
+set rulebase security rules "Guests browse" destination 0.0.0.0/0
+set rulebase security rules "Guests browse" source-user any
+set rulebase security rules "Guests browse" category any
+set rulebase security rules "Guests browse" application any
+set rulebase security rules "Guests browse" service WebPorts
+set rulebase security rules "Guests browse" action allow
+set rulebase security rules "Guests browse" log-end no
+set rulebase security rules "Phones of the guests" from GUEST
+set rulebase security rules "Phones of the guests" to any
+set rulebase security rules "Phones of the guests" source "GUEST net"
+set rulebase security rules "Phones of the guests" destination 203.0.113.40
+set rulebase security rules "Phones of the guests" source-user any
+set rulebase security rules "Phones of the guests" category any
+set rulebase security rules "Phones of the guests" application any
+set rulebase security rules "Phones of the guests" service udp-5060-5061
+set rulebase security rules "Phones of the guests" action allow
+set rulebase security rules "Phones of the guests" log-end no
+set rulebase security rules "Phones of the guests" disabled yes
+set rulebase security rules "Phones of the guests" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Telnet unless a rule says otherwise" from any
+set rulebase security rules "Telnet unless a rule says otherwise" to any
+set rulebase security rules "Telnet unless a rule says otherwise" source 0.0.0.0/0
+set rulebase security rules "Telnet unless a rule says otherwise" destination 0.0.0.0/0
+set rulebase security rules "Telnet unless a rule says otherwise" source-user any
+set rulebase security rules "Telnet unless a rule says otherwise" category any
+set rulebase security rules "Telnet unless a rule says otherwise" application any
+set rulebase security rules "Telnet unless a rule says otherwise" service tcp-23
+set rulebase security rules "Telnet unless a rule says otherwise" action drop
+set rulebase security rules "Telnet unless a rule says otherwise" log-start yes
+set rulebase security rules "Telnet unless a rule says otherwise" log-end no
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules "Web server HTTPS" from [ WAN LAN DMZ GUEST ]
+set rulebase nat rules "Web server HTTPS" to WAN
+set rulebase nat rules "Web server HTTPS" source 0.0.0.0/0
+set rulebase nat rules "Web server HTTPS" destination 198.51.100.10
+set rulebase nat rules "Web server HTTPS" service tcp-443
+set rulebase nat rules "Web server HTTPS" destination-translation translated-address 192.168.20.10
+set rulebase nat rules "SSH for the partner" from WAN
+set rulebase nat rules "SSH for the partner" to WAN
+set rulebase nat rules "SSH for the partner" source 203.0.113.0/24
+set rulebase nat rules "SSH for the partner" destination "WAN address"
+set rulebase nat rules "SSH for the partner" service tcp-2222
+set rulebase nat rules "SSH for the partner" destination-translation translated-address 192.168.20.25
+set rulebase nat rules "SSH for the partner" destination-translation translated-port 22
+set rulebase nat rules "Mail server - inbound" from WAN
+set rulebase nat rules "Mail server - inbound" to WAN
+set rulebase nat rules "Mail server - inbound" source 0.0.0.0/0
+set rulebase nat rules "Mail server - inbound" destination 198.51.100.11
+set rulebase nat rules "Mail server - inbound" service any
+set rulebase nat rules "Mail server - inbound" destination-translation translated-address 192.168.20.25
+set rulebase nat rules "Mail server - inbound" description "one half of a 1:1 NAT rule of pfSense"
+set rulebase nat rules "Mail server - outbound" from any
+set rulebase nat rules "Mail server - outbound" to WAN
+set rulebase nat rules "Mail server - outbound" source 192.168.20.25
+set rulebase nat rules "Mail server - outbound" destination 0.0.0.0/0
+set rulebase nat rules "Mail server - outbound" service any
+set rulebase nat rules "Mail server - outbound" source-translation static-ip translated-address 198.51.100.11
+set rulebase nat rules "Mail server - outbound" description "one half of a 1:1 NAT rule of pfSense"
+set rulebase nat rules "DMZ leaves with the web address" from any
+set rulebase nat rules "DMZ leaves with the web address" to WAN
+set rulebase nat rules "DMZ leaves with the web address" source 192.168.20.0/24
+set rulebase nat rules "DMZ leaves with the web address" destination 0.0.0.0/0
+set rulebase nat rules "DMZ leaves with the web address" service any
+set rulebase nat rules "DMZ leaves with the web address" source-translation dynamic-ip-and-port translated-address 198.51.100.10
+set rulebase nat rules "No NAT towards the partner" from any
+set rulebase nat rules "No NAT towards the partner" to WAN
+set rulebase nat rules "No NAT towards the partner" source 192.168.10.0/24
+set rulebase nat rules "No NAT towards the partner" destination 203.0.113.0/24
+set rulebase nat rules "No NAT towards the partner" service any
+set rulebase nat rules "Automatic outbound NAT on WAN" from any
+set rulebase nat rules "Automatic outbound NAT on WAN" to WAN
+set rulebase nat rules "Automatic outbound NAT on WAN" source [ 192.168.10.0/24 192.168.20.0/24 192.168.30.0/24 10.50.0.0/16 ]
+set rulebase nat rules "Automatic outbound NAT on WAN" destination 0.0.0.0/0
+set rulebase nat rules "Automatic outbound NAT on WAN" service any
+set rulebase nat rules "Automatic outbound NAT on WAN" source-translation dynamic-ip-and-port translated-address 198.51.100.2
+set rulebase nat rules "Automatic outbound NAT on WAN" description "the rule pfSense makes by itself for this interface (outbound NAT mode automatic or hybrid)"

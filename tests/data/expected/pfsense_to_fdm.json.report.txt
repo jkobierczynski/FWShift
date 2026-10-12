@@ -1,0 +1,103 @@
+FWShift conversion report
+  source: pfsense
+  target: fdm
+
+Summary
+  Security rules:     25   exact 17, approximated 3, needs review 0, skipped 5
+  NAT rules:           8   exact 0, approximated 6, needs review 0, skipped 2
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] RULE_NOT_LOADED: pfSense does not load 1 rule of the configuration, which it cannot resolve; they are not converted: 'Spare network, not in use' (its interface 'opt3' is not there or not enabled)
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: pfSense drops what arrives there from addresses nobody has been given, by a list it downloads. That list is not in the configuration, and nothing is converted for it
+  [needs-review] FDM_LOAD: the output is a file for the configuration import of a Firewall Device Manager (POST /action/uploadconfigfile, then /action/configimport). Its first object must say the hardware model and software version of the target: copy both from the first object of an export of the target device. The import adds to what the device has: its access rules stay above the rules of this file and decide first, its default action stays what it is, and its NAT rules come first. Nothing is in force until the changes are deployed: look at them in the pending changes before that
+  [needs-review] ZONES_REQUIRED: the rules name these security zones, which must exist on the target (or be renamed with --zone-map): WAN, LAN, DMZ, GUEST. Zones are not written: an import would take the interfaces out of a zone that exists
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. 2 destination NAT rules are written as a rule that names the source as well and leaves it as it is: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] FLOATING_LAST_MATCH: 1 floating rule is not 'quick': such a rule decides only where no rule of an interface matched, and of several the last one. In the converted policy it stands behind the rules of the interfaces, the last one first: 'Telnet unless a rule says otherwise'
+  [info] PFSENSE_AUTOMATIC_RULES: pfSense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof), packets from or to 169.254.0.0/16, and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without; and it has rules for itself (anti-lockout, DHCP, IPsec). Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] EXISTING_OBJECTS: an import changes what the device has under the same name: an object or a rule of this file replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] FQDN_DNS: FQDN objects need name resolution on the device (a DNS server group in its platform settings)
+
+Security rules
+  SSH for the partner - pass  ->  approximated  (emitted as SSH_for_the_partner_-_pass)
+      [approximated] AUTOMATIC_RULE: port forward 'SSH for the partner' passes what it forwards without a rule ('Pass' as its filter rule association): pfSense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+  Block private networks from WAN  ->  exact  (emitted as Block_private_networks_from_WAN)
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks and loopback addresses' set: pfSense drops what arrives there from those networks before any rule is looked at. This rule stands for that
+  No other private network from the LAN  ->  approximated  (emitted as No_other_private_network_from_the_LAN)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+      [info] RESET_ACTION: action reset-client becomes Block, which drops without an answer: a Device Manager has no rule that resets
+  Mail out, not to the inside  ->  skipped
+      [info] NEGATION_AS_ADDRESSES: an access rule cannot negate: 'not destination Private' is written as the addresses that are left (5 range(s))
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10). The rule is left out: a Device Manager has no rules that are switched off.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11). The rule is left out: a Device Manager has no rules that are switched off.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Web_server_HTTPS' (198.51.100.10, 192.168.20.10). The rule is left out: a Device Manager has no rules that are switched off.
+  Syslog to the collector  ->  skipped
+      [needs-review] SCHEDULE: schedule 'OfficeHours' is not converted; the rule would apply at all times. The rule is left out: a Device Manager has no rules that are switched off.
+  Nothing from the list  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocklist': a URL table: its addresses are in a file on the firewall, not in the configuration. The rule is left out: a Device Manager has no rules that are switched off. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Tunnel of the old application  ->  skipped
+      [info] DISABLED_RULE: disabled on the source: a Device Manager has no rules that are switched off, so it is left out
+  Guests reach nothing private  ->  approximated  (emitted as Guests_reach_nothing_private)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+  Guests browse  ->  exact  (emitted as Guests_browse)
+      [info] POLICY_ROUTING: the rule also sends what it passes to gateway 'WANGW' (policy routing), which is not converted
+  Phones of the guests  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches a mark set by another rule (tagged) 'VOICE'. The rule is left out: a Device Manager has no rules that are switched off.
+
+NAT rules
+  Web server HTTPS  ->  approximated  (emitted as 1 NAT rule)
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [approximated] NAT_ZONES: the rule applied to traffic from zone WAN only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+      [approximated] NAT_ZONES: the rule applied to traffic from zone LAN only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+      [approximated] NAT_ZONES: the rule applied to traffic from zone DMZ only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+      [approximated] NAT_ZONES: the rule applied to traffic from zone GUEST only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  Application ports  ->  skipped
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [needs-review] NAT_NOT_CONVERTED: not converted: a range of ports translated to another range (8000-8010 to 9000-9010), which the model cannot say
+  SSH for the partner  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone WAN only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  Mail server - inbound  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone WAN only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  Mail server - outbound  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic to zone WAN only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  DMZ leaves with the web address  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic to zone WAN only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  No NAT towards the partner  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic to zone WAN only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  Automatic outbound NAT on WAN  ->  skipped
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: pfSense translates what leaves by an interface with a gateway and comes from the networks of its other interfaces and of its static routes. This rule stands for that
+      [needs-review] NAT_NOT_CONVERTED: not converted: the rule is for the address of an interface of zone 'WAN', and the interfaces of that zone on the target are not known; name them with --interface-map
+
+Addresses
+  WAN address  ->  exact  (emitted as WAN_address)
+      [info] RENAMED: renamed to 'WAN_address' to fit the target's naming rules
+  LAN net  ->  exact  (emitted as LAN_net)
+      [info] RENAMED: renamed to 'LAN_net' to fit the target's naming rules
+  LAN net IPv6  ->  exact  (emitted as LAN_net_IPv6)
+      [info] RENAMED: renamed to 'LAN_net_IPv6' to fit the target's naming rules
+  DMZ net  ->  exact  (emitted as DMZ_net)
+      [info] RENAMED: renamed to 'DMZ_net' to fit the target's naming rules
+  GUEST net  ->  exact  (emitted as GUEST_net)
+      [info] RENAMED: renamed to 'GUEST_net' to fit the target's naming rules
+
+Address groups
+  Updates  ->  exact
+      [info] GROUP_SPLIT: a network group of a Cisco Secure Firewall holds no FQDN objects: group 'Updates' is written without them, and the rules that use it name 'updates.example.com', 'mirror.example.org' themselves
+  This Firewall  ->  exact  (emitted as This_Firewall)
+      [info] RENAMED: renamed to 'This_Firewall' to fit the target's naming rules
+  This Firewall IPv6  ->  exact  (emitted as This_Firewall_IPv6)
+      [info] RENAMED: renamed to 'This_Firewall_IPv6' to fit the target's naming rules
+  DmzServers IPv4  ->  exact  (emitted as DmzServers_IPv4)
+      [info] RENAMED: renamed to 'DmzServers_IPv4' to fit the target's naming rules
+
+Services
+  MailPorts  ->  exact  (emitted as MailPorts, tcp-25, tcp-465, tcp-587)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'MailPorts' of 'tcp-25', 'tcp-465', 'tcp-587'
+  icmp-echoreq-timex-unreach  ->  exact  (emitted as icmp-echoreq-timex-unreach, icmp-echoreq, icmp-11, icmp-3)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'icmp-echoreq-timex-unreach' of 'icmp-echoreq', 'icmp-11', 'icmp-3'
+  tcp-udp-53  ->  exact  (emitted as tcp-udp-53, tcp-53, udp-53)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-udp-53' of 'tcp-53', 'udp-53'
+  WebPorts  ->  exact  (emitted as WebPorts, tcp-80, tcp-443, tcp-8080-8090)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'WebPorts' of 'tcp-80', 'tcp-443', 'tcp-8080-8090'

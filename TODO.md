@@ -31,23 +31,26 @@ documentation, and to find out which export an administrator can actually
 produce.
 
 Done: **0.6.0, Sophos Firewall** (SFOS 18 and later; the `.tar` of *Import
-export* or its `Entities.xml`, read and written), and **0.7.0, Cisco Secure
+export* or its `Entities.xml`, read and written), **0.7.0, Cisco Secure
 Firewall** (the JSON of a Management Center's REST API and the configuration
 export of a Device Manager, read; a script that loads a new policy through
 the API of a Management Center and a file for the import of a Device Manager,
-written). What each rests on and what nobody has checked on a device is in
+written), and **0.8.0, pfSense** (`config.xml` of 2.6 and later, read; the
+areas Aliases, NAT and Firewall Rules for a restore, written; OPNsense is not
+part of it, see below). What each rests on and what nobody has checked on a device is in
 the development log.
 
 | Release | Brand | Read (expected) | Write (expected) | What will need care |
 |---|---|---|---|---|
-| 0.8.0 | **pfSense** (with OPNsense, its relative, where the two agree) | `config.xml`: rules per interface, floating rules, aliases, port forwards, 1:1 and outbound NAT | a `config.xml` fragment | Floating rules that are not "quick" are last match, not first, and can be for several interfaces and for outgoing traffic. Interface rules are bound to the interface traffic arrives on, like ASA access lists. Port forwards are applied before the filter, so rules name the translated address (the model's `lookup_after_dnat`), and come with linked filter rules |
 | 0.9.0 | **SonicWall** (SonicOS 6.5 and 7) | the exported settings file (`.exp`, an encoded list of keys and values) or the output of the API or CLI (SonicOS 6.5 and 7 have both) | CLI commands | Access rules live in a matrix of zone pairs with a priority each. NAT policies are a separate table with original and translated source, destination and service |
 | 0.10.0 | **WatchGuard** (Fireware) | the XML configuration file of Policy Manager | XML for Policy Manager | Policies are ordered automatically by precedence unless auto-order is off: the order in the file is not the order of evaluation. Proxy policies, aliases, static NAT actions, 1-to-1 and dynamic NAT |
 | 0.11.0 | **Barracuda** CloudGen Firewall | the export of a forwarding ruleset with its firewall objects | the same format | To be found out first: which export exists outside Firewall Admin. NAT is part of a rule (the action Dst NAT, Map, App Redirect, and connection objects for source NAT), not a table of its own |
 | 0.12.0 | **Juniper** SRX (Junos) | `show configuration \| display set`, and the same configuration in braces | `set` commands | Policies per zone pair (`from-zone ... to-zone ...`) are looked up first, global policies after them. Address books per zone and global, application sets, source, destination and static NAT rule sets. Destination and static NAT come before the policy lookup, so policies name the real address (`lookup_after_dnat`); source NAT comes after. ScreenOS is not part of this release |
 
 Not on the list, and asked for often enough to keep in mind: nftables,
-OPNsense as a target of its own, Huawei USG, Forcepoint, Stormshield,
+OPNsense (planned with pfSense, and left out of 0.8.0: its configuration
+keeps aliases, automatic rules and parts of NAT elsewhere, and its rules have
+other fields; FWShift refuses it with that reason), Huawei USG, Forcepoint, Stormshield,
 MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
 (AWS, Azure NSG).
 
@@ -120,7 +123,23 @@ MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
 9. A note where `--zone-map` merges two zones and a rule between them becomes
    a rule inside the merged zone (it then covers traffic inside each of the
    two as well). Found by the reviewer in round 15; older than 0.7.0.
-10. Static NAT between address sets of different size is reported for ASA and
+10. pfSense:
+    * schedules and virtual IPs written as well, for a full restore of
+      `schedules` and `virtualip` (neither can be restored as an area);
+    * port forwards from a range of ports to another range (the model has
+      one port or the same range);
+    * IPv6 NAT and NPt; outbound NAT without IP version also for IPv6;
+    * URL table aliases from a file given as an option;
+    * the outbound NAT form of 2.6 as an option for an old target;
+    * the names `/etc/protocols` and `/etc/services` of FreeBSD hold, to
+      read every service name and to keep alias names away from them (the
+      web interface refuses those on the next edit);
+    * leading spaces in values, which pfSense keeps and the parser strips;
+      SCTP ports, which 2.6 ignores;
+    * whether `no rdr` also ends 1:1 NAT for what arrives, and `no binat`
+      outbound NAT (from pf, not checked), which decides how far such an
+      exception reaches.
+11. Static NAT between address sets of different size is reported for ASA and
     Cisco Secure Firewall targets, which wrap around, and not for PAN-OS,
     where the commit fails.
 
@@ -141,7 +160,13 @@ MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
    a real rulebase with automatic NAT to compare with the sample. Extend
    `kernel_check.py` to NAT and IPv6, and run it on the legacy iptables
    backend.
-4. Cisco Secure Firewall, on a Management Center and an FTD device in a lab:
+4. pfSense, in a lab with 2.7.2 and a current version: restore
+   `tests/data/expected/pfsense_to_pfsense.xml` and `panos_to_pfsense.xml`
+   area by area and compare `pfctl -sr` and `pfctl -sn` with what the judge
+   in `tests/helpers.py` expects; check the order of interface group rules on
+   2.8, the service names of `getservbyname`, and what an empty area and an
+   area restored without its aliases do.
+5. Cisco Secure Firewall, on a Management Center and an FTD device in a lab:
    fetch a policy with the calls of the manual and compare the answers with
    `fmc_sample.json` (above all: how a policy says that it inherits, whether
    the list of a child holds the rules of its parent, the fields of a
@@ -150,7 +175,7 @@ MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
    what `--undo` leaves; export a Device Manager, compare with
    `fdm_sample.txt` (the container names of NAT rules, the protocol and ICMP
    names), and import `panos_to_fdm.json`.
-5. The reviewer's oracles as tests: every pre-image of a real packet through
+6. The reviewer's oracles as tests: every pre-image of a real packet through
    a destination NAT (pre-NAT model to a post-NAT target, with several NAT
    rules for one address); same-kind round trips for FortiOS and iptables
    with rules that name both sides of a translation; `disable` across the

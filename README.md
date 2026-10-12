@@ -14,6 +14,7 @@ what was approximated and what a person has to look at.
 | Cisco Secure Firewall (FTD) managed by a Management Center (FMC) | the JSON its REST API returns | a Python script that creates a new policy through the REST API |
 | Cisco Secure Firewall (FTD) managed by its Device Manager (FDM) | the configuration export (`.txt` or `.zip`), or the JSON of its REST API | a file for the configuration import |
 | Sophos Firewall (SFOS 18 and later) | the export of *Import export* (`.tar` or its `Entities.xml`) | the same, for import |
+| pfSense (2.6 and later; CE and Plus) | the configuration backup (`config.xml`) | the areas Aliases, NAT and Firewall Rules, for *Backup & Restore* |
 | Linux iptables / ip6tables | `iptables-save` output | `iptables-restore` file |
 
 It also **audits** a policy, of any of these formats: rules that allow too
@@ -24,7 +25,7 @@ on which services, through which rules.
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.7).** The converter is tested against synthetic
+> **Status: alpha (0.8).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** is checked against the real thing: generated rulesets are
@@ -32,9 +33,9 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   compared with the model, in both directions. That covers the IPv4 filter
 >   rules on one kernel (iptables 1.8.10, nf_tables backend); NAT rules and
 >   IPv6 rulesets are loaded but no packets are sent through them.
-> * **PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall and
->   Sophos Firewall** output has **not been loaded on a device or management
->   server**. The Check Point input format is taken from the API
+> * **PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall,
+>   Sophos Firewall and pfSense** output has **not been loaded on a device or
+>   management server**. The Check Point input format is taken from the API
 >   documentation, not from a real export, the ASA and FTD syntax from Cisco's
 >   command references, and the Sophos format from the documentation of its
 >   XML API and the templates of Sophos's own SDK; a few element names of a
@@ -42,7 +43,9 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   Device Manager is taken from the API documentation and from the tooling
 >   Cisco publishes for both (Ansible, Terraform, its Python client); the
 >   script for a Management Center has only ever talked to a stand-in written
->   for the tests. Several conversion rules rest on vendor behaviour taken
+>   for the tests. How pfSense turns its configuration into pf rules is taken
+>   from its source code (2.6, 2.7.2 and the current development branch), and
+>   checked against a model of it written for the tests, not against pf. Several conversion rules rest on vendor behaviour taken
 >   from documentation rather than from a lab.
 >
 > Treat the output as a draft for a lab, read the report, and never load it in
@@ -97,8 +100,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.7.0.pyz --version
-python3 fwshift-0.7.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.8.0.pyz --version
+python3 fwshift-0.8.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -156,6 +159,16 @@ fwshift convert fgt-backup.conf --to fdm -o import.txt --report report.txt \
     --zone-map lan=inside_zone --zone-map wan1=outside_zone \
     --interface-map lan=inside --interface-map wan1=outside
 
+# pfSense: config.xml from Diagnostics > Backup & Restore. Addresses an
+# interface gets by DHCP or PPPoE are not in it: give them. To a pfSense, the
+# output is restored once per area (Aliases, NAT, Firewall Rules); it
+# REPLACES what the firewall has in that area
+fwshift convert config.xml --to panos -o panos.set --report report.txt \
+    --interface-address wan=198.51.100.7/24
+fwshift convert running-config.xml --to pfsense -o restore.xml --report report.txt \
+    --zone-map trust=lan --zone-map untrust=wan \
+    --zone-network lan=10.10.0.0/16 --zone-network wan=0.0.0.0/0,::/0
+
 # What did the parser read?
 fwshift inspect fgt-backup.conf
 
@@ -178,7 +191,8 @@ The [manual](docs/MANUAL.md#3-getting-the-source-configuration) shows how to
 get the input for each platform; for Check Point that is three `mgmt_cli show`
 calls, for an ASA `show running-config`, for a Sophos Firewall an export under
 *Backup & firmware > Import export*, for a Management Center a handful of
-`curl` calls to its REST API, for a Device Manager its configuration export.
+`curl` calls to its REST API, for a Device Manager its configuration export,
+for a pfSense the backup under *Diagnostics > Backup & Restore*.
 
 The report starts with a summary and then lists every rule that is not exact:
 
@@ -306,6 +320,15 @@ knows only interfaces. Text, JSON or CSV. See
 | NAT | manual and automatic NAT in the order the device applies them: static, dynamic, PAT pools, the address of an interface, published ports, exemptions. Written as manual rules before the automatic ones |
 | Scope | one access control policy with the policies it inherits from, its prefilter policy and one NAT policy (Management Center); the device (Device Manager) |
 
+| | pfSense |
+|---|---|
+| Address objects | aliases of hosts and networks (addresses, networks, ranges, host names), the networks and addresses of interfaces and virtual IPs, *This Firewall* |
+| Address groups | aliases, nested; a rule for one IP version takes the addresses of that version |
+| Services | protocol and ports of a rule, port aliases (nested), ICMP types by name; services named by their port name |
+| Security rules | floating rules (quick and not, in, out and both), rules of interface groups and of interfaces, in the order pfSense evaluates them, which depends on its version; pass, block, reject; negation; IPv4, IPv6 or both; disabled; the rules pfSense adds by itself for "block private networks", port forwards that pass by themselves and automatic outbound NAT |
+| NAT | port forwards (with NAT reflection), 1:1 NAT, outbound NAT in all four modes (automatic, hybrid, manual, disabled) with "do not NAT", static port and address pools |
+| Scope | the whole configuration, pfSense 2.6 and later. Written for pfSense 2.7 and later |
+
 Not converted, and reported where a rule depends on it: security profiles,
 schedules, user and group matches, URL categories, HIP profiles, application
 filters, wildcard-mask and geography addresses, external dynamic lists,
@@ -318,15 +341,19 @@ the application, URL, user, VLAN, security group tag and dynamic object
 conditions of FTD rules, its intrusion, file and SSL policies, what a prefilter
 rule with the action Analyze does to the traffic inside a tunnel, Sophos web server
 protection rules, Security Heartbeat conditions, MAC hosts and country groups,
-routing, interfaces, VPN, and everything else outside the policy.
+pfSense schedules, URL table aliases, policy routing (a gateway on a rule),
+tags, limiters and traffic shaping, match rules, NPt, IPv6 NAT, bogon
+networks, the rules of the captive portal and of packages, OPNsense
+configurations, routing, interfaces, VPN, and everything else outside the
+policy.
 
 ## Roadmap
 
 [TODO.md](TODO.md) has the list. In short:
 
-* **More firewall brands, one per release**: pfSense (0.8), SonicWall (0.9),
-  WatchGuard (0.10), Barracuda (0.11), Juniper (0.12). Sophos Firewall was
-  0.6, Cisco Secure Firewall (formerly Firepower) 0.7.
+* **More firewall brands, one per release**: SonicWall (0.9), WatchGuard
+  (0.10), Barracuda (0.11), Juniper (0.12). Sophos Firewall was 0.6, Cisco
+  Secure Firewall (formerly Firepower) 0.7, pfSense 0.8.
 * Audit and matrix: the matrix before and after a conversion, a zone and
   conduit model as a file to check a policy against, an equivalence check as
   a command, zone ranks, hit counts.

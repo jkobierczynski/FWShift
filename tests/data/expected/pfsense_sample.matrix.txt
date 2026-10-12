@@ -1,0 +1,165 @@
+FWShift zone matrix
+  source: pfsense
+  security rules: 25 (1 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 WAN               LAN               DMZ               GUEST             (other zones)
+  WAN            icmp type 3 +8~   icmp type 3 +8~   icmp type 3 +8~   icmp type 3 +8~   icmp type 3 +8~
+  LAN            any               any               any               any               any
+  DMZ            icmp type 8 +5~   icmp type 8 +5~   icmp type 8 +5~   icmp type 8 +5~   icmp type 8 +5~
+  GUEST          tcp/53 +5~        tcp/53 +5~        tcp/53 +5~        tcp/53 +5~        tcp/53 +5~
+  (other zones)  -                 -                 -                 -                 -
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+WAN -> WAN (inside the zone)
+  allowed: icmp type 3, icmp type 8, icmp type 11, tcp/22, tcp/25, tcp/443, tcp/465, tcp/587, tcp/9000-9010 ~
+  rule 'SSH for the partner - pass': 203.0.113.0/24 -> 192.168.20.25: tcp/22 ~
+  rule 'NAT Web server HTTPS': 0.0.0.0/0 -> 192.168.20.10: tcp/443
+  rule 'NAT Application ports': 0.0.0.0/0 -> 192.168.20.11: tcp/9000-9010
+  rule 'Mail in': 0.0.0.0/0 -> 192.168.20.25: tcp/25, tcp/465, tcp/587
+  rule 'Web server over IPv6': ::/0 -> 2001:db8:20::10: tcp/443
+  rule 'Ping and errors to the firewall': 0.0.0.0/0 -> WAN address: icmp type 3, icmp type 8, icmp type 11
+WAN -> LAN
+  allowed: icmp type 3, icmp type 8, icmp type 11, tcp/22, tcp/25, tcp/443, tcp/465, tcp/587, tcp/9000-9010 ~
+  rule 'SSH for the partner - pass': 203.0.113.0/24 -> 192.168.20.25: tcp/22 ~
+  rule 'NAT Web server HTTPS': 0.0.0.0/0 -> 192.168.20.10: tcp/443
+  rule 'NAT Application ports': 0.0.0.0/0 -> 192.168.20.11: tcp/9000-9010
+  rule 'Mail in': 0.0.0.0/0 -> 192.168.20.25: tcp/25, tcp/465, tcp/587
+  rule 'Web server over IPv6': ::/0 -> 2001:db8:20::10: tcp/443
+  rule 'Ping and errors to the firewall': 0.0.0.0/0 -> WAN address: icmp type 3, icmp type 8, icmp type 11
+WAN -> DMZ
+  allowed: icmp type 3, icmp type 8, icmp type 11, tcp/22, tcp/25, tcp/443, tcp/465, tcp/587, tcp/9000-9010 ~
+  rule 'SSH for the partner - pass': 203.0.113.0/24 -> 192.168.20.25: tcp/22 ~
+  rule 'NAT Web server HTTPS': 0.0.0.0/0 -> 192.168.20.10: tcp/443
+  rule 'NAT Application ports': 0.0.0.0/0 -> 192.168.20.11: tcp/9000-9010
+  rule 'Mail in': 0.0.0.0/0 -> 192.168.20.25: tcp/25, tcp/465, tcp/587
+  rule 'Web server over IPv6': ::/0 -> 2001:db8:20::10: tcp/443
+  rule 'Ping and errors to the firewall': 0.0.0.0/0 -> WAN address: icmp type 3, icmp type 8, icmp type 11
+WAN -> GUEST
+  allowed: icmp type 3, icmp type 8, icmp type 11, tcp/22, tcp/25, tcp/443, tcp/465, tcp/587, tcp/9000-9010 ~
+  rule 'SSH for the partner - pass': 203.0.113.0/24 -> 192.168.20.25: tcp/22 ~
+  rule 'NAT Web server HTTPS': 0.0.0.0/0 -> 192.168.20.10: tcp/443
+  rule 'NAT Application ports': 0.0.0.0/0 -> 192.168.20.11: tcp/9000-9010
+  rule 'Mail in': 0.0.0.0/0 -> 192.168.20.25: tcp/25, tcp/465, tcp/587
+  rule 'Web server over IPv6': ::/0 -> 2001:db8:20::10: tcp/443
+  rule 'Ping and errors to the firewall': 0.0.0.0/0 -> WAN address: icmp type 3, icmp type 8, icmp type 11
+WAN -> (other zones)
+  allowed: icmp type 3, icmp type 8, icmp type 11, tcp/22, tcp/25, tcp/443, tcp/465, tcp/587, tcp/9000-9010 ~
+  rule 'SSH for the partner - pass': 203.0.113.0/24 -> 192.168.20.25: tcp/22 ~
+  rule 'NAT Web server HTTPS': 0.0.0.0/0 -> 192.168.20.10: tcp/443
+  rule 'NAT Application ports': 0.0.0.0/0 -> 192.168.20.11: tcp/9000-9010
+  rule 'Mail in': 0.0.0.0/0 -> 192.168.20.25: tcp/25, tcp/465, tcp/587
+  rule 'Web server over IPv6': ::/0 -> 2001:db8:20::10: tcp/443
+  rule 'Ping and errors to the firewall': 0.0.0.0/0 -> WAN address: icmp type 3, icmp type 8, icmp type 11
+LAN -> WAN
+  allowed: any
+  rule 'Ping from the inside': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'DNS from the firewall': any -> This Firewall, This Firewall IPv6: tcp/53, udp/53
+  rule 'Administrators to the servers': Admins -> DmzServers: tcp/22
+  rule 'Users to the web servers': LAN net -> WebServers: tcp/80, tcp/443, tcp/8080-8090
+  rule 'Users to the web server by its outside address': LAN net -> 198.51.100.10: tcp/443
+  rule 'Default allow LAN to any rule': LAN net -> 0.0.0.0/0: any
+  rule 'Default allow LAN IPv6 to any rule': LAN net IPv6 -> ::/0: any
+LAN -> LAN (inside the zone)
+  allowed: any
+  rule 'Ping from the inside': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'DNS from the firewall': any -> This Firewall, This Firewall IPv6: tcp/53, udp/53
+  rule 'Administrators to the servers': Admins -> DmzServers: tcp/22
+  rule 'Users to the web servers': LAN net -> WebServers: tcp/80, tcp/443, tcp/8080-8090
+  rule 'Users to the web server by its outside address': LAN net -> 198.51.100.10: tcp/443
+  rule 'Default allow LAN to any rule': LAN net -> 0.0.0.0/0: any
+  rule 'Default allow LAN IPv6 to any rule': LAN net IPv6 -> ::/0: any
+LAN -> DMZ
+  allowed: any
+  rule 'Ping from the inside': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'DNS from the firewall': any -> This Firewall, This Firewall IPv6: tcp/53, udp/53
+  rule 'Administrators to the servers': Admins -> DmzServers: tcp/22
+  rule 'Users to the web servers': LAN net -> WebServers: tcp/80, tcp/443, tcp/8080-8090
+  rule 'Users to the web server by its outside address': LAN net -> 198.51.100.10: tcp/443
+  rule 'Default allow LAN to any rule': LAN net -> 0.0.0.0/0: any
+  rule 'Default allow LAN IPv6 to any rule': LAN net IPv6 -> ::/0: any
+LAN -> GUEST
+  allowed: any
+  rule 'Ping from the inside': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'DNS from the firewall': any -> This Firewall, This Firewall IPv6: tcp/53, udp/53
+  rule 'Administrators to the servers': Admins -> DmzServers: tcp/22
+  rule 'Users to the web servers': LAN net -> WebServers: tcp/80, tcp/443, tcp/8080-8090
+  rule 'Users to the web server by its outside address': LAN net -> 198.51.100.10: tcp/443
+  rule 'Default allow LAN to any rule': LAN net -> 0.0.0.0/0: any
+  rule 'Default allow LAN IPv6 to any rule': LAN net IPv6 -> ::/0: any
+LAN -> (other zones)
+  allowed: any
+  rule 'Ping from the inside': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'DNS from the firewall': any -> This Firewall, This Firewall IPv6: tcp/53, udp/53
+  rule 'Administrators to the servers': Admins -> DmzServers: tcp/22
+  rule 'Users to the web servers': LAN net -> WebServers: tcp/80, tcp/443, tcp/8080-8090
+  rule 'Users to the web server by its outside address': LAN net -> 198.51.100.10: tcp/443
+  rule 'Default allow LAN to any rule': LAN net -> 0.0.0.0/0: any
+  rule 'Default allow LAN IPv6 to any rule': LAN net IPv6 -> ::/0: any
+DMZ -> WAN
+  allowed: icmp type 8, tcp/25, tcp/80, tcp/443, tcp/8080-8090, udp/514 ~
+  rule 'Ping from the inside': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'Servers fetch their updates': DmzServers IPv4 -> Updates: tcp/80, tcp/443, tcp/8080-8090 ~
+  rule 'Mail out, not to the inside': 192.168.20.25 -> not Private: tcp/25 (only with negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10), negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11), which is not in the model) ~
+  rule 'Syslog to the collector': DMZ net -> 192.168.10.5: udp/514 (schedule OfficeHours)
+DMZ -> LAN
+  allowed: icmp type 8, tcp/25, tcp/80, tcp/443, tcp/8080-8090, udp/514 ~
+  rule 'Ping from the inside': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'Servers fetch their updates': DmzServers IPv4 -> Updates: tcp/80, tcp/443, tcp/8080-8090 ~
+  rule 'Mail out, not to the inside': 192.168.20.25 -> not Private: tcp/25 (only with negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10), negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11), which is not in the model) ~
+  rule 'Syslog to the collector': DMZ net -> 192.168.10.5: udp/514 (schedule OfficeHours)
+DMZ -> DMZ (inside the zone)
+  allowed: icmp type 8, tcp/25, tcp/80, tcp/443, tcp/8080-8090, udp/514 ~
+  rule 'Ping from the inside': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'Servers fetch their updates': DmzServers IPv4 -> Updates: tcp/80, tcp/443, tcp/8080-8090 ~
+  rule 'Mail out, not to the inside': 192.168.20.25 -> not Private: tcp/25 (only with negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10), negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11), which is not in the model) ~
+  rule 'Syslog to the collector': DMZ net -> 192.168.10.5: udp/514 (schedule OfficeHours)
+DMZ -> GUEST
+  allowed: icmp type 8, tcp/25, tcp/80, tcp/443, tcp/8080-8090, udp/514 ~
+  rule 'Ping from the inside': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'Servers fetch their updates': DmzServers IPv4 -> Updates: tcp/80, tcp/443, tcp/8080-8090 ~
+  rule 'Mail out, not to the inside': 192.168.20.25 -> not Private: tcp/25 (only with negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10), negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11), which is not in the model) ~
+  rule 'Syslog to the collector': DMZ net -> 192.168.10.5: udp/514 (schedule OfficeHours)
+DMZ -> (other zones)
+  allowed: icmp type 8, tcp/25, tcp/80, tcp/443, tcp/8080-8090, udp/514 ~
+  rule 'Ping from the inside': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'Servers fetch their updates': DmzServers IPv4 -> Updates: tcp/80, tcp/443, tcp/8080-8090 ~
+  rule 'Mail out, not to the inside': 192.168.20.25 -> not Private: tcp/25 (only with negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10), negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11), which is not in the model) ~
+  rule 'Syslog to the collector': DMZ net -> 192.168.10.5: udp/514 (schedule OfficeHours)
+GUEST -> WAN
+  allowed: tcp/53, tcp/80, tcp/443, tcp/8080-8090, udp/53, udp/5060-5061 ~
+  rule 'DNS from the firewall': any -> This Firewall, This Firewall IPv6: tcp/53, udp/53
+  rule 'Guests browse': GUEST net -> 0.0.0.0/0: tcp/80, tcp/443, tcp/8080-8090
+  rule 'Phones of the guests': GUEST net -> 203.0.113.40: udp/5060-5061 (only with it matches a mark set by another rule (tagged) 'VOICE', which is not in the model) ~
+GUEST -> LAN
+  allowed: tcp/53, tcp/80, tcp/443, tcp/8080-8090, udp/53, udp/5060-5061 ~
+  rule 'DNS from the firewall': any -> This Firewall, This Firewall IPv6: tcp/53, udp/53
+  rule 'Guests browse': GUEST net -> 0.0.0.0/0: tcp/80, tcp/443, tcp/8080-8090
+  rule 'Phones of the guests': GUEST net -> 203.0.113.40: udp/5060-5061 (only with it matches a mark set by another rule (tagged) 'VOICE', which is not in the model) ~
+GUEST -> DMZ
+  allowed: tcp/53, tcp/80, tcp/443, tcp/8080-8090, udp/53, udp/5060-5061 ~
+  rule 'DNS from the firewall': any -> This Firewall, This Firewall IPv6: tcp/53, udp/53
+  rule 'Guests browse': GUEST net -> 0.0.0.0/0: tcp/80, tcp/443, tcp/8080-8090
+  rule 'Phones of the guests': GUEST net -> 203.0.113.40: udp/5060-5061 (only with it matches a mark set by another rule (tagged) 'VOICE', which is not in the model) ~
+GUEST -> GUEST (inside the zone)
+  allowed: tcp/53, tcp/80, tcp/443, tcp/8080-8090, udp/53, udp/5060-5061 ~
+  rule 'DNS from the firewall': any -> This Firewall, This Firewall IPv6: tcp/53, udp/53
+  rule 'Guests browse': GUEST net -> 0.0.0.0/0: tcp/80, tcp/443, tcp/8080-8090
+  rule 'Phones of the guests': GUEST net -> 203.0.113.40: udp/5060-5061 (only with it matches a mark set by another rule (tagged) 'VOICE', which is not in the model) ~
+GUEST -> (other zones)
+  allowed: tcp/53, tcp/80, tcp/443, tcp/8080-8090, udp/53, udp/5060-5061 ~
+  rule 'DNS from the firewall': any -> This Firewall, This Firewall IPv6: tcp/53, udp/53
+  rule 'Guests browse': GUEST net -> 0.0.0.0/0: tcp/80, tcp/443, tcp/8080-8090
+  rule 'Phones of the guests': GUEST net -> 203.0.113.40: udp/5060-5061 (only with it matches a mark set by another rule (tagged) 'VOICE', which is not in the model) ~
+
+From reading the configuration
+  FLOATING_LAST_MATCH: 1 floating rule is not 'quick': such a rule decides only where no rule of an interface matched, and of several the last one. In the converted policy it stands behind the rules of the interfaces, the last one first: 'Telnet unless a rule says otherwise'
+  RULE_NOT_LOADED: pfSense does not load 1 rule of the configuration, which it cannot resolve; they are not converted: 'Spare network, not in use' (its interface 'opt3' is not there or not enabled)
+  BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: pfSense drops what arrives there from addresses nobody has been given, by a list it downloads. That list is not in the configuration, and nothing is converted for it
+  PFSENSE_AUTOMATIC_RULES: pfSense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof), packets from or to 169.254.0.0/16, and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without; and it has rules for itself (anti-lockout, DHCP, IPsec). Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+
+Notes
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

@@ -8,11 +8,11 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.7.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
-| Tests | 2283, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a Check Point management server, a Cisco Management Center or a Device Manager |
-| Next | 0.8.0: pfSense (see `TODO.md`); lab validation of the sample conversions |
+| Version | 0.8.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
+| Tests | 2519, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a Check Point management server, a Cisco Management Center or a Device Manager |
+| Next | 0.9.0: SonicWall (see `TODO.md`); lab validation of the sample conversions |
 
 ## Layout
 
@@ -28,6 +28,8 @@ src/fwshift/
                       (sections and inheritance, the prefilter policy, NAT in
                       the order of the device)
         sophos.py     Sophos Entities.xml    -> model (exclusions, a rulebase per IP version)
+        pfsense.py    pfSense config.xml     -> model (the order of pf, interface
+                      groups, port forwards and the rules pfSense adds itself)
         iptables.py   iptables-save output   -> model (chains flattened)
     emitters/
         panos.py      model -> PAN-OS set commands
@@ -40,6 +42,8 @@ src/fwshift/
         fmc_loader.py the program of that script: stands alone, imports
                       nothing of the package, and is shipped as it is
         sophos.py     model -> Entities.xml (a rule per IP version, flat groups)
+        pfsense.py    model -> the areas aliases, nat and filter of a pfSense
+                      configuration (a rule per arrival interface)
         iptables.py   model -> iptables-restore / ip6tables-restore file
     transform.py      passes shared by the emitters: hardening of names,
                       references, placeholders, names, application lowering,
@@ -66,7 +70,8 @@ tests/
     tools/            the scripts that write the Check Point sample and the two
                       Cisco Secure Firewall samples, and the kernel check
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
-                      Check Point, ASA, Sophos and Cisco Secure Firewall output
+                      Check Point, ASA, Sophos and Cisco Secure Firewall output;
+                      a pfSense that judges packets from its configuration
     test_parsers.py   netutil, FortiOS syntax, PAN-OS and FortiOS parsers
     test_emitters.py  PAN-OS and FortiOS emitters
     test_semantics.py one small configuration per semantic trap
@@ -81,6 +86,8 @@ tests/
                       a made-up device that judges packets, a strict reader
                       of what is written, a made-up Management Center that
                       the script is run against
+    test_pfsense.py   pfSense both ways: random configurations against the
+                      judge in helpers.py, emitted files restored into it
     test_audit.py     the audit, against a walk through every packet of a
                       small world
     test_matrix.py    the zone matrix, against the same walk: every packet
@@ -502,6 +509,15 @@ policy behaves unexpectedly.
 | Management Center REST API, as the script uses it: `POST /api/fmc_platform/v1/auth/generatetoken` with basic authentication answers with `X-auth-access-token`, `DOMAIN_UUID` and `DOMAINS`; lists take `limit` (1000 at most) and `offset` and say `paging.count`; `POST <collection>?bulk=true` takes a list (1000 items, 2 MB) and answers with the created `items`; **`POST .../accessrules?bulk=true&section=mandatory` appends in the order of the list, and a second call below the first**; `POST .../manualnatrules?bulk=true&section=before_auto` likewise; **a list of the rules gives them in the order of the policy**, with their names also when it is not expanded; 429 with `Retry-After` when asked too often, 401 when the token ran out; `DELETE <collection>/<id>`; a new `AccessPolicy` takes `defaultAction.action` `BLOCK`; a `SecurityZone` takes `interfaceMode` `ROUTED` and no interfaces. a redirect is never the right answer to an API call. (API documentation and `fmcapi`. The order of bulk-created rules is the assumption everything hangs on: if a Management Center orders them otherwise, the policy is not the policy that was converted. The script lists the rules after it created them and stops when their number or their order is not what it sent, which finds a wrong order as long as the list itself is in the order of the policy.) Object and zone names are compared without case, and zones share their names with interface groups: both are the cautious reading, neither is confirmed. | `fmc_loader.py`, `FakeFmc` of the tests |
 | A manager accepts what the emitter writes and has not been loaded anywhere: host `192.0.0.8` as a placeholder, ranges from `0.0.0.0`, a `PortLiteral` with only a protocol number in a rule, `ICMPV4Object` with `icmpType` and `code` as strings, a NAT rule with `any-ipv4` as original and translated source, a PAT pool that is a network group of ranges, `newComments` on a rule that is created, `sendEventsToFMC` with `logBegin`. | Cisco emitter |
 | FTD: the device shows its access rules as `access-list CSM_FW_ACL_ advanced` with `ifc`, `rule-id` and remarks `rule-id N: L4 RULE: name` / `L7 RULE: name`; an L7 rule appears as `permit` whatever its action. From documentation and memory, no device output was available | ASA parser |
+| pfSense, all rows below: read in its source code (`filter.inc`, `util.inc`, `interfaces.inc`, `pfsense-utils.inc`, `diag_backup.php` and the edit pages) of RELENG_2_6_0 (config 22.2), RELENG_2_7_2 (23.3) and the development branch (config 24.5, commit 9363ac5); nothing was run, no pf ruleset was loaded | pfSense parser and emitter |
+| pfSense: interface rules are `quick` on arrival; the order is floating rules, then interface groups (and l2tp, pppoe, enc0, openvpn), then the interface; non-quick floating rules decide where nothing matched, the last one; groups that share an interface are evaluated in the order of the file up to 2.7.2 and group by group later (config version above 23.3; whether 2.8.0 is "later" is not checked) | `_ordered`, `RULE_ORDER_VERSION` |
+| pfSense: an `out` rule is evaluated on egress after rdr and outbound NAT; pass out is the default; `rdr pass` skips the in rules (and *Block private networks*), not the out rules | `_leaving`, `_pass_rule`, emitter `_floating_block` |
+| pfSense: *Block private networks* drops 10/8, 127/8, 172.16/12, 192.168/16 and fc00::/7 before the rules; without `ipv6allow` all IPv6 is dropped; a rule without `ipprotocol` is IPv4; a type it does not know is `pass`; types and families are case-sensitive | pfSense parser |
+| pfSense: a port is a number, a range or a port alias; a service name is looked up by `getservbyname` (the table in the parser has the IANA numbers of the names a FreeBSD `/etc/services` has, as far as known: not checked against one); a protocol and no port is every port, a port and no protocol is `proto tcp`; a range that runs backwards matches nothing | `_ports`, `SERVICE_PORTS` |
+| pfSense: the network of an interface includes its virtual IPs (also an IP alias on a CARP address, `_vip<uniqid>`); from config 24.0 on it is one table for both IP versions, earlier a list, of which "not" is every address in pf when it has more than one entry (2.6; 2.7.2 for IPv6 of WAN and LAN) | `_network`, `NEGATED_LIST` |
+| pfSense NAT: rdr before binat for what arrives, binat before nat for what leaves; a port forward with a numeric local port and several ports maps all of them to that port; NAT reflection in pure NAT mode puts the forward on the interfaces without a gateway (an `ovpn*` or `ipsec*` device counts as one with a gateway); automatic outbound NAT translates what leaves an interface with a gateway from the networks of the others, static routes over them, OpenVPN tunnel networks and the IPsec mobile pool; an outbound NAT rule without family and addresses is written for IPv4 and IPv6; `opt` in the source of an outbound NAT rule is read as an interface name | pfSense parser and emitter |
+| pfSense restore of an area: the file may have the root `<pfsense>`; the whole section is replaced; an empty or missing section is refused; no version check and no upgrade; the filter reloads by itself; separators, `bypassstaticroutes` and linked rules go with the section | emitter, `PFSENSE_RESTORE`, manual |
+| pfSense XML: a flag is an element, empty or not; text is decoded twice (also inside CDATA); alias names are up to 31 of `[A-Za-z0-9_]`, not a word of pf or of pfSense; descriptions take any text. A pfSense accepts what the emitter writes and has not restored it anywhere: trackers from 2000000001, `associated-rule-id` empty, `natreflection` `disable`, outbound NAT in the form of config 23.x | emitter |
 
 ## Development log
 
@@ -1388,6 +1404,147 @@ run on them.
 * Not read: SSL, identity and DNS policies, platform settings, object
   overrides per device, routes. A cloud-delivered Management Center logs in
   another way than the script does.
+
+### 2026-10-12: version 0.8.0
+
+**Built**
+
+* pfSense, read and written: `parsers/pfsense.py` and `emitters/pfsense.py`,
+  as the format `pfsense`. Detected by the first element, `<pfsense>`.
+* Read: the configuration backup (`config.xml`) of pfSense 2.6 and later, CE
+  and Plus. Interface rules, rules of interface groups and of the groups
+  pfSense makes itself (OpenVPN, IPsec, L2TP, PPPoE), floating rules quick
+  and not, in, out and both, in the order pfSense evaluates them, which
+  depends on its version; aliases of hosts, networks and ports, nested; the
+  networks and addresses of interfaces with their virtual IPs, *This
+  Firewall*; port forwards with NAT reflection and their filter rule
+  association, 1:1 NAT, outbound NAT in its four modes; the rules pfSense
+  adds for *Block private networks*, for port forwards that pass by
+  themselves and for automatic outbound NAT. `--interface-address` gives the
+  address of an interface that has none in the file (DHCP, PPPoE, SLAAC).
+* Written: the areas Aliases, NAT and Firewall Rules of a configuration, for
+  a restore under *Diagnostics > Backup & Restore*, for pfSense 2.7 and
+  later. A rule per arrival interface; with `--zone-network` a rule for a
+  destination zone is kept to it, as for an ASA (the code of the ASA
+  emitter is shared); a leading deny for traffic that leaves becomes a
+  floating rule; a rule that passes to any address leaves the firewall
+  itself out; port forwards, 1:1 rules and manual outbound NAT.
+* OPNsense is refused with a reason: it was planned with pfSense "where the
+  two agree", and they agree less than expected (aliases, automatic rules
+  and parts of NAT live elsewhere).
+* `--interface-address` for any other source is an error; so is a second
+  address of one IP version for one interface.
+* A sample, `pfsense_sample.xml`, with its conversions to every target, its
+  audit and matrix, and the conversions of the other eight samples to
+  pfSense.
+
+**What the platform made necessary**
+
+* *The order is pf's, and the version decides it.* Floating rules first,
+  then groups, then the interface; floating rules that are not quick decide
+  last, the last one; group rules that share an interface are taken in the
+  order of the file up to 2.7.2 and group by group after it.
+* *Rules for what leaves are looked at after outbound NAT.* Read: a floating
+  rule that blocks what leaves becomes a rule from every zone to that zone,
+  ahead of the rest, and names the source after translation only where
+  nothing is translated; one that passes what leaves decides nothing for
+  forwarded traffic. Written: such a rule names a source only where the file
+  decides outbound NAT, or else the report says so.
+* *Rules see the translated destination.* As for FortiOS and Sophos: read
+  rules are rewritten to the model's pre-NAT addresses, written rules to the
+  translated ones, for the translations that are really written.
+* *pfSense adds rules of its own.* Those that change what a policy lets
+  through and are in the configuration (*Block private networks*, port
+  forwards that pass, automatic outbound NAT) are converted as rules; the
+  others are named.
+* *Interface rules are also the rules for the firewall itself.* Other
+  platforms filter forwarded traffic apart from what goes to the firewall:
+  their "to any" leaves the firewall out when written for pfSense.
+* *One protocol per rule, no service objects.* A rule per protocol, port
+  aliases whose names cannot be taken for a service name.
+* *A restore replaces an area.* The output is one file for three restores,
+  and the report says what each takes along.
+
+**Sources**
+
+The source code of pfSense: RELENG_2_6_0, RELENG_2_7_2 and the development
+branch (commit 9363ac5), above all `filter.inc` (what a rule becomes for
+pf), `util.inc`, `interfaces.inc`, the edit pages of rules, aliases and NAT,
+and `diag_backup.php` with `restore_config_section()`; the ICMP type names
+of pfctl. Nothing was run on a pfSense, and no pf ruleset was loaded. The
+judge in `tests/helpers.py` is written from the same reading of the same
+code, apart from the parser.
+
+**Review**
+
+*Round 16* by the independent reviewer, with repro scripts of its own and
+about 6,000 mutation-fuzz runs through the parser and four emitters, all
+eight samples converted to pfSense, and the source code of all three
+pfSense versions. 3 high, 8 medium and 8 low findings; in five of them the
+judge of the tests made the same mistake as the code.
+
+| | Finding | Fix |
+|---|---|---|
+| high | A floating rule that blocks what leaves, with a source, was written without a NAT area: the firewall keeps its own outbound NAT (automatic on a stock pfSense), translates the source first, and the rule never matches | written for the arrival interfaces where the networks of every zone are known; otherwise a floating rule with `FLOATING_AFTER_NAT` at review level. A test restores onto a firewall with automatic outbound NAT |
+| high | Rules of platforms that filter only forwarded traffic opened the firewall itself: an iptables `FORWARD` rule for port 443 became `pass ... to any port 443` on WAN, the web interface included, "exact" | a rule of another platform that passes to any address is written for "any but This Firewall" (`SELF_EXCLUDED`) |
+| high | Ports given as service names (`ssh`, `https`), which pfSense takes, made the rule "not loaded" | read by a table of service names; a name not in it makes the rule unusable, not unloaded |
+| medium | Port forwards and 1:1 rules on an interface group or on OpenVPN, IPsec, L2TP, PPPoE were "not loaded" | read on the interfaces of the group or the system group |
+| medium | A port alias forwarded to one numeric port was read as port to the same port | as `filter.inc` does it: all to that one port, unsupported (`several ports translated to the one port`) |
+| medium | A virtual IP on a CARP address (`_vip<uniqid>`) was left out of the interface networks, *This Firewall* and automatic NAT | its parent's interface |
+| medium | pfSense reads `opt` in an alias name in the source of outbound NAT as an interface (2.7.2: a ruleset that does not load) | such an alias is wrapped in another (`nat_set`) |
+| medium | A floating rule without direction was read as `in`; pf has it for both | both |
+| medium | The development branch keeps one table for both IP versions of an interface network (`not` of the version it lacks is every address); 2.6, and 2.7.2 for IPv6 of WAN and LAN, write `not` of a network with virtual IPs as a list that pf reads as every address | both by the version in the file; the second with `NEGATED_LIST` at review level |
+| medium | Which interface has a gateway differed from pfSense (OpenVPN, IPsec, GIF, GRE), with NAT reflection on tunnel interfaces as a result; `NAT_AUTOMATIC_SOURCES` claimed tunnel networks were missing that were there | as `interface_has_gateway`; OpenVPN tunnel networks and the IPsec pool in automatic NAT, the finding for what is not in the file |
+| medium | Aliases nested about 1,000 deep: a traceback | more than 64 deep is unusable, also for ports |
+| low | Bridge members are separated by commas, and pfSense finds them by substring | as pfSense |
+| low | No protocol and a port is `proto tcp` without a port; a range that runs backwards matches nothing; type and family are case-sensitive; 2.6 loads no floating rule on `any` | each as pfSense |
+| low | Two interfaces with one description became one zone | a zone name of its own for the second |
+| low | U+FFFE and other characters XML cannot hold reached the output | left out |
+| low | Report texts: `MATCH_RULE_SKIPPED` said floating, `PFSENSE_RESTORE` did not say what a restore takes along; `--interface-address` was ignored for other sources and a second address replaced the first | fixed; both are errors |
+| low | An outbound NAT rule without family and addresses is also IPv6 NAT | `NAT_IPV6_ALSO` |
+| low | *This Firewall* is narrower than pf's `(self)` | in the manual |
+
+Not changed: alias names that `/etc/services` or `/etc/protocols` hold are
+not avoided (the web interface refuses them on the next edit, the restore
+does not); leading spaces in values, which pfSense keeps; SCTP ports, which
+2.6 ignores; whether `no rdr` and `no binat` reach further than their own
+kind of NAT (a suspicion from pf, not checked). All four are on the to-do
+list.
+
+The judge of the tests was corrected with the code for service names, a
+port and no protocol, floating rules without direction, virtual IPs on CARP
+addresses and NAT on groups. The fixes were not reviewed again. They have
+tests (the last section of `test_pfsense.py`, and an oracle that restores
+onto a firewall with automatic outbound NAT), and the suite, the mutation
+check and the type check were run on them; the check for `--interface-address`
+with another source found that the option had been ignored there after all.
+
+**Verified, and not**
+
+* The tests: `tests/test_pfsense.py` holds 217 tests, the suite 2519. The
+  parser is compared with the judge on random configurations (four versions
+  and modes, 70 each, 300 packets each), NAT on 80, the emitter restored
+  into the judge on 100 random models and on 30 more with automatic
+  outbound NAT on the target, and the round trip pfSense to pfSense on 120.
+  A mutation check with 14 ways to break the parser and the emitter, run
+  after the fixes: all 14 were caught, three of them at first only by a
+  golden file or not at all (service names in random rules, the last-match
+  order of floating rules for what leaves, NAT reflection on a written 1:1
+  rule); those have tests of their own now, and the judge refuses a 1:1
+  rule with reflection.
+* **Nothing was restored on a pfSense, and no pf ruleset was loaded.** The
+  judge is written from the same reading of the same source code as the
+  parser and the emitter, by the same hand; the reviewer read the code
+  again, independently.
+* The largest unknowns, in the order they would hurt: whether pfSense 2.8.0
+  orders group rules as the development branch does (config 24.0 is read so);
+  the names `getservbyname` knows; whether the restore of an area keeps
+  references to aliases that are restored later (the manual says aliases
+  first); what a restore does with a file written for 2.7 on a firewall
+  with a configuration that pfSense upgraded since.
+* Not converted: schedules, URL table aliases, policy routing, tags,
+  limiters and shaping, match rules, IPv6 NAT, NPt, bogon networks, the
+  captive portal, bridges, and the rules of packages and services.
 
 ## To do
 

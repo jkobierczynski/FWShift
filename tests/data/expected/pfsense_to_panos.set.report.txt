@@ -1,0 +1,70 @@
+FWShift conversion report
+  source: pfsense
+  target: panos
+
+Summary
+  Security rules:     25   exact 11, approximated 8, needs review 6 (4 emitted disabled), skipped 0
+  NAT rules:           8   exact 6, approximated 1, needs review 0, skipped 1
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] RULE_NOT_LOADED: pfSense does not load 1 rule of the configuration, which it cannot resolve; they are not converted: 'Spare network, not in use' (its interface 'opt3' is not there or not enabled)
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: pfSense drops what arrives there from addresses nobody has been given, by a list it downloads. That list is not in the configuration, and nothing is converted for it
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): WAN, LAN, DMZ, GUEST
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] FLOATING_LAST_MATCH: 1 floating rule is not 'quick': such a rule decides only where no rule of an interface matched, and of several the last one. In the converted policy it stands behind the rules of the interfaces, the last one first: 'Telnet unless a rule says otherwise'
+  [info] PFSENSE_AUTOMATIC_RULES: pfSense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof), packets from or to 169.254.0.0/16, and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without; and it has rules for itself (anti-lockout, DHCP, IPsec). Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] INTRAZONE_DENY_ADDED: appended 'fwshift-intrazone-deny': PAN-OS allows traffic inside a zone by default, the source denies it
+
+Security rules
+  SSH for the partner - pass  ->  needs-review
+      [approximated] AUTOMATIC_RULE: port forward 'SSH for the partner' passes what it forwards without a rule ('Pass' as its filter rule association): pfSense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'WAN address' next to '192.168.20.25' because of NAT rule 'SSH for the partner'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'SSH for the partner' also translates the port to 22; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to '192.168.20.25' because of NAT rule 'Mail server - inbound'; check that this rule is meant to cover the translated traffic
+  Block private networks from WAN  ->  exact
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks and loopback addresses' set: pfSense drops what arrives there from those networks before any rule is looked at. This rule stands for that
+  Ping from the inside  ->  approximated
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping. Verify these names against the App-ID release in use
+  NAT Web server HTTPS  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to '192.168.20.10' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+  Mail in  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to '192.168.20.25' because of NAT rule 'Mail server - inbound'; check that this rule is meant to cover the translated traffic
+  Ping and errors to the firewall  ->  approximated
+      [approximated] ICMP_TYPE: service 'icmp-echoreq-timex-unreach' matches ICMP type 3; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping, icmp. Verify these names against the App-ID release in use
+  Users to the web servers  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'WebServers' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+  Users to the web server by its outside address  ->  needs-review
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '198.51.100.10', the external address of NAT rule 'Web server HTTPS', but not '192.168.20.10' behind it. The source looks rules up after the translation and did not apply this rule to that traffic; the converted rule does
+  No other private network from the LAN  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+  Mail out, not to the inside  ->  needs-review, emitted disabled  (emitted as Mail out_ not to the inside)
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10).
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11).
+  Syslog to the collector  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'OfficeHours' is not converted; the rule would apply at all times.
+  Nothing from the list  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocklist': a URL table: its addresses are in a file on the firewall, not in the configuration. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Tunnel of the old application  ->  approximated
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ipsec-esp. Verify these names against the App-ID release in use
+  Guests reach nothing private  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+  Guests browse  ->  exact
+      [info] POLICY_ROUTING: the rule also sends what it passes to gateway 'WANGW' (policy routing), which is not converted
+  Phones of the guests  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches a mark set by another rule (tagged) 'VOICE'.
+
+NAT rules
+  Web server HTTPS  ->  exact
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+  Application ports  ->  skipped
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [needs-review] NAT_NOT_CONVERTED: not converted: a range of ports translated to another range (8000-8010 to 9000-9010), which the model cannot say
+  Automatic outbound NAT on WAN  ->  approximated
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: pfSense translates what leaves by an interface with a gateway and comes from the networks of its other interfaces and of its static routes. This rule stands for that
+      [approximated] NAT_INTERFACE_ADDRESS: translates to 198.51.100.2, the address interface 'wan' has today; use --interface-map wan=<PAN-OS interface> to follow the interface instead

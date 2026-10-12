@@ -1,0 +1,114 @@
+FWShift conversion report
+  source: fmc (Edge)
+  target: pfsense
+
+Summary
+  Security rules:     22   exact 3, approximated 10, needs review 8 (8 emitted disabled), skipped 1
+  NAT rules:           7   exact 3, approximated 4, needs review 0, skipped 0
+  Addresses:          16   exact 16, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           24   exact 24, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] PFSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of a pfSense configuration. Under Diagnostics > Backup & Restore, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every rule, every alias, every NAT rule that is there now is gone, with the separators, the rules pfSense linked to port forwards and the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. The NAT area holds 2 port forwards and 1 1:1 rule, and sets outbound NAT to manual mode with the 4 rules of the source. Keep a backup, and look at the rules before anything depends on them: pfSense does not check what it restores, and a rule it cannot resolve is not loaded. Written for pfSense 2.7 and later
+  [needs-review] INTERFACES_REQUIRED: pfSense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: outside, inside, dmz
+  [approximated] OBJECT_OVERRIDES: 1 object(s) can have another value on a device than the one that was read (they allow overrides): ot-net. The values of the manager were converted; check them against the device the policy is for
+  [info] SELF_EXCLUDED: on pfSense the rules of an interface are also the rules for traffic to the firewall itself. Rules of the source that pass traffic to any destination are written for any destination but the firewall itself ('not This Firewall'). A rule that names addresses of the firewall still reaches them
+
+Security rules
+  pre-backup  ->  approximated  (emitted as inside)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  pre-partner-gre  ->  approximated  (emitted as outside)
+      [approximated] TUNNEL_RULE: tunnel rule of the prefilter policy: it is converted as a rule for the protocol that carries the tunnel, between the tunnel endpoints. What the source did with the connections inside the tunnel is not converted
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  pre-partner-gre-reverse  ->  approximated  (emitted as dmz)
+      [info] TUNNEL_RULE: the other direction of tunnel rule 'pre-partner-gre', which matches tunnels from source and destination
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  prefilter-default-block-tunnels  ->  needs-review, emitted disabled  (emitted as outside (3 rules), inside (3 rules), dmz (3 rules))
+      [needs-review] PROTOCOL_NOT_AVAILABLE: IP protocol 4, which a rule of pfSense cannot name. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block OT outbound  ->  needs-review, emitted disabled  (emitted as inside)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind inside, dmz, outside with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN web  ->  needs-review, emitted disabled  (emitted as inside)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (file=Block Malware, intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind inside, dmz, outside with --zone-network.
+  LAN DNS and NTP  ->  needs-review, emitted disabled  (emitted as inside)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind inside, dmz, outside with --zone-network.
+  Updates  ->  approximated  (emitted as inside, dmz)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  Inbound web  ->  approximated  (emitted as outside)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  Inbound mail  ->  approximated  (emitted as outside)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  Admin access  ->  approximated  (emitted as inside (2 rules))
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [info] RULE_SPLIT: a rule of pfSense names one protocol: the rule is written as 2 rules, one per kind of service
+  Helpdesk RDP  ->  needs-review, emitted disabled  (emitted as inside)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] USER_MATCH: source user match CORP\helpdesk is not converted.
+  Staff social media  ->  needs-review, emitted disabled  (emitted as inside)
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind inside, dmz, outside with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Partner service  ->  approximated  (emitted as outside (2 rules))
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [info] RULE_SPLIT: a rule of pfSense names one protocol: the rule is written as 2 rules, one per kind of service
+  Uncategorised web  ->  needs-review, emitted disabled  (emitted as inside)
+      [approximated] INTERACTIVE_BLOCK: the source showed web users a page from which they could go on to the site (Interactive Block); it is converted as a rule that blocks
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind inside, dmz, outside with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Old FTP  ->  needs-review, emitted disabled  (emitted as inside)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind inside, dmz, outside with --zone-network.
+  DNS answers to resolver  ->  approximated  (emitted as outside)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  Branch IPv6  ->  approximated  (emitted as outside (2 rules))
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [info] RULE_SPLIT: a rule of pfSense names one protocol: the rule is written as 2 rules, one per kind of service
+  Reset the rest from inside  ->  exact  (emitted as inside)
+      [info] RESET_ACTION: action reset-both becomes 'reject': pfSense answers the sender, with a TCP reset or an ICMP message, and tells the other side nothing
+  Watch DMZ  ->  skipped
+      [info] MONITOR_RULE: rule with the action Monitor: it logs the traffic and leaves the decision to the rules below it. Nothing to convert
+
+NAT rules
+  nat-1  ->  approximated  (emitted as 1 outbound NAT rule)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from inside only; outbound NAT of pfSense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+  nat-3  ->  approximated  (emitted as 1 port forward)
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 203.0.113.2
+  nat-4  ->  approximated  (emitted as 1 outbound NAT rule)
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: round robin, flat port range, interface (as fallback)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from inside only; outbound NAT of pfSense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+  nat-mail-srv  ->  exact  (emitted as 1:1 NAT)
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: translate DNS replies
+      [info] NAT_INPUT_INTERFACE: the rule names the zone of the inside address (dmz), which a 1:1 rule of pfSense has no place for
+  nat-dmz-net  ->  approximated  (emitted as 1 outbound NAT rule)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from dmz only; outbound NAT of pfSense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+
+Addresses
+  any-ipv4  ->  exact  (emitted as any_ipv4)
+      [info] RENAMED: renamed to 'any_ipv4' to fit the target's naming rules
+  any-ipv6  ->  exact  (emitted as any_ipv6)
+      [info] RENAMED: renamed to 'any_ipv6' to fit the target's naming rules
+  IPv4-Private-10.0.0.0-8  ->  exact  (emitted as IPv4_Private_10_0_0_0_8)
+      [info] RENAMED: renamed to 'IPv4_Private_10_0_0_0_8' to fit the target's naming rules
+  lan-net  ->  exact  (emitted as lan_net)
+      [info] RENAMED: renamed to 'lan_net' to fit the target's naming rules
+  dmz-net  ->  exact  (emitted as dmz_net)
+      [info] RENAMED: renamed to 'dmz_net' to fit the target's naming rules
+  ot-net  ->  exact  (emitted as ot_net)
+      [info] RENAMED: renamed to 'ot_net' to fit the target's naming rules
+  partner-net  ->  exact  (emitted as partner_net)
+      [info] RENAMED: renamed to 'partner_net' to fit the target's naming rules
+  branch-v6  ->  exact  (emitted as branch_v6)
+      [info] RENAMED: renamed to 'branch_v6' to fit the target's naming rules
+  web-srv  ->  exact  (emitted as web_srv)
+      [info] RENAMED: renamed to 'web_srv' to fit the target's naming rules
+  web-srv-pub  ->  exact  (emitted as web_srv_pub)
+      [info] RENAMED: renamed to 'web_srv_pub' to fit the target's naming rules
+  mail-srv  ->  exact  (emitted as mail_srv)
+      [info] RENAMED: renamed to 'mail_srv' to fit the target's naming rules
+  mail-srv-pub  ->  exact  (emitted as mail_srv_pub)
+      [info] RENAMED: renamed to 'mail_srv_pub' to fit the target's naming rules
+  admin-pcs  ->  exact  (emitted as admin_pcs)
+      [info] RENAMED: renamed to 'admin_pcs' to fit the target's naming rules
+  nat-pool  ->  exact  (emitted as nat_pool)
+      [info] RENAMED: renamed to 'nat_pool' to fit the target's naming rules
+  outside-interface  ->  exact  (emitted as outside_interface)
+      [info] RENAMED: renamed to 'outside_interface' to fit the target's naming rules

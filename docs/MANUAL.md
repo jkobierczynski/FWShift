@@ -2,10 +2,10 @@
 
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
 Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
-or by its Device Manager), Sophos Firewall and Linux iptables, and tells you,
+or by its Device Manager), Sophos Firewall, pfSense and Linux iptables, and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; and show what each zone may reach in each
-other zone. This manual covers version 0.7.
+other zone. This manual covers version 0.8.
 
 **Contents**
 
@@ -38,7 +38,8 @@ more permissive without saying so.** In practice:
 * Every rule of the source appears in the output, in the same order, or in
   the report as *skipped* with the reason. (One kind is counted instead of
   listed: permit entries of an ASA that can match nothing the ASA forwards,
-  `RULE_WITHOUT_EFFECT`.)
+  `RULE_WITHOUT_EFFECT`. Rules a pfSense does not load itself are named in
+  one note, `RULE_NOT_LOADED`.)
 * A rule whose match cannot be expressed on the target is written
   **disabled** and listed in the report as *needs review*.
 * An object that cannot be converted becomes a placeholder that matches
@@ -50,15 +51,16 @@ FWShift converts the **policy**. It does not convert interfaces, routing, VPN,
 users, security profiles, or system settings, and it is not a substitute for
 testing the result.
 
-> **Status.** Version 0.7 is tested against synthetic configurations. iptables
+> **Status.** Version 0.8 is tested against synthetic configurations. iptables
 > output and input are checked against a Linux kernel (filter rules, one
 > kernel and iptables version). Output for PAN-OS, FortiOS, Check Point,
-> Cisco ASA, Cisco Secure Firewall and Sophos Firewall has not been loaded on
-> a device or management server yet; the Check Point input format follows the
+> Cisco ASA, Cisco Secure Firewall, Sophos Firewall and pfSense has not been
+> loaded on a device or management server yet; the Check Point input format follows the
 > API documentation, the ASA and FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
 > Sophos's own SDK, and the JSON of a Management Center and of a Device
 > Manager their API documentation and the tooling Cisco publishes for them.
+> What pfSense makes of its configuration is taken from its source code.
 > Use FWShift to produce a draft for a lab.
 
 ## 2. Installation
@@ -81,8 +83,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.7.0.pyz --version
-python3 fwshift-0.7.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.8.0.pyz --version
+python3 fwshift-0.8.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -351,6 +353,49 @@ Web server protection rules are not forwarding rules and are left out
 (`WAF_RULE`). Of the system hosts a firewall creates for its own ports and
 tunnels (`#Port1`, `##ALL_IPSEC_RW`), only those a rule names are kept.
 
+**pfSense (2.6 and later, CE and Plus).** Under *Diagnostics > Backup &
+Restore*, download the configuration with *Backup area* set to **All** and
+without encryption. The file is `config-<host>-<date>.xml`. A backup of one
+area (only the firewall rules, say) is not enough: the rules name interfaces,
+aliases and virtual IPs, which are elsewhere in the file. The same file is on
+the firewall as `/cf/conf/config.xml`.
+
+```sh
+fwshift inspect config.xml
+fwshift convert config.xml --to fortios -o fortigate.conf --report report.txt
+```
+
+An interface that gets its address by DHCP, PPPoE, SLAAC or from another
+interface (*Track interface*) has no address in the file. Rules that name it
+(`WAN address`, `WAN net`, *This Firewall*) cannot be converted without it and
+are written disabled, saying so. Give the address with the prefix length of
+the network, for each IP version, as *Status > Interfaces* shows it:
+
+```sh
+fwshift convert config.xml --to panos -o panos.set \
+    --interface-address wan=198.51.100.7/24 --interface-address wan=2001:db8:0:1::7/64
+```
+
+The interface is named by its name in the file (`wan`, `opt2`) or by its
+description (`WAN`). The zones of the policy are the interfaces, by their
+descriptions; an interface group is not a zone, a rule of a group is a rule of
+each of its interfaces.
+
+The order in which pfSense evaluates the rules of interface groups changed
+after 2.7.2 (the version in the file, `<version>`, above 23.3): FWShift orders
+them as the version in the file says, and reports it where two groups share
+an interface and the order is not the same both ways (`RULE_ORDER_VERSION`).
+Rules pfSense itself would not load (an alias that is not there, an interface
+that is not enabled) are not converted and named in one note
+(`RULE_NOT_LOADED`). The rules of packages (pfBlockerNG and the like), of the
+captive portal and of IPsec, OpenVPN and other services that pfSense makes
+itself are not in the file as rules, and are not converted
+(`PFSENSE_AUTOMATIC_RULES`).
+
+The configuration of an **OPNsense** firewall looks alike, but keeps its
+aliases, automatic rules and parts of its NAT elsewhere: FWShift refuses it
+with that reason rather than read it as a pfSense.
+
 **Check Point.** There is no configuration file to export. FWShift reads what
 the Management API answers to `show access-rulebase` and `show nat-rulebase`,
 as JSON. On the management server, or on any host with `mgmt_cli`:
@@ -472,7 +517,7 @@ TCP 502 and TCP 102, not the applications themselves.
 ### `fwshift convert`
 
 ```
-fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,iptables,ip6tables,json} [options]
+fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,iptables,ip6tables,json} [options]
 ```
 
 `INPUT` is a file, or `-` for standard input.
@@ -481,13 +526,14 @@ fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,iptables
 
 | Option | Meaning |
 |---|---|
-| `--from {panos,fortios,checkpoint,asa,fmc,fdm,sophos,iptables,ip6tables}` | Source format. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; other XML is PAN-OS; JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,iptables,ip6tables}` | Source format. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; other XML is PAN-OS; JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
 | `--layer NAME` | Check Point source with several access layers: the one to read. |
 | `--policy NAME` | Management Center source with several access control policies: the one to read, by its name or its id. Without it the policy that no other policy in the input inherits from is read, if there is one such policy. |
 | `--nat-policy NAME` | Management Center source with several NAT policies: the one to read, by its name or its id. |
+| `--interface-address INTERFACE=ADDRESS/BITS` | pfSense source: the address of an interface that gets it by DHCP, PPPoE, SLAAC or from a tracked interface, which is then not in `config.xml`. `INTERFACE` is the name of the interface (`wan`, `opt1`) or its description (`WAN`), `BITS` the prefix length of its network. One address per IP version and interface; repeatable. Without it, rules that name such an address or network are written disabled (section 3). |
 
 For iptables the IP version is taken from the header that `iptables-save` or
 `ip6tables-save` writes, and otherwise from the addresses and protocols in the
@@ -504,27 +550,28 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to fmc` | A Python script that creates the policy on a Cisco Secure Firewall Management Center through its REST API: objects, a new access control policy, a new NAT policy (section 10). |
 | `--to fdm` | A file for the configuration import of a Cisco Secure Firewall Device Manager: objects, access rules, manual NAT rules (section 10). |
 | `--to sophos` | An `Entities.xml` for *Import export* of a Sophos Firewall (SFOS 18 and later). With `-o NAME.tar`, the archive an import takes. |
+| `--to pfsense` | A configuration file with the areas Aliases, NAT and Firewall Rules, for *Diagnostics > Backup & Restore* of pfSense 2.7 or later. Each restore of an area **replaces** that area (section 10). |
 | `--to iptables` | A file for `iptables-restore`: the IPv4 half of the policy. |
 | `--to ip6tables` | A file for `ip6tables-restore`: the IPv6 half. |
 | `--to json` | The neutral model as JSON, for inspection or other tools. It is the model as it was read: the audit options cannot be combined with it. |
 | `--target-vsys NAME` | PAN-OS: prefix commands with `vsys NAME`. Default: a single-vsys firewall, no prefix. |
 | `--target-device-group NAME` | Panorama: write into this device group; rules go to its pre-rulebase. |
 | `--target-shared` | Panorama: write into `shared`; rules go to the shared pre-rulebase. |
-| `--target-nat-zone ZONE` | PAN-OS: destination zone for NAT rules of a source that names none (Check Point, some iptables and ASA rules). Without it those NAT rules are skipped. ASA: the interface for source NAT "to the address of the outgoing interface" where the rule does not name one. Management Center and Device Manager: the zone of that interface. |
+| `--target-nat-zone ZONE` | PAN-OS: destination zone for NAT rules of a source that names none (Check Point, some iptables and ASA rules). Without it those NAT rules are skipped. ASA: the interface for source NAT "to the address of the outgoing interface" where the rule does not name one. Management Center and Device Manager: the zone of that interface. pfSense: the interface a port forward of a rule for every zone is written for, and the interface outbound NAT is written for where a rule does not say where its traffic leaves. |
 | `--target-vdom NAME` | FortiOS: wrap the output in `config vdom` / `edit NAME`. |
 | `--policy-id-start N` | FortiOS: number policies from N. Default is `edit 0`, which lets the FortiGate pick free ids and appends after existing policies. |
 | `--target-layer NAME` | Check Point: the access layer the rules are written to. Default `Network`. It must exist. |
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
-| `--target-prefix TEXT` | Check Point, ASA, Sophos, Management Center and Device Manager: put `TEXT` in front of the name of every object (on an ASA also every access list) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
+| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, Management Center and Device Manager: put `TEXT` in front of the name of every object (on an ASA also every access list) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
 | `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates. Default `FWShift`. The script can be given another name when it is run (`--name`). |
 
 **Adapting the policy**
 
 | Option | Meaning |
 |---|---|
-| `--zone-map SRC=DST` | Use `DST` wherever the source names zone or interface `SRC`. Repeatable. For iptables and ASA this is how a zone becomes an interface name, and the other way round. |
-| `--zone-network ZONE=NET[,NET...]` | ASA target: the networks that lie behind a zone (its name after `--zone-map`). Repeatable. An ASA access list cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
+| `--zone-map SRC=DST` | Use `DST` wherever the source names zone or interface `SRC`. Repeatable. For iptables and ASA this is how a zone becomes an interface name, and the other way round; for pfSense how it becomes an interface (`lan`, `opt1`) or an interface group. |
+| `--zone-network ZONE=NET[,NET...]` | ASA and pfSense targets: the networks that lie behind a zone (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
 | `--interface-map SRC=DST` | Map a source interface to a target interface: zone members written for FortiOS, source NAT to an interface address on PAN-OS, and the interfaces of a NAT rule on Sophos Firewall and on a Device Manager, which match interfaces and not zones. For those two, map every interface of a zone the NAT rules name (for an iptables or ASA source, whose zones are interfaces, that is the zone name itself); for a Device Manager `DST` is the logical name of the interface (`inside`, `outside`). Repeatable. |
 | `--app-map FILE` | JSON file that adds or overrides application port definitions (section 9). |
 | `--prune-unused` | Leave out objects that no rule or NAT rule uses, directly or through a group. |
@@ -555,7 +602,8 @@ fwshift audit --list-checks
 ```
 
 Audits a configuration of any format that can be read and prints what it
-found (section 13). Nothing is converted and nothing is changed: an action
+found (section 13). It takes the source options of `fwshift convert`
+(`--vsys`, `--interface-address` and the others). Nothing is converted and nothing is changed: an action
 such as `disable` is shown as what a conversion would do. `--json` writes the
 findings as JSON; `--list-checks` shows the checks, their levels and the
 actions each can take.
@@ -564,7 +612,7 @@ actions each can take.
 
 ```
 fwshift matrix INPUT [--from ...] [--vsys ...] [--device-group ...] [--vdom ...] [--layer ...]
-                     [--policy ...] [--nat-policy ...] [-o FILE] [--json | --csv] [--summary]
+                     [--policy ...] [--nat-policy ...] [--interface-address ...] [-o FILE] [--json | --csv] [--summary]
                      [--network-zone NAME[@ZONE]=NETWORK[,NETWORK...]] [--audit-config FILE]
 ```
 
@@ -583,7 +631,7 @@ through which rules (section 14). Nothing is converted.
 
 ```
 fwshift inspect INPUT [--from ...] [--vsys ...] [--device-group ...] [--vdom ...] [--layer ...]
-                      [--policy ...] [--nat-policy ...]
+                      [--policy ...] [--nat-policy ...] [--interface-address ...]
 ```
 
 Prints what was read and the findings raised while reading. Nothing is
@@ -705,9 +753,9 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `APP_PORTS` | R, disabled | To Sophos, a Management Center or a Device Manager: the ports of an application hold something a service of the target cannot say (SCTP ports). |
 | `SCHEDULE` | R, disabled | The rule had a schedule; converted without it, it would apply at all times. |
 | `SERVICE_NEGATE` | R, disabled | To PAN-OS or ASA: a negated service match does not exist there. On an ASA only a remark is written for the rule: an inactive entry without the negation would say the opposite. |
-| `EGRESS_INTERFACE` | A, or R and disabled | To ASA: the rule is for traffic to certain zones, and an access list entry cannot name the interface traffic leaves by. A: the rule names destination addresses and is written for those, by whatever interface they are reached; also on an intrazone rule, which an ASA only serves with `same-security-traffic permit intra-interface`. R, disabled: the rule is for any address; give the networks behind the zones with `--zone-network`, or the rule a destination. |
-| `EGRESS_BY_NETWORKS` | I or A | To ASA: with `--zone-network`, the networks given for the other zones were left out of the destination of the entry, which keeps the rule to its zones. A: the networks do not cover every address; what they leave out lies behind no zone that is known, so a permit rule for any address does not cover it and a deny rule does (`ZONE_NETWORK_GAP`). |
-| `EGRESS_NO_ADDRESS` | A or R, skipped | To ASA: by the networks given with `--zone-network`, no address of the destination lies behind the zones the rule is for, so it matched nothing and is left out (or, with several source zones, has no entry for some of them). R for a deny rule: if one of the networks is wrong, a deny is missing. |
+| `EGRESS_INTERFACE` | A, or R and disabled | To ASA or pfSense: the rule is for traffic to certain zones, and an access list entry cannot name the interface traffic leaves by. A: the rule names destination addresses and is written for those, by whatever interface they are reached; also on an intrazone rule, which an ASA only serves with `same-security-traffic permit intra-interface`. R, disabled: the rule is for any address; give the networks behind the zones with `--zone-network`, or the rule a destination. |
+| `EGRESS_BY_NETWORKS` | I or A | To ASA or pfSense: with `--zone-network`, the networks given for the other zones were left out of the destination of the entry, which keeps the rule to its zones. A: the networks do not cover every address; what they leave out lies behind no zone that is known, so a permit rule for any address does not cover it and a deny rule does (`ZONE_NETWORK_GAP`). |
+| `EGRESS_NO_ADDRESS` | A or R, skipped | To ASA or pfSense: by the networks given with `--zone-network`, no address of the destination lies behind the zones the rule is for, so it matched nothing and is left out (or, with several source zones, has no entry for some of them). R for a deny rule: if one of the networks is wrong, a deny is missing. |
 | `NEGATION_EXPANDED` | I | To ASA: an access list cannot negate. The negated address list was written as the address ranges it leaves, which matches the same addresses. |
 | `NEGATION_NOT_STATIC` | R, disabled | To ASA: a negated list with a host name. What it leaves cannot be written out; only a remark is written for the rule. |
 | `IMPLICIT_PERMIT` | I | ASA source: a rule for an interface without access list, which the ASA lets send traffic to interfaces of a lower security level (section 8). |
@@ -748,6 +796,13 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `TUNNEL_RULE` | A or I | Management Center source: a tunnel rule of the prefilter policy is converted as a rule for the protocol that carries the tunnel (GRE, IP in IP, IPv6 in IP, Teredo on UDP port 3544) between the tunnel endpoints. What the source did with the connections inside the tunnel is not converted. I on the second rule that a rule for both directions becomes (`name-reverse`). |
 | `DISABLED_RULE` | I, skipped | To a Device Manager: the rule is disabled on the source. A Device Manager has no rules that are switched off, so it is left out. |
 | `NO_MATCH` | I, skipped | To a Management Center or a Device Manager: the rule matches nothing (a negation that leaves no address or no service). It is left out. |
+| `RULE_HALF_NOT_LOADED` | I | pfSense source: a rule for IPv4 and IPv6 of which pfSense loads only one half, because an interface it names has no network or address of the other version. Only that half is converted, as pfSense has it. |
+| `NEGATED_LIST` | R | pfSense source (2.6, and IPv6 of WAN and LAN on 2.7): "not" the network of an interface that has virtual addresses in other networks. pfSense writes that as a list of negated networks, which pf reads as every address: the converted rule says so too. Probably not what was meant; check the rule on the firewall. |
+| `AUTOMATIC_RULE` | I or A | pfSense source: a rule that pfSense adds by itself, converted as a rule of its own: what *Block private networks and loopback addresses* of an interface drops, what a port forward with the filter rule association *Pass* passes (A: unlike the port forward, the rule also passes what is sent to the translated address directly). On a NAT rule: what automatic outbound NAT translates. |
+| `POLICY_ROUTING` | I | pfSense source: the rule sends what it passes to a gateway of its own. That is routing and not converted. |
+| `STATELESS_RULE` | A | pfSense source: the rule passes packets without keeping state; on pfSense the answers need a rule of their own. The model is about connections, and the converted rule lets the answers through. |
+| `FLOATING_AFTER_NAT` | R | To pfSense: a rule that blocks traffic leaving by an interface became a floating rule, which pf looks at after outbound NAT, and it names a source. The file holds no NAT area, so the firewall keeps the outbound NAT it has; where that translates the source (automatic outbound NAT does, on an interface with a gateway), the rule no longer matches. Give the networks of every zone with `--zone-network`: the rule is then written for the interfaces traffic arrives on. |
+| `PROTOCOL_NOT_AVAILABLE` | R, disabled | To pfSense: a rule names one protocol, from a list; an IP protocol that is not on the list cannot be written. |
 | `INCOMPLETE_ADDRESS_PAIR` | I | FortiOS source: addresses of one IP version on one side only. FortiOS cannot match that version, so they were left out. |
 
 ### NAT rules
@@ -792,6 +847,12 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `NAT_INTERFACE_ADDRESS` | A | To PAN-OS or Check Point: source NAT to an interface address was written with the address that interface has in the backup. Use `--interface-map` (PAN-OS) or `--target-gateway` (Check Point) to follow the interface instead. ASA, Management Center or Device Manager source: a rule that publishes a port on the address of an interface is converted with the address the interface has in the input; to an ASA, a Management Center or a Device Manager it is written as "the interface" again, and the finding is withdrawn. |
 | `VIP_REVERSE_NAT` | A | FortiOS source: a static virtual IP also translates sessions the mapped host opens, when the outgoing policy has NAT. That direction is not converted. |
 | `NAT_MERGED` | I | FortiOS source: several policies had identical source NAT and share one rule. |
+| `NAT_REFLECTION` | I | pfSense source: the port forward has NAT reflection, so it also applies to what arrives on the inside interfaces named in the finding. It is converted for those interfaces too. |
+| `NAT_REFLECTION_PROXY` | R | pfSense source: NAT reflection in proxy mode. Inside clients that use the outside address are answered by a proxy on the firewall, which needs no rule. Not converted. |
+| `NAT_STATIC_PORT` | A | pfSense source: outbound NAT to the address of the interface with *Static port*: converted as port address translation, which may change the port. To pfSense: translation to a pool without port translation is written with *Static port*, which keeps the port and still shares the addresses between connections. |
+| `NAT_SOURCE_PORT` | I | pfSense source: outbound NAT translates the source port to a given port, which the model has no place for. |
+| `NAT_IPV6_ALSO` | I | pfSense source: an outbound NAT rule without IP version, source or destination is written by pfSense for IPv4 and for IPv6. It is converted for IPv4; IPv6 NAT is not converted. |
+| `NAT_AUTOMATIC_SOURCES` | A | pfSense source: automatic outbound NAT also translates what comes from the clients of the PPPoE server or through IPsec VTI tunnels, whose addresses are not in the configuration. The converted rule does not hold them. |
 | `RULE_SPLIT` | I | To PAN-OS: one rule per destination zone. |
 
 ### Objects
@@ -827,7 +888,7 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `CENTRAL_NAT` | R | To FortiOS: NAT is written as central NAT, which has to be enabled first (section 10). |
 | `INTRAZONE_DEFAULT` | R | To FortiOS, Sophos, iptables, ASA, a Management Center or a Device Manager: the source allowed traffic inside a zone by default and the target does not, or (iptables with `FORWARD` policy `ACCEPT`) the other way round. |
 | `INTRAZONE_ALLOW` | R | To iptables or ASA: a FortiOS zone with `set intrazone allow`. No rule was written for the traffic between its interfaces. |
-| `INTERZONE_DEFAULT` | R | The source allows what no rule matches (a PAN-OS `interzone-default` override, an iptables `FORWARD` policy `ACCEPT`, a Check Point layer whose implicit cleanup accepts, an access control policy of a Cisco manager whose default action is not *Block*). That is not carried over; only iptables output keeps it, as the chain policy, and ASA output, as a final `permit ip any any` in the global access list. |
+| `INTERZONE_DEFAULT` | R | The source allows what no rule matches (a PAN-OS `interzone-default` override, an iptables `FORWARD` policy `ACCEPT`, a Check Point layer whose implicit cleanup accepts, an access control policy of a Cisco manager whose default action is not *Block*). That is not carried over; only iptables output keeps it, as the chain policy, ASA output, as a final `permit ip any any` in the global access list, and pfSense output, as a rule that passes everything at the end of every interface. |
 | `ZONES_WITHOUT_INTERFACES` | R | To FortiOS: zones were created empty. Assign interfaces or use `--zone-map` / `--interface-map`. |
 | `ZONES_REQUIRED` | R | To PAN-OS, Check Point, Sophos or a Device Manager: the zones named by the rules must exist on the target and be assigned to interfaces. To a Management Center: the script uses a zone that exists and creates one that does not, empty: it matches no traffic until interfaces are put in it. |
 | `INTERFACES_REQUIRED` | R | To iptables or ASA: zones are written as interface names. Map each zone to its interface with `--zone-map`. For an ASA the note also states what the access lists count on: that the ASA has no other interfaces than the policy names, and does not send traffic back out of the interface it came in on (section 8). To a Device Manager: the NAT rules name interfaces by their logical name and as physical interfaces; map the names with `--interface-map`, and change the type in the file where one is a subinterface, an EtherChannel or a VLAN interface. |
@@ -907,6 +968,37 @@ Notes that only a Sophos Firewall source or target raises:
 | `SOPHOS_LOAD` | R | Target: how to import the output; that its rules land below the rules the firewall has, where an existing rule (the default source NAT rule of a new firewall) comes first; and that an import can stop at an object the firewall does not take (section 10). |
 | `IP_VERSION_SPLIT` | I | Target: this many rules match both IP versions and were written twice; the name of the IPv6 rule ends in `_v6`. |
 | `INTRAZONE_ALLOW_ADDED` | I | Target: rules were appended for the zones that allow traffic between their own interfaces on the source. |
+
+Notes that only a pfSense source or target raises:
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `RULE_NOT_LOADED` | R | Source: rules pfSense itself does not load, because something they name cannot be resolved (an alias that is not there, an interface that is not enabled, a port range that runs backwards). They decide nothing on the firewall and are not converted; the note names each with its reason. A rule pfSense loads and FWShift cannot read is kept and written disabled instead. |
+| `RULE_ORDER_VERSION` | R | Source: rules of two interface groups that share an interface are not in the file in the order of their groups. pfSense up to 2.7 evaluates them in the order of the file, later versions group by group; they were read as the version in the file says (section 3). |
+| `FLOATING_LAST_MATCH` | I | Source: floating rules that are not *quick* decide only where no rule of an interface matched, and of several the last one. They stand behind the rules of the interfaces, the last one first. |
+| `FLOATING_OUT_PASS` | I | Source: floating rules that pass traffic leaving by an interface decide nothing for forwarded traffic, which leaves when the rules of its arrival interface passed it. Not converted. |
+| `MATCH_RULE_SKIPPED` | I | Source: a rule of type *match* marks or shapes traffic and decides nothing. Not converted. |
+| `IPV6_NOT_ALLOWED` | I | Source: *Allow IPv6* is off, so the firewall drops all IPv6 traffic. Rules for IPv6 or both versions were read for IPv4 only. |
+| `FILTER_DISABLED` | R | Source: packet filtering is switched off: the firewall routes everything and translates nothing. The rules were converted as they stand. |
+| `BOGONS_NOT_CONVERTED` | R | Source: *Block bogon networks* is set on an interface. The list it uses is downloaded, not in the configuration, and nothing is converted for it. |
+| `BRIDGE_NOT_CONVERTED` | R | Source: interfaces are bridged. Where a bridged packet is filtered is a system setting; the rules were read as those of routed interfaces. |
+| `CAPTIVE_PORTAL` | R | Source: a captive portal lets only clients that logged in through its interfaces. Not converted. |
+| `NPT_NOT_CONVERTED` | R | Source: IPv6 prefix translation (NPt) rules are not converted. |
+| `PFSENSE_AUTOMATIC_RULES` | I | Source: the rules pfSense puts before those of the configuration (antispoof, link-local addresses, port 0, the ICMPv6 that IPv6 needs, anti-lockout and rules for its own services) are not converted, and rules for the firewall itself are rules like any other in the model. |
+| `PFSENSE_RESTORE` | R | Target: how to restore the output (section 10). Each restore of an area replaces that area of the firewall, with what it does to outbound NAT and the settings that are part of it. |
+| `SELF_EXCLUDED` | I | Target: on pfSense the rules of an interface are also the rules for traffic to the firewall itself. A rule that passes traffic to any destination is written for "any but *This Firewall*", so that it does not open the firewall; a rule that names an address of the firewall still reaches it. |
+| `EGRESS_IMPLIED` | I | Target: the source rules name no interface traffic leaves by either (an ASA source); the destination zones worked out for them were left out again. |
+| `SCHEDULES_NOT_WRITTEN` | I | pfSense to pfSense: schedules are not part of the three areas the file holds, so rules with a schedule are written disabled. |
+| `INTERFACES_REQUIRED`, `INTERFACE_NAME`, `ZONE_NETWORK_UNKNOWN`, `ZONE_NETWORK_GAP` | | Target: as for an ASA. A zone that is no interface of pfSense keeps its name, which pfSense takes for an interface group of that name. |
+
+To pfSense, the NAT findings `NAT_INTERFACE`, `NAT_IPV6`, `NAT_SERVICE`,
+`NAT_ADDRESSES`, `NAT_DESTINATION`, `NAT_PORT`, `NAT_POOL`,
+`NAT_BIDIRECTIONAL`, `NAT_INPUT_INTERFACE`, `NAT_OUTPUT_INTERFACE` and
+`NAT_AFTER_DNAT`, and the rule findings `ICMP_CODE`, `ICMP_TYPE`,
+`INTERFACE_NAME`, `RULE_TYPE`, `EGRESS_INTERFACE`, `EGRESS_BY_NETWORKS` and
+`EGRESS_NO_ADDRESS`, mean what they mean for
+the other targets; the message says what pfSense cannot hold, and section 8
+what it can.
 
 Notes that only a Cisco Secure Firewall source or target raises (Management
 Center, Device Manager):
@@ -1044,7 +1136,8 @@ with policy `ACCEPT`, a Check Point layer whose implicit cleanup accepts, a
 PAN-OS `interzone-default` override) keeps that only in iptables output. The
 other targets end in their own deny, and the report says so
 (`INTERZONE_DEFAULT`); ASA output ends its global access list in
-`permit ip any any` instead, and the report says that. The access control
+`permit ip any any` instead, pfSense output every interface in a rule that
+passes everything, and the report says that. The access control
 policy the script for a Management Center creates blocks by default, and an
 import does not change the default action of a Device Manager.
 
@@ -1756,6 +1849,130 @@ shapes of JSON, and FWShift reads and writes both: `fmc` and `fdm`.
   place (`PREFILTER_AS_TRUST`). The inheritance of a policy is flattened into
   the one policy that is written.
 
+### pfSense
+
+pfSense turns its configuration into rules for pf, the packet filter of
+FreeBSD, each time it loads the filter. What a rule of the configuration
+means is what pf makes of the lines pfSense writes for it: FWShift follows the
+code that writes them (`filter.inc` of pfSense 2.6, 2.7.2 and the current
+development branch) and not the web pages, which say less.
+
+**What is read**
+
+* **Zones** are the enabled interfaces, by their descriptions (`WAN`, `LAN`,
+  `DMZ`). A rule of an interface group is a rule of each of its interfaces,
+  in the place pfSense gives group rules. The groups pfSense makes itself are
+  zones when they are in use: `OpenVPN`, `IPsec` (enc0), `L2TP`, `PPPoE`.
+* **Order.** pfSense evaluates the quick floating rules first, then the rules
+  of interface groups, then those of the interface; where two groups share an
+  interface, versions after 2.7.2 take them group by group, earlier ones in
+  the order of the file (`RULE_ORDER_VERSION`). Floating rules that are not
+  *quick* decide where nothing else did, the last one first: they go to the
+  end (`FLOATING_LAST_MATCH`). An interface rule decides on arrival; a
+  floating rule for traffic that **leaves** by an interface decides after
+  that, and blocks what an arrival rule passed: such a rule becomes a rule
+  from every zone to that zone, ahead of the others. A floating rule that
+  passes what leaves decides nothing for forwarded traffic and is left out
+  (`FLOATING_OUT_PASS`); one that passes what leaves before one that blocks
+  it cannot be said in the model, and is unsupported.
+* **Addresses.** Aliases of hosts and networks become groups, nested as they
+  are; host names in them become FQDN objects. A rule for one IP version
+  takes the addresses of that version (`Servers IPv4`). The network and the
+  address of an interface (`LAN net`, `WAN address`) include its virtual IPs,
+  as pfSense does; *This Firewall* is every address of the firewall that the
+  configuration holds, which is less than pf's `(self)` on a firewall with
+  addresses from DHCP or tunnels. Addresses that are not in the configuration
+  are asked for with `--interface-address` (section 3). URL table aliases are
+  files on the firewall: rules that name one are disabled.
+* **Services.** A rule names one protocol (`tcp/udp` is two) and ports, or a
+  port alias. A port named as a service (`ssh`, `https`) is read as its number;
+  a protocol and no port is every port; a port and no protocol is TCP, as
+  pfSense writes it. ICMP types are read by name.
+* **IP versions.** A rule for IPv4 and IPv6 is read once, or as two rules where
+  the halves differ (an interface without IPv6 network, an alias of one
+  version). Without *Allow IPv6*, IPv6 is not read (`IPV6_NOT_ALLOWED`).
+* **Rules pfSense adds itself.** *Block private networks and loopback
+  addresses* on an interface becomes a rule at the top of that interface
+  (`AUTOMATIC_RULE`). The other rules pfSense puts before the configuration
+  are not converted (`PFSENSE_AUTOMATIC_RULES`), and neither is *Block bogon
+  networks* (`BOGONS_NOT_CONVERTED`).
+* **NAT.** pfSense looks its rules up after a port forward: a rule of the
+  configuration names the translated address. In the model a rule names the
+  address as it arrives, so the rules are rewritten for the port forwards, as
+  for the other platforms that look up after NAT (`NAT_DESTINATION_REWRITTEN`).
+  Port forwards are read with their NAT reflection (`NAT_REFLECTION`): in
+  *pure NAT* mode the forward also applies to what arrives on the inside
+  interfaces; in proxy mode that is not converted (`NAT_REFLECTION_PROXY`). A
+  port forward whose filter rule association is *Pass* passes by itself, and
+  gets a rule of its own (`AUTOMATIC_RULE`); a linked rule is a rule of the
+  interface like any other. A 1:1 rule becomes two rules, one for each
+  direction. Outbound NAT is read in its four modes: *automatic* as the
+  rules pfSense makes for every interface with a gateway (from the networks
+  of the other interfaces, of static routes over them and of OpenVPN and
+  IPsec mobile clients), *hybrid* as the manual rules and then those, *manual*
+  as the manual rules, *disabled* as none; *Do not NAT* is a no-NAT rule. Of
+  port forwards that map a range of ports to another range, only one port to
+  one port or a range to the same range is converted (`NAT_NOT_CONVERTED`).
+  IPv6 NAT and NPt are not converted (`NPT_NOT_CONVERTED`).
+* **What is not converted.** Schedules (the rule keeps the schedule, which
+  every target reports), gateways on rules (`POLICY_ROUTING`), tags and
+  other match conditions beyond addresses, ports, protocol and ICMP type
+  (`UNSUPPORTED_MATCH`, the rule is disabled), limiters, queues and state
+  options (reported on the rule), rules without state (`STATELESS_RULE`),
+  *match* rules (`MATCH_RULE_SKIPPED`), bridges (`BRIDGE_NOT_CONVERTED`) and
+  the captive portal (`CAPTIVE_PORTAL`). Rules pfSense itself would not load
+  are not converted (`RULE_NOT_LOADED`).
+
+**What is written**
+
+* **One file** with the areas Aliases, NAT and Firewall Rules, written for
+  pfSense 2.7 and later, to be restored area by area (section 10).
+* **Interfaces.** A zone that is named like an interface of pfSense (`wan`,
+  `lan`, `opt1`), or is mapped to one with `--zone-map`, or whose interfaces
+  are mapped to them with `--interface-map`, becomes that interface. Any
+  other zone keeps its name, which pfSense takes when an interface group of
+  that name exists (`INTERFACES_REQUIRED`); a name that cannot be an
+  interface group disables its rules (`INTERFACE_NAME`). From a pfSense
+  source the interfaces stay as they were; a rule of an interface group comes
+  back as a rule of each of its interfaces.
+* **Rules** are written on the interface traffic arrives on, one per source
+  zone. A rule of pfSense cannot name the interface traffic leaves by: as for
+  an ASA, give the networks behind every zone with `--zone-network`, and a
+  rule for one destination zone is kept to it; without them such a rule is
+  disabled, or applies wherever its named destination is reached
+  (`EGRESS_INTERFACE`). A deny for every source zone to some zones that
+  stands above every rule that passes is written as a floating rule for
+  traffic that leaves by those interfaces (see `FLOATING_AFTER_NAT` for when
+  that cannot name a source).
+* **The firewall itself.** The rules of an interface also decide what goes to
+  the firewall. A rule of another platform that passes traffic to any
+  destination is written for any destination except *This Firewall*, so that
+  it does not open the firewall's own services (`SELF_EXCLUDED`).
+* **Services.** A rule names one protocol: a rule with several becomes one
+  rule per protocol (`RULE_SPLIT`), TCP and UDP with the same ports one rule
+  for `tcp/udp`. Several ports are a port alias, whose name has an upper-case
+  letter or an underscore so that pfSense does not take it for a service
+  name. ICMP types are written by name; ICMP codes (`ICMP_CODE`) and protocols
+  pfSense has no name for (`PROTOCOL_NOT_AVAILABLE`) disable the rule.
+* **Addresses.** Objects and groups become aliases (up to 31 letters, digits
+  and underscores; `RENAMED` where that changes a name). A list of addresses in
+  a rule becomes an alias of its own (`src_<rule>`, `dst_<rule>`). Words of
+  pfSense from a pfSense source (`LAN net`, *This Firewall*) are written as
+  those words again.
+* **NAT.** The rules are written for the translated destination, as pfSense
+  looks them up. A destination translation becomes a port forward on each
+  interface its traffic arrives on, without NAT reflection and without a
+  linked rule (the rules are in the file). Bi-directional static NAT of
+  equal size becomes a 1:1 rule; source NAT becomes outbound NAT in manual
+  mode, *Do not NAT* for exemptions. When only destinations are translated,
+  outbound NAT is switched off, as on the source; a policy without NAT gives
+  no NAT area, and the firewall keeps its own. pfSense reads `opt` in the
+  source of an outbound NAT rule as an interface name, so an alias with
+  `opt` in its name is wrapped in another alias there.
+* **Defaults.** pfSense blocks what no rule passes. A source that allows it
+  gets a rule that passes everything at the end of every interface
+  (`INTERZONE_DEFAULT`).
+
 ### Names
 
 Names the target would reject are changed: `10.0.0.0/8` becomes `10.0.0.0_8`
@@ -2092,6 +2309,54 @@ access rule or a NAT rule per line.
    below a blocking rule that is missing allow more than they did.
 8. FQDN objects need a DNS group on the device.
 
+### pfSense
+
+> **The file has never been restored on a pfSense.** Its format and what a
+> restore does with it are taken from the source code of pfSense
+> (`diag_backup.php`, `backup.inc`, `restore_config_section()`).
+
+The output is a pfSense configuration file that holds three areas:
+`<aliases>`, `<nat>` and `<filter>` (an area is left out when it would be
+empty). It is restored with the restore of one area at a time, which
+**replaces** that area: what the firewall has there now is gone.
+
+1. **Back up the firewall** under *Diagnostics > Backup & Restore*. That is
+   the way back.
+2. **Interfaces and groups.** Assign the interfaces the rules name (`lan`,
+   `opt1`, ...: the internal names, which *Interfaces > Assignments* shows as
+   `LAN`, `OPT1`), and create the interface groups listed in
+   `INTERFACES_REQUIRED` under *Interfaces > Interface Groups*. A rule for an
+   interface the firewall does not have is not loaded, without an error.
+3. **Addresses of port forwards and 1:1 rules.** The outside addresses they
+   use must be addresses of the firewall: the address of the interface or a
+   virtual IP (*Firewall > Virtual IPs*, an IP alias or Proxy ARP address).
+   Virtual IPs are not in the file.
+4. **Restore, area by area:** under *Restore Backup*, choose *Restore area*
+   **Aliases**, pick the file, *Restore Configuration*. Then **NAT**, then
+   **Firewall Rules**, the same file each time. After each restore pfSense
+   reloads its rules by itself. Between two restores the firewall runs with
+   the new part and the old rest, so restore in a maintenance window, and
+   from an interface that pfSense's own anti-lockout rule keeps open (LAN,
+   unless that rule is switched off under *System > Advanced*).
+5. **What a restore takes along.** Restoring *Firewall Rules* replaces every
+   rule, the separators between them and the setting *Bypass firewall rules
+   for traffic on the same interface*; restoring *NAT* replaces every port
+   forward, 1:1 rule and outbound NAT rule, and the outbound NAT mode, and the
+   rules pfSense had linked to port forwards lose their link. Interface
+   settings (*Block private networks*, *Block bogon networks*), schedules,
+   gateways and virtual IPs stay as they are. A file without a NAT area
+   leaves the NAT of the firewall as it is: do not restore that area then (an
+   area that is not in the file is refused).
+6. **pfSense checks nothing** it restores: no version, no reference. The file
+   is written for pfSense 2.7 and later (CE and Plus); the outbound NAT of 2.6
+   has another form. A rule that names an alias or interface the firewall
+   does not have is simply not loaded: look under *Status > System Logs >
+   System* for errors of the filter reload, and compare the rules with the
+   summary of the report.
+7. Rules that could not be converted are in the file, **disabled**, with
+   `FWSHIFT` in their description; aliases that stand in for an object that
+   could not be converted match nothing (`192.0.0.8`, a reserved address).
+
 ### After loading
 
 Search the configuration for `FWSHIFT`: every placeholder object and every
@@ -2151,6 +2416,14 @@ the report is the list.)
 | `control characters are not allowed in ...` | An option value holds a line break or another control character. |
 | `--target-layer '...' is not a name mgmt_cli can be given` | The name starts with a hyphen. The same message exists for `--target-package` and `--target-gateway`. |
 | `--zone-map expects SOURCE=TARGET` | Write the option as `--zone-map old=new`. |
+| `this is the configuration of an OPNsense firewall ...` | OPNsense is not read (section 3). |
+| `not a pfSense configuration: the first element is <...>` | `--from pfsense` on XML that is something else, or the backup of one area only (it starts with `<filter>`, say). Back up area **All**. |
+| `<...> occurs N times in one <...>` | pfSense source: an element that can be there once is there twice. pfSense does not read such a file either; it was edited by hand or two files were joined. |
+| `--interface-address: '...' is not INTERFACE=ADDRESS/BITS` | Write the option as `--interface-address wan=198.51.100.7/24`. |
+| `--interface-address: no interface '...' in the configuration; it has ...` | Name the interface as the configuration does, by name or description: the message lists them. |
+| `--interface-address: two IPv4 addresses for '...'` | One address per IP version and interface. |
+| `--interface-address is for a pfSense source` | The option was given for another source. |
+| `--target-nat-zone: '...' is no interface a pfSense rule can name` | pfSense target: give `wan`, `lan`, an `optN` or the name of an interface group. |
 
 **Most rules are "needs review".** Read the first finding of a few rules. A
 single cause usually explains many: applications missing from the port table
@@ -2187,6 +2460,16 @@ only IPv4 networks were given. What no network covers is allowed by no rule
 for any address that is kept to its zone. Add `0.0.0.0/0,::/0` to the zone
 the default route points to.
 
+**Rules from a pfSense are disabled, with "give it with
+--interface-address".** The interface gets its address by DHCP, PPPoE or
+from another interface, and the configuration does not hold it. Give it
+(section 3).
+
+**Rules for a pfSense pass more or less than the source.** Like an ASA, a rule
+of pfSense is for the interface traffic arrives on and cannot name the one it
+leaves by. Give the networks of every zone with `--zone-network`, and check
+`EGRESS_INTERFACE` and `FLOATING_AFTER_NAT` in the report.
+
 **The output is larger than expected.** Every object of the source is
 converted, used or not; a FortiOS backup alone defines some ninety default
 services. Use `--prune-unused`.
@@ -2199,7 +2482,7 @@ deliberate: see *IPv4 and IPv6* in section 8.
 * The emitted syntax follows the vendors' documented formats. Only iptables
   output has been loaded into the real thing (a Linux kernel with iptables
   1.8.10, nf_tables backend; filter rules, not NAT); nothing has been
-  validated on PAN-OS, FortiOS, ASA or Sophos devices, a Check Point
+  validated on PAN-OS, FortiOS, ASA, Sophos or pfSense devices, a Check Point
   management server, a Cisco Secure Firewall Management Center or Device
   Manager, or across versions.
 * Statements about vendor behaviour that the conversion relies on (FortiOS
@@ -2260,6 +2543,20 @@ deliberate: see *IPv4 and IPv6* in section 8.
   format of the import file are taken from documentation and from Cisco's
   published tooling; nothing has been run against a Management Center or a
   Device Manager. `DEVELOPMENT.md` lists what is assumed.
+* pfSense: 2.6 and later; OPNsense is not read. Schedules, URL table
+  aliases, policy routing, tags, limiters and shaping, match rules, IPv6 NAT,
+  NPt, bogon networks, the captive portal, bridges and the rules of packages
+  and of pfSense itself (except *Block private networks*, port forwards that
+  pass by themselves and automatic outbound NAT) are not converted. A port
+  forward from a range of ports to another range is not converted. *This
+  Firewall* is the addresses the configuration holds, which may be fewer than
+  the firewall has. What pfSense makes of its configuration is taken from its
+  source code and checked against a model written for the tests, not against
+  pf. Written for pfSense 2.7 and later: aliases, NAT and rules, no
+  interfaces, groups, virtual IPs or schedules; a restore replaces each area
+  whole. A rule written for traffic to a zone needs `--zone-network`, as for
+  an ASA; a rule that passes traffic to any address leaves the firewall
+  itself out. Nothing has been restored on a pfSense.
 * The running configuration of an FTD device, read as an ASA configuration,
   shows only what the device was given. Rules with application, URL or user
   conditions come out disabled; for those the policy in the manager is the

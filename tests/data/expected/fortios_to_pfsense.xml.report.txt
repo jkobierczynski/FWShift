@@ -1,0 +1,106 @@
+FWShift conversion report
+  source: fortios
+  target: pfsense
+
+Summary
+  Security rules:     14   exact 0, approximated 4, needs review 10 (10 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] PFSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of a pfSense configuration. Under Diagnostics > Backup & Restore, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every rule, every alias, every NAT rule that is there now is gone, with the separators, the rules pfSense linked to port forwards and the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. There is no NAT area in the file: the NAT of the firewall stays as it is. Keep a backup, and look at the rules before anything depends on them: pfSense does not check what it restores, and a rule it cannot resolve is not loaded. Written for pfSense 2.7 and later
+  [needs-review] INTERFACES_REQUIRED: pfSense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: dmz, ot
+  [info] SELF_EXCLUDED: on pfSense the rules of an interface are also the rules for traffic to the firewall itself. Rules of the source that pass traffic to any destination are written for any destination but the firewall itself ('not This Firewall'). A rule that names addresses of the firewall still reaches them
+
+Security rules
+  LAN to Internet  ->  needs-review, emitted disabled  (emitted as lan)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind lan, dmz, ot, wan1 with --zone-network.
+  LAN basics  ->  needs-review, emitted disabled  (emitted as lan)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind lan, dmz, ot, wan1 with --zone-network.
+  Inbound web  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'wan1' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Inbound mail  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'wan1' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  Admins to DMZ  ->  needs-review, emitted disabled  (emitted as lan)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
+  Block geo  ->  needs-review, emitted disabled  (emitted as lan, dmz, ot)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'geo_blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'wan1' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ out via pool  ->  approximated  (emitted as dmz)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  SCADA to PLCs  ->  approximated  (emitted as lan)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by ot. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  OT no internet  ->  needs-review, emitted disabled  (emitted as ot)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind lan, dmz, ot, wan1 with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Partner tunnel  ->  approximated  (emitted as lan (2 rules))
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [info] RULE_SPLIT: a rule of pfSense names one protocol: the rule is written as 2 rules, one per kind of service
+  LAN v6 out  ->  needs-review, emitted disabled  (emitted as lan)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind lan, dmz, ot, wan1 with --zone-network.
+  policy-12  ->  needs-review, emitted disabled  (emitted as lan)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  Not web  ->  needs-review, emitted disabled  (emitted as dmz)
+      [needs-review] SERVICE_NEGATE: a negated service match does not exist in a rule of pfSense.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind lan, dmz, ot, wan1 with --zone-network.
+  Timestamp probes  ->  approximated  (emitted as lan)
+      [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+
+NAT rules
+  vip-web  ->  skipped
+      [needs-review] NAT_INTERFACE: 'wan1' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map
+  vip-mail  ->  skipped
+      [approximated] VIP_REVERSE_NAT: FortiOS also source-translates sessions the mapped host opens (to the external IP) when the outgoing policy has NAT enabled; that reverse direction is not converted
+      [needs-review] NAT_INTERFACE: 'wan1' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map
+  snat-1  ->  skipped
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [needs-review] NAT_INTERFACE: 'wan1' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map
+  snat-2  ->  skipped
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [needs-review] NAT_INTERFACE: 'wan1' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map
+  snat-7  ->  skipped
+      [needs-review] NAT_ADDRESSES: the rule needs static IPv4 addresses as source and destination
+
+Addresses
+  lan-net  ->  exact  (emitted as lan_net)
+      [info] RENAMED: renamed to 'lan_net' to fit the target's naming rules
+  web-1  ->  exact  (emitted as web_1)
+      [info] RENAMED: renamed to 'web_1' to fit the target's naming rules
+  mail-1  ->  exact  (emitted as mail_1)
+      [info] RENAMED: renamed to 'mail_1' to fit the target's naming rules
+  admin-range  ->  exact  (emitted as admin_range)
+      [info] RENAMED: renamed to 'admin_range' to fit the target's naming rules
+  updates.example.com  ->  exact  (emitted as updates_example_com)
+      [info] RENAMED: renamed to 'updates_example_com' to fit the target's naming rules
+  geo-blocked  ->  needs-review  (emitted as geo_blocked)
+      [needs-review] UNSUPPORTED_ADDRESS: FortiOS address type 'geography' cannot be converted
+      [info] RENAMED: renamed to 'geo_blocked' to fit the target's naming rules
+  10.99.0.0/16  ->  exact  (emitted as 10_99_0_0_16_2)
+      [info] RENAMED: renamed to '10_99_0_0_16_2' to fit the target's naming rules
+  scada-server  ->  exact  (emitted as scada_server)
+      [info] RENAMED: renamed to 'scada_server' to fit the target's naming rules
+  plc-net  ->  exact  (emitted as plc_net)
+      [info] RENAMED: renamed to 'plc_net' to fit the target's naming rules
+  lan6-net  ->  exact  (emitted as lan6_net)
+      [info] RENAMED: renamed to 'lan6_net' to fit the target's naming rules
+  vip-web  ->  exact  (emitted as vip_web)
+      [info] RENAMED: renamed to 'vip_web' to fit the target's naming rules
+  vip-mail  ->  exact  (emitted as vip_mail)
+      [info] RENAMED: renamed to 'vip_mail' to fit the target's naming rules
+  dmz-pool  ->  exact  (emitted as dmz_pool)
+      [info] RENAMED: renamed to 'dmz_pool' to fit the target's naming rules
+
+Address groups
+  dmz-servers  ->  exact  (emitted as dmz_servers)
+      [info] RENAMED: renamed to 'dmz_servers' to fit the target's naming rules
+  internal-all  ->  exact  (emitted as internal_all)
+      [info] RENAMED: renamed to 'internal_all' to fit the target's naming rules

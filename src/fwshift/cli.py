@@ -21,6 +21,7 @@ from .emitters import cisco as emit_cisco
 from .emitters import fortios as emit_fortios
 from .emitters import iptables as emit_iptables
 from .emitters import panos as emit_panos
+from .emitters import pfsense as emit_pfsense
 from .emitters import sophos as emit_sophos
 from .errors import FwshiftError
 from .model import ANY, Policy
@@ -32,6 +33,7 @@ from .parsers import cisco as parse_cisco
 from .parsers import fortios as parse_fortios
 from .parsers import iptables as parse_iptables
 from .parsers import panos as parse_panos
+from .parsers import pfsense as parse_pfsense
 from .parsers import sophos as parse_sophos
 from .report import Report, Severity
 
@@ -43,10 +45,11 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "checkpoint": emit_checkpoint.emit,
     "asa": emit_asa.emit,
     "sophos": emit_sophos.emit,
+    "pfsense": emit_pfsense.emit,
     "fmc": emit_cisco.emit_fmc,
     "fdm": emit_cisco.emit_fdm,
 }
-VENDORS = ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "iptables", "ip6tables")
+VENDORS = ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "pfsense", "iptables", "ip6tables")
 
 
 def detect_format(data: bytes) -> str:
@@ -70,6 +73,8 @@ def detect_format(data: bytes) -> str:
         data = data[:65536].decode("utf-16", errors="replace").encode("utf-8")  # the start is enough to tell
     if parse_sophos.looks_like_sophos(data):
         return "sophos"
+    if parse_pfsense.looks_like_pfsense(data):
+        return "pfsense"
     head = data.lstrip(b"\xef\xbb\xbf \t\r\n")
     if head.startswith(b"<"):
         return "panos"
@@ -88,8 +93,10 @@ def detect_format(data: bytes) -> str:
 
 def load(
     data: bytes, source: str, report: Report, vsys: str = "", device_group: str = "", vdom: str = "", layer: str = "",
-    policy: str = "", nat_policy: str = "",
+    policy: str = "", nat_policy: str = "", interface_addresses: Sequence[str] = (),
 ) -> Policy:  # fmt: skip
+    if interface_addresses and source != "pfsense":
+        raise FwshiftError("--interface-address is for a pfSense source")
     if source == "panos":
         return parse_panos.parse(data, report, vsys=vsys, device_group=device_group)
     if source == "fortios":
@@ -100,6 +107,8 @@ def load(
         return parse_asa.parse(data, report)
     if source == "sophos":
         return parse_sophos.parse(data, report)
+    if source == "pfsense":
+        return parse_pfsense.parse(data, report, interface_addresses=interface_addresses)
     if source in ("fmc", "fdm"):
         return parse_cisco.parse(data, report, source, policy=policy, nat_policy=nat_policy)
     if source in ("iptables", "ip6tables"):
@@ -283,13 +292,18 @@ def _source_options(parser: argparse.ArgumentParser, optional: bool = False) -> 
     parser.add_argument("--layer", default="", help="Check Point source: access layer to read")
     parser.add_argument("--policy", default="", help="Management Center source (fmc): access control policy to read")
     parser.add_argument("--nat-policy", default="", help="Management Center source (fmc): NAT policy to read")
+    parser.add_argument(
+        "--interface-address", action="append", default=[], metavar="INTERFACE=ADDRESS/BITS",
+        help="pfSense source: address and network of an interface that gets them from somewhere else (DHCP, PPPoE, a "
+        "delegated prefix), for the rules that name them; repeatable, IPv4 and IPv6",
+    )  # fmt: skip
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="fwshift",
         description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall "
-        "(Management Center and Device Manager), Sophos Firewall and iptables, with a lossiness report.",
+        "(Management Center and Device Manager), Sophos Firewall, pfSense and iptables, with a lossiness report.",
     )
     parser.add_argument("--version", action="version", version=f"fwshift {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -307,7 +321,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conv.add_argument(
         "--zone-network", action="append", default=[], metavar="ZONE=NET[,NET]",
-        help="ASA target: the networks behind a zone, so that rules for other zones can leave them out. Give them "
+        help="ASA and pfSense targets: the networks behind a zone, so that rules for other zones can leave them out. Give them "
         "for every zone; 0.0.0.0/0,::/0 for the zone with the default route",
     )  # fmt: skip
     conv.add_argument("--app-map", metavar="FILE", help="JSON file: application name -> list of port specs")
@@ -320,7 +334,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--target-nat-zone", default="", metavar="ZONE",
         help="PAN-OS target: destination zone for NAT rules of a source that names none; "
         "ASA target: interface for NAT to the outgoing interface where the rule names none; "
-        "Cisco Secure Firewall targets: its zone",
+        "Cisco Secure Firewall targets: its zone; pfSense target: interface for port forwards of a rule from every "
+        "zone, and for outbound NAT where the rule does not say where its traffic leaves",
     )  # fmt: skip
     conv.add_argument("--target-vdom", default="", metavar="NAME", help="FortiOS target: write into this VDOM")
     conv.add_argument(
@@ -337,7 +352,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conv.add_argument(
         "--target-prefix", default="", metavar="TEXT",
-        help="Check Point, ASA, Sophos and Cisco Secure Firewall targets: prefix for the names of created objects",
+        help="Check Point, ASA, Sophos, pfSense and Cisco Secure Firewall targets: prefix for the names of created objects",
     )  # fmt: skip
     conv.add_argument(
         "--target-policy", default="FWShift", metavar="NAME",
@@ -379,7 +394,8 @@ def _run_convert(args: argparse.Namespace) -> int:
     data = _read(args.input)
     source = args.source or detect_format(data)
     report = Report()
-    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy)
+    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy,
+                  args.interface_address)  # fmt: skip
     report.source = source + (f" ({policy.scope})" if policy.scope else "")
     if args.prune_unused:
         dropped = transform.prune_unused(policy)
@@ -459,7 +475,8 @@ def _run_audit(args: argparse.Namespace) -> int:
     data = _read(args.input)
     source = args.source or detect_format(data)
     report = Report()
-    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy)
+    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy,
+                  args.interface_address)  # fmt: skip
     transform.harden(policy, report)
     result = audit.run(policy, config, report)
     disabled = sum(1 for rule in policy.rules if not rule.enabled)
@@ -486,7 +503,8 @@ def _run_matrix(args: argparse.Namespace) -> int:
     data = _read(args.input)
     source = args.source or detect_format(data)
     report = Report()
-    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy)
+    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy,
+                  args.interface_address)  # fmt: skip
     transform.harden(policy, report)
     result = matrix.build(policy, config, report, networks)
     if args.json:
@@ -508,7 +526,8 @@ def _run_inspect(args: argparse.Namespace) -> int:
     data = _read(args.input)
     source = args.source or detect_format(data)
     report = Report()
-    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy)
+    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy,
+                  args.interface_address)  # fmt: skip
     transform.harden(policy, report)
     lines: List[str] = [
         f"format:          {source}",

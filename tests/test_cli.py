@@ -79,6 +79,23 @@ CASES = [
     ("asa_sample.cfg", "fdm", "asa_to_fdm.json"),
     ("sophos_sample.xml", "fdm", "sophos_to_fdm.json"),
     ("iptables_sample.rules", "fdm", "iptables_to_fdm.json"),
+    ("pfsense_sample.xml", "pfsense", "pfsense_to_pfsense.xml"),
+    ("pfsense_sample.xml", "panos", "pfsense_to_panos.set"),
+    ("pfsense_sample.xml", "fortios", "pfsense_to_fortios.conf"),
+    ("pfsense_sample.xml", "checkpoint", "pfsense_to_checkpoint.sh"),
+    ("pfsense_sample.xml", "asa", "pfsense_to_asa.cfg"),
+    ("pfsense_sample.xml", "sophos", "pfsense_to_sophos.xml"),
+    ("pfsense_sample.xml", "fmc", "pfsense_to_fmc.policy.txt"),
+    ("pfsense_sample.xml", "fdm", "pfsense_to_fdm.json"),
+    ("pfsense_sample.xml", "iptables", "pfsense_to_iptables.rules"),
+    ("panos_sample.xml", "pfsense", "panos_to_pfsense.xml"),
+    ("fortios_sample.conf", "pfsense", "fortios_to_pfsense.xml"),
+    ("checkpoint_sample.json", "pfsense", "checkpoint_to_pfsense.xml"),
+    ("asa_sample.cfg", "pfsense", "asa_to_pfsense.xml"),
+    ("sophos_sample.xml", "pfsense", "sophos_to_pfsense.xml"),
+    ("fmc_sample.json", "pfsense", "fmc_to_pfsense.xml"),
+    ("fdm_sample.txt", "pfsense", "fdm_to_pfsense.xml"),
+    ("iptables_sample.rules", "pfsense", "iptables_to_pfsense.xml"),
 ]
 
 
