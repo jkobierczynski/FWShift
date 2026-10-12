@@ -8,7 +8,7 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.12.2 (alpha) |
+| Version | 0.12.3 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
 | Tests | 3174, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, a Check Point management server, a Cisco Management Center or a Device Manager |
@@ -1874,6 +1874,22 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-12: version 0.12.3
+
+**Built**
+
+* Windows: the script for a Management Center asked for the password with
+  `getpass` when `FMC_PASSWORD` was not set. On Windows that reads the console
+  whatever standard input is, so a run without a terminal (the test, a
+  scheduled job) waited until it was killed instead of stopping. The script
+  now asks only when standard input is a terminal, and otherwise stops with
+  the message it gave before.
+
+**Verified, and not**
+
+* The tests of the script pass with Python 3.9 and 3.13 on Linux. That the
+  wait is gone on Windows is for the CI run on `windows-latest` to show.
 
 ### 2026-10-12: version 0.12.2
 

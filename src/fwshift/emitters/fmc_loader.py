@@ -647,10 +647,16 @@ def main(argv: Optional[Sequence[str]] = None, transport: Any = None, say: Any =
                 except (OSError, ValueError) as error:  # ssl.SSLError is an OSError
                     raise Stop(f"--cafile {args.cafile}: no certificates could be read from it ({error})") from None
             transport = Transport(base, context)
-        try:
-            password = os.environ.get("FMC_PASSWORD") or getpass.getpass(f"Password of {args.user}: ")
-        except (EOFError, OSError):
-            raise Stop("no password: set the environment variable FMC_PASSWORD, or run this from a terminal") from None
+        password = os.environ.get("FMC_PASSWORD", "")
+        if not password:
+            # Only a terminal is asked: on Windows getpass reads the console whatever standard input is, and would wait
+            # for someone who is not there.
+            if sys.stdin is None or not sys.stdin.isatty():
+                raise Stop("no password: set the environment variable FMC_PASSWORD, or run this from a terminal")
+            try:
+                password = getpass.getpass(f"Password of {args.user}: ")
+            except (EOFError, OSError):
+                raise Stop("no password: set the environment variable FMC_PASSWORD, or run this from a terminal") from None
         api = Api(transport, args.user, password, args.domain, say)
         api.login()
         if args.undo:

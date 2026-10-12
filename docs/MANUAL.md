@@ -2649,8 +2649,8 @@ python3 load_policy.py --host fmc.example.net --user api-user
    order they were sent. If not, it says so and stops; the policy is then not
    the policy that was converted.
 
-The password is asked for, or taken from the environment variable
-`FMC_PASSWORD`. The certificate of the Management Center is checked: give the
+The password is taken from the environment variable `FMC_PASSWORD`, or asked
+for when the script runs in a terminal; without either it stops. The certificate of the Management Center is checked: give the
 certificate of the authority that signed it with `--cafile`. `--insecure`
 switches the check off and belongs in a lab. The password and the token go to
 the host that was named and nowhere else: a redirect is not followed, and
