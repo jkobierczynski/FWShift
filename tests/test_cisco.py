@@ -3724,6 +3724,52 @@ def test_the_script_follows_no_redirect_and_ends_cleanly_on_a_bad_line(tmp_path:
             server.server_close()
 
 
+def test_the_password_is_asked_only_of_a_console(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """On Windows NUL passes isatty(), and getpass reads the console anyway: only a handle with a console mode is asked."""
+    import ctypes
+    import sys
+    import types
+
+    from fwshift.emitters import fmc_loader
+
+    class Stream:
+        def __init__(self, tty: bool) -> None:
+            self.tty = tty
+
+        def isatty(self) -> bool:
+            return self.tty
+
+        def fileno(self) -> int:
+            return 0
+
+    monkeypatch.setattr(fmc_loader.sys, "stdin", None)
+    assert not fmc_loader.someone_to_ask()
+    monkeypatch.setattr(fmc_loader.sys, "stdin", Stream(False))
+    assert not fmc_loader.someone_to_ask()
+    monkeypatch.setattr(fmc_loader.sys, "stdin", Stream(True))
+    monkeypatch.setattr(fmc_loader.sys, "platform", "linux")
+    assert fmc_loader.someone_to_ask()
+    # Windows: NUL is a terminal to isatty() and has no console mode; a console has one.
+    monkeypatch.setattr(fmc_loader.sys, "platform", "win32")
+    console = {"mode": False}
+    kernel32 = types.SimpleNamespace(GetConsoleMode=lambda handle, mode: int(console["mode"]))
+    monkeypatch.setattr(ctypes, "windll", types.SimpleNamespace(kernel32=kernel32), raising=False)
+    monkeypatch.setitem(sys.modules, "msvcrt", types.SimpleNamespace(get_osfhandle=lambda fd: 4))
+    assert not fmc_loader.someone_to_ask()
+    console["mode"] = True
+    assert fmc_loader.someone_to_ask()
+    # Whatever cannot be asked about counts as nobody there.
+    monkeypatch.setitem(sys.modules, "msvcrt", None)
+    assert not fmc_loader.someone_to_ask()
+    # Nobody there: the run stops with the way out, and getpass is never reached.
+    plan = CiscoConfig(cli.convert(small_model(), "fmc", Report())).plan
+    monkeypatch.setattr(fmc_loader, "someone_to_ask", lambda: False)
+    monkeypatch.delenv("FMC_PASSWORD", raising=False)
+    monkeypatch.setattr(fmc_loader.getpass, "getpass", lambda prompt: pytest.fail("getpass was called"))
+    assert fmc_loader.main(["--host", "fmc.example.net", "--user", "api"], transport=object(), say=lambda line: None, plan=plan) == 1
+    assert "no password: set the environment variable FMC_PASSWORD" in capsys.readouterr().err
+
+
 def test_a_list_that_never_ends_is_not_followed_for_ever(tmp_path: Any, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     from fwshift.emitters import fmc_loader
 

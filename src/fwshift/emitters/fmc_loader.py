@@ -604,6 +604,29 @@ def base_url(host: str) -> str:
     return f"{parts.scheme}://{parts.netloc}"
 
 
+def someone_to_ask() -> bool:
+    """Whether a person can type the password: standard input is a terminal, and on Windows a console.
+
+    On Windows getpass reads the console whatever standard input is, and NUL is a character device that isatty() calls a
+    terminal: only a handle that has a console mode is one somebody types at.
+    """
+    stream = sys.stdin
+    try:
+        if stream is None or not stream.isatty():
+            return False
+        if sys.platform != "win32":
+            return True
+        import ctypes
+        import msvcrt
+        from ctypes import wintypes
+
+        mode = wintypes.DWORD()
+        handle = wintypes.HANDLE(msvcrt.get_osfhandle(stream.fileno()))
+        return bool(ctypes.windll.kernel32.GetConsoleMode(handle, ctypes.byref(mode)))
+    except (AttributeError, ImportError, OSError, ValueError):
+        return False
+
+
 def main(argv: Optional[Sequence[str]] = None, transport: Any = None, say: Any = print, plan: Optional[Json] = None) -> int:
     parser = argparse.ArgumentParser(description="Load the converted policy in this file into a Cisco Secure Firewall Management Center.")
     parser.add_argument("--show", action="store_true", help="say what would be created, without connecting")
@@ -649,9 +672,8 @@ def main(argv: Optional[Sequence[str]] = None, transport: Any = None, say: Any =
             transport = Transport(base, context)
         password = os.environ.get("FMC_PASSWORD", "")
         if not password:
-            # Only a terminal is asked: on Windows getpass reads the console whatever standard input is, and would wait
-            # for someone who is not there.
-            if sys.stdin is None or not sys.stdin.isatty():
+            # Only a person at a terminal is asked: getpass would otherwise wait for someone who is not there.
+            if not someone_to_ask():
                 raise Stop("no password: set the environment variable FMC_PASSWORD, or run this from a terminal")
             try:
                 password = getpass.getpass(f"Password of {args.user}: ")
