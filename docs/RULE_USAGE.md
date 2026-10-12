@@ -1,8 +1,8 @@
 # Rule usage: design
 
 **Status:** accepted on 2026-10-12; 0.13.0 (rule identity and hit counters),
-0.14.0 (`fwshift usage` for Check Point logs) and 0.15.0 (simulated
-attribution and iptables logs) are done. The releases 0.13.0 to 0.17.0 carry it out (section 7); what each release built is in the development log of
+0.14.0 (`fwshift usage` for Check Point logs), 0.15.0 (simulated
+attribution and iptables logs) and 0.16.0 (PAN-OS and FortiOS logs) are done. The releases 0.13.0 to 0.17.0 carry it out (section 7); what each release built is in the development log of
 [DEVELOPMENT.md](../DEVELOPMENT.md).
 
 This document started as a feature brief written in a separate session for
@@ -236,8 +236,10 @@ Formats, in order of priority:
    depend on what was shown or logged. Without a rule uid only simulation can
    attribute a line. 0.14.0 reads instead the `show-logs` answer of the
    Management API, whose match table names the rule of every layer.
-3. **PAN-OS traffic logs** (CSV and syslog).
-4. **FortiOS traffic logs** (key=value).
+3. **PAN-OS traffic logs** (CSV and syslog). Done in 0.16.0
+   (`logreaders/panos.py`, section 11.7).
+4. **FortiOS traffic logs** (key=value). Done in 0.16.0
+   (`logreaders/fortios.py`, section 11.7).
 5. **iptables `LOG` lines** (no rule identity: simulation only). Done in
    0.15.0 (`logreaders/iptables.py`, section 11.6).
 
@@ -419,7 +421,7 @@ come first because they are useful without the usage feature.
 | 0.13.0 | **Rule identity and hit counters.** `source_ids` on rules (Check Point rule, layer and parent rule UIDs, also for flattened inline rules; PAN-OS UUID and name; FortiOS `policyid` and UUID), kept in `--to json` and in the JSON findings of the audit. Install-on targets on the rule (`Rule.targets`). Access Roles in the model instead of unsupported addresses, and conversion keeps or flags them per target. `UNUSED_RULE` and `NO_USAGE_EVIDENCE` from hit counters: Check Point hits inside the rulebase, PAN-OS and FortiOS through `audit --hits FILE`. | Parser tests check the IDs and targets; conversion tests for rules with Access Roles; audit tests for counters, resets and the absence of evidence. |
 | 0.14.0 | **`fwshift usage` for Check Point** (done). Log Exporter (syslog, splunk, cef) and `show-logs` readers, aggregation, SQLite store, attribution by rule identity, attribution to objects and services, `UNUSED_RULE_OBJECT`, `UNUSED_RULE_SERVICE`, JSON, text and HTML output; `--usage-store` for the audit and conversions. Hit counters as a cross-check of the totals. | The regression tests of section 8 pass; manual updated. |
 | 0.15.0 | **Simulation** (done). A first-match evaluator on the audit's matches; certain against possible; the iptables `LOG` reader. The Check Point CSV export and `fwm logexport` moved to a later release (section 11.6). | An oracle over random rulesets: the certain rule is the one that decides in every world, the possible ones hold it where none is certain. |
-| 0.16.0 | **PAN-OS and FortiOS logs.** Readers for their traffic logs. | Fixture tests per vendor. |
+| 0.16.0 | **PAN-OS and FortiOS logs** (done). Readers for their traffic logs; attribution by rule UUID, name and policy ID. | Fixture tests per vendor; attribution against a reference on random policies. |
 | 0.17.0 | **Narrowing.** `WIDER_THAN_TRAFFIC` with a proposed rule written through the emitters. | Proposal tests: never wider than the original, never for deny rules. |
 
 ## 8. Tests
@@ -616,4 +618,29 @@ written and is read against any revision.
   `ULOG` lines are not in the kernel log and prove nothing.
 * **Check Point lines that name rules loosely** (uids not put on their rows,
   several access-role parts that fit) are possible, not certain, since 0.15.0.
+
+### 11.7 What 0.16.0 changed in the plan (2026-10-13)
+
+The research for 0.16.0 (the traffic log field lists of PAN-OS 9.1 to 11.x, the
+FortiOS log message reference, and the parsers and fixtures of Elastic, Splunk
+Connect for Syslog, Wazuh and Microsoft Sentinel) and its review (round 24)
+settled these:
+
+* **Rule identity is a UUID first.** PAN-OS logs carry the rule UUID from 9.0
+  on (Panorama-pushed rules share it), FortiOS the `poluuid`. A name or policy
+  ID is weaker: another firewall may give it to a rule of its own, so in the
+  logs of several firewalls it is certain only for a firewall the policy is
+  on (`--gateway`, or a Panorama target).
+* **Logged is not the rule's flag alone.** A PAN-OS rule reaches syslog only
+  through a log forwarding profile; a FortiOS policy logs every session only
+  with `logtraffic all` (the default `utm` logs some).
+* **Coverage is per virtual system and VDOM**, as their logs may go
+  elsewhere: the coverage of the store keeps the part of the gateway too.
+* **A session may be logged twice**, at start and at end; PAN-OS looks the
+  rules up again when the application changes, and then both rules matched.
+  A start without its end is possible only.
+* **Destination NAT** on FortiOS: the policy may name the address and port
+  after the translation; the log gives both (`tranip`, `tranport`).
+* The PAN-OS hit counters give the rules' creation and change times, which
+  proving them unused needs (`Rule.changed`).
 

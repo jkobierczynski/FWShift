@@ -8,11 +8,11 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.15.0 (alpha) |
+| Version | 0.16.0 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
-| Tests | 3303, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
+| Tests | 3345, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, a Check Point management server, a Cisco Management Center or a Device Manager |
-| Next | rule usage, 0.16.0 and 0.17.0: PAN-OS and FortiOS logs, narrowing (see `docs/RULE_USAGE.md`); lab validation of the sample conversions; the brands not planned yet (see `TODO.md`) |
+| Next | rule usage, 0.17.0: narrowing (see `docs/RULE_USAGE.md`); lab validation of the sample conversions; the brands not planned yet (see `TODO.md`) |
 
 ## Layout
 
@@ -74,6 +74,10 @@ src/fwshift/
                       with the match table of the rules the gateway named
         iptables.py   the kernel lines of LOG rules (syslog, journal) -> connections
                       with their interfaces, no rule
+        panos.py      PAN-OS traffic logs (syslog CSV, export) -> connections with the
+                      rule's UUID and name
+        fortios.py    FortiOS traffic logs (key=value) -> connections with the
+                      policy's UUID and ID
     simulate.py       first match on the audit's sets for a connection whose log
                       names no rule: certain or possible
     usage.py          fwshift usage: the store (SQLite), attribution of connections
@@ -96,7 +100,8 @@ tests/
     data/             one synthetic sample per format
     data/expected/    their conversions and reports, byte for byte
     tools/            the scripts that write the Check Point sample and its logs, the
-                      iptables logs of iptables_logged.rules, the two
+                      iptables logs of iptables_logged.rules, the PAN-OS and
+                      FortiOS logs (and panos_logged.xml), the two
                       Cisco Secure Firewall samples and the SonicWall,
                       WatchGuard, Barracuda and Juniper samples,
                       and the kernel check
@@ -136,6 +141,8 @@ tests/
     test_simulate.py  the simulation, against a walk through the rules in every
                       world of the rules the model holds approximately; the
                       iptables LOG reader and the usage of an iptables policy
+    test_traffic_logs.py the PAN-OS and FortiOS readers, attribution by the
+                      rule's identifiers (against a reference), their usage
     test_audit.py     the audit, against a walk through every packet of a
                       small world
     test_matrix.py    the zone matrix, against the same walk: every packet
@@ -1907,6 +1914,110 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-13: version 0.16.0
+
+The fourth release of *rule usage* (`docs/RULE_USAGE.md`): the traffic logs of
+PAN-OS and FortiOS, which name the rule the firewall chose.
+
+**Built**
+
+* `logreaders/panos.py`: TRAFFIC logs in the syslog format of PAN-OS (BSD or
+  IETF header, or none; 8.1 and later, fields read by their position) and the
+  CSV export, also with every field in quotes. A line names the rule by UUID
+  (9.0 and later) and name; the gateway is the serial number (what Panorama's
+  targets name). `end`, `drop` and `deny` are connections (the repeat count is
+  the number of sessions); a `start` whose end is in the file is counted once,
+  a start naming another rule than its end (the application changed) counts
+  for that rule too, a start without an end and a line with the flag of a
+  temporary match (`0x2000`) are possible. Times from the high resolution
+  timestamp (with its zone), else local time with `--log-offset`.
+* `logreaders/fortios.py`: traffic logs in FortiOS's `key=value` format, also
+  behind a syslog header and with a FortiAnalyzer's `logver=` in front.
+  Forward logs of firewall policies; the action says whether the policy let
+  the session through; the start of a session whose end is logged, interim
+  statistics, the FortiGate's own traffic and other kinds of policy are
+  counted apart, each with its reason. Times from `eventtime` (seconds,
+  milliseconds or nanoseconds), else `date`, `time` and `tz`, else
+  `--log-offset`. The destination after destination NAT (`tranip`,
+  `tranport`) where it is logged.
+* `usage.py`: rules found by their identifiers (`_Ids`: UUID first, then name
+  or policy ID, never a rule whose UUID says otherwise); the virtual system or
+  VDOM of the policy; PAN-OS default rules and FortiOS policy 0 as the
+  default; lines of hosts not given with `--gateway` left out, unless the rule
+  is installed on them; a name or policy ID in the logs of several firewalls
+  certain only for a firewall the policy is on; coverage per virtual system
+  and VDOM; times before 2000 or ahead of now are doubts. Evidence: a PAN-OS
+  rule without a log forwarding profile, and a FortiOS policy that does not
+  log all its sessions, prove nothing.
+* `hits.py`: the creation and change times of PAN-OS rules in the answer of
+  `show rule-hit-count` become `Rule.changed` (the latest of several
+  firewalls).
+* The FortiOS parser no longer takes `logtraffic-start enable` with
+  `logtraffic disable` for logging.
+* Samples: `panos_logged.xml` (the PAN-OS sample with log forwarding
+  profiles) with `panos_logged.log`, and `fortios_sample.log`, 90 days each,
+  written by `tests/tools/make_panos_logs.py` and `make_fortios_logs.py`;
+  their reports as golden files.
+
+**What the platform made necessary**
+
+* *A name is not an identity.* Rule names and policy IDs repeat across
+  firewalls and revisions; UUIDs do not (Panorama gives a pushed rule the
+  same UUID everywhere). The weaker identifier only counts where the
+  stronger one does not contradict it and the firewall is one the policy is on.
+* *Logged means sent.* PAN-OS logs stay on the firewall without a log
+  forwarding profile; FortiOS logs only some sessions by default.
+* *One session, two lines, two rules.* A start and an end are one
+  connection; a new lookup after App-ID can name another rule, which matched
+  the session too.
+* *Parts of a firewall.* A virtual system or a VDOM may send its logs
+  elsewhere: its days are its own.
+
+**Sources**
+
+Palo Alto Networks' traffic log field lists (9.1, 10.0, 10.1 to 11.x), the
+syslog server profile and Panorama rule-UUID pages, and LIVE community
+threads; Fortinet's FortiOS log message reference (6.2 to 7.4), CLI references
+and community tips; the parsers and test fixtures of Elastic (`panw`,
+`fortinet_fortigate`), Splunk Connect for Syslog, Wazuh and Microsoft
+Sentinel, read and never run. Fixture lines with real public addresses were
+not copied.
+
+**Review**
+
+*Round 24* by the independent reviewer, with repro scripts of its own:
+
+| | Finding | Fix |
+|---|---|---|
+| high | With `--gateway`, the lines of a Panorama target not given were left out, while its days still counted: a rule it used was called unused | a line of a target of the rule it names counts |
+| high | A PAN-OS rule without a log forwarding profile sends no logs to syslog, and could be called unused | proves nothing; the PAN-OS log sample has its own configuration with profiles |
+| high | FortiOS port forwarding: the policy names the mapped port, the log the original one: a false `UNUSED_RULE_SERVICE` | `tranport` read; a service of either port counts |
+| high | FortiOS central NAT: the policy names the mapped address, the log the external one: a false `UNUSED_RULE_OBJECT` | `tranip` read; a member of either address counts |
+| medium | A FortiOS session ID taken again swallowed a start of another session | a start and an end are one only when policy, addresses, protocol and port agree |
+| medium | Logs that name only rules the policy does not have still counted as this policy's logs | only lines naming a rule, a disabled rule or the default of the policy do |
+| medium | The days logged by another virtual system or VDOM counted for this one | coverage per vsys and VDOM |
+| low | A time with a year like 0268 or 9999 broke the window of the store | a doubt |
+| low | Of two hit-counter answers, the first change time was kept | the latest |
+| low | A FortiOS line without `date=` was no FortiOS line; `logtraffic-start enable` with `logtraffic disable` counted as logging; a PAN-OS protocol number was not read | read; not logging; read |
+
+The fixes were not reviewed again; they have tests (the last section of
+`test_traffic_logs.py`).
+
+**Verified, and not**
+
+* The tests: `tests/test_traffic_logs.py` holds 42 tests, the suite 3345.
+  Attribution by identifiers against a reference on 20 random policies of
+  each vendor; the readers on the line shapes of the documentation and the
+  published fixtures (with documentation addresses). A mutation check with 22
+  ways to break the readers, the attribution, the coverage and the evidence:
+  all caught.
+* **No log of a real firewall was read.** Which rule a PAN-OS end log names
+  after an application change, the meaning of the defaults of
+  `intrazone-default` and `interzone-default` for logging, and the CSV
+  export of PAN-OS 10.x and later are not confirmed by Palo Alto Networks'
+  documentation; FortiOS `csv` and CEF output, and the IPv6 policies of
+  FortiOS before 6.4, are not read.
 
 ### 2026-10-12: version 0.15.0
 

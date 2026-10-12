@@ -793,7 +793,7 @@ class _Builder:
                 rule.services = transform.dedupe([self.service_names.get(s, s) for s in services])
             rule.negate_service = block.get("service-negate") == "enable"
             rule.log_end = block.get("logtraffic", "utm" if action == "accept" else "disable") == "all"
-            rule.log_start = block.get("logtraffic-start") == "enable"
+            rule.log_start = block.get("logtraffic-start") == "enable" and block.get("logtraffic", "utm") != "disable"
             self._attributes(block, rule)
 
             for name in dst4:

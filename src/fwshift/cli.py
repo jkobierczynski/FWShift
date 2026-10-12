@@ -236,7 +236,7 @@ def _from_store(args: argparse.Namespace, policy: Policy, config: audit.AuditCon
     if not getattr(args, "usage_store", None):
         return []
     if policy.vendor not in usage.VENDORS:
-        raise FwshiftError("--usage-store: logs are read for a Check Point or iptables policy only, in this version")
+        raise FwshiftError("--usage-store: logs are read for a Check Point, PAN-OS, FortiOS or iptables policy only, in this version")
     store = usage.Store(args.usage_store, create=False)
     try:
         span = usage.window(store, days=config.usage_days)
@@ -487,11 +487,12 @@ def build_parser() -> argparse.ArgumentParser:
                      "'elsewhere'), not between the zones of the policy. @ZONE names the zone of the policy the networks lie behind")  # fmt: skip
     mat.add_argument("--audit-config", metavar="FILE", help="JSON file of the audit: its lists of risky and industrial services are used")
 
-    use = commands.add_parser("usage", help="which rules, objects and services the firewall's logs show used (Check Point, iptables)")
+    use = commands.add_parser("usage", help="which rules, objects and services the firewall's logs show used (Check Point, PAN-OS, FortiOS, iptables)")
     _source_options(use)
     use.add_argument("--logs", action="append", default=[], metavar="FILE",
                      help="a log file: what Check Point's Log Exporter sends (syslog, splunk or cef format), or the JSON answer of "
-                     "show-logs; for iptables, the kernel lines of its LOG rules as syslog or journalctl writes them; repeatable")  # fmt: skip
+                     "show-logs; PAN-OS and FortiOS: the traffic logs they send to syslog (their default formats), or a PAN-OS CSV export; "
+                     "iptables: the kernel lines of its LOG rules as syslog or journalctl writes them; repeatable")  # fmt: skip
     use.add_argument("--store", metavar="FILE", help="keep the connections in this file (SQLite) and add to it on every run; a log file "
                      "that is in it already is not read again. Without it, nothing is kept")  # fmt: skip
     use.add_argument("--since", default="", metavar="DAYS|YYYY-MM-DD",
@@ -503,7 +504,8 @@ def build_parser() -> argparse.ArgumentParser:
     use.add_argument("--log-year", type=int, metavar="YYYY",
                      help="iptables: the year of the first line of a log whose times have none (the old syslog form); it goes up "
                      "where the months run back")  # fmt: skip
-    use.add_argument("--log-offset", metavar="+HH:MM", help="iptables: the offset from UTC of the times of a log that give none (default: UTC)")
+    use.add_argument("--log-offset", metavar="+HH:MM",
+                     help="iptables, PAN-OS, FortiOS: the offset from UTC of the times of a log that give none (default: UTC)")
     use.add_argument("--roll-up", type=int, default=usage.DEFAULT_CAP, metavar="N",
                      help=f"addresses kept per rule and side (per pair of interfaces, for logs that name no rule) before the rest are kept as "
                      f"their /24 or /64 (default {usage.DEFAULT_CAP})")  # fmt: skip
@@ -693,8 +695,7 @@ def _run_usage(args: argparse.Namespace) -> int:
     policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy,
                   args.interface_address)  # fmt: skip
     if policy.vendor not in usage.VENDORS:
-        raise FwshiftError(f"usage: logs are read for a Check Point or an iptables policy in this version, not {source} (PAN-OS and "
-                           "FortiOS: 0.16)")  # fmt: skip
+        raise FwshiftError(f"usage: logs are read for a Check Point, PAN-OS, FortiOS or iptables policy in this version, not {source}")
     reading = audit.Reading.of(report)
     transform.harden(policy, report)
     counters = _hit_counters(args, policy)

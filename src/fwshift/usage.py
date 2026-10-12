@@ -2,7 +2,7 @@
 # Copyright (C) 2026 Jurgen Kobierczynski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Rule usage from firewall logs (docs/RULE_USAGE.md; 0.14.0: Check Point, by the rule the gateway names; 0.15.0: iptables, by simulation).
+"""Rule usage from firewall logs (docs/RULE_USAGE.md): Check Point (0.14.0), iptables by simulation (0.15.0), PAN-OS and FortiOS (0.16.0).
 
 Three steps:
 
@@ -41,14 +41,20 @@ from . import transform
 from .errors import FwshiftError
 from .logreaders import LayerMatch, LogRecord
 from .logreaders import checkpoint as checkpoint_logs
+from .logreaders import fortios as fortios_logs
 from .logreaders import iptables as iptables_logs
+from .logreaders import panos as panos_logs
 from .audit import _blocks
 from .model import ANY, LogUsage, Policy, Protocol, Rule, ServiceEntry
 from .simulate import Simulator
 from .netutil import Interval, overlaps, parse_literal
 
 FORMAT = "1"
-VENDORS = {"checkpoint": "checkpoint", "iptables": "iptables"}  # the policies whose logs are read, and the reader of their logs
+VENDORS = {"checkpoint": "checkpoint", "iptables": "iptables", "panos": "panos", "fortios": "fortios"}  # policy -> reader of its logs
+_BY_HOST = ("iptables", "panos", "fortios")  # policies whose logs name no rule, or name it by what another firewall may call its own
+_PANOS_DEFAULTS = ("intrazone-default", "interzone-default")
+_OURS = ("a rule that is disabled", "the default rule", "the implicit deny")  # lines that name the policy, and no rule of it
+_ID_ORDER = {"panos": ("panos.uuid", "panos.name"), "fortios": ("fortios.uuid", "fortios.policyid")}  # strongest first
 DEFAULT_CAP = 256
 OUTSIDE = "(outside the listed)"
 _FLUSH = 100_000
@@ -72,6 +78,8 @@ _TABLES = {"meta", "runs", "files", "coverage", "unplaced", "records", "rolled",
 _RECORD_COLUMNS = ["day", "gateway", "rule_key", "src", "dst", "protocol", "port", "user", "count"]
 UNKNOWN = "(not in the log)"
 _USERS = "\x1f"  # between the users of one connection in the store (a name may hold a comma)
+_SCOPED = "\x1f"  # between a gateway and the part of it a line is of (a virtual system, a VDOM), in the coverage of the store
+_EPOCHS = (946684800, 4102444800)  # 2000-01-01 and 2100-01-01: a log time outside them is a time that cannot be right
 
 Key = Tuple[str, str, str, str, str, int, int, str]
 
@@ -143,12 +151,24 @@ def _day(moment: int) -> Optional[str]:
         return None
 
 
+def _log_day(moment: int) -> Optional[str]:
+    """The day of a log time, or None for a time that cannot be right (before 2000, or from 2100 on)."""
+    return _day(moment) if _EPOCHS[0] <= moment < _EPOCHS[1] else None
+
+
 def _rule_key(record: LogRecord) -> str:
-    """The rules a log names, as text that needs no policy to be written: the rows of its match table; for a log that
-    names none (iptables), the zones it came in and went out by, which simulating the policy needs."""
+    """The rules a log names, as text that needs no policy to be written: the rows of its match table (Check Point), the
+    identifiers of the rule (PAN-OS, FortiOS); for a log that names none (iptables), the zones it came in and went out
+    by, which simulating the policy needs."""
     rows = [[row.layer_uuid, row.match_id, row.parent_rule, row.rule_uid, int(row.implicit)] for row in record.layers]
     key: Dict[str, Any] = {"rows": rows, "loose": sorted(set(record.loose_uids))}
-    if not rows and not record.loose_uids:
+    if record.ids:
+        key["ids"] = dict(sorted(record.ids.items()))
+        if record.possible:
+            key["possible"] = 1
+        if record.nat_dst or record.nat_port is not None:
+            key["nat"] = [record.nat_dst, -1 if record.nat_port is None else record.nat_port]
+    elif not rows and not record.loose_uids:
         key.update({"in": record.in_zone, "out": record.out_zone})
     return json.dumps(key, separators=(",", ":"), sort_keys=True)
 
@@ -178,7 +198,13 @@ def ingest(store: Store, files: Sequence[Tuple[str, Any]], policy: str = "", pol
 def _ingest(store: Store, files: Sequence[Tuple[str, Any]], policy: str, policy_digest: str, cap: int, kind: str,
             year: Optional[int], offset: Optional[int]) -> Ingested:  # fmt: skip
     done = Ingested()
-    kernel = iptables_logs.Reader(year, offset) if kind == "iptables" else None
+    kernel: Any = None  # a reader of logs that keeps state (the year, the starts of sessions); Check Point's keeps none
+    if kind == "iptables":
+        kernel = iptables_logs.Reader(year, offset)
+    elif kind == "panos":
+        kernel = panos_logs.Reader(offset)
+    elif kind == "fortios":
+        kernel = fortios_logs.Reader(offset)
     db = store.db
     cursor = db.execute("INSERT INTO runs (policy, policy_digest, lines, connections, skipped) VALUES (?, ?, 0, 0, '{}')",
                         (policy, policy_digest))  # fmt: skip
@@ -228,11 +254,12 @@ def _ingest(store: Store, files: Sequence[Tuple[str, Any]], policy: str, policy_
         connections = done.connections
         for line in (kernel.read(data, name) if kernel is not None else checkpoint_logs.read(data, name)):
             done.lines += 1
-            day = _day(line.time) if line.time is not None else None
+            day = _log_day(line.time) if line.time is not None else None
             where = (day, line.gateway) if day and line.gateway else None
             record = line.record
             if record is None or where is None:
-                reason = line.reason or "a connection without a day it can be counted on"
+                reason = line.reason or ("a time before 2000 or after 2099" if line.time is not None and day is None
+                                         else "a connection without a day it can be counted on")  # fmt: skip
                 skipped[reason] += 1
                 if line.doubt or record is not None:
                     if where is not None:
@@ -245,6 +272,12 @@ def _ingest(store: Store, files: Sequence[Tuple[str, Any]], policy: str, policy_
             coverage[where] += 1
             if record.action.lower() == "accept":
                 accepts[where] += 1
+            if line.scope:
+                # The same, for the part of the gateway the line is of: logs of another virtual system or VDOM, which
+                # may be sent elsewhere or not at all, prove nothing about this one.
+                part = (where[0], where[1] + _SCOPED + line.scope)
+                coverage[part] += 1
+                accepts[part] += record.action.lower() == "accept"
             rule_key = _rule_key(record)
             key: Key = (where[0], where[1], rule_key, address(rule_key, "source", record.src), address(rule_key, "destination", record.dst),
                         record.protocol, -1 if record.port is None else record.port, _USERS.join(record.users))  # fmt: skip
@@ -408,6 +441,52 @@ class _Rules:
         return (found, "") if found else ([], "a rule this policy does not have (another revision of it?)")
 
 
+class _Ids:
+    """The rules of a PAN-OS or FortiOS policy by what their logs call them: a rule UUID, a rule name or a policy ID."""
+
+    def __init__(self, p: Policy) -> None:
+        self.p = p
+        self.order = _ID_ORDER.get(p.vendor, ())
+        self.by: Dict[Tuple[str, str], List[Rule]] = {}
+        for rule in p.rules:
+            for key in self.order:
+                value = rule.source_ids.get(key, "")
+                if value:
+                    self.by.setdefault((key, value.lower() if key.endswith("uuid") else value), []).append(rule)
+
+    def find(self, ids: Dict[str, str]) -> Tuple[List[Rule], str, bool]:
+        """The rules a line names, or why none; and whether by an identifier no other firewall gives its own rules (a UUID)."""
+        scope = self.p.scope
+        if self.p.vendor == "panos":
+            vsys = ids.get("vsys", "")
+            if vsys and scope and not scope.startswith("device-group") and scope != "shared" and vsys != scope:
+                return [], f"a line of another virtual system ({vsys[:40]})", False
+            if ids.get("panos.name") in _PANOS_DEFAULTS:
+                return [], f"the default rule of the policy ({ids['panos.name']}): no rule of the configuration", False
+        if self.p.vendor == "fortios":
+            vdom = ids.get("vdom", "")
+            if vdom and vdom != (scope or "root"):
+                return [], f"a line of another VDOM ({vdom[:40]})", False
+            if ids.get("fortios.policyid") == "0":
+                return [], "the implicit deny of the policy (policy ID 0): no rule", False
+        for position, key in enumerate(self.order):
+            value = ids.get(key, "")
+            if not value:
+                continue
+            found = self.by.get((key, value.lower() if key.endswith("uuid") else value), [])
+            # A rule found by a weaker identifier whose stronger one says otherwise is another rule (a name or a policy ID
+            # taken again, with a UUID of its own).
+            found = [rule for rule in found if all(not ids.get(stronger) or rule.source_ids.get(stronger, "").lower() in ("", ids[stronger].lower())
+                                                   for stronger in self.order[:position])]  # fmt: skip
+            enabled = [rule for rule in found if rule.enabled]
+            if enabled:
+                return enabled, "", key.endswith("uuid")
+            if found:
+                return [], "a rule that is disabled in this policy (it was changed since?)", False
+        what = "policy" if self.p.vendor == "fortios" else "rule"
+        return [], f"a {what} this configuration does not have (another revision of it, or another firewall?)", False
+
+
 class _Cells:
     """What a rule's cells hold, to count connections against: objects with their addresses, services with their ports."""
 
@@ -416,7 +495,7 @@ class _Cells:
         self.rule = rule
         self.addresses: Dict[str, List[Tuple[str, List[Interval], bool]]] = {}
         destinations = rule.destinations
-        if p.lookup_after_dnat and rule.nat_added:
+        if p.vendor == "iptables" and rule.nat_added:
             # The pre-NAT addresses a parser added: the log has the address after NAT, and holds them under that one.
             destinations = [member for member in rule.destinations if member not in rule.nat_added] or rule.destinations
         for cell, members, negated in (("source", rule.sources, rule.negate_source), ("destination", destinations, rule.negate_destination)):
@@ -481,6 +560,15 @@ def _entry_holds(entry: ServiceEntry, protocol: int, port: int) -> bool:
     return ranges is None or port < 0 or any(low <= port <= high for low, high in ranges)
 
 
+def _part(p: Policy) -> Optional[str]:
+    """The virtual system (PAN-OS) or VDOM (FortiOS) a policy is of; None where its logs are not told apart by one."""
+    if p.vendor == "panos" and p.scope and not p.scope.startswith("device-group") and p.scope != "shared":
+        return p.scope
+    if p.vendor == "fortios":
+        return p.scope or "root"
+    return None
+
+
 def gateway_names(values: Sequence[str]) -> Tuple[List[str], Dict[str, str]]:
     """--gateway NAME or NAME=LOGNAME,LOGNAME: the gateways declared, and the names their logs come under (cluster members)."""
     declared: List[str] = []
@@ -518,32 +606,39 @@ def _evaluate(p: Policy, store: Store, span: Window, gateways: Sequence[str], re
     coverage: Dict[str, Set[str]] = {}
     doubts: Counter[str] = Counter()
     accepted: Counter[str] = Counter()
+    part = _part(p)  # the virtual system or VDOM of the policy, whose own logs are what counts
     for day, logged_as, lines, doubtful, accepts in db.execute(
             "SELECT day, gateway, lines, doubtful, accepts FROM coverage WHERE day BETWEEN ? AND ?", (span.first, span.last)):  # fmt: skip
-        gateway = aliases.get(logged_as.lower(), logged_as.lower())
+        base, scoped, of = logged_as.partition(_SCOPED)
+        gateway = aliases.get(base.lower(), base.lower())
+        doubts[gateway] += doubtful  # (a line that could not be read may have been of any part)
+        if bool(scoped) != (part is not None) or (scoped and of != part):
+            continue
         if lines:
             coverage.setdefault(gateway, set()).add(day)
-        doubts[gateway] += doubtful
         accepted[gateway] += accepts
-    names = {aliases.get(gateway.lower(), gateway.lower()): gateway for (gateway,) in db.execute("SELECT DISTINCT gateway FROM coverage")}
+    names = {aliases.get(g.lower(), g.lower()): g for g in {row[0].partition(_SCOPED)[0] for row in db.execute("SELECT DISTINCT gateway FROM coverage")}}
     for name in declared:
         names[name.lower()] = name
     result.gateways = {names[g]: (len(coverage.get(g, set()) & days), doubts[g]) for g in sorted(names)}
     result.accepts = {names[g]: accepted[g] for g in sorted(names)}
     result.unplaced = int(db.execute("SELECT COALESCE(SUM(lines), 0) FROM unplaced").fetchone()[0])
     rules = _Rules(p)
+    by_ids = _Ids(p)
     cells: Dict[int, _Cells] = {}
     usage: Dict[int, LogUsage] = {}
     for rule in p.rules:
         if rule.enabled:
             rule.log_usage = usage[id(rule)] = LogUsage(span.first, span.last)
     unattributed: Counter[str] = Counter()
-    found_for: Dict[str, Tuple[List[Rule], str, bool, Optional[Tuple[str, str]]]] = {}
+    found_for: Dict[str, Tuple[List[Rule], str, bool, Optional[Tuple[str, str]], bool]] = {}  # (rules, reason, certain, zones, by ids)
+    translated: Dict[str, Tuple[str, Optional[int]]] = {}  # rule key -> the destination after NAT the log gave
     simulator: Optional[Simulator] = None
     rolled = {row[0] for row in db.execute("SELECT DISTINCT rule_key FROM rolled")}
     rolled_rules: Set[int] = set()
     declared_lower = {name.lower() for name in declared}
-    everywhere = sorted(declared_lower) if declared and p.vendor == "iptables" else sorted(names)  # (a rule with no targets is on these)
+    everywhere = sorted(declared_lower) if declared and p.vendor in _BY_HOST else sorted(names)  # (a rule with no targets is on these)
+    weak = 0  # connections named by an identifier another firewall may give a rule of its own, among the lines of several hosts
     result.judged_by = [names[g] for g in everywhere]
     tcp_only = bool(reading is not None and getattr(reading, "every_packet", False))
     if tcp_only:
@@ -558,23 +653,44 @@ def _evaluate(p: Policy, store: Store, span: Window, gateways: Sequence[str], re
     for rule_key, gateway, src, dst, protocol, port, user, count in db.execute(query, (span.first, span.last)):
         result.connections += count
         gateway = names.get(aliases.get(gateway.lower(), gateway.lower()), gateway)
+        nat: Tuple[str, Optional[int]] = ("", None)
         if rule_key not in found_for:
             try:
                 decoded = json.loads(rule_key)
                 rows = [LayerMatch(str(row[0]), row[1], row[2], str(row[3]), bool(row[4])) for row in decoded.get("rows", [])]
                 if rows or decoded.get("loose"):
                     found, reason, certain = rules.find(rows, [str(uid) for uid in decoded.get("loose", [])])
-                    found_for[rule_key] = found, reason, certain, None
+                    found_for[rule_key] = found, reason, certain, None, False
+                elif isinstance(decoded.get("ids"), dict):
+                    found, reason, certain = by_ids.find({str(k): str(v) for k, v in decoded["ids"].items()})
+                    if decoded.get("possible"):
+                        reason = reason or "possible"
+                    found_for[rule_key] = found, reason, certain, None, True
+                    if isinstance(decoded.get("nat"), list) and len(decoded["nat"]) == 2:
+                        translated[rule_key] = (str(decoded["nat"][0]), int(decoded["nat"][1]) if int(decoded["nat"][1]) >= 0 else None)
                 else:
-                    found_for[rule_key] = [], "", False, (str(decoded.get("in", "")), str(decoded.get("out", "")))
+                    found_for[rule_key] = [], "", False, (str(decoded.get("in", "")), str(decoded.get("out", ""))), False
             except (ValueError, TypeError, IndexError, AttributeError):
-                found_for[rule_key] = [], "a record of the store that cannot be read", False, None
-        found, reason, certain, zones = found_for[rule_key]
+                found_for[rule_key] = [], "a record of the store that cannot be read", False, None, False
+        found, reason, certain, zones, named = found_for[rule_key]
+        nat = translated.get(rule_key, nat)
         simulated = zones is not None
-        if simulated and declared and aliases.get(gateway.lower(), gateway.lower()) not in declared_lower:
-            # A line names no rule and comes from a host that is not a gateway given: not a connection of this policy.
+        canonical = aliases.get(gateway.lower(), gateway.lower())
+        targeted = bool(found) and all(rule.targets and canonical in {aliases.get(t.lower(), t.lower()) for t in rule.targets} for rule in found)
+        if (simulated or named) and declared and p.vendor in _BY_HOST and canonical not in declared_lower and not targeted:
+            # A line from a host that is neither a gateway given nor a target of the rule: not a connection of this policy.
             unattributed["a line from a host that is not among the gateways given (--gateway)"] += count
             continue
+        if named and found:
+            # By a UUID, the rule is this policy's; by a name or a policy ID, only if the line is of a firewall the
+            # policy is on: one gateway, gateways given, or a target of the rule.
+            on_it = bool(declared) or len(names) <= 1 or targeted
+            if reason == "possible":
+                certain, reason = False, ""
+            elif not certain and not on_it:
+                weak += count
+            else:
+                certain = True
         if simulated:
             # The log names no rule: the policy says which, certainly or possibly (simulate.py).
             if simulator is None:
@@ -587,7 +703,7 @@ def _evaluate(p: Policy, store: Store, span: Window, gateways: Sequence[str], re
             else:
                 found, certain, reason = answer.possible, False, answer.reason
             result.simulated += count
-        if found or not reason.startswith("rules of a layer"):
+        if found or (reason.startswith(_OURS) if named else not reason.startswith("rules of a layer")):
             ours += count
         if not found:
             unattributed[reason] += count
@@ -615,7 +731,7 @@ def _evaluate(p: Policy, store: Store, span: Window, gateways: Sequence[str], re
                     result.accepts[gateway] = result.accepts.get(gateway, 0) + count  # (the policy allowed it: it was accepted)
             else:
                 log.possible += count
-            if rule.targets and gateway.lower() not in {target.lower() for target in rule.targets} and gateway not in log.elsewhere:
+            if rule.targets and canonical not in {aliases.get(t.lower(), t.lower()) for t in rule.targets} and gateway not in log.elsewhere:
                 log.elsewhere.append(gateway)
             what = cells.get(id(rule))
             if what is None:
@@ -628,7 +744,10 @@ def _evaluate(p: Policy, store: Store, span: Window, gateways: Sequence[str], re
                 elif not address:
                     bucket[UNKNOWN] = bucket.get(UNKNOWN, 0) + count  # (it may have been any of them: none is called unused)
                 else:
-                    for name in what.objects(cell, address):
+                    held = what.objects(cell, address)
+                    if cell == "destination" and nat[0]:
+                        held = list(dict.fromkeys(held + what.objects(cell, nat[0])))  # (a rule may name either side of the NAT)
+                    for name in held:
                         bucket[name] = bucket.get(name, 0) + count
             bucket = log.members.setdefault("service", {})
             if rule.negate_service:
@@ -636,16 +755,24 @@ def _evaluate(p: Policy, store: Store, span: Window, gateways: Sequence[str], re
             elif protocol < 0:
                 bucket[UNKNOWN] = bucket.get(UNKNOWN, 0) + count
             else:
-                for name in what.service_hits(protocol, port):
+                served = what.service_hits(protocol, port)
+                if nat[1] is not None:
+                    served = list(dict.fromkeys(served + what.service_hits(protocol, nat[1])))
+                for name in served:
                     bucket[name] = bucket.get(name, 0) + count
             for person in [name for name in user.split(_USERS) if name]:
                 bucket = log.members.setdefault("user", {})
                 bucket[person] = bucket.get(person, 0) + count
     result.unattributed = dict(sorted(unattributed.items(), key=lambda item: (-item[1], item[0])))
+    if weak:
+        result.only_possible.append(f"the logs come from {len(names)} firewalls and no --gateway says which of them run this policy: "
+                                    "a rule named by its name or policy ID may be another firewall's")  # fmt: skip
     siblings: Dict[str, List[Rule]] = {}
     for rule in p.rules:
         ids = rule.source_ids
         key = ids.get("checkpoint.rule_path") or ids.get("checkpoint.rule_uid") or ""
+        for strong in _ID_ORDER.get(p.vendor, ()):
+            key = key or (f"{strong}={ids[strong]}" if ids.get(strong) else "")
         if key and rule.enabled:
             siblings.setdefault(key, []).append(rule)
     for group in siblings.values():
@@ -661,17 +788,22 @@ def _evaluate(p: Policy, store: Store, span: Window, gateways: Sequence[str], re
         what = cells.get(id(rule)) or _Cells(p, rule)
         _complete(log, what)
         log.rolled_up = id(rule) in rolled_rules
-        log.no_evidence = _evidence(rule, span, result, coverage, doubts, names, unchanged_since, everywhere)
+        log.no_evidence = _evidence(rule, span, result, coverage, doubts, names, unchanged_since, everywhere, aliases)
+        if p.vendor == "panos" and (rule.log_end or rule.log_start) and not rule.handling.get("log-setting"):
+            log.no_evidence.insert(0, "it has no log forwarding profile: its logs reach syslog and Panorama only through one")
+        elif p.vendor == "fortios" and rule.log_start and not rule.log_end:
+            log.no_evidence.insert(0, "it logs the start of the sessions a security profile looks at only (logtraffic utm): not all")
         if p.vendor == "checkpoint" and not rules.layers:
             log.no_evidence.append("the export does not give the uid of the layer, which the logs name it by")
         elif result.connections and not ours:
-            log.no_evidence.append("no connection in the window names a rule of this layer: are these the logs of this policy?")
+            what_of = "this layer" if p.vendor == "checkpoint" else "this policy"
+            log.no_evidence.append(f"no connection in the window names a rule of {what_of}: are these the logs of this policy?")
         if result.simulated:
             log.method = "simulation" if not result.connections - result.simulated else "gateway and simulation"
-        for gateway in (rule.targets and [t.lower() for t in rule.targets]) or everywhere:
+        for gateway in (rule.targets and [aliases.get(t.lower(), t.lower()) for t in rule.targets]) or everywhere:
             if names.get(gateway, gateway) in result.accepts and not result.accepts[names.get(gateway, gateway)] and rule.action.value == "allow":
                 log.no_evidence.append(f"gateway {names.get(gateway, gateway)} logged no accepted connection in the window (are accepts exported?)")
-        log.gateways = sorted({names.get(g.lower(), g) for g in (rule.targets or list(names.values()))}, key=str.lower)
+        log.gateways = sorted({names.get(aliases.get(g.lower(), g.lower()), g) for g in (rule.targets or list(names.values()))}, key=str.lower)
         total = log.connections + log.shared  # (a counter counts the rule of the source, all its parts)
         if rule.hits is not None:
             if rule.hits.count == 0 and total:
@@ -717,7 +849,8 @@ def _users_hold(rule: Rule, user: str) -> bool:
 
 
 def _evidence(rule: Rule, span: Window, result: Evaluation, coverage: Dict[str, Set[str]], doubts: Counter[str],
-              names: Dict[str, str], unchanged_since: Optional[int] = None, scope: Optional[List[str]] = None) -> List[str]:  # fmt: skip
+              names: Dict[str, str], unchanged_since: Optional[int] = None, scope: Optional[List[str]] = None,
+              aliases: Optional[Dict[str, str]] = None) -> List[str]:  # fmt: skip
     """Why the logs of the window cannot prove that the rule was not used; empty when they can.
 
     ``scope`` is the gateways a rule installed on every target is on (by default every gateway that sent logs).
@@ -734,7 +867,7 @@ def _evidence(rule: Rule, span: Window, result: Evaluation, coverage: Dict[str, 
     elif changed > first:
         out.append(f"it was created or changed on {_day(changed)}, after the window began")
     days = set(span.all_days())
-    wanted = [target.lower() for target in rule.targets] or (scope if scope is not None else list(names))
+    wanted = [(aliases or {}).get(target.lower(), target.lower()) for target in rule.targets] or (scope if scope is not None else list(names))
     if not wanted:
         out.append("no gateway sent logs")
     for gateway in wanted:
@@ -798,7 +931,7 @@ def to_dict(p: Policy, source: str, store: str, evaluation: Evaluation, ingested
     out["connections"] = {"in_window": evaluation.connections, "attributed": evaluation.attributed, "possible": evaluation.possible,
                           "by_simulation": evaluation.simulated, "not_attributed": evaluation.unattributed,
                           "unreadable_without_gateway_or_day": evaluation.unplaced}  # fmt: skip
-    if evaluation.only_possible and evaluation.simulated:
+    if evaluation.only_possible:
         out["connections"]["possible_only_because"] = evaluation.only_possible
     out["findings"] = [f.to_dict() for f in findings]
     out["rules"] = _rules_dict(p)

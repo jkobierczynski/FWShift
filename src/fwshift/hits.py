@@ -7,7 +7,8 @@
 Two answers are read, as the firewalls give them:
 
 * PAN-OS: the XML API answer of ``show rule-hit-count vsys vsys-name <vsys> rule-base security rules all``.
-  Rules by name; times in seconds, 0 for never.
+  Rules by name; times in seconds, 0 for never. The creation and modification times of a rule are kept as the day it
+  was last changed (``Rule.changed``), where the configuration does not say: what proving it unused from logs needs.
 * FortiOS: the answer of ``GET /api/v2/monitor/firewall/policy``, one VDOM or an array of VDOMs.
   Policies by uuid, or by policy ID where the configuration has no uuid; times in seconds.
 
@@ -57,8 +58,9 @@ class Applied:
 def apply(policy: Policy, data: bytes, name: str) -> Applied:
     """Read a file of counters and put each counter on the rule it counts."""
     head = data.lstrip(b"\xef\xbb\xbf \t\r\n")
+    changed: Dict[str, int] = {}  # PAN-OS: rule name -> when it was created or last changed
     if head.startswith(b"<"):
-        counters, scope, partial = _panos(policy, data, name)
+        counters, scope, partial = _panos(policy, data, name, changed)
         key = "panos.name"
     elif head.startswith((b"{", b"[")):
         counters, scope, partial = _fortios(policy, data, name)
@@ -89,6 +91,9 @@ def apply(policy: Policy, data: bytes, name: str) -> Applied:
         count.read_from, count.read_until = applied.source, read_until
         for rule in rules:
             applied.rules.add(rule.origin or rule.name)
+            if ids and ids[0][1] in changed:
+                # What a log of use needs to know: the rule has been as it is since then (the latest, of several firewalls).
+                rule.changed = max(rule.changed or 0, changed[ids[0][1]])
             rule.hits = count if rule.hits is None else _added(rule.hits, count)
             if partial:
                 rule.hits.complete = False
@@ -122,7 +127,7 @@ def _whole(text: Optional[str], what: str, name: str) -> int:
     return int(value)
 
 
-def _panos(policy: Policy, data: bytes, name: str) -> Tuple[List[Tuple[List[Tuple[str, str]], HitCount]], str, str]:
+def _panos(policy: Policy, data: bytes, name: str, changed: Dict[str, int]) -> Tuple[List[Tuple[List[Tuple[str, str]], HitCount]], str, str]:
     root = xmlread.fromstring(data, "the answers of the PAN-OS XML API")
     if root.tag != "response":
         raise ParseError(f"--hits {name}: XML that is not an answer of the PAN-OS XML API (<{root.tag[:30]}>)")
@@ -167,6 +172,9 @@ def _panos(policy: Policy, data: bytes, name: str) -> Tuple[List[Tuple[List[Tupl
                 # The rule as it stands has been counted since the latest of its reset, creation and change.
                 since = [value for value in (moment("last-reset-timestamp"), moment("rule-creation-timestamp"),
                                              moment("rule-modification-timestamp")) if value is not None]  # fmt: skip
+                made = [value for value in (moment("rule-creation-timestamp"), moment("rule-modification-timestamp")) if value is not None]
+                if made:
+                    changed[rule] = max(made)
                 out.append(([("panos.name", rule)], HitCount(count, moment("first-hit-timestamp"), moment("last-hit-timestamp"),
                                                                max(since) if since else None)))  # fmt: skip
     if not seen:

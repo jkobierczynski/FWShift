@@ -1,0 +1,59 @@
+FWShift usage
+  source: panos (vsys1)
+  store: (none: nothing is kept) (logs from 2026-07-03 to 2026-09-30, 1 run(s))
+  window: 2026-07-03 to 2026-09-30 (90 days)
+  read now: 1 file(s), 533 line(s), 439 connection(s)
+    90 not counted: a PAN-OS log of another type than TRAFFIC (threat, system, config, ...)
+    30 not counted: the start of a session whose end is logged too (counted once)
+  gateway 012801000001: logs on 90 of 90 days
+  rules installed on every target are judged by the logs of 012801000001; name a gateway that sent none with --gateway
+  connections in the window: 439, attributed to a rule of the policy: 329, possibly to one of several: 10
+    90 not attributed: a line of another virtual system (vsys2)
+    9 not attributed: the default rule of the policy (interzone-default): no rule of the configuration
+    1 not attributed: a rule that is disabled in this policy (it was changed since?)
+
+Findings
+  [medium] UNUSED_RULE: rule 'Engineering to PLCs' allows traffic from zone trust to zone ot, and the logs of 012801000001 show no connection that the gateway attributed to it from 2026-07-03 to 2026-09-30, with logs on every day
+  [low] UNUSED_RULE_OBJECT: rule 'App-Server-Ports' of its sources 'lan6-net' had no connection from 2026-07-03 to 2026-09-30, out of 14 connection(s) through the rule
+  [info] NO_USAGE_EVIDENCE: rule 'Tagged-Servers-Updates' has 9 connection(s) in the logs from 2026-07-03 to 2026-09-30 that may have gone through it or through another rule: the logs and the policy do not tell which (a line that names no rule, matched against rules the policy cannot settle; or a line that names the rule loosely, such as a session start without its end)
+  [info] NO_USAGE_EVIDENCE: rule 'Not-From-Guests' has no connection in the logs from 2026-07-03 to 2026-09-30, but they prove nothing: it has no log forwarding profile: its logs reach syslog and Panorama only through one
+
+Rules
+  'Allow-Web-Out' (allow): 91 connection(s)
+      source: lan-net 91
+      service: application-default ?
+  'Allow-DNS' (allow): 90 connection(s)
+      destination: dns-servers 90, dns-1 90, dns-2 0
+      service: application-default ?
+  'Inbound-Web' (allow): 30 connection(s)
+      destination: web-public 30
+      service: service-https 30
+  'Inbound-Mail' (allow): 13 connection(s), 1 possible
+      destination: mail-public 13
+      service: application-default ?
+  'Admin-SSH' (allow): 30 connection(s)
+      source: admin-range 30
+      destination: dmz-servers 30, web-1 30, mail-1 0
+      service: application-default ?
+      user: example\alice 30
+  'Engineering to PLCs' (allow): 0 connection(s)
+      source: eng-station 0
+      destination: plc-net 0
+      service: application-default ?
+  'Block-OT-Outbound' (deny): 13 connection(s)
+  'Block-Torrents' (deny): 0 connection(s)
+      service: application-default ?
+  'Block-Region' (drop): 39 connection(s)
+      destination: KP ?, 198.51.100.200 39
+  'App-Server-Ports' (allow): 14 connection(s)
+      source: lan-net 14, lan6-net 0
+      destination: web-1 14
+      service: web-ports 14, tcp-8443 14, tcp-high-web 14, service-http 0, service-https 0
+  'Tagged-Servers-Updates' (allow): 0 connection(s), 9 possible
+      source: tagged-servers ?
+      destination: updates.example.com ?
+      service: application-default ?
+  'Not-From-Guests' (allow): 0 connection(s); proves nothing: it has no log forwarding profile: its logs reach syslog and Panorama only through one
+      destination: all-servers 0, dmz-servers 0, dns-servers 0, web-1 0, mail-1 0, dns-1 0, dns-2 0
+      service: application-default ?
+  'DMZ-Intrazone' (deny): 9 connection(s)

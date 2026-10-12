@@ -1,0 +1,190 @@
+<?xml version="1.0"?>
+<!-- Synthetic PAN-OS configuration for fwshift tests. Not taken from any real network.
+     Addresses come from RFC 1918, RFC 5737 and RFC 3849 documentation ranges. -->
+<config version="10.2.0" urldb="paloaltonetworks">
+  <shared>
+    <address>
+      <entry name="dns-1"><ip-netmask>192.0.2.53</ip-netmask><description>Shared resolver</description></entry>
+    </address>
+    <service>
+      <entry name="tcp-8443"><protocol><tcp><port>8443</port></tcp></protocol></entry>
+    </service>
+  </shared>
+  <devices>
+    <entry name="localhost.localdomain">
+      <vsys>
+        <entry name="vsys1">
+          <zone>
+            <entry name="trust"><network><layer3><member>ethernet1/2</member></layer3></network></entry>
+            <entry name="untrust"><network><layer3><member>ethernet1/1</member></layer3></network></entry>
+            <entry name="dmz"><network><layer3><member>ethernet1/3</member></layer3></network></entry>
+            <entry name="ot"><network><layer3><member>ethernet1/4</member></layer3></network></entry>
+          </zone>
+          <tag>
+            <entry name="servers"><color>color3</color></entry>
+          </tag>
+          <address>
+            <entry name="lan-net"><ip-netmask>10.10.0.0/16</ip-netmask></entry>
+            <entry name="web-1"><ip-netmask>10.20.0.10</ip-netmask><tag><member>servers</member></tag></entry>
+            <entry name="web-public"><ip-netmask>203.0.113.10/32</ip-netmask><description>Public address of web-1</description></entry>
+            <entry name="mail-1"><ip-netmask>10.20.0.25/32</ip-netmask><tag><member>servers</member></tag></entry>
+            <entry name="mail-public"><ip-netmask>203.0.113.25/32</ip-netmask></entry>
+            <entry name="dns-2"><ip-netmask>192.0.2.54</ip-netmask></entry>
+            <entry name="admin-range"><ip-range>10.10.5.10-10.10.5.20</ip-range></entry>
+            <entry name="updates.example.com"><fqdn>updates.example.com</fqdn></entry>
+            <entry name="odd-hosts"><ip-wildcard>10.20.1.2/0.0.254.0</ip-wildcard></entry>
+            <entry name="snat-pool"><ip-range>198.51.100.20-198.51.100.23</ip-range></entry>
+            <entry name="partner-net"><ip-netmask>10.99.0.0/16</ip-netmask></entry>
+            <entry name="eng-station"><ip-netmask>10.10.7.15/32</ip-netmask></entry>
+            <entry name="plc-net"><ip-netmask>10.30.1.0/24</ip-netmask></entry>
+            <entry name="lan6-net"><ip-netmask>2001:db8:10::/48</ip-netmask></entry>
+          </address>
+          <address-group>
+            <entry name="dns-servers"><static><member>dns-1</member><member>dns-2</member></static></entry>
+            <entry name="dmz-servers"><static><member>web-1</member><member>mail-1</member></static><description>Everything in the DMZ</description></entry>
+            <entry name="all-servers"><static><member>dmz-servers</member><member>dns-servers</member></static></entry>
+            <entry name="tagged-servers"><dynamic><filter>'servers'</filter></dynamic></entry>
+          </address-group>
+          <service>
+            <entry name="tcp-high-web"><protocol><tcp><port>8080,8443,9000-9010</port></tcp></protocol></entry>
+            <entry name="udp-syslog-src"><protocol><udp><port>514</port><source-port>1024-65535</source-port></udp></protocol></entry>
+          </service>
+          <service-group>
+            <entry name="web-ports"><members><member>service-http</member><member>service-https</member><member>tcp-high-web</member></members></entry>
+          </service-group>
+          <application-group>
+            <entry name="web-apps"><members><member>web-browsing</member><member>ssl</member></members></entry>
+          </application-group>
+          <rulebase>
+            <security>
+              <rules>
+                <entry name="Allow-Web-Out">
+                  <from><member>trust</member></from><to><member>untrust</member></to>
+                  <source><member>lan-net</member></source><destination><member>any</member></destination>
+                  <source-user><member>any</member></source-user><category><member>any</member></category>
+                  <application><member>web-apps</member></application><service><member>application-default</member></service>
+                  <action>allow</action><log-setting>to-syslog</log-setting><log-end>yes</log-end>
+                  <profile-setting><group><member>default-profiles</member></group></profile-setting>
+                  <description>Outbound web for the "office" LAN</description>
+                </entry>
+                <entry name="Allow-DNS">
+                  <from><member>trust</member><member>dmz</member></from><to><member>untrust</member></to>
+                  <source><member>any</member></source><destination><member>dns-servers</member></destination>
+                  <application><member>dns</member></application><service><member>application-default</member></service>
+                  <action>allow</action><log-setting>to-syslog</log-setting>
+                </entry>
+                <entry name="Inbound-Web">
+                  <from><member>untrust</member></from><to><member>dmz</member></to>
+                  <source><member>any</member></source><destination><member>web-public</member></destination>
+                  <application><member>ssl</member></application><service><member>service-https</member></service>
+                  <action>allow</action><log-setting>to-syslog</log-setting><log-start>yes</log-start>
+                </entry>
+                <entry name="Inbound-Mail">
+                  <from><member>untrust</member></from><to><member>dmz</member></to>
+                  <source><member>any</member></source><destination><member>mail-public</member></destination>
+                  <application><member>smtp</member></application><service><member>application-default</member></service>
+                  <action>allow</action><log-setting>to-syslog</log-setting>
+                </entry>
+                <entry name="Admin-SSH">
+                  <from><member>trust</member></from><to><member>dmz</member></to>
+                  <source><member>admin-range</member></source><destination><member>dmz-servers</member></destination>
+                  <source-user><member>example\netadmins</member></source-user>
+                  <application><member>ssh</member></application><service><member>application-default</member></service>
+                  <action>allow</action><log-setting>to-syslog</log-setting>
+                </entry>
+                <entry name="Engineering to PLCs">
+                  <from><member>trust</member></from><to><member>ot</member></to>
+                  <source><member>eng-station</member></source><destination><member>plc-net</member></destination>
+                  <application><member>modbus</member><member>siemens-s7</member></application>
+                  <service><member>application-default</member></service>
+                  <action>allow</action><log-setting>to-syslog</log-setting>
+                </entry>
+                <entry name="Block-OT-Outbound">
+                  <from><member>ot</member></from><to><member>untrust</member></to>
+                  <source><member>any</member></source><destination><member>any</member></destination>
+                  <application><member>any</member></application><service><member>any</member></service>
+                  <action>deny</action><log-setting>to-syslog</log-setting>
+                </entry>
+                <entry name="Block-Torrents">
+                  <from><member>trust</member></from><to><member>untrust</member></to>
+                  <source><member>any</member></source><destination><member>any</member></destination>
+                  <application><member>bittorrent</member></application><service><member>application-default</member></service>
+                  <action>deny</action><log-setting>to-syslog</log-setting>
+                </entry>
+                <entry name="Block-Region">
+                  <from><member>any</member></from><to><member>untrust</member></to>
+                  <source><member>any</member></source><destination><member>KP</member><member>198.51.100.200</member></destination>
+                  <application><member>any</member></application><service><member>any</member></service>
+                  <action>drop</action><log-setting>to-syslog</log-setting>
+                </entry>
+                <entry name="App-Server-Ports">
+                  <from><member>trust</member></from><to><member>dmz</member></to>
+                  <source><member>lan-net</member><member>lan6-net</member></source><destination><member>web-1</member></destination>
+                  <application><member>any</member></application><service><member>web-ports</member><member>tcp-8443</member></service>
+                  <action>allow</action><log-setting>to-syslog</log-setting>
+                </entry>
+                <entry name="Tagged-Servers-Updates">
+                  <from><member>dmz</member></from><to><member>untrust</member></to>
+                  <source><member>tagged-servers</member></source><destination><member>updates.example.com</member></destination>
+                  <application><member>ssl</member></application><service><member>application-default</member></service>
+                  <action>allow</action><log-setting>to-syslog</log-setting>
+                </entry>
+                <entry name="Not-From-Guests">
+                  <from><member>trust</member></from><to><member>dmz</member></to>
+                  <source><member>10.10.200.0/24</member></source><destination><member>all-servers</member></destination>
+                  <application><member>ping</member></application><service><member>application-default</member></service>
+                  <action>allow</action><negate-source>yes</negate-source>
+                </entry>
+                <entry name="DMZ-Intrazone">
+                  <from><member>dmz</member></from><to><member>dmz</member></to>
+                  <source><member>any</member></source><destination><member>any</member></destination>
+                  <application><member>any</member></application><service><member>any</member></service>
+                  <action>deny</action><log-setting>to-syslog</log-setting><rule-type>intrazone</rule-type>
+                </entry>
+                <entry name="Old-Rule">
+                  <from><member>trust</member></from><to><member>untrust</member></to>
+                  <source><member>odd-hosts</member></source><destination><member>any</member></destination>
+                  <application><member>any</member></application><service><member>udp-syslog-src</member></service>
+                  <action>allow</action><log-setting>to-syslog</log-setting><disabled>yes</disabled>
+                </entry>
+              </rules>
+            </security>
+            <nat>
+              <rules>
+                <entry name="No-NAT-Partner">
+                  <from><member>trust</member></from><to><member>untrust</member></to>
+                  <source><member>lan-net</member></source><destination><member>partner-net</member></destination>
+                  <service>any</service>
+                </entry>
+                <entry name="Inbound-Web-DNAT">
+                  <from><member>untrust</member></from><to><member>untrust</member></to>
+                  <source><member>any</member></source><destination><member>web-public</member></destination>
+                  <service>service-https</service>
+                  <destination-translation><translated-address>web-1</translated-address><translated-port>8443</translated-port></destination-translation>
+                </entry>
+                <entry name="Mail-Static">
+                  <from><member>dmz</member></from><to><member>untrust</member></to>
+                  <source><member>mail-1</member></source><destination><member>any</member></destination>
+                  <service>any</service>
+                  <source-translation><static-ip><translated-address>mail-public</translated-address><bi-directional>yes</bi-directional></static-ip></source-translation>
+                </entry>
+                <entry name="DMZ-Out-Pool">
+                  <from><member>dmz</member></from><to><member>untrust</member></to>
+                  <source><member>dmz-servers</member></source><destination><member>any</member></destination>
+                  <service>any</service>
+                  <source-translation><dynamic-ip-and-port><translated-address><member>snat-pool</member></translated-address></dynamic-ip-and-port></source-translation>
+                </entry>
+                <entry name="Outbound-PAT">
+                  <from><member>trust</member></from><to><member>untrust</member></to>
+                  <source><member>any</member></source><destination><member>any</member></destination>
+                  <service>any</service>
+                  <source-translation><dynamic-ip-and-port><interface-address><interface>ethernet1/1</interface></interface-address></dynamic-ip-and-port></source-translation>
+                </entry>
+              </rules>
+            </nat>
+          </rulebase>
+        </entry>
+      </vsys>
+    </entry>
+  </devices>
+</config>

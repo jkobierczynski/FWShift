@@ -2,7 +2,7 @@
 # Copyright (C) 2026 Jurgen Kobierczynski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Firewall logs, read into connections and the rules the gateway says matched them.
+"""Firewall logs, read into connections and the rules the gateway says matched them (or no rule: iptables).
 
 One module per log format. Each yields, per line, a ``Line``: a connection (``LogRecord``), or the reason the line
 is not one. Nothing is skipped without a reason, and every reason is counted (docs/RULE_USAGE.md, principle 5).
@@ -11,7 +11,7 @@ is not one. Nothing is skipped without a reason, and every reason is counted (do
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -47,6 +47,13 @@ class LogRecord:
     # The zones the connection came in and went out by, where the log gives them (iptables: the interfaces).
     in_zone: str = ""
     out_zone: str = ""
+    # The identifiers of the rule the line names, as Rule.source_ids keys them ("panos.name", "panos.uuid",
+    # "fortios.policyid", "fortios.uuid"), with where it was ("vsys", "vdom", "policytype").
+    ids: Dict[str, str] = field(default_factory=dict)
+    possible: bool = False  # the line names a rule the connection may have left for another (it is not certain)
+    # The destination after destination NAT, where the log gives it and the rule may name it (FortiOS: tranip, tranport).
+    nat_dst: str = ""
+    nat_port: Optional[int] = None
 
 
 @dataclass
@@ -60,6 +67,7 @@ class Line:
     doubt: bool = False
     time: Optional[int] = None  # when and from where, where the line says: this is what shows a gateway was logging
     gateway: str = ""
+    scope: str = ""  # the part of the gateway the line is of, where it says (PAN-OS: the virtual system; FortiOS: the VDOM)
 
 
 __all__ = ["LayerMatch", "Line", "LogRecord"]

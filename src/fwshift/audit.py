@@ -1058,8 +1058,9 @@ class _Audit:
             return "used", ""  # (a part of a rule of the source whose other parts were used: its members say the rest)
         if log.possible:
             return "unknown", (f"has {log.possible} connection(s) in the logs from {log.first_day} to {log.last_day} that may have gone "
-                               "through it or through another rule: the policy does not tell which (a host name, a criterion the model "
-                               "does not hold, a rule read approximately, or what the log leaves out)")  # fmt: skip
+                               "through it or through another rule: the logs and the policy do not tell which (a line that names no rule, "
+                               "matched against rules the policy cannot settle; or a line that names the rule loosely, such as a session "
+                               "start without its end)")  # fmt: skip
         if log.no_evidence:
             return "unknown", f"has no connection in the logs from {log.first_day} to {log.last_day}, but they prove nothing: " + "; ".join(log.no_evidence)
         gateways = ", ".join(log.gateways) or "its gateways"
