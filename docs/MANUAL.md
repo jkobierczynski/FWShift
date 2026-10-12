@@ -615,8 +615,12 @@ TCP 502 and TCP 102, not the applications themselves.
 ### `fwshift convert`
 
 ```
-fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,sonicwall,watchguard,barracuda,junos,iptables,ip6tables,json} [options]
+fwshift convert INPUT --to FORMAT [options]
 ```
+
+`FORMAT` is one of `panos`, `fortios`, `checkpoint`, `asa`, `fmc`, `fdm`,
+`sophos`, `pfsense`, `sonicwall`, `watchguard`, `barracuda`, `junos`,
+`iptables`, `ip6tables` and `json` (the neutral model; see `--to json` below).
 
 `INPUT` is a file, or `-` for standard input.
 
@@ -624,7 +628,7 @@ fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,
 
 | Option | Meaning |
 |---|---|
-| `--from {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,sonicwall,watchguard,barracuda,junos,iptables,ip6tables}` | Source format. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
