@@ -1,0 +1,138 @@
+FWShift conversion report
+  source: pfsense
+  target: sonicwall
+
+Summary
+  Security rules:     25   exact 12, approximated 5, needs review 8 (6 emitted disabled), skipped 0
+  NAT rules:           8   exact 0, approximated 6, needs review 0, skipped 2
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 13, approximated 0, needs review 2, skipped 0
+
+Notes for the whole policy
+  [needs-review] RULE_NOT_LOADED: pfSense does not load 1 rule of the configuration, which it cannot resolve; they are not converted: 'Spare network, not in use' (its interface 'opt3' is not there or not enabled)
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: pfSense drops what arrives there from addresses nobody has been given, by a list it downloads. That list is not in the configuration, and nothing is converted for it
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, address-object fqdn, address-object ipv6, nat-policy name and comment, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): WAN, LAN, DMZ, GUEST
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] FLOATING_LAST_MATCH: 1 floating rule is not 'quick': such a rule decides only where no rule of an interface matched, and of several the last one. In the converted policy it stands behind the rules of the interfaces, the last one first: 'Telnet unless a rule says otherwise'
+  [info] PFSENSE_AUTOMATIC_RULES: pfSense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof), packets from or to 169.254.0.0/16, and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without; and it has rules for itself (anti-lockout, DHCP, IPsec). Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] DEFAULT_DENY_ADDED: 32 rules that deny were added, one at the end of each pair of zones and IP version: SonicOS allows some traffic between zones by itself (from LAN to WAN, for example), and the source did not
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 2 rule(s) match IPv4 and IPv6 traffic and were written twice: SonicOS has address objects and access rules per IP version
+
+Security rules
+  Nothing leaves towards the sinkhole  ->  exact  (emitted as Nothing leaves towards the sinkh, Nothing leaves towards the sin 2, Nothing leaves towards the sin 3, Nothing leaves towards the sin 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  SSH for the partner - pass  ->  needs-review  (emitted as SSH for the partner - pass, SSH for the partner - pass 2, SSH for the partner - pass 3, SSH for the partner - pass 4)
+      [approximated] AUTOMATIC_RULE: port forward 'SSH for the partner' passes what it forwards without a rule ('Pass' as its filter rule association): pfSense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'WAN address' next to '192.168.20.25' because of NAT rule 'SSH for the partner'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'SSH for the partner' also translates the port to 22; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to '192.168.20.25' because of NAT rule 'Mail server - inbound'; check that this rule is meant to cover the translated traffic
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  Block private networks from WAN  ->  exact  (emitted as Block private networks from WAN, Block private networks from WA 2, Block private networks from WA 3, Block private networks from WA 4, Block private networks from WA 5, Block private networks from WA 6, Block private networks from WA 7, Block private networks from WA 8)
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks and loopback addresses' set: pfSense drops what arrives there from those networks before any rule is looked at. This rule stands for that
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  Ping from the inside  ->  exact  (emitted as Ping from the inside, Ping from the inside 2, Ping from the inside 3, Ping from the inside 4, Ping from the inside 5, Ping from the inside 6, Ping from the inside 7, Ping from the inside 8)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 8 rules
+  DNS from the firewall  ->  exact  (emitted as DNS from the firewall, DNS from the firewall 2, DNS from the firewall 3, DNS from the firewall 4, DNS from the firewall 5, DNS from the firewall 6, DNS from the firewall 7, DNS from the firewall 8, DNS from the firewall 9, DNS from the firewall 10, DNS from the firewall 11, DNS from the firewall 12, DNS from the firewall 13, DNS from the firewall 14, DNS from the firewall 15, DNS from the firewall 16)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 8 rules
+  NAT Web server HTTPS  ->  approximated  (emitted as NAT Web server HTTPS, NAT Web server HTTPS 2, NAT Web server HTTPS 3, NAT Web server HTTPS 4)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to '192.168.20.10' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  NAT Application ports  ->  exact  (emitted as NAT Application ports, NAT Application ports 2, NAT Application ports 3, NAT Application ports 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  Mail in  ->  approximated  (emitted as Mail in, Mail in 2, Mail in 3, Mail in 4)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.11' next to '192.168.20.25' because of NAT rule 'Mail server - inbound'; check that this rule is meant to cover the translated traffic
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  Web server over IPv6  ->  exact  (emitted as Web server over IPv6, Web server over IPv6 2, Web server over IPv6 3, Web server over IPv6 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  Ping and errors to the firewall  ->  needs-review, emitted disabled  (emitted as Ping and errors to the firewall, Ping and errors to the firewal 2, Ping and errors to the firewal 3, Ping and errors to the firewal 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-echoreq-timex-unreach': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  Administrators to the servers  ->  exact  (emitted as Administrators to the servers, Administrators to the servers 2, Administrators to the servers 3, Administrators to the servers 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  Users to the web servers  ->  approximated  (emitted as Users to the web servers, Users to the web servers 2, Users to the web servers 3, Users to the web servers 4)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'WebServers' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  Users to the web server by its outside address  ->  needs-review  (emitted as Users to the web server by its o, Users to the web server by its 2, Users to the web server by its 3, Users to the web server by its 4)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '198.51.100.10', the external address of NAT rule 'Web server HTTPS', but not '192.168.20.10' behind it. The source looks rules up after the translation and did not apply this rule to that traffic; the converted rule does
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  No other private network from the LAN  ->  approximated  (emitted as No other private network from th, No other private network from 2, No other private network from 3, No other private network from 4)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [info] RESET_ACTION: action reset-client becomes deny
+  Default allow LAN to any rule  ->  exact  (emitted as Default allow LAN to any rule, Default allow LAN to any rule 2, Default allow LAN to any rule 3, Default allow LAN to any rule 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  Default allow LAN IPv6 to any rule  ->  exact  (emitted as Default allow LAN IPv6 to any ru, Default allow LAN IPv6 to any 2, Default allow LAN IPv6 to any 3, Default allow LAN IPv6 to any 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  Servers fetch their updates  ->  exact  (emitted as Servers fetch their updates, Servers fetch their updates 2, Servers fetch their updates 3, Servers fetch their updates 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  Mail out, not to the inside  ->  needs-review, emitted disabled  (emitted as Mail out, not to the inside, Mail out, not to the inside 2, Mail out, not to the inside 3, Mail out, not to the inside 4)
+      [info] NEGATION_EXPANDED: SonicOS has no negation: 'not destination Private' is written as the IPv4 addresses that are left (4 range(s))
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10).
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11).
+  Syslog to the collector  ->  needs-review, emitted disabled  (emitted as Syslog to the collector, Syslog to the collector 2, Syslog to the collector 3, Syslog to the collector 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [needs-review] SCHEDULE: schedule 'OfficeHours' is not converted; the rule would apply at all times.
+  Nothing from the list  ->  needs-review, emitted disabled  (emitted as Nothing from the list, Nothing from the list 2, Nothing from the list 3, Nothing from the list 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocklist': a URL table: its addresses are in a file on the firewall, not in the configuration. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Tunnel of the old application  ->  needs-review, emitted disabled  (emitted as Tunnel of the old application, Tunnel of the old application 2, Tunnel of the old application 3, Tunnel of the old application 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'esp': IP protocol 50, for which FWShift does not know the command of SonicOS.
+  Guests reach nothing private  ->  approximated  (emitted as Guests reach nothing private, Guests reach nothing private 2, Guests reach nothing private 3, Guests reach nothing private 4)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Web server HTTPS'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '198.51.100.10' next to 'Private' because of NAT rule 'Application ports'; check that this rule is meant to cover the translated traffic
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  Guests browse  ->  exact  (emitted as Guests browse, Guests browse 2, Guests browse 3, Guests browse 4)
+      [info] POLICY_ROUTING: the rule also sends what it passes to gateway 'WANGW' (policy routing), which is not converted
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  Phones of the guests  ->  needs-review, emitted disabled  (emitted as Phones of the guests, Phones of the guests 2, Phones of the guests 3, Phones of the guests 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches a mark set by another rule (tagged) 'VOICE'.
+  Telnet unless a rule says otherwise  ->  exact  (emitted as Telnet unless a rule says otherw, Telnet unless a rule says othe 2, Telnet unless a rule says othe 3, Telnet unless a rule says othe 4, Telnet unless a rule says othe 5, Telnet unless a rule says othe 6, Telnet unless a rule says othe 7, Telnet unless a rule says othe 8, Telnet unless a rule says othe 9, Telnet unless a rule says oth 10, Telnet unless a rule says oth 11, Telnet unless a rule says oth 12, Telnet unless a rule says oth 13, Telnet unless a rule says oth 14, Telnet unless a rule says oth 15, Telnet unless a rule says oth 16)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 16 rules
+
+NAT rules
+  Web server HTTPS  ->  approximated
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [approximated] NAT_ZONES: the rule applied to traffic from WAN, LAN, DMZ, GUEST only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  Application ports  ->  skipped
+      [info] NAT_REFLECTION: the port forward has NAT reflection: it also applies to what arrives on LAN, DMZ, GUEST
+      [needs-review] NAT_NOT_CONVERTED: not converted: a range of ports translated to another range (8000-8010 to 9000-9010), which the model cannot say
+  SSH for the partner  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from WAN only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  Mail server - inbound  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from WAN only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  Mail server - outbound  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic to WAN only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+  DMZ leaves with the web address  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic to WAN only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+  No NAT towards the partner  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic to WAN only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+  Automatic outbound NAT on WAN  ->  skipped
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: pfSense translates what leaves by an interface with a gateway and comes from the networks of its other interfaces and of its static routes. This rule stands for that
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+
+Address groups
+  DmzServers  ->  exact  (emitted as DmzServers, DmzServers v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'DmzServers', 'DmzServers v6'
+  Updates  ->  exact  (emitted as Updates, Updates v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'Updates', 'Updates v6'
+
+Services
+  icmp-echoreq  ->  exact
+      [info] ICMP_AS_DEFAULT: ICMP echo request is written as the default service 'Ping' of SonicOS, which is taken to be that
+  MailPorts  ->  exact  (emitted as MailPorts, MailPorts tcp 25, MailPorts tcp 465, MailPorts tcp 587)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'MailPorts' of 'MailPorts tcp 25', 'MailPorts tcp 465', 'MailPorts tcp 587'
+  icmp-echoreq-timex-unreach  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  tcp-udp-53  ->  exact  (emitted as tcp-udp-53, tcp-udp-53 tcp 53, tcp-udp-53 udp 53)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'tcp-udp-53' of 'tcp-udp-53 tcp 53', 'tcp-udp-53 udp 53'
+  WebPorts  ->  exact  (emitted as WebPorts, WebPorts tcp 80, WebPorts tcp 443, WebPorts tcp 8080-8090)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'WebPorts' of 'WebPorts tcp 80', 'WebPorts tcp 443', 'WebPorts tcp 8080-8090'
+  esp  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 50, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled

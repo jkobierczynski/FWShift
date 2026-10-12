@@ -1,0 +1,308 @@
+configure terminal
+address-object ipv4 "h 198.51.100.66" host 198.51.100.66 zone eth0
+address-object ipv4 "n 10.10.200.0_24" network 10.10.200.0 255.255.255.0 zone eth0
+address-object ipv4 "h 10.20.0.10" host 10.20.0.10 zone eth0
+address-object ipv4 "h 203.0.113.10" host 203.0.113.10 zone eth0
+address-object ipv4 "h 10.20.0.25" host 10.20.0.25 zone eth0
+address-object ipv4 "h 203.0.113.25" host 203.0.113.25 zone eth0
+address-object ipv4 "r 10.10.5.10-10.10.5.20" range 10.10.5.10 10.10.5.20 zone eth0
+address-object ipv4 "n 10.20.0.0_24" network 10.20.0.0 255.255.255.0 zone eth0
+address-object ipv4 "h 10.10.7.15" host 10.10.7.15 zone eth0
+address-object ipv4 "n 10.30.1.0_24" network 10.30.1.0 255.255.255.0 zone eth0
+address-object ipv4 "n 10.0.0.0_8" network 10.0.0.0 255.0.0.0 zone eth0
+address-object ipv4 "r 0.0.0.0-9.255.255.255" range 0.0.0.0 9.255.255.255 zone eth0
+address-object ipv4 "r 11.0.0.0-255.255.255.255" range 11.0.0.0 255.255.255.255 zone eth0
+address-object ipv4 "n 10.10.0.0_16" network 10.10.0.0 255.255.0.0 zone eth0
+address-object ipv4 "n 10.99.0.0_16" network 10.99.0.0 255.255.0.0 zone eth0
+address-object ipv4 "n 198.51.100.20_30" network 198.51.100.20 255.255.255.252 zone eth0
+address-group ipv4 "dst Inbound web"
+    address-object ipv4 "h 10.20.0.10"
+    address-object ipv4 "h 203.0.113.10"
+    exit
+address-group ipv4 "dst Inbound mail"
+    address-object ipv4 "h 10.20.0.25"
+    address-object ipv4 "h 203.0.113.25"
+    exit
+address-group ipv4 "dst DMZ updates"
+    address-object ipv4 "r 0.0.0.0-9.255.255.255"
+    address-object ipv4 "r 11.0.0.0-255.255.255.255"
+    exit
+service-object "tcp-80,443 tcp 80" TCP 80 80
+service-object "tcp-80,443 tcp 443" TCP 443 443
+service-group "tcp-80,443"
+    service-object "tcp-80,443 tcp 80"
+    service-object "tcp-80,443 tcp 443"
+    exit
+service-object "udp-53" UDP 53 53
+service-object "tcp-53" TCP 53 53
+service-object "tcp-8443" TCP 8443 8443
+service-object "tcp-25" TCP 25 25
+service-object "tcp-22" TCP 22 22
+service-object "tcp-3389" TCP 3389 3389
+service-object "tcp-502" TCP 502 502
+service-object "tcp-443" TCP 443 443
+service-object "tcp 8443" TCP 8443 8443
+nat-policy inbound any outbound any source any translated-source original destination name "h 203.0.113.10" translated-destination name "h 10.20.0.10" service name "tcp-443" translated-service name "tcp 8443"
+    name "Web DNAT"
+    comment "Web DNAT"
+    exit
+nat-policy inbound any outbound any source any translated-source original destination name "h 203.0.113.25" translated-destination name "h 10.20.0.25" service any translated-service original
+    name "Mail DNAT"
+    comment "Mail DNAT"
+    exit
+nat-policy inbound any outbound any source name "n 10.10.0.0_16" translated-source original destination name "n 10.99.0.0_16" translated-destination original service any translated-service original
+    name "No NAT to partner"
+    comment "No NAT to partner"
+    exit
+nat-policy inbound any outbound any source name "n 10.20.0.0_24" translated-source name "n 198.51.100.20_30" destination any translated-destination original service any translated-service original
+    name "DMZ out"
+    comment "DMZ out"
+    exit
+access-rule ipv4 from eth0 to eth0 action discard source address name "h 198.51.100.66" service any destination address any
+    name "Block bad host"
+    priority manual 1
+    exit
+access-rule ipv4 from eth0 to eth1 action discard source address name "h 198.51.100.66" service any destination address any
+    name "Block bad host 2"
+    priority manual 1
+    exit
+access-rule ipv4 from eth0 to eth2 action discard source address name "h 198.51.100.66" service any destination address any
+    name "Block bad host 3"
+    priority manual 1
+    exit
+access-rule ipv4 from eth0 to eth3 action discard source address name "h 198.51.100.66" service any destination address any
+    name "Block bad host 4"
+    priority manual 1
+    exit
+access-rule ipv4 from eth1 to eth0 action discard source address name "h 198.51.100.66" service any destination address any
+    name "Block bad host 5"
+    priority manual 1
+    exit
+access-rule ipv4 from eth1 to eth1 action discard source address name "h 198.51.100.66" service any destination address any
+    name "Block bad host 6"
+    priority manual 1
+    exit
+access-rule ipv4 from eth1 to eth2 action discard source address name "h 198.51.100.66" service any destination address any
+    name "Block bad host 7"
+    priority manual 1
+    exit
+access-rule ipv4 from eth1 to eth3 action discard source address name "h 198.51.100.66" service any destination address any
+    name "Block bad host 8"
+    priority manual 1
+    exit
+access-rule ipv4 from eth2 to eth0 action discard source address name "h 198.51.100.66" service any destination address any
+    name "Block bad host 9"
+    priority manual 1
+    exit
+access-rule ipv4 from eth2 to eth1 action discard source address name "h 198.51.100.66" service any destination address any
+    name "Block bad host 10"
+    priority manual 1
+    exit
+access-rule ipv4 from eth2 to eth2 action discard source address name "h 198.51.100.66" service any destination address any
+    name "Block bad host 11"
+    priority manual 1
+    exit
+access-rule ipv4 from eth2 to eth3 action discard source address name "h 198.51.100.66" service any destination address any
+    name "Block bad host 12"
+    priority manual 1
+    exit
+access-rule ipv4 from eth3 to eth0 action discard source address name "h 198.51.100.66" service any destination address any
+    name "Block bad host 13"
+    priority manual 1
+    exit
+access-rule ipv4 from eth3 to eth1 action discard source address name "h 198.51.100.66" service any destination address any
+    name "Block bad host 14"
+    priority manual 1
+    exit
+access-rule ipv4 from eth3 to eth2 action discard source address name "h 198.51.100.66" service any destination address any
+    name "Block bad host 15"
+    priority manual 1
+    exit
+access-rule ipv4 from eth3 to eth3 action discard source address name "h 198.51.100.66" service any destination address any
+    name "Block bad host 16"
+    priority manual 1
+    exit
+access-rule ipv4 from eth1 to eth0 action discard source address name "n 10.10.200.0_24" service any destination address any
+    name "Guests stay in"
+    priority manual 2
+    exit
+access-rule ipv4 from eth1 to eth0 action allow source address any service group "tcp-80,443" destination address any
+    name "LAN web"
+    priority manual 3
+    exit
+access-rule ipv4 from eth1 to eth0 action allow source address any service name "udp-53" destination address any
+    name "LAN DNS"
+    priority manual 4
+    exit
+access-rule ipv4 from eth1 to eth0 action allow source address any service name "tcp-53" destination address any
+    name "LAN DNS-2"
+    priority manual 5
+    exit
+access-rule ipv4 from eth0 to eth2 action allow source address any service name "tcp-8443" destination address group "dst Inbound web"
+    name "Inbound web"
+    priority manual 2
+    exit
+access-rule ipv4 from eth0 to eth2 action allow source address any service name "tcp-25" destination address group "dst Inbound mail"
+    name "Inbound mail"
+    priority manual 3
+    exit
+access-rule ipv4 from eth1 to eth2 action allow source address name "r 10.10.5.10-10.10.5.20" service name "tcp-22" destination address name "n 10.20.0.0_24"
+    name "Admins SSH"
+    priority manual 2
+    exit
+access-rule ipv4 from eth1 to eth2 action allow source address name "r 10.10.5.10-10.10.5.20" service name "tcp-3389" destination address name "n 10.20.0.0_24"
+    name "Admins RDP"
+    priority manual 3
+    exit
+access-rule ipv4 from eth1 to eth3 action allow source address name "h 10.10.7.15" service name "tcp-502" destination address name "n 10.30.1.0_24"
+    name "SCADA to PLCs"
+    priority manual 2
+    exit
+access-rule ipv4 from eth3 to eth0 action deny source address any service any destination address any
+    name "OT no internet"
+    priority manual 2
+    exit
+access-rule ipv4 from eth2 to eth0 action allow source address any service group "tcp-80,443" destination address group "dst DMZ updates"
+    name "DMZ updates"
+    priority manual 2
+    exit
+access-rule ipv4 from eth1 to eth0 action allow source address any service name "tcp-25" destination address any
+    name "Rate limited mail"
+    priority manual 6
+    no enable
+    exit
+access-rule ipv4 from eth1 to eth2 action allow source address any service name "Ping" destination address any
+    name "Ping the DMZ"
+    priority manual 4
+    exit
+access-rule ipv4 from eth1 to eth0 action allow source address any service any destination address any
+    name "Partner tunnel"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from eth0 to eth0 action deny source address any service any destination address any
+    name "FWSHIFT eth0 to eth0"
+    priority manual 2
+    exit
+access-rule ipv6 from eth0 to eth0 action deny source address any service any destination address any
+    name "FWSHIFT eth0 to eth0 v6"
+    priority manual 1
+    exit
+access-rule ipv4 from eth0 to eth1 action deny source address any service any destination address any
+    name "FWSHIFT eth0 to eth1"
+    priority manual 2
+    exit
+access-rule ipv6 from eth0 to eth1 action deny source address any service any destination address any
+    name "FWSHIFT eth0 to eth1 v6"
+    priority manual 1
+    exit
+access-rule ipv4 from eth0 to eth2 action deny source address any service any destination address any
+    name "FWSHIFT eth0 to eth2"
+    priority manual 4
+    exit
+access-rule ipv6 from eth0 to eth2 action deny source address any service any destination address any
+    name "FWSHIFT eth0 to eth2 v6"
+    priority manual 1
+    exit
+access-rule ipv4 from eth0 to eth3 action deny source address any service any destination address any
+    name "FWSHIFT eth0 to eth3"
+    priority manual 2
+    exit
+access-rule ipv6 from eth0 to eth3 action deny source address any service any destination address any
+    name "FWSHIFT eth0 to eth3 v6"
+    priority manual 1
+    exit
+access-rule ipv4 from eth1 to eth0 action deny source address any service any destination address any
+    name "FWSHIFT eth1 to eth0"
+    priority manual 8
+    exit
+access-rule ipv6 from eth1 to eth0 action deny source address any service any destination address any
+    name "FWSHIFT eth1 to eth0 v6"
+    priority manual 1
+    exit
+access-rule ipv4 from eth1 to eth1 action deny source address any service any destination address any
+    name "FWSHIFT eth1 to eth1"
+    priority manual 2
+    exit
+access-rule ipv6 from eth1 to eth1 action deny source address any service any destination address any
+    name "FWSHIFT eth1 to eth1 v6"
+    priority manual 1
+    exit
+access-rule ipv4 from eth1 to eth2 action deny source address any service any destination address any
+    name "FWSHIFT eth1 to eth2"
+    priority manual 5
+    exit
+access-rule ipv6 from eth1 to eth2 action deny source address any service any destination address any
+    name "FWSHIFT eth1 to eth2 v6"
+    priority manual 1
+    exit
+access-rule ipv4 from eth1 to eth3 action deny source address any service any destination address any
+    name "FWSHIFT eth1 to eth3"
+    priority manual 3
+    exit
+access-rule ipv6 from eth1 to eth3 action deny source address any service any destination address any
+    name "FWSHIFT eth1 to eth3 v6"
+    priority manual 1
+    exit
+access-rule ipv4 from eth2 to eth0 action deny source address any service any destination address any
+    name "FWSHIFT eth2 to eth0"
+    priority manual 3
+    exit
+access-rule ipv6 from eth2 to eth0 action deny source address any service any destination address any
+    name "FWSHIFT eth2 to eth0 v6"
+    priority manual 1
+    exit
+access-rule ipv4 from eth2 to eth1 action deny source address any service any destination address any
+    name "FWSHIFT eth2 to eth1"
+    priority manual 2
+    exit
+access-rule ipv6 from eth2 to eth1 action deny source address any service any destination address any
+    name "FWSHIFT eth2 to eth1 v6"
+    priority manual 1
+    exit
+access-rule ipv4 from eth2 to eth2 action deny source address any service any destination address any
+    name "FWSHIFT eth2 to eth2"
+    priority manual 2
+    exit
+access-rule ipv6 from eth2 to eth2 action deny source address any service any destination address any
+    name "FWSHIFT eth2 to eth2 v6"
+    priority manual 1
+    exit
+access-rule ipv4 from eth2 to eth3 action deny source address any service any destination address any
+    name "FWSHIFT eth2 to eth3"
+    priority manual 2
+    exit
+access-rule ipv6 from eth2 to eth3 action deny source address any service any destination address any
+    name "FWSHIFT eth2 to eth3 v6"
+    priority manual 1
+    exit
+access-rule ipv6 from eth3 to eth0 action deny source address any service any destination address any
+    name "FWSHIFT eth3 to eth0 v6"
+    priority manual 1
+    exit
+access-rule ipv4 from eth3 to eth1 action deny source address any service any destination address any
+    name "FWSHIFT eth3 to eth1"
+    priority manual 2
+    exit
+access-rule ipv6 from eth3 to eth1 action deny source address any service any destination address any
+    name "FWSHIFT eth3 to eth1 v6"
+    priority manual 1
+    exit
+access-rule ipv4 from eth3 to eth2 action deny source address any service any destination address any
+    name "FWSHIFT eth3 to eth2"
+    priority manual 2
+    exit
+access-rule ipv6 from eth3 to eth2 action deny source address any service any destination address any
+    name "FWSHIFT eth3 to eth2 v6"
+    priority manual 1
+    exit
+access-rule ipv4 from eth3 to eth3 action deny source address any service any destination address any
+    name "FWSHIFT eth3 to eth3"
+    priority manual 2
+    exit
+access-rule ipv6 from eth3 to eth3 action deny source address any service any destination address any
+    name "FWSHIFT eth3 to eth3 v6"
+    priority manual 1
+    exit
+commit
+exit

@@ -1,0 +1,432 @@
+configure terminal
+address-object ipv4 "web-srv" host 10.20.0.10 zone dmz
+address-object ipv4 "mail-srv" host 10.20.0.25 zone dmz
+address-object ipv4 "inside-net" network 10.10.0.0 255.255.0.0 zone inside
+address-object ipv6 "inside-v6" network 2001:db8:10:: /64 zone inside
+address-object ipv4 "admin-range" range 10.10.5.10 10.10.5.20 zone inside
+address-object fqdn "updates" domain "updates.example.com" zone outside
+address-object ipv4 "web-public" host 203.0.113.10 zone dmz
+address-object ipv4 "branch-net" network 10.99.0.0 255.255.0.0 zone outside
+address-object ipv4 "guest-pool" range 203.0.113.100 203.0.113.110 zone dmz
+address-object ipv4 "h 10.20.0.50" host 10.20.0.50 zone dmz
+address-object ipv4 "n 10.40.0.0_16" network 10.40.0.0 255.255.0.0 zone dmz
+address-object ipv4 "h 203.0.113.25" host 203.0.113.25 zone dmz
+address-group ipv4 "dmz-servers"
+    address-object ipv4 "web-srv"
+    address-object ipv4 "mail-srv"
+    address-object ipv4 "h 10.20.0.50"
+    exit
+address-group ipv4 "internal"
+    address-object ipv4 "inside-net"
+    address-object ipv4 "n 10.40.0.0_16"
+    address-object ipv4 "web-srv"
+    address-object ipv4 "mail-srv"
+    address-object ipv4 "h 10.20.0.50"
+    exit
+address-group ipv4 "dst outside_access_in-1"
+    address-object ipv4 "web-srv"
+    address-object ipv4 "web-public"
+    exit
+address-group ipv4 "dst outside_access_in-2"
+    address-object ipv4 "mail-srv"
+    address-object ipv4 "h 203.0.113.25"
+    exit
+address-group ipv4 "dst inside_access_in-3"
+    address-group ipv4 "dmz-servers"
+    address-object ipv4 "h 203.0.113.25"
+    exit
+service-object "app-8443" TCP 8443 8443
+service-object "mail-services-inline tcp 25" TCP 25 25
+service-object "mail-services-inline tcp 587" TCP 587 587
+service-group "mail-services-inline"
+    service-object "mail-services-inline tcp 25"
+    service-object "mail-services-inline tcp 587"
+    exit
+service-object "dns-ntp tcp 53" TCP 53 53
+service-object "dns-ntp udp 53" UDP 53 53
+service-object "dns-ntp udp 123" UDP 123 123
+service-group "dns-ntp"
+    service-object "dns-ntp tcp 53"
+    service-object "dns-ntp udp 53"
+    service-object "dns-ntp udp 123"
+    exit
+service-object "tcp-8080" TCP 8080 8080
+service-object "web-ports tcp 80" TCP 80 80
+service-object "web-ports tcp 443" TCP 443 443
+service-object "web-ports tcp 8000-8010" TCP 8000 8010
+service-group "web-ports"
+    service-object "web-ports tcp 80"
+    service-object "web-ports tcp 443"
+    service-object "web-ports tcp 8000-8010"
+    exit
+service-object "tcp-22" TCP 22 22
+service-object "tcp-443" TCP 443 443
+service-object "tcp-udp-5060 tcp 5060" TCP 5060 5060
+service-object "tcp-udp-5060 udp 5060" UDP 5060 5060
+service-group "tcp-udp-5060"
+    service-object "tcp-udp-5060 tcp 5060"
+    service-object "tcp-udp-5060 udp 5060"
+    exit
+service-object "tcp-3389" TCP 3389 3389
+service-object "tcp-23" TCP 23 23
+service-object "udp-53" UDP 53 53
+service-object "tcp-80" TCP 80 80
+service-object "tcp 8080" TCP 8080 8080
+service-group "mail-services"
+    service-object "app-8443"
+    service-group "mail-services-inline"
+    exit
+nat-policy inbound any outbound any source name "inside-net" translated-source original destination name "branch-net" translated-destination original service any translated-service original
+    name "nat-1"
+    comment "VPN to the branch"
+    exit
+nat-policy inbound any outbound any source any translated-source original destination name "web-public" translated-destination name "web-srv" service name "tcp-80" translated-service name "tcp 8080"
+    name "nat-2"
+    comment "nat-2"
+    exit
+nat-policy inbound any outbound any source name "mail-srv" translated-source name "h 203.0.113.25" destination any translated-destination original service any translated-service original
+    name "nat-mail-srv"
+    comment "nat-mail-srv"
+    exit
+nat-policy inbound any outbound any source any translated-source original destination name "h 203.0.113.25" translated-destination name "mail-srv" service any translated-service original
+    name "nat-mail-srv in"
+    comment "inbound of nat-mail-srv"
+    exit
+nat-policy inbound any outbound any source any translated-source name "guest-pool" destination any translated-destination original service any translated-service original
+    name "nat-after-auto-1"
+    comment "nat-after-auto-1"
+    exit
+access-rule ipv4 from outside to dmz action allow source address any service name "tcp-8080" destination address group "dst outside_access_in-1"
+    name "outside_access_in-1"
+    priority manual 1
+    exit
+access-rule ipv4 from outside to dmz action allow source address any service group "mail-services" destination address group "dst outside_access_in-2"
+    name "outside_access_in-2"
+    priority manual 2
+    exit
+access-rule ipv4 from outside to inside action allow source address any service any destination address any
+    name "outside_access_in-3"
+    priority manual 1
+    no enable
+    exit
+access-rule ipv4 from outside to dmz action allow source address any service any destination address any
+    name "outside_access_in-3 2"
+    priority manual 3
+    no enable
+    exit
+access-rule ipv4 from outside to guest action allow source address any service any destination address any
+    name "outside_access_in-3 3"
+    priority manual 1
+    no enable
+    exit
+access-rule ipv4 from outside to dmz action discard source address any service any destination address any
+    name "outside_access_in-4"
+    priority manual 4
+    exit
+access-rule ipv6 from outside to dmz action discard source address any service any destination address any
+    name "outside_access_in-4 2"
+    priority manual 1
+    exit
+access-rule ipv4 from outside to guest action discard source address any service any destination address any
+    name "outside_access_in-4 3"
+    priority manual 2
+    exit
+access-rule ipv6 from outside to guest action discard source address any service any destination address any
+    name "outside_access_in-4 4"
+    priority manual 1
+    exit
+access-rule ipv4 from outside to inside action discard source address any service any destination address any
+    name "outside_access_in-4 5"
+    priority manual 2
+    exit
+access-rule ipv6 from outside to inside action discard source address any service any destination address any
+    name "outside_access_in-4 6"
+    priority manual 1
+    exit
+access-rule ipv4 from outside to outside action discard source address any service any destination address any
+    name "outside_access_in-4 7"
+    priority manual 1
+    exit
+access-rule ipv6 from outside to outside action discard source address any service any destination address any
+    name "outside_access_in-4 8"
+    priority manual 1
+    exit
+access-rule ipv4 from inside to outside action allow source address name "inside-net" service group "dns-ntp" destination address any
+    name "inside_access_in-1"
+    priority manual 1
+    exit
+access-rule ipv4 from inside to dmz action allow source address name "inside-net" service group "dns-ntp" destination address any
+    name "inside_access_in-1 2"
+    priority manual 1
+    exit
+access-rule ipv4 from inside to guest action allow source address name "inside-net" service group "dns-ntp" destination address any
+    name "inside_access_in-1 3"
+    priority manual 1
+    exit
+access-rule ipv4 from inside to outside action allow source address group "internal" service group "web-ports" destination address any
+    name "inside_access_in-2"
+    priority manual 2
+    exit
+access-rule ipv4 from inside to dmz action allow source address group "internal" service group "web-ports" destination address any
+    name "inside_access_in-2 2"
+    priority manual 2
+    exit
+access-rule ipv4 from inside to guest action allow source address group "internal" service group "web-ports" destination address any
+    name "inside_access_in-2 3"
+    priority manual 2
+    exit
+access-rule ipv4 from inside to dmz action allow source address name "admin-range" service name "tcp-22" destination address group "dst inside_access_in-3"
+    name "inside_access_in-3"
+    priority manual 3
+    exit
+access-rule ipv4 from inside to outside action allow source address name "inside-net" service name "tcp-443" destination address name "updates"
+    name "inside_access_in-4"
+    priority manual 3
+    no enable
+    exit
+access-rule ipv4 from inside to dmz action allow source address name "inside-net" service name "tcp-443" destination address name "updates"
+    name "inside_access_in-4 2"
+    priority manual 4
+    no enable
+    exit
+access-rule ipv4 from inside to guest action allow source address name "inside-net" service name "tcp-443" destination address name "updates"
+    name "inside_access_in-4 3"
+    priority manual 3
+    no enable
+    exit
+access-rule ipv6 from inside to outside action allow source address name "inside-v6" service any destination address any
+    name "inside_access_in-5"
+    priority manual 1
+    exit
+access-rule ipv6 from inside to dmz action allow source address name "inside-v6" service any destination address any
+    name "inside_access_in-5 2"
+    priority manual 1
+    exit
+access-rule ipv6 from inside to guest action allow source address name "inside-v6" service any destination address any
+    name "inside_access_in-5 3"
+    priority manual 1
+    exit
+access-rule ipv4 from inside to dmz action allow source address name "inside-net" service group "tcp-udp-5060" destination address name "h 10.20.0.50"
+    name "inside_access_in-6"
+    priority manual 5
+    exit
+access-rule ipv4 from inside to outside action allow source address name "inside-net" service name "tcp-3389" destination address any
+    name "inside_access_in-7"
+    priority manual 4
+    no enable
+    exit
+access-rule ipv4 from inside to dmz action allow source address name "inside-net" service name "tcp-3389" destination address any
+    name "inside_access_in-7 2"
+    priority manual 6
+    no enable
+    exit
+access-rule ipv4 from inside to guest action allow source address name "inside-net" service name "tcp-3389" destination address any
+    name "inside_access_in-7 3"
+    priority manual 4
+    no enable
+    exit
+access-rule ipv4 from inside to dmz action discard source address any service name "tcp-23" destination address any
+    name "inside_access_in-8"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv6 from inside to dmz action discard source address any service name "tcp-23" destination address any
+    name "inside_access_in-8 2"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from inside to guest action discard source address any service name "tcp-23" destination address any
+    name "inside_access_in-8 3"
+    priority manual 5
+    no enable
+    exit
+access-rule ipv6 from inside to guest action discard source address any service name "tcp-23" destination address any
+    name "inside_access_in-8 4"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from inside to inside action discard source address any service name "tcp-23" destination address any
+    name "inside_access_in-8 5"
+    priority manual 1
+    no enable
+    exit
+access-rule ipv6 from inside to inside action discard source address any service name "tcp-23" destination address any
+    name "inside_access_in-8 6"
+    priority manual 1
+    no enable
+    exit
+access-rule ipv4 from inside to outside action discard source address any service name "tcp-23" destination address any
+    name "inside_access_in-8 7"
+    priority manual 5
+    no enable
+    exit
+access-rule ipv6 from inside to outside action discard source address any service name "tcp-23" destination address any
+    name "inside_access_in-8 8"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from inside to outside action allow source address name "inside-net" service name "Ping" destination address any
+    name "inside_access_in-9"
+    priority manual 6
+    exit
+access-rule ipv4 from inside to dmz action allow source address name "inside-net" service name "Ping" destination address any
+    name "inside_access_in-9 2"
+    priority manual 8
+    exit
+access-rule ipv4 from inside to guest action allow source address name "inside-net" service name "Ping" destination address any
+    name "inside_access_in-9 3"
+    priority manual 6
+    exit
+access-rule ipv4 from dmz to outside action allow source address group "dmz-servers" service name "udp-53" destination address any
+    name "dmz_access_in-1"
+    priority manual 1
+    exit
+access-rule ipv4 from dmz to inside action allow source address group "dmz-servers" service name "udp-53" destination address any
+    name "dmz_access_in-1 2"
+    priority manual 1
+    exit
+access-rule ipv4 from dmz to guest action allow source address group "dmz-servers" service name "udp-53" destination address any
+    name "dmz_access_in-1 3"
+    priority manual 1
+    exit
+access-rule ipv4 from dmz to outside action allow source address name "mail-srv" service any destination address any
+    name "dmz_access_in-2"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from dmz to inside action allow source address name "mail-srv" service any destination address any
+    name "dmz_access_in-2 2"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from dmz to guest action allow source address name "mail-srv" service any destination address any
+    name "dmz_access_in-2 3"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from dmz to dmz action discard source address any service any destination address name "inside-net"
+    name "dmz_access_in-3"
+    priority manual 1
+    exit
+access-rule ipv4 from dmz to guest action discard source address any service any destination address name "inside-net"
+    name "dmz_access_in-3 2"
+    priority manual 3
+    exit
+access-rule ipv4 from dmz to inside action discard source address any service any destination address name "inside-net"
+    name "dmz_access_in-3 3"
+    priority manual 3
+    exit
+access-rule ipv4 from dmz to outside action discard source address any service any destination address name "inside-net"
+    name "dmz_access_in-3 4"
+    priority manual 3
+    exit
+access-rule ipv4 from dmz to outside action allow source address name "web-srv" service name "tcp-443" destination address any
+    name "dmz_access_in-4"
+    priority manual 4
+    exit
+access-rule ipv4 from dmz to inside action allow source address name "web-srv" service name "tcp-443" destination address any
+    name "dmz_access_in-4 2"
+    priority manual 4
+    exit
+access-rule ipv4 from dmz to guest action allow source address name "web-srv" service name "tcp-443" destination address any
+    name "dmz_access_in-4 3"
+    priority manual 4
+    exit
+access-rule ipv4 from guest to outside action allow source address any service any destination address any
+    name "implicit-guest"
+    priority manual 1
+    exit
+access-rule ipv6 from guest to outside action allow source address any service any destination address any
+    name "implicit-guest 2"
+    priority manual 1
+    exit
+access-rule ipv4 from dmz to dmz action deny source address any service any destination address any
+    name "FWSHIFT dmz to dmz"
+    priority manual 2
+    exit
+access-rule ipv6 from dmz to dmz action deny source address any service any destination address any
+    name "FWSHIFT dmz to dmz v6"
+    priority manual 1
+    exit
+access-rule ipv4 from dmz to guest action deny source address any service any destination address any
+    name "FWSHIFT dmz to guest"
+    priority manual 5
+    exit
+access-rule ipv6 from dmz to guest action deny source address any service any destination address any
+    name "FWSHIFT dmz to guest v6"
+    priority manual 1
+    exit
+access-rule ipv4 from dmz to inside action deny source address any service any destination address any
+    name "FWSHIFT dmz to inside"
+    priority manual 5
+    exit
+access-rule ipv6 from dmz to inside action deny source address any service any destination address any
+    name "FWSHIFT dmz to inside v6"
+    priority manual 1
+    exit
+access-rule ipv4 from dmz to outside action deny source address any service any destination address any
+    name "FWSHIFT dmz to outside"
+    priority manual 5
+    exit
+access-rule ipv6 from dmz to outside action deny source address any service any destination address any
+    name "FWSHIFT dmz to outside v6"
+    priority manual 1
+    exit
+access-rule ipv4 from guest to dmz action deny source address any service any destination address any
+    name "FWSHIFT guest to dmz"
+    priority manual 1
+    exit
+access-rule ipv6 from guest to dmz action deny source address any service any destination address any
+    name "FWSHIFT guest to dmz v6"
+    priority manual 1
+    exit
+access-rule ipv4 from guest to guest action deny source address any service any destination address any
+    name "FWSHIFT guest to guest"
+    priority manual 1
+    exit
+access-rule ipv6 from guest to guest action deny source address any service any destination address any
+    name "FWSHIFT guest to guest v6"
+    priority manual 1
+    exit
+access-rule ipv4 from guest to inside action deny source address any service any destination address any
+    name "FWSHIFT guest to inside"
+    priority manual 1
+    exit
+access-rule ipv6 from guest to inside action deny source address any service any destination address any
+    name "FWSHIFT guest to inside v6"
+    priority manual 1
+    exit
+access-rule ipv4 from inside to dmz action deny source address any service any destination address any
+    name "FWSHIFT inside to dmz"
+    priority manual 9
+    exit
+access-rule ipv6 from inside to dmz action deny source address any service any destination address any
+    name "FWSHIFT inside to dmz v6"
+    priority manual 3
+    exit
+access-rule ipv4 from inside to guest action deny source address any service any destination address any
+    name "FWSHIFT inside to guest"
+    priority manual 7
+    exit
+access-rule ipv6 from inside to guest action deny source address any service any destination address any
+    name "FWSHIFT inside to guest v6"
+    priority manual 3
+    exit
+access-rule ipv4 from inside to inside action deny source address any service any destination address any
+    name "FWSHIFT inside to inside"
+    priority manual 2
+    exit
+access-rule ipv6 from inside to inside action deny source address any service any destination address any
+    name "FWSHIFT inside to inside v6"
+    priority manual 2
+    exit
+access-rule ipv4 from inside to outside action deny source address any service any destination address any
+    name "FWSHIFT inside to outside"
+    priority manual 7
+    exit
+access-rule ipv6 from inside to outside action deny source address any service any destination address any
+    name "FWSHIFT inside to outside v6"
+    priority manual 3
+    exit
+commit
+exit

@@ -1,0 +1,299 @@
+configure terminal
+address-object ipv4 "Web Server" host 10.20.0.10 zone DMZ
+address-object ipv4 "Mail Server" host 10.20.0.25 zone DMZ
+address-object ipv4 "Web Public" host 198.51.100.10 zone DMZ
+address-object ipv4 "Mail Public" host 198.51.100.11 zone DMZ
+address-object ipv4 "Server Range" network 10.30.0.0 255.255.255.240 zone LAN
+address-object ipv4 "Server Public" network 198.51.100.32 255.255.255.240 zone WAN
+address-object ipv4 "Database" host 10.30.0.5 zone Servers
+address-object ipv4 "Admin PCs" range 10.10.5.10 10.10.5.20 zone LAN
+address-object ipv4 "Bad Net One" network 203.0.113.0 255.255.255.128 zone WAN
+address-object ipv4 "Bad Host" host 192.0.2.66 zone WAN
+address-object ipv4 "Partner Net" network 192.0.2.128 255.255.255.192 zone WAN
+address-object fqdn "Update Site" domain "updates.example.com" zone WAN
+address-group ipv4 "Bad Networks"
+    address-object ipv4 "Bad Net One"
+    address-object ipv4 "Bad Host"
+    exit
+address-group ipv4 "Partners"
+    address-object ipv4 "Partner Net"
+    address-object ipv4 "Bad Net One"
+    address-object ipv4 "Bad Host"
+    exit
+service-object "HTTPS Alt" TCP 8443 8443
+service-object "SMTP Alt" TCP 2525 2525
+service-object "Media" UDP 16384 16484
+service-object "tcp 25" TCP 25 25
+service-group "Web Services"
+    service-object "HTTP"
+    service-object "HTTPS"
+    service-object "HTTPS Alt"
+    exit
+nat-policy inbound any outbound X1 source name "X0 Subnet" translated-source name "X1 IP" destination any translated-destination original service any translated-service original
+    name "Default NAT"
+    comment "Default NAT"
+    exit
+nat-policy inbound X1 outbound any source any translated-source original destination name "Web Public" translated-destination name "Web Server" service name "HTTPS" translated-service original
+    name "Web server"
+    comment "Web server"
+    exit
+nat-policy inbound X4 outbound any source any translated-source original destination name "Web Public" translated-destination name "Web Server" service name "HTTPS" translated-service original
+    name "Web server 2"
+    comment "Web server"
+    exit
+nat-policy inbound X1 outbound any source any translated-source original destination name "Mail Public" translated-destination name "Mail Server" service name "SMTP Alt" translated-service name "tcp 25"
+    name "Mail on another port"
+    comment "Mail on another port"
+    exit
+nat-policy inbound X4 outbound any source any translated-source original destination name "Mail Public" translated-destination name "Mail Server" service name "SMTP Alt" translated-service name "tcp 25"
+    name "Mail on another port 2"
+    comment "Mail on another port"
+    exit
+nat-policy inbound any outbound X1 source name "Server Range" translated-source name "Server Public" destination any translated-destination original service any translated-service original
+    name "Servers one to one"
+    comment "Servers one to one"
+    exit
+nat-policy inbound any outbound X4 source name "Server Range" translated-source name "Server Public" destination any translated-destination original service any translated-service original
+    name "Servers one to one 2"
+    comment "Servers one to one"
+    exit
+nat-policy inbound X1 outbound any source any translated-source original destination name "Server Public" translated-destination name "Server Range" service any translated-service original
+    name "Servers one to one (reflexive)"
+    comment "the reflexive policy of Servers"
+    exit
+nat-policy inbound X4 outbound any source any translated-source original destination name "Server Public" translated-destination name "Server Range" service any translated-service original
+    name "Servers one to one (reflexive) 2"
+    comment "the reflexive policy of Servers"
+    exit
+nat-policy inbound any outbound X1 source name "Admin PCs" translated-source name "Web Public" destination any translated-destination original service any translated-service original
+    name "Old admin NAT"
+    comment "Old admin NAT"
+    no enable
+    exit
+nat-policy inbound any outbound X4 source name "Admin PCs" translated-source name "Web Public" destination any translated-destination original service any translated-service original
+    name "Old admin NAT 2"
+    comment "Old admin NAT"
+    no enable
+    exit
+access-rule ipv4 from LAN to WAN action deny source address any service any destination address group "Bad Networks"
+    name "LAN to WAN #1"
+    priority manual 1
+    exit
+access-rule ipv4 from LAN to WAN action allow source address name "Admin PCs" service name "SSH" destination address any
+    name "Admins out by SSH"
+    priority manual 2
+    exit
+access-rule ipv4 from LAN to WAN action allow source address any service group "Web Services" destination address any
+    name "LAN to WAN #3"
+    priority manual 3
+    exit
+access-rule ipv4 from LAN to WAN action allow source address any service any destination address any
+    name "LAN to WAN #4"
+    priority manual 4
+    no enable
+    exit
+access-rule ipv4 from LAN to WAN action allow source address any service any destination address any
+    name "LAN to WAN #5"
+    priority manual 5
+    exit
+access-rule ipv4 from WAN to DMZ action allow source address any service name "HTTPS" destination address name "Web Public"
+    name "Web server from the internet"
+    priority manual 1
+    exit
+access-rule ipv4 from WAN to DMZ action allow source address group "Partners" service name "SMTP Alt" destination address name "Mail Public"
+    name "Mail from partners"
+    priority manual 2
+    exit
+access-rule ipv4 from WAN to DMZ action deny source address any service any destination address any
+    name "WAN to DMZ #3"
+    priority manual 3
+    exit
+access-rule ipv4 from WAN to LAN action deny source address any service any destination address any
+    name "WAN to LAN #1"
+    priority manual 1
+    exit
+access-rule ipv4 from DMZ to Servers action allow source address name "Web Server" service name "Media" destination address name "Database"
+    name "Web server to the database"
+    priority manual 1
+    exit
+access-rule ipv4 from DMZ to LAN action allow source address name "Mail Server" service any destination address any
+    name "Mail server pings the LAN"
+    priority manual 1
+    no enable
+    exit
+access-rule ipv4 from LAN to DMZ action allow source address any service any destination address any
+    name "Administrators to the DMZ"
+    priority manual 1
+    no enable
+    exit
+access-rule ipv4 from Servers to WAN action allow source address any service name "HTTPS" destination address name "Update Site"
+    name "Updates in working hours"
+    priority manual 1
+    no enable
+    exit
+access-rule ipv6 from LAN to WAN action allow source address any service any destination address any
+    name "IPv6 out"
+    priority manual 1
+    exit
+access-rule ipv4 from LAN to DMZ action allow source address any service any destination address any
+    name "default LAN to DMZ"
+    priority manual 2
+    exit
+access-rule ipv6 from LAN to DMZ action allow source address any service any destination address any
+    name "default LAN to DMZ 2"
+    priority manual 1
+    exit
+access-rule ipv4 from DMZ to WAN action allow source address any service any destination address any
+    name "default DMZ to WAN"
+    priority manual 1
+    exit
+access-rule ipv6 from DMZ to WAN action allow source address any service any destination address any
+    name "default DMZ to WAN 2"
+    priority manual 1
+    exit
+access-rule ipv4 from Servers to WAN action allow source address any service any destination address any
+    name "default Servers to WAN"
+    priority manual 2
+    exit
+access-rule ipv6 from Servers to WAN action allow source address any service any destination address any
+    name "default Servers to WAN 2"
+    priority manual 1
+    exit
+access-rule ipv4 from Servers to DMZ action allow source address any service any destination address any
+    name "default Servers to DMZ"
+    priority manual 1
+    exit
+access-rule ipv6 from Servers to DMZ action allow source address any service any destination address any
+    name "default Servers to DMZ 2"
+    priority manual 1
+    exit
+access-rule ipv4 from DMZ to DMZ action deny source address any service any destination address any
+    name "FWSHIFT DMZ to DMZ"
+    priority manual 1
+    exit
+access-rule ipv6 from DMZ to DMZ action deny source address any service any destination address any
+    name "FWSHIFT DMZ to DMZ v6"
+    priority manual 1
+    exit
+access-rule ipv4 from DMZ to LAN action deny source address any service any destination address any
+    name "FWSHIFT DMZ to LAN"
+    priority manual 2
+    exit
+access-rule ipv6 from DMZ to LAN action deny source address any service any destination address any
+    name "FWSHIFT DMZ to LAN v6"
+    priority manual 1
+    exit
+access-rule ipv4 from DMZ to Servers action deny source address any service any destination address any
+    name "FWSHIFT DMZ to Servers"
+    priority manual 2
+    exit
+access-rule ipv6 from DMZ to Servers action deny source address any service any destination address any
+    name "FWSHIFT DMZ to Servers v6"
+    priority manual 1
+    exit
+access-rule ipv4 from DMZ to VPN action deny source address any service any destination address any
+    name "FWSHIFT DMZ to VPN"
+    priority manual 1
+    exit
+access-rule ipv6 from DMZ to VPN action deny source address any service any destination address any
+    name "FWSHIFT DMZ to VPN v6"
+    priority manual 1
+    exit
+access-rule ipv4 from LAN to Servers action deny source address any service any destination address any
+    name "FWSHIFT LAN to Servers"
+    priority manual 1
+    exit
+access-rule ipv6 from LAN to Servers action deny source address any service any destination address any
+    name "FWSHIFT LAN to Servers v6"
+    priority manual 1
+    exit
+access-rule ipv4 from LAN to VPN action deny source address any service any destination address any
+    name "FWSHIFT LAN to VPN"
+    priority manual 1
+    exit
+access-rule ipv6 from LAN to VPN action deny source address any service any destination address any
+    name "FWSHIFT LAN to VPN v6"
+    priority manual 1
+    exit
+access-rule ipv4 from Servers to LAN action deny source address any service any destination address any
+    name "FWSHIFT Servers to LAN"
+    priority manual 1
+    exit
+access-rule ipv6 from Servers to LAN action deny source address any service any destination address any
+    name "FWSHIFT Servers to LAN v6"
+    priority manual 1
+    exit
+access-rule ipv4 from Servers to VPN action deny source address any service any destination address any
+    name "FWSHIFT Servers to VPN"
+    priority manual 1
+    exit
+access-rule ipv6 from Servers to VPN action deny source address any service any destination address any
+    name "FWSHIFT Servers to VPN v6"
+    priority manual 1
+    exit
+access-rule ipv4 from VPN to DMZ action deny source address any service any destination address any
+    name "FWSHIFT VPN to DMZ"
+    priority manual 1
+    exit
+access-rule ipv6 from VPN to DMZ action deny source address any service any destination address any
+    name "FWSHIFT VPN to DMZ v6"
+    priority manual 1
+    exit
+access-rule ipv4 from VPN to LAN action deny source address any service any destination address any
+    name "FWSHIFT VPN to LAN"
+    priority manual 1
+    exit
+access-rule ipv6 from VPN to LAN action deny source address any service any destination address any
+    name "FWSHIFT VPN to LAN v6"
+    priority manual 1
+    exit
+access-rule ipv4 from VPN to Servers action deny source address any service any destination address any
+    name "FWSHIFT VPN to Servers"
+    priority manual 1
+    exit
+access-rule ipv6 from VPN to Servers action deny source address any service any destination address any
+    name "FWSHIFT VPN to Servers v6"
+    priority manual 1
+    exit
+access-rule ipv4 from VPN to WAN action deny source address any service any destination address any
+    name "FWSHIFT VPN to WAN"
+    priority manual 1
+    exit
+access-rule ipv6 from VPN to WAN action deny source address any service any destination address any
+    name "FWSHIFT VPN to WAN v6"
+    priority manual 1
+    exit
+access-rule ipv6 from WAN to DMZ action deny source address any service any destination address any
+    name "FWSHIFT WAN to DMZ v6"
+    priority manual 1
+    exit
+access-rule ipv6 from WAN to LAN action deny source address any service any destination address any
+    name "FWSHIFT WAN to LAN v6"
+    priority manual 1
+    exit
+access-rule ipv4 from WAN to Servers action deny source address any service any destination address any
+    name "FWSHIFT WAN to Servers"
+    priority manual 1
+    exit
+access-rule ipv6 from WAN to Servers action deny source address any service any destination address any
+    name "FWSHIFT WAN to Servers v6"
+    priority manual 1
+    exit
+access-rule ipv4 from WAN to VPN action deny source address any service any destination address any
+    name "FWSHIFT WAN to VPN"
+    priority manual 1
+    exit
+access-rule ipv6 from WAN to VPN action deny source address any service any destination address any
+    name "FWSHIFT WAN to VPN v6"
+    priority manual 1
+    exit
+access-rule ipv4 from WAN to WAN action deny source address any service any destination address any
+    name "FWSHIFT WAN to WAN"
+    priority manual 1
+    exit
+access-rule ipv6 from WAN to WAN action deny source address any service any destination address any
+    name "FWSHIFT WAN to WAN v6"
+    priority manual 1
+    exit
+commit
+exit

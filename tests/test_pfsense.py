@@ -1671,7 +1671,7 @@ def test_an_interface_address_given_twice_is_refused() -> None:
     interfaces = interfaces_xml().replace(x("ipaddr", "198.51.100.2") + x("subnet", "24"), x("ipaddr", "dhcp"))
     with pytest.raises(FwshiftError, match="--interface-address: two IPv4 addresses for 'WAN'"):
         read(NO_NAT, x("filter"), interfaces=interfaces, interface_addresses=["wan=198.51.100.7/24", "WAN=198.51.100.8/24"])
-    with pytest.raises(FwshiftError, match="--interface-address is for a pfSense source"):
+    with pytest.raises(FwshiftError, match="--interface-address is for a pfSense or SonicWall source"):
         cli.load((DATA / "asa_sample.cfg").read_bytes(), "asa", Report(), interface_addresses=["wan=198.51.100.7/24"])
 
 

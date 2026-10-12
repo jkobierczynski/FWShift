@@ -1,0 +1,81 @@
+FWShift conversion report
+  source: panos (vsys1)
+  target: sonicwall
+
+Summary
+  Security rules:     14   exact 3, approximated 6, needs review 5 (5 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 1, needs review 3, skipped 1
+  Addresses:          16   exact 14, approximated 0, needs review 2, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:            6   exact 5, approximated 0, needs review 1, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, address-object fqdn, address-object ipv6, nat-policy name and comment, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): trust, untrust, dmz, ot
+  [info] DEFAULT_DENY_ADDED: 23 rules that deny were added, one at the end of each pair of zones and IP version: SonicOS allows some traffic between zones by itself (from LAN to WAN, for example), and the source did not
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 3 rule(s) match IPv4 and IPv6 traffic and were written twice: SonicOS has address objects and access rules per IP version
+
+Security rules
+  Allow-Web-Out  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (group=default-profiles); attach equivalent inspection on the target
+      [approximated] APP_TO_PORTS: applications web-browsing, ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Allow-DNS  ->  approximated  (emitted as Allow-DNS, Allow-DNS 2)
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 2 rules
+  Inbound-Web  ->  approximated
+      [approximated] APP_FILTER_DROPPED: application match ssl dropped; the rule now matches everything on its services
+  Inbound-Mail  ->  approximated
+      [approximated] APP_TO_PORTS: applications smtp reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Admin-SSH  ->  needs-review, emitted disabled
+      [approximated] APP_TO_PORTS: applications ssh reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] USER_MATCH: source user match example\netadmins is not converted.
+  Engineering to PLCs  ->  approximated
+      [approximated] APP_TO_PORTS: applications modbus, siemens-s7 reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Block-Torrents  ->  needs-review, emitted disabled  (emitted as Block-Torrents, Block-Torrents 2)
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) bittorrent; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block-Region  ->  needs-review, emitted disabled  (emitted as Block-Region, Block-Region 2, Block-Region 3, Block-Region 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'KP': not defined in the input. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Tagged-Servers-Updates  ->  needs-review, emitted disabled
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'tagged-servers': dynamic address group, members are not known statically.
+  Not-From-Guests  ->  approximated
+      [approximated] APP_TO_PORTS: applications ping reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [info] NEGATION_EXPANDED: SonicOS has no negation: 'not source 10.10.200.0/24' is written as the IPv4 addresses that are left (2 range(s))
+  Old-Rule  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'odd-hosts': wildcard mask 10.20.1.2/0.0.254.0.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'udp-syslog-src': source ports, which a SonicOS service object does not have.
+
+NAT rules
+  No-NAT-Partner  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from trust only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [approximated] NAT_ZONES: the rule applied to traffic to untrust only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+  Inbound-Web-DNAT  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from untrust only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  Mail-Static  ->  needs-review  (emitted as Mail-Static, Mail-Static in)
+      [approximated] NAT_ZONES: the rule applied to traffic from dmz only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [needs-review] NAT_ZONES: the rule applied to traffic to untrust only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a source NAT policy plus policy 'Mail-Static in' for the inbound direction
+  DMZ-Out-Pool  ->  needs-review
+      [approximated] NAT_ZONES: the rule applied to traffic from dmz only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [needs-review] NAT_ZONES: the rule applied to traffic to untrust only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+  Outbound-PAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+
+Addresses
+  odd-hosts  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard mask 10.20.1.2/0.0.254.0 cannot be converted
+  KP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'Block-Region' but not an address object in the input (a region, an external list or a missing object); emitted as a placeholder that matches nothing
+
+Services
+  tcp-high-web  ->  exact  (emitted as tcp-high-web, tcp-high-web tcp 8080, tcp-high-web tcp 8443, tcp-high-web tcp 9000-9010)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'tcp-high-web' of 'tcp-high-web tcp 8080', 'tcp-high-web tcp 8443', 'tcp-high-web tcp 9000-9010'
+  udp-syslog-src  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a SonicOS service object does not have: not written, and the rules that use it are disabled
+  service-http  ->  exact  (emitted as service-http, service-http tcp 80, service-http tcp 8080)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'service-http' of 'service-http tcp 80', 'service-http tcp 8080'
+  app ping  ->  exact
+      [info] ICMP_AS_DEFAULT: ICMP echo request is written as the default service 'Ping' of SonicOS, which is taken to be that

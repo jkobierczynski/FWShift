@@ -8,11 +8,11 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.8.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
-| Tests | 2519, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a Check Point management server, a Cisco Management Center or a Device Manager |
-| Next | 0.9.0: SonicWall (see `TODO.md`); lab validation of the sample conversions |
+| Version | 0.9.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
+| Tests | 2693, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Check Point management server, a Cisco Management Center or a Device Manager |
+| Next | 0.10.0: WatchGuard (see `TODO.md`); lab validation of the sample conversions |
 
 ## Layout
 
@@ -30,6 +30,8 @@ src/fwshift/
         sophos.py     Sophos Entities.xml    -> model (exclusions, a rulebase per IP version)
         pfsense.py    pfSense config.xml     -> model (the order of pf, interface
                       groups, port forwards and the rules pfSense adds itself)
+        sonicwall.py  SonicOS settings export -> model (rules per pair of zones,
+                      default rules, objects of SonicOS from the interfaces)
         iptables.py   iptables-save output   -> model (chains flattened)
     emitters/
         panos.py      model -> PAN-OS set commands
@@ -44,6 +46,8 @@ src/fwshift/
         sophos.py     model -> Entities.xml (a rule per IP version, flat groups)
         pfsense.py    model -> the areas aliases, nat and filter of a pfSense
                       configuration (a rule per arrival interface)
+        sonicwall.py  model -> SonicOS 7 commands (a rule per pair of zones and
+                      IP version, a rule that denies at the end of each pair)
         iptables.py   model -> iptables-restore / ip6tables-restore file
     transform.py      passes shared by the emitters: hardening of names,
                       references, placeholders, names, application lowering,
@@ -67,11 +71,13 @@ src/fwshift/
 tests/
     data/             one synthetic sample per format
     data/expected/    their conversions and reports, byte for byte
-    tools/            the scripts that write the Check Point sample and the two
-                      Cisco Secure Firewall samples, and the kernel check
+    tools/            the scripts that write the Check Point sample, the two
+                      Cisco Secure Firewall samples and the SonicWall sample,
+                      and the kernel check
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
                       Check Point, ASA, Sophos and Cisco Secure Firewall output;
-                      a pfSense that judges packets from its configuration
+                      a pfSense that judges packets from its configuration;
+                      a SonicWall that judges by an export and by commands
     test_parsers.py   netutil, FortiOS syntax, PAN-OS and FortiOS parsers
     test_emitters.py  PAN-OS and FortiOS emitters
     test_semantics.py one small configuration per semantic trap
@@ -88,6 +94,7 @@ tests/
                       the script is run against
     test_pfsense.py   pfSense both ways: random configurations against the
                       judge in helpers.py, emitted files restored into it
+    test_sonicwall.py SonicWall both ways, against the two judges in helpers.py
     test_audit.py     the audit, against a walk through every packet of a
                       small world
     test_matrix.py    the zone matrix, against the same walk: every packet
@@ -518,6 +525,12 @@ policy behaves unexpectedly.
 | pfSense NAT: rdr before binat for what arrives, binat before nat for what leaves; a port forward with a numeric local port and several ports maps all of them to that port; NAT reflection in pure NAT mode puts the forward on the interfaces without a gateway (an `ovpn*` or `ipsec*` device counts as one with a gateway); automatic outbound NAT translates what leaves an interface with a gateway from the networks of the others, static routes over them, OpenVPN tunnel networks and the IPsec mobile pool; an outbound NAT rule without family and addresses is written for IPv4 and IPv6; `opt` in the source of an outbound NAT rule is read as an interface name | pfSense parser and emitter |
 | pfSense restore of an area: the file may have the root `<pfsense>`; the whole section is replaced; an empty or missing section is refused; no version check and no upgrade; the filter reloads by itself; separators, `bypassstaticroutes` and linked rules go with the section | emitter, `PFSENSE_RESTORE`, manual |
 | pfSense XML: a flag is an element, empty or not; text is decoded twice (also inside CDATA); alias names are up to 31 of `[A-Za-z0-9_]`, not a word of pf or of pfSense; descriptions take any text. A pfSense accepts what the emitter writes and has not restored it anywhere: trackers from 2000000001, `associated-rule-id` empty, `natreflection` `disable`, outbound NAT in the form of config 23.x | emitter |
+| SonicWall, all rows below: from SonicWall's knowledge base and documentation where it says so, otherwise from the published readers of the settings export (faridlav/SonicWallParser, pryorda/sonicwallRuleParser, angeloxx/dumpwall on GitHub). Nothing was run on a SonicWall | SonicWall parser and emitter |
+| SonicWall `.exp`: Base64 of `key=value` joined by `&`, values URL-encoded, `&&` at the end (KB); the key names of address objects (`addrObj*`, type 1 host, 2 range, 4 network, 8 group), groups (`addro_atomToGrp`/`addro_grpToGrp`), services (`svcObj*`, `svcObjIpType` the protocol number), zones (`zoneObj*`), interfaces (`iface_*`, `interface_Zone`), access rules (`policy*`, `V6` for IPv6) and NAT (`natPolicy*`, interfaces by `iface_ifnum`, -1 any) (the readers agree) | SonicWall parser |
+| SonicWall `.exp`: action 2 is allow, 0 and 1 are deny and discard in an order the readers disagree on; empty source, destination, service is any, empty translation is original; `Port1 0` with `Port2 N` is port N; the codes of `zoneObjZoneType` (0 untrusted, 1 trusted, 2 public, 4 wireless, 5 encrypted) are one reader's reading | SonicWall parser |
+| SonicOS: access rules per pair of zones, first match by priority, the default ("Any") rule at the bottom of each pair; by default LAN/WLAN to WAN/DMZ and DMZ to WAN allowed, the reverse denied (documented); other security types not documented | parser (`_default_rules`), emitter (deny tails) |
+| SonicOS: an access rule names the original (public) destination and the zone of the server; NAT policies one table, first match by priority, matching inbound and outbound interface; a reflexive policy adds its mirror (the shape of the mirror assumed) | SonicWall parser and emitter |
+| SonicOS CLI: `configure terminal` (7; `configure` on 6.5), `commit`; `address-object ipv4 "N" host|network|range ... zone Z`, `address-group ipv4 "G"` with member lines, `service-object "N" TCP a b`, `service-group`, `access-rule ipv4 from Z to Z action allow source address any|name|group ... service ... destination address ...` with `name` and `no enable`, `nat-policy inbound ... translated-service ...` (KB). Assumed: `priority manual N`, `access-rule ipv6`, `address-object ipv6` and `fqdn`, the `name` and `comment` of a NAT policy, zone names with a space in double quotes | SonicWall emitter, `SONICWALL_LOAD` |
 
 ## Development log
 
@@ -1545,6 +1558,97 @@ with another source found that the option had been ignored there after all.
 * Not converted: schedules, URL table aliases, policy routing, tags,
   limiters and shaping, match rules, IPv6 NAT, NPt, bogon networks, the
   captive portal, bridges, and the rules of packages and services.
+
+### 2026-10-12: version 0.9.0
+
+**Built**
+
+* SonicWall, read and written: `parsers/sonicwall.py` and
+  `emitters/sonicwall.py`, as the format `sonicwall`.
+* Read: the settings export of SonicOS 6.5 and 7 (`.exp`, Base64 of
+  URL-encoded pairs), or its decoded text. Address objects and groups,
+  services and groups, zones and their security types, interfaces, access
+  rules of both IP versions per pair of zones, NAT policies with interfaces
+  as zones, reflexive policies. Objects SonicOS has by itself are worked out
+  from the interfaces of the export (`X1 IP`, `X0 Subnet`, `LAN Subnets`,
+  `Firewalled Subnets`, ...), default services from a table; the default rule
+  of a pair of zones that has none in the export from the security types of
+  its zones. `--interface-address` also for a SonicWall source.
+* Written: commands of the SonicOS 7 command line. One rule per pair of zones
+  and IP version with its place in the pair, groups for lists, the addresses
+  that are left for a negation, a rule that denies at the end of every pair
+  (SonicOS allows LAN to WAN by itself), NAT policies per pair of interfaces.
+* A sample, `sonicwall_sample.exp`, written by `tests/tools/make_sonicwall_sample.py`,
+  with its conversions to every target, its audit and matrix, and the
+  conversions of the other nine samples to SonicWall.
+
+**What the platform made necessary**
+
+* *An undocumented format.* SonicWall documents how to decode the export and
+  nothing of its keys. The parser reads what the published readers agree on,
+  says so in a note, and treats every key a row does not have as unknown
+  rather than as "any".
+* *Rules per pair of zones, and defaults per pair.* The model's rules are one
+  list; a SonicOS rule is for one pair. Read: rows of a pair in order, the
+  default rule last. Written: a rule per pair, numbered within it.
+* *Defaults that allow.* SonicOS lets LAN reach WAN with no rule. A policy of
+  another platform denies that by default: every pair gets a rule that denies
+  at its end.
+* *One object per field, no negation, objects per IP version.* As for the
+  Cisco managers and Sophos.
+* *Objects of the firewall itself* (`X1 IP`) are in no export: worked out
+  from the interfaces, and avoided as names when writing for a SonicWall.
+
+**Sources**
+
+SonicWall's knowledge base and documentation (decoding the export, the CLI
+forms of objects, access rules and NAT policies, default access rules, zones,
+NAT and its reflexive option), and three published readers of the export
+for the key names. What comes from where, and what is assumed, is in the
+table *Vendor behaviour the code relies on*.
+
+**Review**
+
+*Round 17* by the independent reviewer, with repro scripts of its own (about
+40 hostile inputs through the command line). 5 high, 4 medium, 3 low:
+
+| | Finding | Fix |
+|---|---|---|
+| high | A key a row did not have was read as empty, and empty is "any": a row with only an action became "allow any to any"; a missing `Enabled` was enabled, a missing interface of a NAT policy any | a key that is not there makes the rule unusable (written disabled, reported); an empty zone too |
+| high | Nested service groups were written in the order of the model; a group before its member group lost that member, silently | groups after the groups in them; a member that cannot be written makes the group unusable |
+| high | SonicWall to SonicWall: a group of SonicOS (`VPN Subnets`) inside a group was spelled out, and dropped when the export showed no interface of it | named, as SonicOS has it |
+| high | A group that holds itself crashed the emitter | followed once |
+| high | A zone with a space in its name was written without quotes: the commands that deny for it would be refused, and SonicOS's defaults apply | quoted |
+| medium | `Port1 0` and `Port2 80` was read as ports 1 to 80 | port 80, as the readers show it |
+| medium | An IPv6 rule that names an object of SonicOS got its IPv4 addresses | such a rule is unusable |
+| medium | A priority of 5,000 digits: a traceback; 600 zones: 119 MB of output | a priority nobody can mean is none; more than 100 zones is an error that says why |
+| medium | The version was not raised yet | raised |
+| low | A default rule with a low priority number could stand before the rules of its pair; a NAT comment could end in a backslash; an FQDN was written without quotes | last of its pair; the characters left out; quoted |
+
+Not changed: NAT policies are written in order without a priority (the
+command is not known; the report says to check the order); the zone of an
+address object is not read (SonicOS does not match by it). The judges were
+corrected with the code where they shared a mistake (the place of the
+default rule, `Port1 0`). The fixes were not reviewed again; they have tests
+(the last section of `test_sonicwall.py`).
+
+**Verified, and not**
+
+* The tests: `tests/test_sonicwall.py` holds 153 tests, the suite 2693. The
+  parser is compared with an independent reading of the export on 120 random
+  exports (300 packets each), the emitter with the model on 60 random models
+  on a firewall whose own defaults allow some pairs, the round trip on 30, the
+  NAT of the emitter on 40. A mutation check with 12 ways to break parser and
+  emitter: 11 caught, the twelfth changes nothing a packet can show (an ICMP
+  rule written for IPv6 as well).
+* **Nothing was run on a SonicWall.** The format of the export comes from
+  third-party readers, the commands from knowledge-base articles; the judges
+  are written from the same reading. NAT parsing has hand tests only.
+* The largest unknowns: whether `priority manual N` is the command (without
+  it SonicOS orders the rules of a pair by itself); which of the action codes
+  0 and 1 is deny; how an export stores ICMP services, IPv6 and MAC objects;
+  whether the default rules of a pair are rows of every export; the shape of
+  a reflexive mirror.
 
 ## To do
 

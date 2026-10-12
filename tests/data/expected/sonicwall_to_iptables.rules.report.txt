@@ -1,0 +1,78 @@
+FWShift conversion report
+  source: sonicwall (SonicOS 7.1.2-7019)
+  target: iptables
+
+Summary
+  Security rules:     18   exact 8, approximated 5, needs review 4 (3 emitted disabled), skipped 1
+  NAT rules:           6   exact 0, approximated 3, needs review 3, skipped 0
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IPTABLES_LOAD: the output holds the FORWARD chain only. Plain 'iptables-restore' replaces the whole filter table, INPUT and OUTPUT included: check it with 'iptables-restore --test', then load it with 'iptables-restore --noflush' on a host whose FORWARD chain is empty, or merge it by hand
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names; map each zone to its interface with --zone-map: LAN, WAN, DMZ, Servers
+  [needs-review] INTRAZONE_ALLOW: these zones allow traffic between their own interfaces on the source without a rule; no rule was written for that: LAN, Servers, VPN
+  [info] ZONE_TYPE_ASSUMED: the security type of these zones was read from a code of the export whose meaning is taken from the published readers of the format, not from SonicWall: Servers (trusted)
+  [info] SONICWALL_FORMAT: the settings export is not documented by SonicWall beyond its encoding. The keys read are those every published reader of the format agrees on; what this parser does not know of a rule is not read
+  [info] OTHER_IP_VERSION: 1 rule matches the other IP version only; convert with --to ip6tables as well
+  [info] LOGGING_NOT_CONVERTED: logging settings of the rules are not converted; add LOG or NFLOG rules where needed
+
+Security rules
+  Web server from the internet  ->  approximated  (emitted as 1 FORWARD rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Web Public' with post-NAT 'Web Server' because of NAT rule 'Web server'; check that this rule is meant to cover the translated traffic
+  Mail from partners  ->  needs-review  (emitted as 3 FORWARD rules)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Mail Public' with post-NAT 'Mail Server' because of NAT rule 'Mail on another port'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Mail on another port' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+  Mail server pings the LAN  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Echo Object': ICMP type and code of a service object: how the export stores them is not known.
+  Administrators to the DMZ  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match Admins is not converted.
+  Updates in working hours  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Work Hours' is not converted; the rule would apply at all times.
+  IPv6 out  ->  skipped
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  default LAN to DMZ  ->  approximated  (emitted as 1 FORWARD rule)
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from LAN to DMZ; SonicOS allows it by default for zones of these security types, and this rule stands for that
+  default DMZ to WAN  ->  approximated  (emitted as 1 FORWARD rule)
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from DMZ to WAN; SonicOS allows it by default for zones of these security types, and this rule stands for that
+  default Servers to WAN  ->  approximated  (emitted as 1 FORWARD rule)
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from Servers to WAN; SonicOS allows it by default for zones of these security types, and this rule stands for that
+  default Servers to DMZ  ->  approximated  (emitted as 1 FORWARD rule)
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from Servers to DMZ; SonicOS allows it by default for zones of these security types, and this rule stands for that
+
+NAT rules
+  Default NAT  ->  approximated  (emitted as 1 POSTROUTING)
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+  Web server  ->  needs-review  (emitted as 1 PREROUTING)
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [needs-review] NAT_ORDER: on the source, NAT rule 'Default NAT' above this one matches part of its traffic first, and that traffic keeps its destination. The target translates destinations apart from sources: the destination translation of this rule applies to that traffic as well
+  Mail on another port  ->  needs-review  (emitted as 1 PREROUTING)
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [needs-review] NAT_ORDER: on the source, NAT rule 'Default NAT' above this one matches part of its traffic first, and that traffic keeps its destination. The target translates destinations apart from sources: the destination translation of this rule applies to that traffic as well
+  Servers one to one  ->  approximated  (emitted as 1 POSTROUTING)
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+      [approximated] NAT_STATIC_RANGE: static NAT of several addresses becomes SNAT to a range, which does not promise that each host keeps the same translated address
+  Servers one to one (reflexive)  ->  needs-review  (emitted as 1 PREROUTING)
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [approximated] NAT_REFLEXIVE: policy 'Servers one to one' is reflexive: SonicOS adds its mirror image, which is converted as this rule. How SonicOS builds the mirror is assumed (sources and destinations swapped with their translations)
+      [approximated] NAT_RANGE: DNAT to a range picks an address per connection; it is not a fixed one-to-one mapping
+      [needs-review] NAT_ORDER: on the source, NAT rule 'Default NAT' above this one matches part of its traffic first, and that traffic keeps its destination. The target translates destinations apart from sources: the destination translation of this rule applies to that traffic as well
+  Old admin NAT  ->  approximated
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+      [info] NAT_DISABLED: disabled in the source; written as a comment
+
+Addresses
+  X0 Subnet  ->  exact
+      [info] DEFAULT_OBJECT: an object SonicOS has by itself, not defined in the export: worked out from the interfaces of the export
+
+Services
+  SMTP (Send E-Mail)  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+  HTTP  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+  HTTPS  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+  SSH  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed

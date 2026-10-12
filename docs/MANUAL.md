@@ -2,10 +2,10 @@
 
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
 Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
-or by its Device Manager), Sophos Firewall, pfSense and Linux iptables, and tells you,
+or by its Device Manager), Sophos Firewall, pfSense, SonicWall and Linux iptables, and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; and show what each zone may reach in each
-other zone. This manual covers version 0.8.
+other zone. This manual covers version 0.9.
 
 **Contents**
 
@@ -51,16 +51,17 @@ FWShift converts the **policy**. It does not convert interfaces, routing, VPN,
 users, security profiles, or system settings, and it is not a substitute for
 testing the result.
 
-> **Status.** Version 0.8 is tested against synthetic configurations. iptables
+> **Status.** Version 0.9 is tested against synthetic configurations. iptables
 > output and input are checked against a Linux kernel (filter rules, one
 > kernel and iptables version). Output for PAN-OS, FortiOS, Check Point,
-> Cisco ASA, Cisco Secure Firewall, Sophos Firewall and pfSense has not been
-> loaded on a device or management server yet; the Check Point input format follows the
+> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense and SonicWall has
+> not been loaded on a device or management server yet; the Check Point input format follows the
 > API documentation, the ASA and FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
 > Sophos's own SDK, and the JSON of a Management Center and of a Device
 > Manager their API documentation and the tooling Cisco publishes for them.
-> What pfSense makes of its configuration is taken from its source code.
+> What pfSense makes of its configuration is taken from its source code; the
+> SonicWall settings export from the published readers of the format.
 > Use FWShift to produce a draft for a lab.
 
 ## 2. Installation
@@ -83,8 +84,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.8.0.pyz --version
-python3 fwshift-0.8.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.9.0.pyz --version
+python3 fwshift-0.9.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -396,6 +397,31 @@ The configuration of an **OPNsense** firewall looks alike, but keeps its
 aliases, automatic rules and parts of its NAT elsewhere: FWShift refuses it
 with that reason rather than read it as a pfSense.
 
+**SonicWall (SonicOS 6.5 and 7).** Export the settings: on SonicOS 7 under
+*Device > Settings > Firmware and Settings*, *Import/Export Configuration >
+Export Configuration*; on SonicOS 6.5 under *Manage > Updates > Firmware &
+Settings*, *Export Settings* (the names of the menus differ a little between
+releases). The file ends in `.exp`. FWShift reads it as
+it is, and also the decoded text (`base64 -d settings.exp | tr '&' '\n'`):
+
+```sh
+fwshift inspect sonicwall.exp
+fwshift convert sonicwall.exp --to panos -o panos.set --report report.txt
+```
+
+SonicWall does not document this file beyond its encoding. FWShift reads the
+keys that every published reader of the format agrees on (address and
+service objects and groups, zones, interfaces, access rules, NAT policies)
+and says so in the report (`SONICWALL_FORMAT`). Objects SonicOS has by itself
+and that an export does not list (`X1 IP`, `X0 Subnet`, `LAN Subnets`,
+`Firewalled Subnets`, `HTTPS`) are worked out from the interfaces of the
+export, or taken from the defaults of SonicOS, and named (`DEFAULT_OBJECT`).
+An interface that gets its address by DHCP or PPPoE has none in the file:
+give it with `--interface-address X1=198.51.100.7/24`.
+
+Firewalls in Policy mode (SonicOS 7 *SonicOSX*, NSsp) keep security
+policies of another kind, which are not read.
+
 **Check Point.** There is no configuration file to export. FWShift reads what
 the Management API answers to `show access-rulebase` and `show nat-rulebase`,
 as JSON. On the management server, or on any host with `mgmt_cli`:
@@ -517,7 +543,7 @@ TCP 502 and TCP 102, not the applications themselves.
 ### `fwshift convert`
 
 ```
-fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,iptables,ip6tables,json} [options]
+fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,sonicwall,iptables,ip6tables,json} [options]
 ```
 
 `INPUT` is a file, or `-` for standard input.
@@ -526,14 +552,14 @@ fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,
 
 | Option | Meaning |
 |---|---|
-| `--from {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,iptables,ip6tables}` | Source format. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; other XML is PAN-OS; JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from {panos,fortios,checkpoint,asa,fmc,fdm,sophos,pfsense,sonicwall,iptables,ip6tables}` | Source format. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; other XML is PAN-OS; JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
 | `--layer NAME` | Check Point source with several access layers: the one to read. |
 | `--policy NAME` | Management Center source with several access control policies: the one to read, by its name or its id. Without it the policy that no other policy in the input inherits from is read, if there is one such policy. |
 | `--nat-policy NAME` | Management Center source with several NAT policies: the one to read, by its name or its id. |
-| `--interface-address INTERFACE=ADDRESS/BITS` | pfSense source: the address of an interface that gets it by DHCP, PPPoE, SLAAC or from a tracked interface, which is then not in `config.xml`. `INTERFACE` is the name of the interface (`wan`, `opt1`) or its description (`WAN`), `BITS` the prefix length of its network. One address per IP version and interface; repeatable. Without it, rules that name such an address or network are written disabled (section 3). |
+| `--interface-address INTERFACE=ADDRESS/BITS` | pfSense and SonicWall sources: the address of an interface that gets it by DHCP, PPPoE, SLAAC or from a tracked interface, which is then not in the file (SonicWall: IPv4, by the name of the interface, `X1`). `INTERFACE` is the name of the interface (`wan`, `opt1`) or its description (`WAN`), `BITS` the prefix length of its network. One address per IP version and interface; repeatable. Without it, rules that name such an address or network are written disabled (section 3). |
 
 For iptables the IP version is taken from the header that `iptables-save` or
 `ip6tables-save` writes, and otherwise from the addresses and protocols in the
@@ -550,6 +576,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to fmc` | A Python script that creates the policy on a Cisco Secure Firewall Management Center through its REST API: objects, a new access control policy, a new NAT policy (section 10). |
 | `--to fdm` | A file for the configuration import of a Cisco Secure Firewall Device Manager: objects, access rules, manual NAT rules (section 10). |
 | `--to sophos` | An `Entities.xml` for *Import export* of a Sophos Firewall (SFOS 18 and later). With `-o NAME.tar`, the archive an import takes. |
+| `--to sonicwall` | Commands of the SonicOS 7 command line, to paste into an SSH session: objects, NAT policies, access rules (section 10). |
 | `--to pfsense` | A configuration file with the areas Aliases, NAT and Firewall Rules, for *Diagnostics > Backup & Restore* of pfSense 2.7 or later. Each restore of an area **replaces** that area (section 10). |
 | `--to iptables` | A file for `iptables-restore`: the IPv4 half of the policy. |
 | `--to ip6tables` | A file for `ip6tables-restore`: the IPv6 half. |
@@ -563,7 +590,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--target-layer NAME` | Check Point: the access layer the rules are written to. Default `Network`. It must exist. |
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
-| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, Management Center and Device Manager: put `TEXT` in front of the name of every object (on an ASA also every access list) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
+| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, SonicWall, Management Center and Device Manager: put `TEXT` in front of the name of every object (on an ASA also every access list) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
 | `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates. Default `FWShift`. The script can be given another name when it is run (`--name`). |
 
 **Adapting the policy**
@@ -571,8 +598,8 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | Option | Meaning |
 |---|---|
 | `--zone-map SRC=DST` | Use `DST` wherever the source names zone or interface `SRC`. Repeatable. For iptables and ASA this is how a zone becomes an interface name, and the other way round; for pfSense how it becomes an interface (`lan`, `opt1`) or an interface group. |
-| `--zone-network ZONE=NET[,NET...]` | ASA and pfSense targets: the networks that lie behind a zone (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
-| `--interface-map SRC=DST` | Map a source interface to a target interface: zone members written for FortiOS, source NAT to an interface address on PAN-OS, and the interfaces of a NAT rule on Sophos Firewall and on a Device Manager, which match interfaces and not zones. For those two, map every interface of a zone the NAT rules name (for an iptables or ASA source, whose zones are interfaces, that is the zone name itself); for a Device Manager `DST` is the logical name of the interface (`inside`, `outside`). Repeatable. |
+| `--zone-network ZONE=NET[,NET...]` | ASA and pfSense targets: the networks that lie behind a zone (SonicWall: the zone an address object is created in) (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
+| `--interface-map SRC=DST` | Map a source interface to a target interface: zone members written for FortiOS, source NAT to an interface address on PAN-OS, and the interfaces of a NAT rule on Sophos Firewall, SonicWall and a Device Manager, which match interfaces and not zones (SonicWall: `X1`, `X3:V10`). For those two, map every interface of a zone the NAT rules name (for an iptables or ASA source, whose zones are interfaces, that is the zone name itself); for a Device Manager `DST` is the logical name of the interface (`inside`, `outside`). Repeatable. |
 | `--app-map FILE` | JSON file that adds or overrides application port definitions (section 9). |
 | `--prune-unused` | Leave out objects that no rule or NAT rule uses, directly or through a group. |
 
@@ -803,6 +830,7 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `STATELESS_RULE` | A | pfSense source: the rule passes packets without keeping state; on pfSense the answers need a rule of their own. The model is about connections, and the converted rule lets the answers through. |
 | `FLOATING_AFTER_NAT` | R | To pfSense: a rule that blocks traffic leaving by an interface became a floating rule, which pf looks at after outbound NAT, and it names a source. The file holds no NAT area, so the firewall keeps the outbound NAT it has; where that translates the source (automatic outbound NAT does, on an interface with a gateway), the rule no longer matches. Give the networks of every zone with `--zone-network`: the rule is then written for the interfaces traffic arrives on. |
 | `PROTOCOL_NOT_AVAILABLE` | R, disabled | To pfSense: a rule names one protocol, from a list; an IP protocol that is not on the list cannot be written. |
+| `DEFAULT_RULE_ASSUMED` | A | SonicWall source: the export holds no rule for all traffic between two zones, and SonicOS allows it by default for zones of their security types. A rule that allows it was added at the end of the pair. |
 | `INCOMPLETE_ADDRESS_PAIR` | I | FortiOS source: addresses of one IP version on one side only. FortiOS cannot match that version, so they were left out. |
 
 ### NAT rules
@@ -853,7 +881,8 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `NAT_SOURCE_PORT` | I | pfSense source: outbound NAT translates the source port to a given port, which the model has no place for. |
 | `NAT_IPV6_ALSO` | I | pfSense source: an outbound NAT rule without IP version, source or destination is written by pfSense for IPv4 and for IPv6. It is converted for IPv4; IPv6 NAT is not converted. |
 | `NAT_AUTOMATIC_SOURCES` | A | pfSense source: automatic outbound NAT also translates what comes from the clients of the PPPoE server or through IPsec VTI tunnels, whose addresses are not in the configuration. The converted rule does not hold them. |
-| `RULE_SPLIT` | I | To PAN-OS: one rule per destination zone. |
+| `NAT_REFLEXIVE` | A | SonicWall source: a reflexive NAT policy has a mirror image, which SonicOS adds by itself. It is converted as a rule of its own, built as the mirror is assumed to be: sources and destinations swapped with their translations. |
+| `RULE_SPLIT` | I | To PAN-OS: one rule per destination zone. To SonicWall: one NAT policy per pair of interfaces. |
 
 ### Objects
 
@@ -999,6 +1028,21 @@ To pfSense, the NAT findings `NAT_INTERFACE`, `NAT_IPV6`, `NAT_SERVICE`,
 `EGRESS_NO_ADDRESS`, mean what they mean for
 the other targets; the message says what pfSense cannot hold, and section 8
 what it can.
+
+Notes that only a SonicWall source or target raises:
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `SONICWALL_FORMAT` | I | Source: the settings export is not documented beyond its encoding; what was read, and that what the parser does not know of a rule is not read. |
+| `DEFAULT_OBJECT` | I | Source (on the object): an address object or service SonicOS has by itself and the export does not list, worked out from the interfaces of the export or taken from the defaults of SonicOS. |
+| `ZONE_TYPE_ASSUMED` | I | Source: the security type of a zone was read from a code of the export whose meaning comes from the published readers of the format. It decides the default rules of the zone. |
+| `DEFAULT_RULES_UNKNOWN` | R | Source: pairs of zones without a default rule in the export, of security types for which the default of SonicOS is not documented. Traffic between them that no rule matches is taken to be denied. |
+| `OBJECTS_NOT_READ` | R | Source: a table of address objects the parser does not read (IPv6, MAC). Rules that name such an object are disabled. |
+| `NO_RULES` | R | Source: the export holds no access rule and no NAT policy. |
+| `SONICWALL_LOAD` | R | Target: how to load the commands (section 10), and which parts of them are not in the documentation FWShift was written from. |
+| `DEFAULT_DENY_ADDED` | I | Target: a rule that denies was added at the end of each pair of zones and IP version, because SonicOS allows some pairs by itself and the source did not. |
+| `ICMP_AS_DEFAULT` | I | Target (on the service): ICMP echo request is written as the default service `Ping` of SonicOS. |
+| `ZONES_REQUIRED`, `EXISTING_OBJECTS`, `IP_VERSION_SPLIT`, `GROUP_SPLIT`, `SERVICE_SPLIT`, `NEGATION_EXPANDED`, `NEGATION_NOT_STATIC`, `NAT_INTERFACE`, `NAT_OUTBOUND_INTERFACE`, `NAT_ZONES`, `NAT_DESTINATION_ZONE`, `NAT_DYNAMIC_IP`, `NAT_BIDIRECTIONAL` | | As for Sophos Firewall and ASA: a SonicOS address group and rule are of one IP version, a service object of one protocol and range, and a NAT policy matches one inbound and one outbound interface. |
 
 Notes that only a Cisco Secure Firewall source or target raises (Management
 Center, Device Manager):
@@ -1973,6 +2017,81 @@ development branch) and not the web pages, which say less.
   gets a rule that passes everything at the end of every interface
   (`INTERZONE_DEFAULT`).
 
+### SonicWall
+
+**What is read**
+
+* **Access rules** are kept per pair of zones (from, to), and are first match
+  within their pair. Each row of the export is a rule; where every row says
+  its priority, the rules of a pair are in that order, otherwise in the order
+  of the file. A rule names one source, one destination and one service, each
+  an object, a group or nothing, which is "any". Allow allows; Deny and
+  Discard both block (`0` and `1`: the published readers of the format do not
+  agree which is which, and the model has no need to know). IPv4 and IPv6
+  rules are tables of their own.
+* **Default rules.** What no rule of a pair matches, the default rule of that
+  pair decides. An export holds it as a row (the rule for any source, any
+  destination and any service at the end of the pair). Where a pair has none,
+  FWShift adds what SonicOS does by default for the security types of the two
+  zones: it allows from a trusted or wireless zone to a public or untrusted
+  one, and from a public zone to an untrusted one (`DEFAULT_RULE_ASSUMED`);
+  it denies the rest, and says so for types whose default is not documented
+  (`DEFAULT_RULES_UNKNOWN`). Traffic between interfaces of one zone passes
+  where the zone has *Allow Interface Trust*.
+* **NAT.** An access rule names the destination as it arrives and the zone the
+  translated traffic goes to, as the model does: nothing is rewritten. NAT
+  policies are one table, first match. A policy translates the source, the
+  destination and the service at once, and matches the interface traffic
+  arrives on and the one it leaves by: an interface becomes its zone
+  (`NAT_INTERFACE` when the zone has other interfaces too). Source NAT to the
+  address of the interface traffic leaves by (`X1 IP`) is translation to the
+  interface; to an object of the size of the original source, address for
+  address; to anything else, translation with ports. A reflexive policy gets
+  its mirror image as a rule of its own (`NAT_REFLEXIVE`).
+* **Objects.** Hosts, ranges, networks and FQDN objects; groups, nested. The
+  zone of an object is not read: SonicOS does not match by it. Objects
+  SonicOS has by itself are worked out from the interfaces (`DEFAULT_OBJECT`):
+  `Xn IP`, `Xn Subnet`, `Xn Default Gateway`, `All Xn Management IP`, `<zone>
+  Subnets`, `Firewalled Subnets` (the networks of every interface that is not
+  in an untrusted zone), `All Interface IP`, `All WAN IP`, `WAN Primary IP`
+  (taken to be X1). Services: TCP and UDP port ranges and IP protocols; ICMP
+  service objects are not read, because how an export stores type and code is
+  not known; the default services of SonicOS (`HTTP`, `HTTPS`, `SSH`, `Ping`,
+  ...) where a rule names one the export does not list.
+* **Not converted:** users (`USER_MATCH` on every target), schedules, a
+  source port service, Geo-IP and botnet filtering of a rule (reported as
+  profiles), bandwidth management and the other settings of a rule, IPv6 and
+  MAC address objects (`OBJECTS_NOT_READ`), VPN policies, and firewalls in
+  Policy mode.
+
+**What is written**
+
+* **Commands** of the SonicOS 7 command line, which enter the configuration
+  mode, create objects, NAT policies and access rules, and end with
+  `commit`.
+* **Rules.** One per pair of zones and IP version, each with its place in the
+  pair (`priority manual N`): without it SonicOS would order the rules by
+  itself, most specific first. A list of addresses or services becomes a
+  group (`src <rule>`, `dst <rule>`, `svc <rule>`); a negated list, the
+  addresses that are left (`NEGATION_EXPANDED`). A rule with zone "any"
+  becomes a rule for every pair of zones of the policy. Every pair ends in a
+  rule that denies, where the model denies what no rule matches
+  (`DEFAULT_DENY_ADDED`): SonicOS allows LAN to WAN by itself.
+* **Objects** are per IP version, of up to 32 characters, and need a zone: the
+  zone the networks given with `--zone-network` put them in, otherwise the
+  zone of the first rule that names them. Names SonicOS has itself (`X1 IP`,
+  `HTTPS`, `Ping`) are not taken (`RENAMED`), except from a SonicWall, whose
+  objects of that kind are used as they are.
+* **Services:** TCP and UDP, an object per protocol and range, a group for
+  more; ICMP echo request as the default service `Ping` (`ICMP_AS_DEFAULT`).
+  Other ICMP and other IP protocols are not written: the command for them was
+  not found in what SonicWall publishes, and the rules that need them are
+  disabled.
+* **NAT policies** name interfaces: those of the zones, mapped with
+  `--interface-map` (`X1`), one policy per pair of interfaces. Source NAT to
+  the address of the outgoing interface is translation to `Xn IP`.
+  Bi-directional static NAT is two policies.
+
 ### Names
 
 Names the target would reject are changed: `10.0.0.0/8` becomes `10.0.0.0_8`
@@ -2357,6 +2476,28 @@ empty). It is restored with the restore of one area at a time, which
    `FWSHIFT` in their description; aliases that stand in for an object that
    could not be converted match nothing (`192.0.0.8`, a reserved address).
 
+### SonicWall
+
+> **The commands have never been run on a SonicWall.** Their form follows
+> SonicWall's knowledge base; the parts the report lists under
+> `SONICWALL_LOAD` (`priority manual`, the name and comment of a NAT policy,
+> IPv6 and FQDN objects) are assumed.
+
+1. Make sure the zones listed in `ZONES_REQUIRED` exist, with their
+   interfaces, and that the interfaces the NAT policies name (`X1`) are the
+   right ones. Back up the settings (*Export Settings*).
+2. Log in by SSH as an administrator and paste the file. It starts with
+   `configure terminal` (SonicOS 6.5 wants `configure`: change the first
+   line) and ends with `commit`, which applies everything at once.
+3. Read what the firewall answers: a command it refuses does not stop the
+   others. Then compare the access rules of each pair of zones, and the NAT
+   policies, with the summary of the report.
+4. New access rules go above the default rule of their pair; each pair ends in
+   a rule of FWShift that denies. A NAT policy that is there already, such as
+   the default NAT policy of the firewall, may come first.
+5. An object of the same name as one the firewall has is changed or refused:
+   convert with `--target-prefix` to keep them apart.
+
 ### After loading
 
 Search the configuration for `FWSHIFT`: every placeholder object and every
@@ -2416,13 +2557,15 @@ the report is the list.)
 | `control characters are not allowed in ...` | An option value holds a line break or another control character. |
 | `--target-layer '...' is not a name mgmt_cli can be given` | The name starts with a hyphen. The same message exists for `--target-package` and `--target-gateway`. |
 | `--zone-map expects SOURCE=TARGET` | Write the option as `--zone-map old=new`. |
+| `not a SonicWall settings export: ...` | The file is neither the Base64 of an export nor its decoded keys, or it is empty. |
+| `the settings export holds key '...' twice, with two values` | Two exports in one file, or an edited one. |
 | `this is the configuration of an OPNsense firewall ...` | OPNsense is not read (section 3). |
 | `not a pfSense configuration: the first element is <...>` | `--from pfsense` on XML that is something else, or the backup of one area only (it starts with `<filter>`, say). Back up area **All**. |
 | `<...> occurs N times in one <...>` | pfSense source: an element that can be there once is there twice. pfSense does not read such a file either; it was edited by hand or two files were joined. |
 | `--interface-address: '...' is not INTERFACE=ADDRESS/BITS` | Write the option as `--interface-address wan=198.51.100.7/24`. |
 | `--interface-address: no interface '...' in the configuration; it has ...` | Name the interface as the configuration does, by name or description: the message lists them. |
 | `--interface-address: two IPv4 addresses for '...'` | One address per IP version and interface. |
-| `--interface-address is for a pfSense source` | The option was given for another source. |
+| `--interface-address is for a pfSense or SonicWall source` | The option was given for another source. |
 | `--target-nat-zone: '...' is no interface a pfSense rule can name` | pfSense target: give `wan`, `lan`, an `optN` or the name of an interface group. |
 
 **Most rules are "needs review".** Read the first finding of a few rules. A
@@ -2543,6 +2686,13 @@ deliberate: see *IPv4 and IPv6* in section 8.
   format of the import file are taken from documentation and from Cisco's
   published tooling; nothing has been run against a Management Center or a
   Device Manager. `DEVELOPMENT.md` lists what is assumed.
+* SonicWall: SonicOS 6.5 and 7 in Classic mode, from the settings export,
+  which SonicWall does not document: the keys read are those of the published
+  readers of the format. Not converted: ICMP service objects, IPv6 and MAC
+  address objects, users, schedules, source port services, Geo-IP and botnet
+  filtering, Policy mode. Written: TCP and UDP services and ICMP echo only;
+  objects, groups, rules and NAT policies, not zones or interfaces. Nothing
+  has been run on a SonicWall.
 * pfSense: 2.6 and later; OPNsense is not read. Schedules, URL table
   aliases, policy routing, tags, limiters and shaping, match rules, IPv6 NAT,
   NPt, bogon networks, the captive portal, bridges and the rules of packages

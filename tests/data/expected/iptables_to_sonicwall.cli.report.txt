@@ -1,0 +1,53 @@
+FWShift conversion report
+  source: iptables (IPv4)
+  target: sonicwall
+
+Summary
+  Security rules:     15   exact 10, approximated 1, needs review 4 (2 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 1, needs review 3, skipped 1
+  Services:           11   exact 10, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain INPUT (3 rules, policy DROP) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, nat-policy name and comment, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): eth1, eth0, eth2, eth3
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] PASSIVE_TARGETS: 1 FORWARD rule with target LOG decides nothing and was left out; a LOG rule directly before a rule with the same match sets its logging
+  [info] DEFAULT_DENY_ADDED: 31 rules that deny were added, one at the end of each pair of zones and IP version: SonicOS allows some traffic between zones by itself (from LAN to WAN, for example), and the source did not
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+
+Security rules
+  Block bad host  ->  needs-review  (emitted as Block bad host, Block bad host 2, Block bad host 3, Block bad host 4, Block bad host 5, Block bad host 6, Block bad host 7, Block bad host 8, Block bad host 9, Block bad host 10, Block bad host 11, Block bad host 12, Block bad host 13, Block bad host 14, Block bad host 15, Block bad host 16)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 16 rules
+  Inbound web  ->  needs-review
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10/32' next to '10.20.0.10/32' because of NAT rule 'Web DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Web DNAT' also translates the port to 8443; the service of this rule still names the post-NAT port and must be adjusted
+  Inbound mail  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25/32' next to '10.20.0.25/32' because of NAT rule 'Mail DNAT'; check that this rule is meant to cover the translated traffic
+  DMZ updates  ->  exact
+      [info] NEGATION_EXPANDED: SonicOS has no negation: 'not destination 10.0.0.0/8' is written as the IPv4 addresses that are left (2 range(s))
+  Rate limited mail  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: match module 'limit'.
+  Partner tunnel  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ip-47': IP protocol 47, for which FWShift does not know the command of SonicOS.
+
+NAT rules
+  Web DNAT  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from eth0 only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  Mail DNAT  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from eth0 only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  No NAT to partner  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic to eth0 only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+  DMZ out  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic to eth0 only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+  LAN out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+
+Services
+  tcp-80,443  ->  exact  (emitted as tcp-80,443, tcp-80,443 tcp 80, tcp-80,443 tcp 443)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'tcp-80,443' of 'tcp-80,443 tcp 80', 'tcp-80,443 tcp 443'
+  icmp-8  ->  exact
+      [info] ICMP_AS_DEFAULT: ICMP echo request is written as the default service 'Ping' of SonicOS, which is taken to be that
+  ip-47  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 47, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled

@@ -1,0 +1,290 @@
+set address "Web Server" ip-netmask 10.20.0.10
+set address "Mail Server" ip-netmask 10.20.0.25
+set address "Web Public" ip-netmask 198.51.100.10
+set address "Mail Public" ip-netmask 198.51.100.11
+set address "Server Range" ip-netmask 10.30.0.0/28
+set address "Server Public" ip-netmask 198.51.100.32/28
+set address Database ip-netmask 10.30.0.5
+set address "Admin PCs" ip-range 10.10.5.10-10.10.5.20
+set address "Bad Net One" ip-netmask 203.0.113.0/25
+set address "Bad Host" ip-netmask 192.0.2.66
+set address "Partner Net" ip-netmask 192.0.2.128/26
+set address "Update Site" fqdn updates.example.com
+set address "X0 Subnet" ip-netmask 10.10.0.0/16
+set address-group "Bad Networks" static [ "Bad Net One" "Bad Host" ]
+set address-group Partners static [ "Partner Net" "Bad Networks" ]
+set service "HTTPS Alt" protocol tcp port 8443
+set service "SMTP Alt" protocol tcp port 2525
+set service Media protocol udp port 16384-16484
+set service "Echo Object" protocol tcp port 1
+set service "Echo Object" description "FWSHIFT PLACEHOLDER, matches nothing: ICMP type and code of a service object: how the export stores them is not known"
+set service "SMTP _Send E-Mail_" protocol tcp port 25
+set service "SMTP _Send E-Mail_" description "a default service of SonicOS"
+set service HTTP protocol tcp port 80
+set service HTTP description "a default service of SonicOS"
+set service HTTPS protocol tcp port 443
+set service HTTPS description "a default service of SonicOS"
+set service SSH protocol tcp port 22
+set service SSH description "a default service of SonicOS"
+set service-group "Web Services" members [ HTTP HTTPS "HTTPS Alt" ]
+set rulebase security rules "LAN to WAN _1" from LAN
+set rulebase security rules "LAN to WAN _1" to WAN
+set rulebase security rules "LAN to WAN _1" source 0.0.0.0/0
+set rulebase security rules "LAN to WAN _1" destination "Bad Networks"
+set rulebase security rules "LAN to WAN _1" source-user any
+set rulebase security rules "LAN to WAN _1" category any
+set rulebase security rules "LAN to WAN _1" application any
+set rulebase security rules "LAN to WAN _1" service any
+set rulebase security rules "LAN to WAN _1" action deny
+set rulebase security rules "LAN to WAN _1" log-end yes
+set rulebase security rules "LAN to WAN _1" description "nothing to the bad networks"
+set rulebase security rules "Admins out by SSH" from LAN
+set rulebase security rules "Admins out by SSH" to WAN
+set rulebase security rules "Admins out by SSH" source "Admin PCs"
+set rulebase security rules "Admins out by SSH" destination 0.0.0.0/0
+set rulebase security rules "Admins out by SSH" source-user any
+set rulebase security rules "Admins out by SSH" category any
+set rulebase security rules "Admins out by SSH" application any
+set rulebase security rules "Admins out by SSH" service SSH
+set rulebase security rules "Admins out by SSH" action allow
+set rulebase security rules "Admins out by SSH" log-end yes
+set rulebase security rules "LAN to WAN _3" from LAN
+set rulebase security rules "LAN to WAN _3" to WAN
+set rulebase security rules "LAN to WAN _3" source 0.0.0.0/0
+set rulebase security rules "LAN to WAN _3" destination 0.0.0.0/0
+set rulebase security rules "LAN to WAN _3" source-user any
+set rulebase security rules "LAN to WAN _3" category any
+set rulebase security rules "LAN to WAN _3" application any
+set rulebase security rules "LAN to WAN _3" service "Web Services"
+set rulebase security rules "LAN to WAN _3" action allow
+set rulebase security rules "LAN to WAN _3" log-end yes
+set rulebase security rules "LAN to WAN _3" description browsing
+set rulebase security rules "LAN to WAN _4" from LAN
+set rulebase security rules "LAN to WAN _4" to WAN
+set rulebase security rules "LAN to WAN _4" source 0.0.0.0/0
+set rulebase security rules "LAN to WAN _4" destination 0.0.0.0/0
+set rulebase security rules "LAN to WAN _4" source-user any
+set rulebase security rules "LAN to WAN _4" category any
+set rulebase security rules "LAN to WAN _4" application gre
+set rulebase security rules "LAN to WAN _4" service application-default
+set rulebase security rules "LAN to WAN _4" action allow
+set rulebase security rules "LAN to WAN _4" log-end yes
+set rulebase security rules "LAN to WAN _4" disabled yes
+set rulebase security rules "LAN to WAN _4" description "tunnels to partners"
+set rulebase security rules "LAN to WAN _5" from LAN
+set rulebase security rules "LAN to WAN _5" to WAN
+set rulebase security rules "LAN to WAN _5" source 0.0.0.0/0
+set rulebase security rules "LAN to WAN _5" destination 0.0.0.0/0
+set rulebase security rules "LAN to WAN _5" source-user any
+set rulebase security rules "LAN to WAN _5" category any
+set rulebase security rules "LAN to WAN _5" application any
+set rulebase security rules "LAN to WAN _5" service any
+set rulebase security rules "LAN to WAN _5" action allow
+set rulebase security rules "LAN to WAN _5" log-end yes
+set rulebase security rules "LAN to WAN _5" description "Auto added default rule"
+set rulebase security rules "Web server from the internet" from WAN
+set rulebase security rules "Web server from the internet" to DMZ
+set rulebase security rules "Web server from the internet" source 0.0.0.0/0
+set rulebase security rules "Web server from the internet" destination "Web Public"
+set rulebase security rules "Web server from the internet" source-user any
+set rulebase security rules "Web server from the internet" category any
+set rulebase security rules "Web server from the internet" application any
+set rulebase security rules "Web server from the internet" service HTTPS
+set rulebase security rules "Web server from the internet" action allow
+set rulebase security rules "Web server from the internet" log-end yes
+set rulebase security rules "Mail from partners" from WAN
+set rulebase security rules "Mail from partners" to DMZ
+set rulebase security rules "Mail from partners" source Partners
+set rulebase security rules "Mail from partners" destination "Mail Public"
+set rulebase security rules "Mail from partners" source-user any
+set rulebase security rules "Mail from partners" category any
+set rulebase security rules "Mail from partners" application any
+set rulebase security rules "Mail from partners" service "SMTP Alt"
+set rulebase security rules "Mail from partners" action allow
+set rulebase security rules "Mail from partners" log-end yes
+set rulebase security rules "WAN to DMZ _3" from WAN
+set rulebase security rules "WAN to DMZ _3" to DMZ
+set rulebase security rules "WAN to DMZ _3" source 0.0.0.0/0
+set rulebase security rules "WAN to DMZ _3" destination 0.0.0.0/0
+set rulebase security rules "WAN to DMZ _3" source-user any
+set rulebase security rules "WAN to DMZ _3" category any
+set rulebase security rules "WAN to DMZ _3" application any
+set rulebase security rules "WAN to DMZ _3" service any
+set rulebase security rules "WAN to DMZ _3" action deny
+set rulebase security rules "WAN to DMZ _3" log-end yes
+set rulebase security rules "WAN to LAN _1" from WAN
+set rulebase security rules "WAN to LAN _1" to LAN
+set rulebase security rules "WAN to LAN _1" source 0.0.0.0/0
+set rulebase security rules "WAN to LAN _1" destination 0.0.0.0/0
+set rulebase security rules "WAN to LAN _1" source-user any
+set rulebase security rules "WAN to LAN _1" category any
+set rulebase security rules "WAN to LAN _1" application any
+set rulebase security rules "WAN to LAN _1" service any
+set rulebase security rules "WAN to LAN _1" action deny
+set rulebase security rules "WAN to LAN _1" log-end yes
+set rulebase security rules "Web server to the database" from DMZ
+set rulebase security rules "Web server to the database" to Servers
+set rulebase security rules "Web server to the database" source "Web Server"
+set rulebase security rules "Web server to the database" destination Database
+set rulebase security rules "Web server to the database" source-user any
+set rulebase security rules "Web server to the database" category any
+set rulebase security rules "Web server to the database" application any
+set rulebase security rules "Web server to the database" service Media
+set rulebase security rules "Web server to the database" action allow
+set rulebase security rules "Web server to the database" log-end yes
+set rulebase security rules "Mail server pings the LAN" from DMZ
+set rulebase security rules "Mail server pings the LAN" to LAN
+set rulebase security rules "Mail server pings the LAN" source "Mail Server"
+set rulebase security rules "Mail server pings the LAN" destination 0.0.0.0/0
+set rulebase security rules "Mail server pings the LAN" source-user any
+set rulebase security rules "Mail server pings the LAN" category any
+set rulebase security rules "Mail server pings the LAN" application any
+set rulebase security rules "Mail server pings the LAN" service "Echo Object"
+set rulebase security rules "Mail server pings the LAN" action allow
+set rulebase security rules "Mail server pings the LAN" log-end yes
+set rulebase security rules "Mail server pings the LAN" disabled yes
+set rulebase security rules "Mail server pings the LAN" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Administrators to the DMZ" from LAN
+set rulebase security rules "Administrators to the DMZ" to DMZ
+set rulebase security rules "Administrators to the DMZ" source 0.0.0.0/0
+set rulebase security rules "Administrators to the DMZ" destination 0.0.0.0/0
+set rulebase security rules "Administrators to the DMZ" source-user Admins
+set rulebase security rules "Administrators to the DMZ" category any
+set rulebase security rules "Administrators to the DMZ" application any
+set rulebase security rules "Administrators to the DMZ" service any
+set rulebase security rules "Administrators to the DMZ" action allow
+set rulebase security rules "Administrators to the DMZ" log-end yes
+set rulebase security rules "Updates in working hours" from Servers
+set rulebase security rules "Updates in working hours" to WAN
+set rulebase security rules "Updates in working hours" source 0.0.0.0/0
+set rulebase security rules "Updates in working hours" destination "Update Site"
+set rulebase security rules "Updates in working hours" source-user any
+set rulebase security rules "Updates in working hours" category any
+set rulebase security rules "Updates in working hours" application any
+set rulebase security rules "Updates in working hours" service HTTPS
+set rulebase security rules "Updates in working hours" action allow
+set rulebase security rules "Updates in working hours" log-end yes
+set rulebase security rules "Updates in working hours" disabled yes
+set rulebase security rules "Updates in working hours" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "IPv6 out" from LAN
+set rulebase security rules "IPv6 out" to WAN
+set rulebase security rules "IPv6 out" source ::/0
+set rulebase security rules "IPv6 out" destination ::/0
+set rulebase security rules "IPv6 out" source-user any
+set rulebase security rules "IPv6 out" category any
+set rulebase security rules "IPv6 out" application any
+set rulebase security rules "IPv6 out" service any
+set rulebase security rules "IPv6 out" action allow
+set rulebase security rules "IPv6 out" log-end yes
+set rulebase security rules "default LAN to DMZ" from LAN
+set rulebase security rules "default LAN to DMZ" to DMZ
+set rulebase security rules "default LAN to DMZ" source any
+set rulebase security rules "default LAN to DMZ" destination any
+set rulebase security rules "default LAN to DMZ" source-user any
+set rulebase security rules "default LAN to DMZ" category any
+set rulebase security rules "default LAN to DMZ" application any
+set rulebase security rules "default LAN to DMZ" service any
+set rulebase security rules "default LAN to DMZ" action allow
+set rulebase security rules "default LAN to DMZ" log-end no
+set rulebase security rules "default LAN to DMZ" description "the default access rule of SonicOS from LAN to DMZ"
+set rulebase security rules "default DMZ to WAN" from DMZ
+set rulebase security rules "default DMZ to WAN" to WAN
+set rulebase security rules "default DMZ to WAN" source any
+set rulebase security rules "default DMZ to WAN" destination any
+set rulebase security rules "default DMZ to WAN" source-user any
+set rulebase security rules "default DMZ to WAN" category any
+set rulebase security rules "default DMZ to WAN" application any
+set rulebase security rules "default DMZ to WAN" service any
+set rulebase security rules "default DMZ to WAN" action allow
+set rulebase security rules "default DMZ to WAN" log-end no
+set rulebase security rules "default DMZ to WAN" description "the default access rule of SonicOS from DMZ to WAN"
+set rulebase security rules "default Servers to WAN" from Servers
+set rulebase security rules "default Servers to WAN" to WAN
+set rulebase security rules "default Servers to WAN" source any
+set rulebase security rules "default Servers to WAN" destination any
+set rulebase security rules "default Servers to WAN" source-user any
+set rulebase security rules "default Servers to WAN" category any
+set rulebase security rules "default Servers to WAN" application any
+set rulebase security rules "default Servers to WAN" service any
+set rulebase security rules "default Servers to WAN" action allow
+set rulebase security rules "default Servers to WAN" log-end no
+set rulebase security rules "default Servers to WAN" description "the default access rule of SonicOS from Servers to WAN"
+set rulebase security rules "default Servers to DMZ" from Servers
+set rulebase security rules "default Servers to DMZ" to DMZ
+set rulebase security rules "default Servers to DMZ" source any
+set rulebase security rules "default Servers to DMZ" destination any
+set rulebase security rules "default Servers to DMZ" source-user any
+set rulebase security rules "default Servers to DMZ" category any
+set rulebase security rules "default Servers to DMZ" application any
+set rulebase security rules "default Servers to DMZ" service any
+set rulebase security rules "default Servers to DMZ" action allow
+set rulebase security rules "default Servers to DMZ" log-end no
+set rulebase security rules "default Servers to DMZ" description "the default access rule of SonicOS from Servers to DMZ"
+set rulebase security rules fwshift-intrazone-allow rule-type intrazone
+set rulebase security rules fwshift-intrazone-allow from [ LAN Servers VPN ]
+set rulebase security rules fwshift-intrazone-allow to [ LAN Servers VPN ]
+set rulebase security rules fwshift-intrazone-allow source any
+set rulebase security rules fwshift-intrazone-allow destination any
+set rulebase security rules fwshift-intrazone-allow source-user any
+set rulebase security rules fwshift-intrazone-allow category any
+set rulebase security rules fwshift-intrazone-allow application any
+set rulebase security rules fwshift-intrazone-allow service any
+set rulebase security rules fwshift-intrazone-allow action allow
+set rulebase security rules fwshift-intrazone-allow log-end no
+set rulebase security rules fwshift-intrazone-allow description "Added by FWShift: these zones allow traffic between their own interfaces on the source."
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules "Default NAT" from any
+set rulebase nat rules "Default NAT" to WAN
+set rulebase nat rules "Default NAT" source "X0 Subnet"
+set rulebase nat rules "Default NAT" destination any
+set rulebase nat rules "Default NAT" service any
+set rulebase nat rules "Default NAT" source-translation dynamic-ip-and-port translated-address 198.51.100.2
+set rulebase nat rules "Default NAT" description "Default NAT"
+set rulebase nat rules "Web server" from WAN
+set rulebase nat rules "Web server" to WAN
+set rulebase nat rules "Web server" source 0.0.0.0/0
+set rulebase nat rules "Web server" destination "Web Public"
+set rulebase nat rules "Web server" service HTTPS
+set rulebase nat rules "Web server" destination-translation translated-address "Web Server"
+set rulebase nat rules "Web server" description "Web server"
+set rulebase nat rules "Mail on another port" from WAN
+set rulebase nat rules "Mail on another port" to WAN
+set rulebase nat rules "Mail on another port" source 0.0.0.0/0
+set rulebase nat rules "Mail on another port" destination "Mail Public"
+set rulebase nat rules "Mail on another port" service "SMTP Alt"
+set rulebase nat rules "Mail on another port" destination-translation translated-address "Mail Server"
+set rulebase nat rules "Mail on another port" destination-translation translated-port 25
+set rulebase nat rules "Mail on another port" description "Mail on another port"
+set rulebase nat rules "Servers one to one" from any
+set rulebase nat rules "Servers one to one" to WAN
+set rulebase nat rules "Servers one to one" source "Server Range"
+set rulebase nat rules "Servers one to one" destination any
+set rulebase nat rules "Servers one to one" service any
+set rulebase nat rules "Servers one to one" source-translation static-ip translated-address "Server Public"
+set rulebase nat rules "Servers one to one" description "Servers one to one"
+set rulebase nat rules "Servers one to one _reflexive_" from WAN
+set rulebase nat rules "Servers one to one _reflexive_" to WAN
+set rulebase nat rules "Servers one to one _reflexive_" source 0.0.0.0/0
+set rulebase nat rules "Servers one to one _reflexive_" destination "Server Public"
+set rulebase nat rules "Servers one to one _reflexive_" service any
+set rulebase nat rules "Servers one to one _reflexive_" destination-translation translated-address "Server Range"
+set rulebase nat rules "Servers one to one _reflexive_" description "the reflexive policy of Servers one to one"
+set rulebase nat rules "Old admin NAT" from any
+set rulebase nat rules "Old admin NAT" to WAN
+set rulebase nat rules "Old admin NAT" source "Admin PCs"
+set rulebase nat rules "Old admin NAT" destination any
+set rulebase nat rules "Old admin NAT" service any
+set rulebase nat rules "Old admin NAT" source-translation dynamic-ip-and-port translated-address "Web Public"
+set rulebase nat rules "Old admin NAT" disabled yes
+set rulebase nat rules "Old admin NAT" description "Old admin NAT"

@@ -1,0 +1,109 @@
+FWShift conversion report
+  source: checkpoint (Network)
+  target: sonicwall
+
+Summary
+  Security rules:     18   exact 11, approximated 0, needs review 7 (6 emitted disabled), skipped 0
+  NAT rules:           9   exact 6, approximated 0, needs review 1, skipped 2
+  Addresses:          16   exact 13, approximated 1, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 10, approximated 0, needs review 3, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IMPLIED_RULES: Check Point implied rules (global properties) and the other ordered layers of the policy package are not part of the export; only the rules of one layer were read ('Network')
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, address-object fqdn, address-object ipv6, nat-policy name and comment, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): InternalZone, ExternalZone
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 3 rule(s) match IPv4 and IPv6 traffic and were written twice: SonicOS has address objects and access rules per IP version
+
+Security rules
+  DNS  ->  exact  (emitted as DNS, DNS 2, DNS 3, DNS 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  rule-2  ->  needs-review  (emitted as rule-2, rule-2 2, rule-2 3, rule-2 4)
+      [needs-review] DEVICE_TARGET: the rule is installed only on gw-edge; decide whether it belongs on the target firewall
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  Guests stay out  ->  exact  (emitted as Guests stay out, Guests stay out 2, Guests stay out 3, Guests stay out 4)
+      [info] NEGATION_EXPANDED: SonicOS has no negation: 'not destination dns-servers' is written as the IPv4 addresses that are left (2 range(s))
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  Social  ->  needs-review, emitted disabled  (emitted as Social, Social 2, Social 3, Social 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Facebook': object of type 'application-site'.
+  Admins  ->  needs-review, emitted disabled  (emitted as Admins, Admins 2, Admins 3, Admins 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netadmins': object of type 'access-role'.
+  Updates  ->  needs-review, emitted disabled  (emitted as Updates, Updates 2, Updates 3, Updates 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [needs-review] SCHEDULE: schedule 'Work-Hours' is not converted; the rule would apply at all times.
+  Old rule  ->  needs-review, emitted disabled  (emitted as Old rule, Old rule 2, Old rule 3, Old rule 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'lan-without-guests': object of type 'group-with-exclusion'.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'syslog-from-high': source ports, which a SonicOS service object does not have.
+  Partners  ->  needs-review, emitted disabled  (emitted as Partners, Partners 2, Partners 3, Partners 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [needs-review] UNSUPPORTED_MATCH: not converted: VPN community match Partner-VPN.
+  IPv6 out  ->  exact  (emitted as IPv6 out, IPv6 out 2, IPv6 out 3, IPv6 out 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  Public web  ->  exact  (emitted as Public web, Public web 2, Public web 3, Public web 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  DMZ access / Web in  ->  exact  (emitted as DMZ access / Web in, DMZ access / Web in 2, DMZ access / Web in 3, DMZ access / Web in 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  DMZ access / Mail in  ->  exact  (emitted as DMZ access / Mail in, DMZ access / Mail in 2, DMZ access / Mail in 3, DMZ access / Mail in 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  DMZ access / Ping from LAN  ->  exact  (emitted as DMZ access / Ping from LAN, DMZ access / Ping from LAN 2, DMZ access / Ping from LAN 3, DMZ access / Ping from LAN 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  DMZ access (cleanup of DMZ-Layer)  ->  exact  (emitted as DMZ access (cleanup of DMZ-Layer, DMZ access (cleanup of DMZ-Lay 2, DMZ access (cleanup of DMZ-Lay 3, DMZ access (cleanup of DMZ-Lay 4)
+      [info] INLINE_CLEANUP: added for the implicit cleanup of inline layer 'DMZ-Layer', which is drop
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  Tunnels  ->  needs-review, emitted disabled  (emitted as Tunnels, Tunnels 2, Tunnels 3, Tunnels 4)
+      [approximated] GATEWAY_OBJECT: matches gateway object gw-edge, which stood for every address of the gateway; only its main address is known, so the converted rule no longer applies to its other addresses
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'gre': IP protocol 47, for which FWShift does not know the command of SonicOS.
+  No ident  ->  exact  (emitted as No ident, No ident 2, No ident 3, No ident 4, No ident 5, No ident 6, No ident 7, No ident 8)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+      [info] RESET_ACTION: action reset-client becomes deny
+  Cleanup rule  ->  exact  (emitted as Cleanup rule, Cleanup rule 2, Cleanup rule 3, Cleanup rule 4, Cleanup rule 5, Cleanup rule 6, Cleanup rule 7, Cleanup rule 8)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+
+NAT rules
+  nat-4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+  nat-6  ->  needs-review
+      [needs-review] NAT_ORDER: NAT rule 'nat-4' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+  nat-8  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+
+Addresses
+  web-1  ->  exact
+      [info] AUTOMATIC_NAT: the object has automatic static NAT to 203.0.113.10: as on Check Point, rules and groups that name it also match that address, written as 'web-1_valid_address'
+  netadmins  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: object of type 'access-role' cannot be converted
+  .updates.example.com  ->  exact  (emitted as x.updates.example.com)
+      [info] RENAMED: renamed to 'x.updates.example.com' to fit the target's naming rules
+  lan-without-guests  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: object of type 'group-with-exclusion' cannot be converted
+  gw-edge  ->  approximated
+      [approximated] GATEWAY_OBJECT: a gateway object stands for every address of the gateway; only its main address 198.51.100.1 is in the export
+
+Address groups
+  dns-2  ->  exact  (emitted as dns-2, dns-2 v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'dns-2', 'dns-2 v6'
+  dns-servers  ->  exact  (emitted as dns-servers, dns-servers v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'dns-servers', 'dns-servers v6'
+
+Services
+  ssh  ->  exact  (emitted as ssh 2)
+      [info] RENAMED: renamed to 'ssh 2' to fit the target's naming rules
+  http  ->  exact  (emitted as http 2)
+      [info] RENAMED: renamed to 'http 2' to fit the target's naming rules
+  https  ->  exact  (emitted as https 2)
+      [info] RENAMED: renamed to 'https 2' to fit the target's naming rules
+  Facebook  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: object of type 'application-site': not converted
+  syslog-from-high  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a SonicOS service object does not have: not written, and the rules that use it are disabled
+  echo-request  ->  exact
+      [info] ICMP_AS_DEFAULT: ICMP echo request is written as the default service 'Ping' of SonicOS, which is taken to be that
+  gre  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 47, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled

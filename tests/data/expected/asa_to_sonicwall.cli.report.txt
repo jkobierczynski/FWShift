@@ -1,0 +1,100 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: sonicwall
+
+Summary
+  Security rules:     18   exact 11, approximated 2, needs review 5 (4 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 1, needs review 3, skipped 1
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 13, approximated 0, needs review 4, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, address-object fqdn, address-object ipv6, nat-policy name and comment, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): outside, dmz, inside, guest
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] DEFAULT_DENY_ADDED: 22 rules that deny were added, one at the end of each pair of zones and IP version: SonicOS allows some traffic between zones by itself (from LAN to WAN, for example), and the source did not
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 3 rule(s) match IPv4 and IPv6 traffic and were written twice: SonicOS has address objects and access rules per IP version
+
+Security rules
+  outside_access_in-1  ->  needs-review
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-public' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-2' also translates the port to 8080; the service of this rule still names the post-NAT port and must be adjusted
+  outside_access_in-2  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to 'mail-srv' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  outside_access_in-3  ->  needs-review, emitted disabled  (emitted as outside_access_in-3, outside_access_in-3 2, outside_access_in-3 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ping-types': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  outside_access_in-4  ->  exact  (emitted as outside_access_in-4, outside_access_in-4 2, outside_access_in-4 3, outside_access_in-4 4, outside_access_in-4 5, outside_access_in-4 6, outside_access_in-4 7, outside_access_in-4 8)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  inside_access_in-1  ->  exact  (emitted as inside_access_in-1, inside_access_in-1 2, inside_access_in-1 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  inside_access_in-2  ->  exact  (emitted as inside_access_in-2, inside_access_in-2 2, inside_access_in-2 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  inside_access_in-3  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to 'dmz-servers' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  inside_access_in-4  ->  needs-review, emitted disabled  (emitted as inside_access_in-4, inside_access_in-4 2, inside_access_in-4 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
+  inside_access_in-5  ->  exact  (emitted as inside_access_in-5, inside_access_in-5 2, inside_access_in-5 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  inside_access_in-7  ->  needs-review, emitted disabled  (emitted as inside_access_in-7, inside_access_in-7 2, inside_access_in-7 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+      [needs-review] USER_MATCH: source user match LOCAL\alice is not converted.
+  inside_access_in-8  ->  exact  (emitted as inside_access_in-8, inside_access_in-8 2, inside_access_in-8 3, inside_access_in-8 4, inside_access_in-8 5, inside_access_in-8 6, inside_access_in-8 7, inside_access_in-8 8)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  inside_access_in-9  ->  exact  (emitted as inside_access_in-9, inside_access_in-9 2, inside_access_in-9 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  dmz_access_in-1  ->  exact  (emitted as dmz_access_in-1, dmz_access_in-1 2, dmz_access_in-1 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  dmz_access_in-2  ->  needs-review, emitted disabled  (emitted as dmz_access_in-2, dmz_access_in-2 2, dmz_access_in-2 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'tcp-src-1024-65535-dst-25': source ports, which a SonicOS service object does not have.
+  dmz_access_in-3  ->  exact  (emitted as dmz_access_in-3, dmz_access_in-3 2, dmz_access_in-3 3, dmz_access_in-3 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  dmz_access_in-4  ->  exact  (emitted as dmz_access_in-4, dmz_access_in-4 2, dmz_access_in-4 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  implicit-guest  ->  exact  (emitted as implicit-guest, implicit-guest 2)
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+
+NAT rules
+  nat-1  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from inside only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [approximated] NAT_ZONES: the rule applied to traffic to outside only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+  nat-2  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from outside only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  nat-mail-srv  ->  needs-review  (emitted as nat-mail-srv, nat-mail-srv in)
+      [approximated] NAT_ZONES: the rule applied to traffic from dmz only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [needs-review] NAT_ZONES: the rule applied to traffic to outside only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a source NAT policy plus policy 'nat-mail-srv in' for the inbound direction
+  nat-inside-net  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+  nat-after-auto-1  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from guest only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [needs-review] NAT_ZONES: the rule applied to traffic to outside only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+
+Services
+  svc-http  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a SonicOS service object does not have: not written, and the rules that use it are disabled
+  svc-http-alt  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a SonicOS service object does not have: not written, and the rules that use it are disabled
+  mail-services-inline  ->  exact  (emitted as mail-services-inline, mail-services-inline tcp 25, mail-services-inline tcp 587)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'mail-services-inline' of 'mail-services-inline tcp 25', 'mail-services-inline tcp 587'
+  dns-ntp  ->  exact  (emitted as dns-ntp, dns-ntp tcp 53, dns-ntp udp 53, dns-ntp udp 123)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'dns-ntp' of 'dns-ntp tcp 53', 'dns-ntp udp 53', 'dns-ntp udp 123'
+  ping-types  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  web-ports  ->  exact  (emitted as web-ports, web-ports tcp 80, web-ports tcp 443, web-ports tcp 8000-8010)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'web-ports' of 'web-ports tcp 80', 'web-ports tcp 443', 'web-ports tcp 8000-8010'
+  tcp-udp-5060  ->  exact  (emitted as tcp-udp-5060, tcp-udp-5060 tcp 5060, tcp-udp-5060 udp 5060)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'tcp-udp-5060' of 'tcp-udp-5060 tcp 5060', 'tcp-udp-5060 udp 5060'
+  icmp-8  ->  exact
+      [info] ICMP_AS_DEFAULT: ICMP echo request is written as the default service 'Ping' of SonicOS, which is taken to be that
+  tcp-src-1024-65535-dst-25  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a SonicOS service object does not have: not written, and the rules that use it are disabled

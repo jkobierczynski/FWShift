@@ -1,0 +1,76 @@
+FWShift conversion report
+  source: sonicwall (SonicOS 7.1.2-7019)
+  target: sophos
+
+Summary
+  Security rules:     18   exact 11, approximated 4, needs review 3 (3 emitted disabled), skipped 0
+  NAT rules:           6   exact 0, approximated 3, needs review 3, skipped 0
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SOPHOS_LOAD: the output is an Entities.xml. Put it in a tar archive under that name (or let FWShift do it: give -o a name that ends in .tar) and import it under Backup & firmware > Import export. Rules are added below the rules the firewall has: a firewall rule or NAT rule that is there already, such as the default source NAT rule of a new firewall, comes first. An import can stop at the first object the firewall does not take: compare the number of rules and objects with this report, on a firewall that is not in production
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): LAN, WAN, DMZ, Servers, VPN. Zones are not created: an import would overwrite the device access of a zone that exists
+  [info] ZONE_TYPE_ASSUMED: the security type of these zones was read from a code of the export whose meaning is taken from the published readers of the format, not from SonicWall: Servers (trusted)
+  [info] SONICWALL_FORMAT: the settings export is not documented by SonicWall beyond its encoding. The keys read are those every published reader of the format agrees on; what this parser does not know of a rule is not read
+  [info] INTRAZONE_ALLOW_ADDED: appended 'fwshift-intrazone-LAN', 'fwshift-intrazone-LAN_v6', 'fwshift-intrazone-Servers', 'fwshift-intrazone-Servers_v6', 'fwshift-intrazone-VPN', 'fwshift-intrazone-VPN_v6': these zones allow traffic between their own interfaces on the source, and Sophos Firewall needs a rule for it
+  [info] EXISTING_OBJECTS: an import overwrites what the firewall has under the same name: a host, a service or a rule that is in this output replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 4 rule(s) match IPv4 and IPv6 traffic and were written twice: Sophos Firewall keeps a rulebase per IP version. The name of the IPv6 rule ends in _v6
+
+Security rules
+  Mail server pings the LAN  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Echo Object': ICMP type and code of a service object: how the export stores them is not known.
+  Administrators to the DMZ  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match Admins is not converted.
+  Updates in working hours  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Work Hours' is not converted; the rule would apply at all times.
+  default LAN to DMZ  ->  approximated  (emitted as default LAN to DMZ, default LAN to DMZ_v6)
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from LAN to DMZ; SonicOS allows it by default for zones of these security types, and this rule stands for that
+  default DMZ to WAN  ->  approximated  (emitted as default DMZ to WAN, default DMZ to WAN_v6)
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from DMZ to WAN; SonicOS allows it by default for zones of these security types, and this rule stands for that
+  default Servers to WAN  ->  approximated  (emitted as default Servers to WAN, default Servers to WAN_v6)
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from Servers to WAN; SonicOS allows it by default for zones of these security types, and this rule stands for that
+  default Servers to DMZ  ->  approximated  (emitted as default Servers to DMZ, default Servers to DMZ_v6)
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from Servers to DMZ; SonicOS allows it by default for zones of these security types, and this rule stands for that
+
+NAT rules
+  Default NAT  ->  needs-review
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+      [needs-review] NAT_ZONES: the rule applied to traffic to WAN only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface, so that it now translates traffic towards every other zone as well. Name the interfaces with --interface-map, or put a rule without translation above it for the traffic that must keep its addresses
+  Web server  ->  approximated
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [approximated] NAT_ZONES: the rule applied to traffic from WAN only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  Mail on another port  ->  approximated
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [approximated] NAT_ZONES: the rule applied to traffic from WAN only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  Servers one to one  ->  needs-review
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+      [needs-review] NAT_ZONES: the rule applied to traffic to WAN only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface, so that it now translates traffic towards every other zone as well. Name the interfaces with --interface-map, or put a rule without translation above it for the traffic that must keep its addresses
+      [approximated] NAT_STATIC_RANGE: static NAT of a range becomes source NAT to a range, which does not promise that each host keeps the same translated address
+  Servers one to one (reflexive)  ->  approximated  (emitted as Servers one to one _reflexive_)
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [approximated] NAT_REFLEXIVE: policy 'Servers one to one' is reflexive: SonicOS adds its mirror image, which is converted as this rule. How SonicOS builds the mirror is assumed (sources and destinations swapped with their translations)
+      [approximated] NAT_ZONES: the rule applied to traffic from WAN only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  Old admin NAT  ->  needs-review
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+      [needs-review] NAT_ZONES: the rule applied to traffic to WAN only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface, so that it now translates traffic towards every other zone as well. Name the interfaces with --interface-map, or put a rule without translation above it for the traffic that must keep its addresses
+
+Addresses
+  X0 Subnet  ->  exact
+      [info] DEFAULT_OBJECT: an object SonicOS has by itself, not defined in the export: worked out from the interfaces of the export
+
+Services
+  SMTP (Send E-Mail)  ->  exact  (emitted as SMTP _Send E-Mail_)
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+      [info] RENAMED: renamed to 'SMTP _Send E-Mail_' to fit the target's naming rules
+  HTTP  ->  exact  (emitted as HTTP_2)
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+      [info] RENAMED: renamed to 'HTTP_2' to fit the target's naming rules
+  HTTPS  ->  exact  (emitted as HTTPS_2)
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+      [info] RENAMED: renamed to 'HTTPS_2' to fit the target's naming rules
+  SSH  ->  exact  (emitted as SSH_2)
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+      [info] RENAMED: renamed to 'SSH_2' to fit the target's naming rules

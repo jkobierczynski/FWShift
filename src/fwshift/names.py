@@ -55,6 +55,11 @@ PFSENSE = NameRules(31, re.compile(r"[^A-Za-z0-9_]"), True)
 # The description of a rule is free text.
 PFSENSE_TEXT = NameRules(200, re.compile(r"[\x00-\x1f\x7f]"), False)
 
+# SonicWall: up to 32 printable characters (ASCII 32-126) for an address object, 50 for a group; no double quote,
+# single quote or backslash. Everything is kept to 32.
+SONICWALL = NameRules(32, re.compile(r"[^ -~]|[\"'\\]"), True)
+SONICWALL_NATIVE = NameRules(32, SONICWALL.invalid, False)
+
 
 def clean(name: str, rules: NameRules) -> str:
     out = rules.invalid.sub("_", name).strip()

@@ -1891,3 +1891,345 @@ class PfSense:
             "Original" if src == pkt.src else src, "Original" if dst == pkt.dst else dst,
             "Original" if dport == pkt.dport else str(dport),
         )  # fmt: skip
+
+
+# -- SonicWall ---------------------------------------------------------------------------------------
+
+# What SonicOS lets through between two zones by itself, by their security types (as documented for these).
+SONICWALL_DEFAULT_ALLOW = {("trusted", "untrusted"), ("trusted", "public"), ("wireless", "untrusted"), ("wireless", "public"),
+                           ("public", "untrusted")}  # fmt: skip
+
+
+def _sw_in(address: str, interval: Tuple[int, int, int]) -> bool:
+    import ipaddress
+
+    ip = ipaddress.ip_address(address)
+    return ip.version == interval[0] and interval[1] <= int(ip) <= interval[2]
+
+
+def _sw_proto(pkt: Any) -> int:
+    return {"tcp": 6, "udp": 17, "icmp": 1, "icmp6": 58}.get(pkt.proto, 0) or int(pkt.proto)
+
+
+class SonicWallCli:
+    """Emitted SonicOS commands, read strictly (only the grammar FWShift writes), and what a firewall would decide.
+
+    ``zone_types`` gives the security type of each zone of the target (trusted, untrusted, public, wireless, ...):
+    what no rule of a pair matches is decided by the default of SonicOS for those types. ``interfaces`` maps the
+    interfaces a NAT policy names to their zones."""
+
+    def __init__(self, text: str, zone_types: Optional[Dict[str, str]] = None, interfaces: Optional[Dict[str, str]] = None,
+                 builtin: Optional[Dict[str, List[Tuple[int, int, int]]]] = None) -> None:  # fmt: skip
+        import re
+
+        self.zone_types = zone_types or {}
+        self.iface_zone = interfaces or {}
+        self.addresses: Dict[Tuple[str, int], List[Tuple[int, int, int]]] = {}  # (name, version or 0 for fqdn)
+        self.fqdn: Dict[str, str] = {}
+        self.groups: Dict[Tuple[str, int], List[Tuple[str, str]]] = {}  # members: (kind, name)
+        # The default services of SonicOS a converted SonicWall policy names (as the documentation names them).
+        self.services: Dict[str, Tuple[str, int, int]] = {"Ping": ("ICMP8", 0, 0), "HTTP": ("TCP", 80, 80), "HTTPS": ("TCP", 443, 443),
+                                                         "SSH": ("TCP", 22, 22), "SMTP (Send E-Mail)": ("TCP", 25, 25)}  # fmt: skip
+        self.service_groups: Dict[str, List[Tuple[str, str]]] = {}
+        self.rules: Dict[Tuple[str, str, int], List[Dict[str, Any]]] = {}
+        self.nat: List[Dict[str, Any]] = []
+        for name, intervals in (builtin or {}).items():
+            self.addresses[(name, 4)] = intervals
+        lines = text.splitlines()
+        assert lines[0] == "configure terminal" and lines[-2:] == ["commit", "exit"], (lines[:1], lines[-2:])
+        quoted = r'"([^"\\]+)"'
+        ref = r'(any|name "[^"]+"|group "[^"]+")'
+        index = 1
+        while index < len(lines) - 2:
+            line = lines[index]
+            index += 1
+            words = shlex.split(line)
+            block: List[str] = []
+            while index < len(lines) - 2 and lines[index].startswith("    "):
+                block.append(lines[index].strip())
+                index += 1
+            if block:
+                assert block[-1] == "exit", (line, block)
+                block = block[:-1]
+            if words[0] == "address-object":
+                kind, name = words[1], words[2]
+                assert not block and len(name) <= 32 and not re.search(r'["\'\\]', name), line
+                zone_at = words.index("zone")
+                assert len(words) == zone_at + 2, line
+                body = words[3:zone_at]
+                if kind == "fqdn":
+                    assert body[0] == "domain" and len(body) == 2, line
+                    self.fqdn[name] = body[1]
+                    self.addresses[(name, 0)] = []
+                    continue
+                version = int(kind[-1])
+                if body[0] == "host":
+                    literal = parse_literal(body[1])
+                elif body[0] == "range":
+                    literal = parse_literal(f"{body[1]}-{body[2]}")
+                else:
+                    assert body[0] == "network", line
+                    literal = parse_literal(f"{body[1]}/{body[2].lstrip('/')}" if version == 6 else f"{body[1]}/{body[2]}")
+                    if version == 4:
+                        import ipaddress
+
+                        literal = parse_literal(str(ipaddress.ip_network(f"{body[1]}/{body[2]}")))
+                assert literal is not None and literal[0] == version, line
+                assert (name, version) not in self.addresses, f"defined twice: {name}"
+                self.addresses[(name, version)] = [literal]
+            elif words[0] == "address-group":
+                version, name = int(words[1][-1]), words[2]
+                members: List[Tuple[str, str]] = []
+                for entry in block:
+                    inner = shlex.split(entry)
+                    assert inner[0] in ("address-object", "address-group") and len(inner) == 3, entry
+                    member_version = 0 if inner[1] == "fqdn" else int(inner[1][-1])
+                    key = (inner[2], member_version)
+                    assert key in self.addresses or key in self.groups, f"group {name} names {inner[2]} before it exists"
+                    members.append(("group" if inner[0] == "address-group" else "object", inner[2]))
+                assert members, line
+                self.groups[(name, version)] = members
+            elif words[0] == "service-object":
+                assert not block and len(words) == 5 and words[2] in ("TCP", "UDP"), line
+                assert words[1] not in self.services, f"defined twice: {words[1]}"
+                self.services[words[1]] = (words[2], int(words[3]), int(words[4]))
+            elif words[0] == "service-group":
+                members = []
+                for entry in block:
+                    inner = shlex.split(entry)
+                    assert inner[0] in ("service-object", "service-group") and len(inner) == 2, entry
+                    assert inner[1] in self.services or inner[1] in self.service_groups, f"{inner[1]} before it exists"
+                    members.append(("group" if inner[0] == "service-group" else "object", inner[1]))
+                self.service_groups[words[1]] = members
+            elif words[0] == "access-rule":
+                match = re.fullmatch(r"access-rule ipv([46]) from (\"[^\"]+\"|\S+) to (\"[^\"]+\"|\S+) action (allow|deny|discard) source address "
+                                     + ref + " service " + ref + " destination address " + ref, line)  # fmt: skip
+                assert match, line
+                rule: Dict[str, Any] = {"version": int(match.group(1)), "action": match.group(4), "src": match.group(5),
+                                        "service": match.group(6), "dst": match.group(7), "enabled": True}  # fmt: skip
+                for entry in block:
+                    if entry == "no enable":
+                        rule["enabled"] = False
+                    elif entry.startswith("priority manual "):
+                        rule["priority"] = int(entry.split()[-1])
+                    else:
+                        assert re.fullmatch(r"name " + quoted, entry), entry
+                        rule["name"] = shlex.split(entry)[1]
+                key = (match.group(2).strip('"'), match.group(3).strip('"'), rule["version"])
+                listed = self.rules.setdefault(key, [])
+                assert rule.get("priority") == len(listed) + 1, (line, rule.get("priority"), len(listed))
+                listed.append(rule)
+            elif words[0] == "nat-policy":
+                match = re.fullmatch(r"nat-policy inbound (\S+) outbound (\S+) source " + ref + r" translated-source (original|name \"[^\"]+\") "
+                                     r"destination " + ref + r" translated-destination (original|name \"[^\"]+\") service " + ref
+                                     + r" translated-service (original|name \"[^\"]+\")", line)  # fmt: skip
+                assert match, line
+                policy = dict(zip(("inbound", "outbound", "src", "tsrc", "dst", "tdst", "service", "tservice"), match.groups()))
+                policy["enabled"] = "no enable" not in block
+                for entry in block:
+                    assert entry == "no enable" or re.fullmatch(r"(name|comment) " + quoted, entry) or entry == 'comment ""', entry
+                self.nat.append(policy)
+            else:
+                raise AssertionError(f"unknown command: {line}")
+
+    # -- matching ----------------------------------------------------------------------------------
+
+    def _address(self, reference: str, address: str, version: int) -> bool:
+        if reference == "any":
+            return True
+        kind, name = reference.split(" ", 1)
+        name = name.strip('"')
+        return self._member(kind, name, address, version, set())
+
+    def _member(self, kind: str, name: str, address: str, version: int, seen: set) -> bool:
+        if kind == "group":
+            assert (name, version) in self.groups, f"unknown group {name}"
+            if (name, version) in seen:
+                return False
+            return any(self._member(k, n, address, version, seen | {(name, version)}) for k, n in self.groups[(name, version)])
+        intervals = self.addresses.get((name, version))
+        if intervals is None:
+            assert (name, 0) in self.addresses, f"unknown object {name}"
+            return False  # a host name: resolved to nothing here
+        return any(_sw_in(address, interval) for interval in intervals)
+
+    def _service(self, reference: str, pkt: Any) -> bool:
+        if reference == "any":
+            return True
+        kind, name = reference.split(" ", 1)
+        return self._svc_member(kind, name.strip('"'), pkt)
+
+    def _svc_member(self, kind: str, name: str, pkt: Any) -> bool:
+        if kind == "group":
+            return any(self._svc_member(k, n, pkt) for k, n in self.service_groups[name])
+        protocol, low, high = self.services[name]
+        if protocol == "ICMP8":
+            return pkt.proto == "icmp" and pkt.icmp_type == 8
+        return pkt.proto == protocol.lower() and low <= pkt.dport <= high
+
+    def deciding(self, pkt: Any, src_zone: str, dst_zone: str) -> Optional[Dict[str, Any]]:
+        version = 6 if ":" in pkt.src else 4
+        for rule in self.rules.get((src_zone, dst_zone, version), []):
+            if not rule["enabled"]:
+                continue
+            if self._address(rule["src"], pkt.src, version) and self._address(rule["dst"], pkt.dst, version) and self._service(rule["service"], pkt):
+                return rule
+        return None
+
+    def allows(self, pkt: Any, src_zone: Optional[str] = None, dst_zone: Optional[str] = None) -> bool:
+        src_zone = src_zone or pkt.in_if
+        dst_zone = dst_zone or pkt.out_if
+        rule = self.deciding(pkt, src_zone, dst_zone)
+        if rule is not None:
+            return bool(rule["action"] == "allow")
+        if src_zone == dst_zone:
+            return False
+        return (self.zone_types.get(src_zone, ""), self.zone_types.get(dst_zone, "")) in SONICWALL_DEFAULT_ALLOW
+
+    def translation(self, pkt: Any) -> Tuple[str, str, str]:
+        """(source, destination, port) of a packet after the first NAT policy that matches it; "Original" for what stays."""
+        for policy in self.nat:
+            if not policy["enabled"]:
+                continue
+            if policy["inbound"] != "any" and self.iface_zone.get(policy["inbound"]) != pkt.in_if:
+                continue
+            if policy["outbound"] != "any" and self.iface_zone.get(policy["outbound"]) != pkt.out_if:
+                continue
+            if not (self._address(policy["src"], pkt.src, 4) and self._address(policy["dst"], pkt.dst, 4) and self._service(policy["service"], pkt)):
+                continue
+            return (self._moved(policy["tsrc"], policy["src"], pkt.src), self._moved(policy["tdst"], policy["dst"], pkt.dst),
+                    self._port(policy["tservice"], pkt))  # fmt: skip
+        return ("Original", "Original", "Original")
+
+    def _moved(self, translated: str, original: str, address: str) -> str:
+        import ipaddress
+
+        if translated == "original":
+            return "Original"
+        target = self.addresses[(translated.split(" ", 1)[1].strip('"'), 4)][0]
+        if original != "any" and original.startswith("name "):
+            source = self.addresses.get((original.split(" ", 1)[1].strip('"'), 4), [None])[0]
+            if source is not None and source[2] - source[1] == target[2] - target[1] and _sw_in(address, source):
+                return str(ipaddress.ip_address(target[1] + int(ipaddress.ip_address(address)) - source[1]))
+        return str(ipaddress.ip_address(target[1]))
+
+    def _port(self, translated: str, pkt: Any) -> str:
+        if translated == "original":
+            return "Original"
+        protocol, low, _ = self.services[translated.split(" ", 1)[1].strip('"')]
+        return "Original" if low == pkt.dport else str(low)
+
+
+class SonicWallExp:
+    """What a SonicOS firewall decides by a settings export: decoded and read here without fwshift's parser.
+
+    Per pair of zones the rows in their order, first match; what none matches, the default of SonicOS for the
+    security types of the two zones."""
+
+    TYPES = {"0": "untrusted", "1": "trusted", "2": "public", "4": "wireless", "5": "encrypted"}
+
+    def __init__(self, data: bytes) -> None:
+        import base64
+        import re
+        from urllib.parse import unquote
+
+        text = base64.b64decode(data.strip().rstrip(b"&")).decode("utf-8")
+        self.keys: Dict[str, str] = {}
+        for part in text.split("&"):
+            if part:
+                key, _, value = part.partition("=")
+                self.keys[key] = unquote(value)
+        self.rows: Dict[str, Dict[int, Dict[str, str]]] = {}
+        for key, value in self.keys.items():
+            match = re.fullmatch(r"([A-Za-z][A-Za-z0-9_]*?)_([0-9]+)", key)
+            if match:
+                self.rows.setdefault(match.group(1), {}).setdefault(int(match.group(2)), {})["v"] = value
+
+    def column(self, prefix: str) -> Dict[int, str]:
+        return {index: row["v"] for index, row in self.rows.get(prefix, {}).items()}
+
+    def zone_type(self, zone: str) -> str:
+        defaults = {"LAN": "trusted", "WAN": "untrusted", "DMZ": "public", "WLAN": "wireless"}
+        for index, name in self.column("zoneObjId").items():
+            if name == zone:
+                return defaults.get(name, self.TYPES.get(self.column("zoneObjZoneType").get(index, ""), ""))
+        return defaults.get(zone, "")
+
+    def _object(self, name: str, address: str, seen: frozenset = frozenset()) -> bool:
+        import ipaddress
+
+        for index, found in self.column("addrObjId").items():
+            if found != name:
+                continue
+            kind = self.column("addrObjType")[index]
+            ip1, ip2 = self.column("addrObjIp1")[index], self.column("addrObjIp2")[index]
+            if ":" in address:
+                return False
+            value = int(ipaddress.ip_address(address))
+            if kind == "1":
+                return value == int(ipaddress.ip_address(ip1))
+            if kind == "2":
+                return int(ipaddress.ip_address(ip1)) <= value <= int(ipaddress.ip_address(ip2))
+            if kind == "4":
+                return ipaddress.ip_address(address) in ipaddress.ip_network(f"{ip1}/{ip2}")
+            if kind == "8":
+                if name in seen:
+                    return False
+                groups, atoms = self.column("addro_grpToGrp"), self.column("addro_atomToGrp")
+                return any(self._object(atoms[k], address, seen | {name}) for k, g in groups.items() if g == name)
+        raise AssertionError(f"object {name} is not in the export")
+
+    def _service(self, name: str, pkt: Any) -> bool:
+        if not name:
+            return True
+        for index, found in self.column("svcObjId").items():
+            if found != name:
+                continue
+            if self.column("svcObjType")[index] == "2":
+                groups, atoms = self.column("so_grpToGrp"), self.column("so_atomToGrp")
+                return any(self._service(atoms[k], pkt) for k, g in groups.items() if g == name)
+            protocol = int(self.column("svcObjIpType")[index])
+            low, high = int(self.column("svcObjPort1")[index]), int(self.column("svcObjPort2")[index])
+            if protocol in (6, 17):
+                if low == 0 and high:
+                    low = high  # as the published readers of the format show it: the one port of Port2
+                return _sw_proto(pkt) == protocol and (low <= pkt.dport <= high or low == high == 0)
+            return _sw_proto(pkt) == protocol
+        raise AssertionError(f"service {name} is not in the export")
+
+    def deciding(self, pkt: Any) -> Optional[int]:
+        six = ":" in pkt.src
+        tail = "V6" if six else ""
+        actions = self.column(f"policyAction{tail}")
+        rows = sorted(actions)
+        if all(self.column(f"policyPriority{tail}").get(i, "").isdigit() for i in rows):
+            pairs: Dict[Tuple[str, str], List[int]] = {}
+            for i in rows:
+                pairs.setdefault((self.column(f"policySrcZone{tail}")[i], self.column(f"policyDstZone{tail}")[i]), []).append(i)
+            rows = [i for listed in pairs.values() for i in sorted(listed, key=lambda k: int(self.column(f"policyPriority{tail}")[k]))]
+        # The default rule of a pair is at its bottom ("At the bottom of the table is the Any rule").
+        default = self.column(f"policyDefaultRule{tail}")
+        rows = [i for i in rows if default.get(i) != "1"] + [i for i in rows if default.get(i) == "1"]
+        for i in rows:
+            if self.column(f"policySrcZone{tail}")[i] != pkt.in_if or self.column(f"policyDstZone{tail}")[i] != pkt.out_if:
+                continue
+            if self.column(f"policyEnabled{tail}").get(i, "1") == "0":
+                continue
+            src, dst = self.column(f"policySrcNet{tail}").get(i, ""), self.column(f"policyDstNet{tail}").get(i, "")
+            if src and not self._object(src, pkt.src):
+                continue
+            if dst and not self._object(dst, pkt.dst):
+                continue
+            if not self._service(self.column(f"policyDstSvc{tail}").get(i, ""), pkt):
+                continue
+            return i
+        return None
+
+    def allows(self, pkt: Any) -> bool:
+        tail = "V6" if ":" in pkt.src else ""
+        index = self.deciding(pkt)
+        if index is not None:
+            return self.column(f"policyAction{tail}")[index] == "2"
+        if pkt.in_if == pkt.out_if:
+            return False
+        return (self.zone_type(pkt.in_if), self.zone_type(pkt.out_if)) in SONICWALL_DEFAULT_ALLOW

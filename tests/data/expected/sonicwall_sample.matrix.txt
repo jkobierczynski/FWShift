@@ -1,0 +1,62 @@
+FWShift zone matrix
+  source: sonicwall (SonicOS 7.1.2-7019)
+  security rules: 18 (1 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+           LAN               WAN               DMZ               Servers           VPN
+  LAN      any               any               any~              -                 -
+  WAN      -                 -                 tcp/443 tcp/2525  -                 -
+  DMZ      svc:Echo Object~  any~              -                 udp/16384-16484   -
+  Servers  -                 any~              any~              any               -
+  VPN      -                 -                 -                 -                 any
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+LAN -> LAN (inside the zone)
+  allowed: any
+  by default, what no rule decides: any
+LAN -> WAN
+  allowed: any
+  rule 'Admins out by SSH': Admin PCs -> 0.0.0.0/0: tcp/22
+  rule 'LAN to WAN #3': 0.0.0.0/0 -> 0.0.0.0/0: tcp/80, tcp/443, tcp/8443
+  rule 'LAN to WAN #5': 0.0.0.0/0 -> 0.0.0.0/0: any
+  rule 'IPv6 out': ::/0 -> ::/0: any
+LAN -> DMZ
+  allowed: any ~
+  rule 'Administrators to the DMZ': 0.0.0.0/0 -> 0.0.0.0/0: any (users Admins)
+  rule 'default LAN to DMZ': any -> any: any ~
+WAN -> DMZ
+  allowed: tcp/443, tcp/2525
+  rule 'Web server from the internet': 0.0.0.0/0 -> Web Public: tcp/443
+  rule 'Mail from partners': Partners -> Mail Public: tcp/2525
+DMZ -> LAN
+  allowed: svc:Echo Object ~
+  rule 'Mail server pings the LAN': Mail Server -> 0.0.0.0/0: service 'Echo Object' (not read) ~
+DMZ -> WAN
+  allowed: any ~
+  rule 'default DMZ to WAN': any -> any: any ~
+DMZ -> Servers
+  allowed: udp/16384-16484
+  rule 'Web server to the database': Web Server -> Database: udp/16384-16484
+Servers -> WAN
+  allowed: any ~
+  rule 'Updates in working hours': 0.0.0.0/0 -> Update Site: tcp/443 (schedule Work Hours) ~
+  rule 'default Servers to WAN': any -> any: any ~
+Servers -> DMZ
+  allowed: any ~
+  rule 'default Servers to DMZ': any -> any: any ~
+Servers -> Servers (inside the zone)
+  allowed: any
+  by default, what no rule decides: any
+VPN -> VPN (inside the zone)
+  allowed: any
+  by default, what no rule decides: any
+
+From reading the configuration
+  ZONE_TYPE_ASSUMED: the security type of these zones was read from a code of the export whose meaning is taken from the published readers of the format, not from SonicWall: Servers (trusted)
+  SONICWALL_FORMAT: the settings export is not documented by SonicWall beyond its encoding. The keys read are those every published reader of the format agrees on; what this parser does not know of a rule is not read
+
+Notes
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  svc:NAME: a service of the source that could not be read (an application or category of the vendor, a service without ports). The rule allows that, whatever it is.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.
