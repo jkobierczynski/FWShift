@@ -84,8 +84,10 @@ CHECKS: Dict[str, Check] = {
     "EMPTY_GROUP": Check(Level.LOW, "group without members", _FOR_OTHERS),
     "DEFAULT_ALLOW": Check(Level.HIGH, "traffic that no rule matches is allowed", _FOR_OTHERS),
     # Use, from the hit counters of the firewall.
-    "UNUSED_RULE": Check(Level.MEDIUM, "allow rule whose hit counter is zero"),
-    "NO_USAGE_EVIDENCE": Check(Level.INFO, "rule whose use cannot be told: no counter, or one that has not counted long", _FOR_OTHERS),
+    "UNUSED_RULE": Check(Level.MEDIUM, "allow rule that the hit counters or the logs prove unused"),
+    "UNUSED_RULE_OBJECT": Check(Level.LOW, "objects of a used allow rule that no logged connection used", _FOR_OTHERS),
+    "UNUSED_RULE_SERVICE": Check(Level.LOW, "services of a used allow rule that no logged connection used", _FOR_OTHERS),
+    "NO_USAGE_EVIDENCE": Check(Level.INFO, "rule whose use the hit counters or the logs cannot prove", _FOR_OTHERS),
     # Only after a conversion.
     "EXPOSED_BY_CONVERSION": Check(Level.HIGH, "blocking rule the conversion could not write, with allow rules below it", _FOR_OTHERS),
 }
@@ -915,6 +917,9 @@ def _day(moment: int) -> str:
         return f"{moment} (seconds since 1970)"
 
 
+_NOT_IN_LOG = "(not in the log)"  # usage.UNKNOWN: connections whose log did not give the address, or the protocol
+
+
 def _counted_on_source(rule: Rule) -> bool:
     """Whether the rule is a rule of the source with an identity of its own, which a hit counter could name.
 
@@ -975,52 +980,114 @@ class _Audit:
     # .. use, from hit counters
 
     def usage(self) -> None:
-        """Allow rules that a hit counter shows unused, and rules about which the counters say nothing.
+        """Allow rules that the hit counters or the logs show unused, and rules about which they prove nothing.
+
+        A rule that either shows used gets no finding. Otherwise a proof from either gives UNUSED_RULE (the logs
+        first), and what neither can prove gives NO_USAGE_EVIDENCE with the reasons of both. A blocking rule gets no
+        finding: that nothing tried to pass it says nothing about whether it is needed. A used allow rule whose logs
+        prove something also gets the objects and services in it that no connection used.
+        """
+        counters = any(rule.hits is not None for rule in self.p.rules)
+        logs = any(rule.log_usage is not None for rule in self.p.rules)
+        if not (counters or logs):
+            return
+        for rule in self.p.rules:
+            if not rule.enabled or _blocks(rule):
+                continue
+            verdicts = [verdict for verdict in (self._log_verdict(rule), self._counter_verdict(rule)) if verdict is not None]
+            if any(kind == "used" for kind, _ in verdicts):
+                self._unused_members(rule)
+                continue
+            unused = [message for kind, message in verdicts if kind == "unused"]
+            if unused:
+                self.rule("UNUSED_RULE", rule, unused[0])
+                continue
+            unknown = [message for kind, message in verdicts if kind == "unknown"]
+            if unknown:
+                self.rule("NO_USAGE_EVIDENCE", rule, "; and ".join(unknown))
+            elif counters and not logs and _counted_on_source(rule):
+                self.rule("NO_USAGE_EVIDENCE", rule, "has no hit counter in the input, while other rules have one: nothing can be "
+                          "said about its use")  # fmt: skip
+
+    def _counter_verdict(self, rule: Rule) -> Optional[Tuple[str, str]]:
+        """("used" | "unused" | "unknown", message) from the hit counter; None without one.
 
         A zero proves something only for the time the counter has counted, from its start (the reset, creation or
         change of the rule; for Check Point no earlier than the counts of the export reach back; or the date the
         user gives with hits_since) to the moment it was read, for which the latest time its answer shows stands
         in: never later than that moment, so the period is never taken longer than it was. Shorter than
-        ``usage_days``, not known, or not from every firewall the rule may be on: no evidence. A blocking rule gets
-        no finding: that nothing tried to pass it says nothing about whether it is needed.
+        ``usage_days``, not known, or not from every firewall the rule may be on: no evidence.
         """
-        if not any(rule.hits is not None for rule in self.p.rules):
-            return
+        hits = rule.hits
+        if hits is None:
+            return None
+        if hits.count:
+            return "used", ""
         days, given = self.config.usage_days, self.config.hits_since
-        for rule in self.p.rules:
-            hits = rule.hits
-            if not rule.enabled:
-                continue
-            if hits is None:
-                if _counted_on_source(rule):
-                    self.rule("NO_USAGE_EVIDENCE", rule, "has no hit counter in the input, while other rules have one: nothing can be "
-                              "said about its use")  # fmt: skip
-                continue
-            if hits.count or _blocks(rule):
-                continue
-            where = f" ({hits.read_from})" if hits.read_from else ""
-            note = f". {hits.note[:1].upper()}{hits.note[1:]}" if hits.note else ""
-            zero = f"has a hit counter of 0{where}"
-            if not hits.complete:
-                self.rule("NO_USAGE_EVIDENCE", rule, f"{zero}, but not from every firewall it may be on{note}")
-                continue
-            if hits.counting_since is None and given is None:
-                self.rule("NO_USAGE_EVIDENCE", rule, f"{zero}, but the input does not tell since when it counts (give the date with "
-                          f"--hits-since, if it is known){note}")  # fmt: skip
-                continue
-            start = max(moment for moment in (hits.counting_since, hits.covers_from, given) if moment is not None)
-            if hits.read_until is None:
-                self.rule("NO_USAGE_EVIDENCE", rule, f"{zero}, but its answer shows no time at all, so how long it counted cannot be "
-                          f"told{note}")  # fmt: skip
-                continue
-            if hits.read_until - start < days * 86400:
-                age = max(hits.read_until - start, 0) // 86400
-                self.rule("NO_USAGE_EVIDENCE", rule, f"{zero}, but it has counted only since {_day(start)}: {age} day(s) before the "
-                          f"latest time its answer shows, fewer than the {days} the audit asks for{note}")  # fmt: skip
-                continue
-            told = " (from --hits-since)" if given is not None and start == given else ""
-            self.rule("UNUSED_RULE", rule, f"allows traffic {_where(rule)}, and its hit counter{where} is 0 from {_day(start)}{told} to "
-                      f"{_day(hits.read_until)} at least{note}. Check that the counters cover every firewall the rule is on")  # fmt: skip
+        where = f" ({hits.read_from})" if hits.read_from else ""
+        note = f". {hits.note[:1].upper()}{hits.note[1:]}" if hits.note else ""
+        zero = f"has a hit counter of 0{where}"
+        if not hits.complete:
+            return "unknown", f"{zero}, but not from every firewall it may be on{note}"
+        if hits.counting_since is None and given is None:
+            return "unknown", f"{zero}, but the input does not tell since when it counts (give the date with --hits-since, if it is known){note}"
+        start = max(moment for moment in (hits.counting_since, hits.covers_from, given) if moment is not None)
+        if hits.read_until is None:
+            return "unknown", f"{zero}, but its answer shows no time at all, so how long it counted cannot be told{note}"
+        if hits.read_until - start < days * 86400:
+            age = max(hits.read_until - start, 0) // 86400
+            return "unknown", (f"{zero}, but it has counted only since {_day(start)}: {age} day(s) before the latest time its answer "
+                               f"shows, fewer than the {days} the audit asks for{note}")  # fmt: skip
+        told = " (from --hits-since)" if given is not None and start == given else ""
+        return "unused", (f"allows traffic {_where(rule)}, and its hit counter{where} is 0 from {_day(start)}{told} to "
+                          f"{_day(hits.read_until)} at least{note}. Check that the counters cover every firewall the rule is on")  # fmt: skip
+
+    @staticmethod
+    def _log_verdict(rule: Rule) -> Optional[Tuple[str, str]]:
+        """("used" | "unused" | "unknown", message) from the logs; None without them."""
+        log = rule.log_usage
+        if log is None:
+            return None
+        if log.connections or (log.shared and not log.no_evidence):
+            return "used", ""  # (a part of a rule of the source whose other parts were used: its members say the rest)
+        if log.no_evidence:
+            return "unknown", f"has no connection in the logs from {log.first_day} to {log.last_day}, but they prove nothing: " + "; ".join(log.no_evidence)
+        gateways = ", ".join(log.gateways) or "its gateways"
+        return "unused", (f"allows traffic {_where(rule)}, and the logs of {gateways} show no connection that the gateway attributed "
+                          f"to it from {log.first_day} to {log.last_day}, with logs on every day")  # fmt: skip
+
+    def _unused_members(self, rule: Rule) -> None:
+        """The objects and services of a used allow rule that no connection in the window used."""
+        log = rule.log_usage
+        if log is None or not (log.connections or log.shared) or log.no_evidence:
+            return
+        through = (f"{log.connections} connection(s) through the rule" if log.connections else
+                   f"{log.shared} connection(s) through the other parts of the same rule of the source")  # fmt: skip
+        period = f"from {log.first_day} to {log.last_day}, out of {through}"
+        parts = []
+        # A part without connections of its own differs from the other parts by its sources (and users) only.
+        cells = [("sources", rule.sources, rule.negate_source)] + ([] if not log.connections else [
+            ("destinations", rule.destinations, rule.negate_destination)])  # fmt: skip
+        for cell, members, negated in cells:
+            counted = log.members.get(cell[:-1], {})
+            if _NOT_IN_LOG in counted:
+                continue  # some connections did not give the address: any member may have been theirs
+            # (the translated address FWShift added next to an object with automatic NAT is that object, not a member of its own)
+            added = {m for m in members if m in self.p.addresses and self.p.addresses[m].part_of in members}
+            idle = [m for m in members if not negated and m != ANY and m not in added and counted.get(m, -1) == 0
+                    and m not in log.unjudged.get(cell[:-1], [])]  # fmt: skip
+            if idle:
+                parts.append(f"of its {cell} {_quoted(idle, 12)}")
+        if parts:
+            self.rule("UNUSED_RULE_OBJECT", rule, " and ".join(parts) + f" had no connection {period}"
+                      + (" (addresses beyond the limit per rule were kept as networks)" if log.rolled_up else ""))  # fmt: skip
+        counted = log.members.get("service", {})
+        if not log.connections or _NOT_IN_LOG in counted:
+            return
+        idle = [m for m in rule.services if not rule.negate_service and m != ANY and counted.get(m, -1) == 0
+                and m not in log.unjudged.get("service", [])]  # fmt: skip
+        if idle:
+            self.rule("UNUSED_RULE_SERVICE", rule, f"of its services {_quoted(idle, 12)} had no connection {period}")
 
     # .. rules that allow a lot
 

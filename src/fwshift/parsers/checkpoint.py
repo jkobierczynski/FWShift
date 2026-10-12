@@ -284,6 +284,9 @@ class _Builder:
         for origin in self.combined:
             self.report.discard("rule", origin)
         self._hit_period()
+        if layer in self.layer_uids:
+            for rule in self.p.rules:
+                rule.source_ids["checkpoint.policy_layer_uid"] = self.layer_uids[layer]  # what the logs find the layer by
         for index, (entry, _) in enumerate(self.nat, 1):
             self.p.nat_rules.append(self._nat_rule(entry, index))
         for zone in transform.dedupe(
@@ -541,7 +544,7 @@ class _Builder:
         self.taken_addresses.add(companion)
         value = _literal(translated)
         kind = AddressKind.RANGE if "-" in value else AddressKind.NETWORK
-        self.p.addresses[companion] = Address(companion, kind, value, f"address automatic NAT gives {name}")
+        self.p.addresses[companion] = Address(companion, kind, value, f"address automatic NAT gives {name}", part_of=name)
         (self.hiding if method == "hide" else self.valid)[name] = companion
         if method == "static":
             self.report.add(
@@ -758,11 +761,15 @@ class _Builder:
             self.unread_hits += 1
             return None
 
-        meta = entry.get("meta-info")
         # The rule as it stands has existed since it was created or last changed; before that nothing counted it.
+        return HitCount(value, _posix(hits, "first-date"), _posix(hits, "last-date"), self._changed(entry), "the rulebase", _HITS_NOTE)
+
+    @staticmethod
+    def _changed(entry: Obj) -> Optional[int]:
+        """When the rule was created or last changed (meta-info), the later of the two."""
+        meta = entry.get("meta-info")
         made = [moment for moment in (_posix(meta, "creation-time"), _posix(meta, "last-modify-time")) if moment is not None]
-        return HitCount(value, _posix(hits, "first-date"), _posix(hits, "last-date"), max(made) if made else None, "the rulebase",
-                        _HITS_NOTE)  # fmt: skip
+        return max(made) if made else None
 
     def _rule(self, entry: Obj, section: str, number: int, layer: str = "") -> Tuple[Rule, List[Tuple[str, List[str], List[str]]]]:
         """The rule, and the access roles of its source as (name, networks, users): see _variants."""
@@ -776,6 +783,7 @@ class _Builder:
         if layer in self.layer_uids:
             rule.source_ids["checkpoint.layer_uid"] = self.layer_uids[layer]
         rule.targets = self._targets(entry)
+        rule.changed = self._changed(entry)
         rule.hits = self._hits(entry)
         negated = {
             column: self._flag(entry, f"{column}-negate", False, rule.unsupported)
@@ -974,7 +982,7 @@ class _Builder:
             enabled=rule.enabled, negate_source=rule.negate_source, negate_destination=rule.negate_destination,
             negate_service=rule.negate_service, schedule=rule.schedule, unsupported=list(rule.unsupported),
             log_end=False, description=f"implicit cleanup of inline layer {inline_name}", tags=list(rule.tags),
-            users=list(rule.users), targets=list(rule.targets),
+            users=list(rule.users), targets=list(rule.targets), changed=rule.changed,
         )  # fmt: skip
         parent_uid = rule.source_ids.get("checkpoint.rule_uid", "")
         cleanup.source_ids = {key: value for key, value in (
@@ -1054,6 +1062,8 @@ class _Builder:
         out.unsupported = transform.dedupe(parent.unsupported + child.unsupported)
         out.schedule = ", ".join(s for s in (parent.schedule, child.schedule) if s)
         out.hits = child.hits  # the counter of the rule inside the layer is the one that counts this rule
+        changes = [moment for moment in (parent.changed, child.changed) if moment is not None]
+        out.changed = max(changes) if changes else None  # (what it matches changed when either of the two did)
         parent_uid = parent.source_ids.get("checkpoint.rule_uid", "")
         out.source_ids = dict(child.source_ids)
         if parent_uid:

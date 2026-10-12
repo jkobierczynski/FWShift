@@ -114,16 +114,17 @@ def test_check_point_rules_keep_their_uids_and_targets() -> None:
     report = Report()
     policy = cp.policy(report)
     rules = {rule.name: rule for rule in policy.rules}
-    assert rules["Plain"].source_ids == {"checkpoint.rule_uid": "u-plain", "checkpoint.layer_uid": "uid-Main"}
+    assert rules["Plain"].source_ids == {"checkpoint.rule_uid": "u-plain", "checkpoint.layer_uid": "uid-Main",
+                                         "checkpoint.policy_layer_uid": "uid-Main"}  # (the layer the policy was read from, on every rule)
     assert rules["Plain"].targets == ["gw-a"] and rules["Last"].targets == []
     web = rules["Apply / Web"]
-    assert web.source_ids == {"checkpoint.rule_uid": "u-web", "checkpoint.layer_uid": "uid-Inner",
+    assert web.source_ids == {"checkpoint.rule_uid": "u-web", "checkpoint.layer_uid": "uid-Inner", "checkpoint.policy_layer_uid": "uid-Main",
                               "checkpoint.parent_rule_uid": "u-apply", "checkpoint.rule_path": "u-apply u-web"}  # fmt: skip
     assert web.targets == ["gw-a"]  # installed where both the rule applying the layer and the rule inside are
     mail = rules["Apply / Mail"]
     assert mail.targets == [] and any("installed on no gateway" in text for text in mail.unsupported)
     cleanup = rules["Apply (cleanup of Inner)"]
-    assert cleanup.source_ids == {"checkpoint.parent_rule_uid": "u-apply", "checkpoint.layer_uid": "uid-Inner",
+    assert cleanup.source_ids == {"checkpoint.parent_rule_uid": "u-apply", "checkpoint.layer_uid": "uid-Inner", "checkpoint.policy_layer_uid": "uid-Main",
                                   "checkpoint.rule_path": "u-apply", "checkpoint.implicit": "cleanup"}  # fmt: skip
     # Still reported: the target is one firewall.
     assert "DEVICE_TARGET" in [f.code for f in report.item("rule", "Plain").findings]

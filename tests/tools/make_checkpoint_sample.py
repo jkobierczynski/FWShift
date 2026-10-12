@@ -106,7 +106,7 @@ def rule(name, source, destination, service, action="Accept", track="Log", numbe
     counter["n"] += 1
     used.update([action, track, "Policy Targets", "Any"])
     entry = {
-        "uid": uid(f"rule-{counter['n']}"),
+        "uid": uid(f"rule-{counter['n']}-{name}"),  # unique, as uids on a management server are
         "type": "access-rule",
         "domain": USER,
         "rule-number": number or counter["n"],

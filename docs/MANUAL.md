@@ -5,7 +5,7 @@ Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
 or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX and Linux iptables, and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; and show what each zone may reach in each
-other zone. This manual covers version 0.13.
+other zone. This manual covers version 0.14.
 
 **Contents**
 
@@ -23,6 +23,7 @@ other zone. This manual covers version 0.13.
 12. [Limits](#12-limits)
 13. [Auditing a policy](#13-auditing-a-policy)
 14. [The zone matrix](#14-the-zone-matrix)
+15. [Rule usage from logs](#15-rule-usage-from-logs)
 
 ---
 
@@ -775,6 +776,37 @@ fwshift inspect INPUT [--from ...] [--vsys ...] [--device-group ...] [--vdom ...
 Prints what was read and the findings raised while reading. Nothing is
 converted.
 
+### `fwshift usage`
+
+```
+fwshift usage INPUT [--from ...] [--layer ...] [--logs FILE ...] [--store FILE] [--since DAYS|YYYY-MM-DD]
+                    [--until YYYY-MM-DD] [--gateway NAME[=LOGNAME,...] ...] [--roll-up N] [-o FILE] [--json] [--html FILE]
+                    [--audit-config FILE] [--audit-action CHECK=ACTION] [--audit-accept RULE[=CHECK,...]]
+                    [--audit-fail-on LEVEL] [--hits FILE] [--hits-since YYYY-MM-DD]
+```
+
+Reads the logs of the firewall and says which rules, objects and services of
+the policy they show used (section 15). A Check Point policy only, in this
+version. Nothing is converted.
+
+| Option | Meaning |
+|---|---|
+| `--logs FILE` | A log file: what Log Exporter sends (its syslog, splunk or cef format), or the JSON answer of `show-logs`. Repeatable. A file whose content is in the store already is not read again. |
+| `--store FILE` | Keep the connections in this file (SQLite) and add to it on every run. Without it nothing is kept. With it and without `--logs`, the report is made from what the store holds. |
+| `--since DAYS\|YYYY-MM-DD` | The first day of the window: a number of days back from its last day (`30d`), or a day. Default: `usage_days` (90). |
+| `--until YYYY-MM-DD` | The last day of the window. Default: the last day the store has logs of. |
+| `--gateway NAME[=LOGNAME,...]` | A gateway the policy is installed on. A gateway that sent no logs proves nothing for its rules; this is how a gateway that sent none at all becomes known. `NAME=LOGNAME,...` names the members of a cluster: install-on names the cluster, its members log under their own names. Repeatable. |
+| `--roll-up N` | Addresses kept per rule and side as they are; beyond, an address is kept as its /24 (IPv6: /64). Default 256. |
+| `-o FILE`, `--json`, `--html FILE` | Where the report goes, as JSON instead of text, and also as a page of its own. |
+
+The audit options choose what is done with the findings of the four checks
+of use (the other checks are for `fwshift audit`).
+
+`fwshift audit` and `fwshift convert` take `--usage-store FILE`: what the
+store says about each rule over the last `usage_days` days it holds, for the
+same checks (and `UNUSED_RULE=disable` in a conversion); `--usage-gateway`
+is `--gateway` for them.
+
 ### Exit status
 
 | Status | Meaning |
@@ -1043,6 +1075,7 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `PANORAMA_SOURCE` | I | Reminder of what a Panorama export does not contain. |
 | `PRUNED` | I | `--prune-unused` left out this many objects. |
 | `HIT_COUNTERS` | I | With `--hits` (or a configuration that carries hit counts): which counters were read, how many rules they counted, and the rules they count that the policy does not have (section 13). |
+| `USAGE_STORE` | I | With `--usage-store`: the window that was used, and how many connections of it were attributed to a rule of the policy (section 15). |
 
 Notes that only an iptables source or target raises:
 
@@ -3279,8 +3312,10 @@ Findings in the policy as it was read
 | `EMPTY_GROUP` | low | A group without members: it matches nothing. | off, accept, report |
 | `DEFAULT_ALLOW` | high | Traffic between zones that no rule matches is allowed. | off, accept, report |
 | `EXPOSED_BY_CONVERSION` | high | After a conversion only: a blocking rule that is not in the output as it was, with something that now allows part of what it blocked. | off, accept, report |
-| `UNUSED_RULE` | medium | An allow rule whose hit counter is zero (below). | off, accept, report, disable |
-| `NO_USAGE_EVIDENCE` | info | A rule whose use cannot be told: it has no counter while other rules have one, its counter of 0 has counted for fewer than 90 days or for a time that is not known, or it does not come from every firewall the rule may be on. | off, accept, report |
+| `UNUSED_RULE` | medium | An allow rule that the hit counters (below) or the logs (section 15) prove unused. | off, accept, report, disable |
+| `UNUSED_RULE_OBJECT` | low | Objects in the cells of a used allow rule that no logged connection used (section 15). | off, accept, report |
+| `UNUSED_RULE_SERVICE` | low | Services of a used allow rule that no logged connection used (section 15). | off, accept, report |
+| `NO_USAGE_EVIDENCE` | info | A rule whose use cannot be told: it has no counter while other rules have one, its counter of 0 has counted for fewer than 90 days or for a time that is not known, or it does not come from every firewall the rule may be on; or the logs of the window prove nothing about it (section 15). | off, accept, report |
 
 The level of `ANY_ANY_ANY`, `ANY_SERVICE` and `ANY_TO_ANY` is one lower for
 a rule whose zones keep it to a part of the firewall: there is a zone it
@@ -3479,8 +3514,7 @@ A blocking rule gets no `UNUSED_RULE`: that nothing tried to get past it does
 not mean it is not needed. `UNUSED_RULE=disable` writes unused rules disabled
 in a conversion. The findings in JSON carry the identifiers of the rule on the
 source (`source_ids`), so that a ticket can name the rule the firewall knows.
-Usage per object and service, from logs, is planned
-([RULE_USAGE.md](RULE_USAGE.md)).
+Usage per object and service comes from the logs (section 15).
 
 ### The configuration file
 
@@ -3575,9 +3609,9 @@ Memory stays in the tens of megabytes.
 
 ### Limits of the audit
 
-* It reads the policy, and the traffic only as the hit counters of the
-  firewall count it: per rule, not per object or service in a rule. Usage from
-  logs is planned (`docs/RULE_USAGE.md`).
+* It reads the policy, and the traffic as the hit counters of the firewall
+  count it (per rule), or as its logs show it with `--usage-store` (per rule,
+  object and service; section 15).
 * Zones have no rank in a configuration. `ANY_SOURCE` from the Internet and
   from the server network look the same.
 * `NO_LOG` and `NO_PROFILE` are only raised where the model holds what the
@@ -3771,3 +3805,159 @@ fwshift matrix running-config.xml \
   stays small (such rules are listed once); `--summary` is smaller still.
 * The matrix is new in 0.5 and has, like everything else, been tested on
   synthetic policies only.
+
+## 15. Rule usage from logs
+
+The audit knows what a policy allows; the hit counters know which rules were
+hit. The logs know more: which objects and services inside each rule the
+connections used. `fwshift usage` reads them, as fwanalyser did for Check
+Point (`docs/RULE_USAGE.md` has the design and the plan).
+
+```sh
+fwshift usage checkpoint.json --logs gw-edge-2026-09.log --store usage.db
+fwshift usage checkpoint.json --logs gw-edge-2026-10.log --store usage.db --html usage.html
+fwshift usage checkpoint.json --store usage.db --since 30d
+```
+
+```
+FWShift usage
+  source: checkpoint (Network)
+  store: usage.db (logs from 2026-07-03 to 2026-09-30, 1 run(s))
+  window: 2026-07-03 to 2026-09-30 (90 days)
+  read now: 1 file(s), 538 line(s), 412 connection(s)
+    90 not counted: an update of a connection logged before (Log Update)
+    36 not counted: a firewall log that names no rule (an update, a packet out of state, a NAT event)
+  gateway gw-edge: logs on 90 of 90 days
+  rules installed on every target are judged by the logs of gw-edge; name a gateway that sent none with --gateway
+  connections in the window: 412, attributed to a rule of the policy: 412
+
+Findings
+  [medium] UNUSED_RULE: rule 'DMZ users' allows traffic from any zone to any zone, and the logs of gw-edge show no connection that the gateway attributed to it from 2026-07-03 to 2026-09-30, with logs on every day
+  [low] UNUSED_RULE_OBJECT: rule 'DNS' of its sources 'dmz-net' had no connection from 2026-07-03 to 2026-09-30, out of 96 connection(s) through the rule
+  [low] UNUSED_RULE_SERVICE: rule 'DNS' of its services 'domain-tcp' had no connection from 2026-07-03 to 2026-09-30, out of 96 connection(s) through the rule
+
+Rules
+  'DNS' (allow): 96 connection(s)
+      source: lan-net 96, dmz-net 0
+      destination: dns-servers 96, dns-1 96, dns-2 0, 192.0.2.54 0, 2001:db8:53::54 0
+      service: domain-udp 96, domain-tcp 0
+  ...
+```
+
+(`tests/data/checkpoint_sample.log` and its policy are the sample this comes
+from.)
+
+### Getting the logs
+
+* **Log Exporter** (`cp_log_export`) sends the logs of the management or log
+  server to a syslog server. Its default format, `syslog`, and the formats
+  `splunk` and `cef` are read; keep the default set of fields, which carries
+  the match table (`layer_uuid`, `match_id`, `parent_rule`, `rule_uid`).
+  The read mode `semi-unified` (the default) is right: the updates it sends
+  for a connection logged before (`Log Update`) are recognised and counted
+  once. Log Exporter sends UTC.
+* **show-logs** of the Management API answers with JSON in which each log has
+  a `match_table` of rows; save the answers (all pages) in a file.
+* Not read in this version: the CSV export of SmartConsole (it exports the
+  rows on the screen only, and has no rule uid), `fwm logexport` (no rule uid
+  is known to be in it), the gateway's own syslog (`Fields@2620`), and the
+  Log Exporter formats `json`, `leef`, `generic`. Lines that look like Check
+  Point's in such a format are counted as lines that could not be read
+  (below). Attribution without a rule uid, by matching the connection against
+  the rules, comes in 0.15.
+* Relays may put a syslog header of their own in front of a line
+  (`... CheckPoint[1234]: [action:"Accept"; ...]`); the line is read from its
+  first field.
+
+### How a connection is attributed
+
+Nothing is simulated: a connection counts for the rule **the gateway named**.
+
+1. A log line that names a rule is a connection of that rule, whatever blade
+   wrote it (an Application Control log names the Network rule too) and
+   whatever else it lacks: an address, a protocol or a port that is not in it
+   counts as "not in the log", and then none of the objects or services of that
+   cell is called unused. Each line has a match table: one row per layer the
+   connection went through, outer first. The row of the layer the policy was
+   read from is found by its uuid, whether that layer is ordered or itself an
+   inline layer; rows of other ordered layers are passed over.
+2. A rule that applies an inline layer is followed into it (`parent_rule` is
+   the number of the rule applying the layer). The uids of the rules on the way
+   name the rule of the model, which for a rule of an inline layer is the two
+   combined (section 8). The implicit cleanup of an inline layer (a row with no
+   uid) goes to the cleanup rule FWShift added for it; the implicit cleanup of
+   the layer itself is the default of the policy, no rule.
+3. A rule split into parts by its access roles (section 8): the part whose
+   source holds the address and, for a part of users, where the log names a
+   user. A part without connections of its own, of a rule whose other parts
+   had them, is no unused rule: its sources are unused objects.
+4. Inside the rule, every object of the source and destination that holds the
+   address, through groups, each once; every service that holds the protocol
+   and the port. An object with automatic static NAT counts its translated
+   address as itself. A negated cell counts "outside the listed".
+5. Where Log Exporter leaves a column short (a rule without a name, a layer's
+   implicit cleanup without a uid) the uids are put on their rows only where
+   their number fits; otherwise every rule they name counts as used, and nothing
+   more is said about them.
+
+Connections that name no rule of the policy are listed by reason: another
+layer, the implicit cleanup of the layer, a rule the policy does not have (the
+logs of another revision of it).
+
+### When the logs prove something
+
+A connection shows that a rule was used. No connection proves that it was
+not only when:
+
+* the rule logs its connections (Track not None);
+* the export says when the rule was created or last changed (`meta-info`), and
+  that was before the window;
+* every gateway it is installed on (all gateways that sent logs, for a rule on
+  every target; `--gateway` adds those that sent none) logged connections that
+  name a rule on **every day** of the window, and at least one accepted
+  connection in it (an exporter that sends drops only proves nothing for allow
+  rules). Logs of other blades and updates do not count as a day logged;
+* no line of those gateways in the window could not be read, and no line at
+  all whose gateway and day could not be read;
+* the export gives the uid of the layer, and some connection in the window
+  names a rule of it (otherwise these are not the logs of this policy).
+
+Otherwise the finding is `NO_USAGE_EVIDENCE`, with the reasons. The same
+holds for the objects and services of a used rule. A blocking rule gets no
+finding of use.
+
+With hit counters as well (`--hits`, or a rulebase exported with hits), a rule
+that either shows used is used, a proof from either is enough for
+`UNUSED_RULE`, and where the two disagree the report lists it (they rarely
+cover the same period).
+
+### The store
+
+`--store` keeps the connections in one SQLite file, per day, gateway, rule,
+source, destination, protocol, port and user, keyed by what the logs call the
+rule, never by its number: a rule moved or renamed keeps its history, and a
+store can be read against a later revision of the policy. A log file is
+recognised by its content and read once. Beyond `--roll-up` addresses per rule
+and side, addresses are kept as their /24 or /64; an object that such a network
+overlaps counts as used, and the finding says so.
+
+About 10,000 log lines a second are read (one core), also into a store that
+holds millions of rows; evaluating a window takes seconds.
+
+A file is recognised by its whole content: two exports that overlap count the
+connections they share twice (the counts grow, no rule is called unused by
+it). Lines that could not be read and have neither a gateway nor a day stay
+against every window of the store; start a new store without the file that
+held them. A file in which no line was a connection is not marked as read,
+so a later version can read it.
+
+### Limits
+
+* Check Point only, by the rule the gateway named. PAN-OS and FortiOS logs come
+  in 0.16, connections without a rule uid (and iptables) in 0.15, narrower
+  rules proposed from the use in 0.17.
+* Users are counted as the logs name them; a rule of user groups is not
+  checked against them (the log names a person, the rule a group).
+* The log formats are read as Check Point documents them and as published
+  parsers show them; no log of a real gateway was used. IPv6 logs and logs of
+  implied rules were not seen anywhere.

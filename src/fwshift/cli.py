@@ -9,11 +9,12 @@ from __future__ import annotations
 import argparse
 import copy
 import dataclasses
+import functools
 import json
 import sys
 from typing import Callable, Dict, List, Optional, Sequence, Set, TextIO, Tuple
 
-from . import __version__, audit, hits, matrix, transform
+from . import __version__, audit, hits, matrix, transform, usage
 from .appmap import load_app_map
 from .emitters import asa as emit_asa
 from .emitters import checkpoint as emit_checkpoint
@@ -217,6 +218,30 @@ def _audit_options(parser: argparse.ArgumentParser) -> None:
     group.add_argument("--hits-since", metavar="YYYY-MM-DD",
                        help="the hit counters have counted since this day (UTC), where they do not say so themselves (Check Point, "
                        "FortiOS): your word, for UNUSED_RULE")  # fmt: skip
+
+
+def _usage_store_option(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--usage-store", metavar="FILE",
+                        help="the store of 'fwshift usage': what the logs say about each rule over the last usage_days (90) days it "
+                        "holds, for UNUSED_RULE, UNUSED_RULE_OBJECT and UNUSED_RULE_SERVICE")  # fmt: skip
+    parser.add_argument("--usage-gateway", action="append", default=[], metavar="NAME[=LOGNAME,...]",
+                        help="with --usage-store: a gateway the policy is installed on, as --gateway of 'fwshift usage'. Repeatable")
+
+
+def _from_store(args: argparse.Namespace, policy: Policy, config: audit.AuditConfig) -> List[str]:
+    """What a usage store says about the rules (--usage-store); a line saying what was used."""
+    if not getattr(args, "usage_store", None):
+        return []
+    if policy.vendor != "checkpoint":
+        raise FwshiftError("--usage-store: logs are read for a Check Point policy only, in this version")
+    store = usage.Store(args.usage_store, create=False)
+    try:
+        span = usage.window(store, days=config.usage_days)
+        evaluation = usage.evaluate(policy, store, span, args.usage_gateway)
+    finally:
+        store.close()
+    return [f"{args.usage_store}: {span.first} to {span.last}, {evaluation.attributed} of {evaluation.connections} connection(s) "
+            "attributed to a rule of the policy"]
 
 
 def _audit_config(args: argparse.Namespace) -> audit.AuditConfig:
@@ -436,6 +461,7 @@ def build_parser() -> argparse.ArgumentParser:
         "ends) and carry out the actions set for the checks",
     )  # fmt: skip
     _audit_options(conv)
+    _usage_store_option(conv)
 
     aud = commands.add_parser("audit", help="audit a configuration: rules that allow too much, rules that never match, loose ends")
     _source_options(aud, optional=True)
@@ -443,6 +469,7 @@ def build_parser() -> argparse.ArgumentParser:
     aud.add_argument("--json", action="store_true", help="write the audit as JSON")
     aud.add_argument("--list-checks", action="store_true", help="show the checks, their levels and what can be done with them")
     _audit_options(aud)
+    _usage_store_option(aud)
 
     mat = commands.add_parser("matrix", help="show what each zone may reach in each other zone, on which services, through which rules")
     _source_options(mat)
@@ -454,6 +481,26 @@ def build_parser() -> argparse.ArgumentParser:
                      help="a zone of your own, as networks; repeatable. With it the matrix is between these zones (and "
                      "'elsewhere'), not between the zones of the policy. @ZONE names the zone of the policy the networks lie behind")  # fmt: skip
     mat.add_argument("--audit-config", metavar="FILE", help="JSON file of the audit: its lists of risky and industrial services are used")
+
+    use = commands.add_parser("usage", help="which rules, objects and services the firewall's logs show used (Check Point)")
+    _source_options(use)
+    use.add_argument("--logs", action="append", default=[], metavar="FILE",
+                     help="a log file: what Check Point's Log Exporter sends (syslog, splunk or cef format), or the JSON answer of "
+                     "show-logs; repeatable")  # fmt: skip
+    use.add_argument("--store", metavar="FILE", help="keep the connections in this file (SQLite) and add to it on every run; a log file "
+                     "that is in it already is not read again. Without it, nothing is kept")  # fmt: skip
+    use.add_argument("--since", default="", metavar="DAYS|YYYY-MM-DD",
+                     help="the first day of the window: a number of days back from its last (90d), or a day (default: usage_days, 90)")
+    use.add_argument("--until", default="", metavar="YYYY-MM-DD", help="the last day of the window (default: the last day the store has logs of)")
+    use.add_argument("--gateway", action="append", default=[], metavar="NAME[=LOGNAME,...]",
+                     help="a gateway the policy is installed on; one that sent no logs proves nothing for its rules. NAME=LOGNAME,... "
+                     "names the members of a cluster, whose logs carry their own names. Repeatable")  # fmt: skip
+    use.add_argument("--roll-up", type=int, default=usage.DEFAULT_CAP, metavar="N",
+                     help=f"addresses kept per rule and side before the rest are kept as their /24 or /64 (default {usage.DEFAULT_CAP})")
+    use.add_argument("-o", "--output", help="write the report here (default: standard output)")
+    use.add_argument("--json", action="store_true", help="write the report as JSON")
+    use.add_argument("--html", metavar="FILE", help="also write the report as a page of its own (HTML)")
+    _audit_options(use)
 
     insp = commands.add_parser("inspect", help="show what was read from a configuration")
     _source_options(insp)
@@ -493,7 +540,7 @@ def _run_convert(args: argparse.Namespace) -> int:
         zone_networks=_networks(args.zone_network),
     )
     auditing = bool(args.audit or args.audit_config or args.audit_action or args.audit_accept or args.audit_fail_on or args.hits
-                    or args.hits_since)
+                    or args.hits_since or args.usage_store)
     if auditing and args.target == "json":
         raise FwshiftError("--to json writes the model as it was read; audit the configuration with 'fwshift audit'")
     config = _audit_config(args) if auditing else audit.AuditConfig()
@@ -502,6 +549,8 @@ def _run_convert(args: argparse.Namespace) -> int:
         transform.harden(policy, report)
         for line in _hit_counters(args, policy):
             report.note(Severity.INFO, "HIT_COUNTERS", line)
+        for line in _from_store(args, policy, config):
+            report.note(Severity.INFO, "USAGE_STORE", line)
         audited = report.audit = audit.run(policy, config, report)
         # A rule is only redundant next to rules that are written, and as they are written: the audit
         # converts on trial to see which rules the target cannot take and what it makes of the others.
@@ -552,15 +601,19 @@ def _run_audit(args: argparse.Namespace) -> int:
                   args.interface_address)  # fmt: skip
     transform.harden(policy, report)
     counters = _hit_counters(args, policy)
+    stored = _from_store(args, policy, config)
     result = audit.run(policy, config, report)
     disabled = sum(1 for rule in policy.rules if not rule.enabled)
     if args.json:
-        extra = {"hit_counters": counters} if counters else {}
+        extra: Dict[str, object] = {"hit_counters": counters} if counters else {}
+        if stored:
+            extra["usage_store"] = stored
         text = json.dumps({"source": source, "scope": policy.scope, **extra, **result.to_dict()}, indent=2, ensure_ascii=False) + "\n"
     else:
         head = (f"FWShift audit\n  source: {source}{f' ({policy.scope})' if policy.scope else ''}\n"
                 f"  security rules: {len(policy.rules)} ({disabled} disabled), NAT rules: {len(policy.nat_rules)}\n"
-                + "".join(f"  hit counters: {line}\n" for line in counters) + "\n")  # fmt: skip
+                + "".join(f"  hit counters: {line}\n" for line in counters)
+                + "".join(f"  logs: {line}\n" for line in stored) + "\n")  # fmt: skip
         text = head + result.to_text("Summary")
     if args.output:
         _write(args.output, text)
@@ -596,6 +649,49 @@ def _run_matrix(args: argparse.Namespace) -> int:
     else:
         _print(sys.stdout, text)
     return 0
+
+
+USAGE_CHECKS = ("UNUSED_RULE", "UNUSED_RULE_OBJECT", "UNUSED_RULE_SERVICE", "NO_USAGE_EVIDENCE")
+
+
+def _run_usage(args: argparse.Namespace) -> int:
+    if not args.logs and not args.store:
+        raise FwshiftError("usage: give log files with --logs, or a store of logs read before with --store")
+    if args.roll_up < 1:
+        raise FwshiftError("--roll-up: at least 1 address per rule and side")
+    config = _audit_config(args)
+    for check in audit.CHECKS:
+        if check not in USAGE_CHECKS:
+            config.actions[check] = audit.OFF  # (the audit of the policy itself is 'fwshift audit')
+    data = _read(args.input)
+    source = args.source or detect_format(data)
+    report = Report()
+    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy,
+                  args.interface_address)  # fmt: skip
+    if policy.vendor != "checkpoint":
+        raise FwshiftError(f"usage: logs are read for a Check Point policy in this version, not {source} (PAN-OS and FortiOS: 0.16, "
+                           "iptables: 0.15)")  # fmt: skip
+    transform.harden(policy, report)
+    counters = _hit_counters(args, policy)
+    store = usage.Store(args.store or ":memory:", create=True)
+    try:
+        ingested = usage.ingest(store, [(path, functools.partial(_read, path)) for path in args.logs], policy.scope, usage.digest(data),
+                                args.roll_up)  # fmt: skip
+        span = usage.window(store, args.since, args.until, config.usage_days)
+        evaluation = usage.evaluate(policy, store, span, args.gateway)
+    finally:
+        store.close()
+    result = audit.run(policy, config, report)
+    document = usage.to_dict(policy, source, args.store or "(none: nothing is kept)", evaluation, ingested if args.logs else None,
+                             result.before, counters)  # fmt: skip
+    text = json.dumps(document, indent=2, ensure_ascii=False) + "\n" if args.json else usage.to_text(document)
+    if args.output:
+        _write(args.output, text)
+    else:
+        _print(sys.stdout, text)
+    if args.html:
+        _write(args.html, usage.to_html(document))
+    return 3 if result.fails(config.fail_on) else 0
 
 
 def _run_inspect(args: argparse.Namespace) -> int:
@@ -634,6 +730,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return _run_audit(args)
         if args.command == "matrix":
             return _run_matrix(args)
+        if args.command == "usage":
+            return _run_usage(args)
         return _run_inspect(args)
     except FwshiftError as exc:
         _print(sys.stderr, f"fwshift: error: {exc}\n")

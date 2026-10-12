@@ -1,7 +1,7 @@
 # Rule usage: design
 
 **Status:** accepted on 2026-10-12; 0.13.0 (rule identity and hit counters)
-is done. The releases 0.13.0 to 0.17.0 carry it out (section 7); what each release built is in the development log of
+and 0.14.0 (`fwshift usage` for Check Point logs) are done. The releases 0.13.0 to 0.17.0 carry it out (section 7); what each release built is in the development log of
 [DEVELOPMENT.md](../DEVELOPMENT.md).
 
 This document started as a feature brief written in a separate session for
@@ -230,6 +230,11 @@ Formats, in order of priority:
    an ordered multimap, never as a dict, or the inline match is lost.
 2. **Check Point CSV export** from SmartConsole / `fwm logexport`, with a
    header row. Accept both service names and port numbers (fwanalyser D6).
+   *Moved to 0.15.0 (section 11.5):* neither is known to carry the rule uid,
+   SmartConsole exports only the rows on the screen, and the columns of both
+   depend on what was shown or logged. Without a rule uid only simulation can
+   attribute a line. 0.14.0 reads instead the `show-logs` answer of the
+   Management API, whose match table names the rule of every layer.
 3. **PAN-OS traffic logs** (CSV and syslog).
 4. **FortiOS traffic logs** (key=value).
 5. **iptables `LOG` lines** (no rule identity: simulation only).
@@ -400,8 +405,8 @@ come first because they are useful without the usage feature.
 | Version | Content | Done when |
 |---|---|---|
 | 0.13.0 | **Rule identity and hit counters.** `source_ids` on rules (Check Point rule, layer and parent rule UIDs, also for flattened inline rules; PAN-OS UUID and name; FortiOS `policyid` and UUID), kept in `--to json` and in the JSON findings of the audit. Install-on targets on the rule (`Rule.targets`). Access Roles in the model instead of unsupported addresses, and conversion keeps or flags them per target. `UNUSED_RULE` and `NO_USAGE_EVIDENCE` from hit counters: Check Point hits inside the rulebase, PAN-OS and FortiOS through `audit --hits FILE`. | Parser tests check the IDs and targets; conversion tests for rules with Access Roles; audit tests for counters, resets and the absence of evidence. |
-| 0.14.0 | **`fwshift usage` for Check Point.** Log Exporter and CSV readers, aggregation, SQLite store, attribution by rule identity, attribution to objects and services, `UNUSED_RULE_OBJECT`, `UNUSED_RULE_SERVICE`, JSON and HTML output. Hit counters as a cross-check of the totals. | The regression tests of section 8 pass; manual updated. |
-| 0.15.0 | **Simulation.** A first-match evaluator on the audit's matches; certain against possible; the iptables `LOG` reader. | Simulated and ID-based attribution agree on the test fixtures. |
+| 0.14.0 | **`fwshift usage` for Check Point** (done). Log Exporter (syslog, splunk, cef) and `show-logs` readers, aggregation, SQLite store, attribution by rule identity, attribution to objects and services, `UNUSED_RULE_OBJECT`, `UNUSED_RULE_SERVICE`, JSON, text and HTML output; `--usage-store` for the audit and conversions. Hit counters as a cross-check of the totals. | The regression tests of section 8 pass; manual updated. |
+| 0.15.0 | **Simulation.** A first-match evaluator on the audit's matches; certain against possible; the iptables `LOG` reader; the Check Point CSV export of SmartConsole and `fwm logexport`, which name no rule uid. | Simulated and ID-based attribution agree on the test fixtures. |
 | 0.16.0 | **PAN-OS and FortiOS logs.** Readers for their traffic logs. | Fixture tests per vendor. |
 | 0.17.0 | **Narrowing.** `WIDER_THAN_TRAFFIC` with a proposed rule written through the emitters. | Proposal tests: never wider than the original, never for deny rules. |
 
@@ -459,15 +464,18 @@ Further cases:
 
 ## 9. Open questions, and the answers chosen
 
-1. *Which Check Point log sources first?* Log Exporter syslog and the
-   SmartConsole CSV export. The `show-logs` output of the Management API
-   later, if asked for.
+1. *Which Check Point log sources first?* Log Exporter (its formats syslog,
+   splunk and cef) and the `show-logs` answer of the Management API, in
+   0.14.0. The SmartConsole CSV export and `fwm logexport` with simulation, in
+   0.15.0 (section 11.5).
 2. *Read the rule hit counts of the Management API as a cross-check?* Yes,
    and first: they are the whole of 0.13.0's `UNUSED_RULE`, and a cross-check
    of the log totals from 0.14.0.
-3. *Which identity fields do the gateways log for Access Roles?* Open. It
-   needs the documentation of the Log Exporter fields; no real log is used.
-   Until then a rule with an Access Role is attributed by its rule UID only.
+3. *Which identity fields do the gateways log for Access Roles?*
+   `src_user_name` and `user` (a person, "Name (login)"), with `src_user_dn`
+   and `src_machine_name`; no group. A rule split by access roles is
+   attributed to the part whose source holds the address and, for a part of
+   users, where the log names a user; names are not compared with groups.
 4. *Default window for findings?* 90 days; every finding states its own
    window.
 5. *Addresses per cell before the roll-up into prefixes?* 256, as an option.
@@ -537,3 +545,41 @@ lines are written from the vendors' documentation, SDKs and the examples
 they publish, so the tests prove the logic and the formats as documented,
 not that every line a real gateway writes is read. As for the converters,
 "verified on devices" stays "no" until someone runs FWShift on a real export.
+
+### 11.5 What 0.14.0 changed in the plan (2026-10-12)
+
+The research for 0.14.0 (Check Point's Log Exporter guide and CLI reference,
+CheckMates threads, and the parsers and test fixtures of Elastic, Splunk
+Connect for Syslog, syslog-ng, Wazuh and Sekoia) changed four things:
+
+* **CSV moved to 0.15.0.** No source shows a rule uid in the SmartConsole CSV
+  export or in `fwm logexport`; SmartConsole exports the rows on the screen
+  only. The `show-logs` answer of the Management API took its place.
+* **The match table is flattened column by column**, and a row without a rule
+  name or uid (the implicit cleanup of a layer) leaves its column short. The
+  uids are put on rows only where their number fits; otherwise the rules they
+  name count as used and nothing more (`logreaders/checkpoint.py`).
+* **Coverage is per gateway and day**, and lines that may have been
+  connections but could not be read count against it. A day without logs, a
+  line that could not be read, or a gateway that sent none is the absence of
+  evidence that principle 2 names.
+* **Split rules.** A rule split by its access roles is one rule of the source:
+  a part without connections of its own, whose siblings had them, is not an
+  unused rule; its sources are unused objects.
+
+After the review of 0.14.0 (round 22, in the development log) three more
+rules hold: a line that names a rule is a connection of it whatever blade
+wrote it and whatever it lacks (what it lacks is "not in the log" and keeps
+the members of that cell from being called unused); a day of a gateway is
+logged only by connections that name a rule, and a gateway must have logged
+an accepted connection in the window; and the gateways a store is judged by
+can be named (`--gateway`, `--usage-gateway`), with the members of a cluster
+under the cluster's name.
+
+The store has the tables `runs`, `files` (one row per file read, by the
+digest of its content), `coverage` (lines and lines that could not be read,
+per day and gateway), `unplaced` (lines that could not be read and have no
+day or gateway), `records`, `rolled` and `kept` (the addresses kept per rule and side); `records` keys the rule by the rows
+of the match table as the log gave them, so a store needs no policy to be
+written and is read against any revision.
+

@@ -86,6 +86,9 @@ class Address:
     fqdn_family: int = 0
     # Vendor on which this object exists without a conversion creating it: predefined, or a gateway.
     builtin: str = ""
+    # The object this one is part of: the translated address of a Check Point object with automatic static NAT,
+    # which rules that name the object match as well. Its use is the use of that object.
+    part_of: str = ""
 
 
 @dataclass
@@ -163,6 +166,33 @@ class HitCount:
 
 
 @dataclass
+class LogUsage:
+    """What the logs of the firewall say about a rule, over a window of whole days (UTC).
+
+    Filled by ``fwshift usage`` (usage.py) from the connections the gateway itself attributed to the rule.
+    """
+
+    first_day: str  # YYYY-MM-DD, the window
+    last_day: str
+    connections: int = 0
+    # Connections of the other rules the same source rule became (a cell of access roles split by users): the rule
+    # of the source was used, if not this part of it.
+    shared: int = 0
+    # Connections per member, by cell: "source", "destination" (the members of the rule and every object they hold,
+    # top-level members first), "service", "user". A negated cell has the single member "(outside the listed)".
+    members: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    # Members that cannot be told from an address and a port (a host name, an application, an unsupported object):
+    # never called unused.
+    unjudged: Dict[str, List[str]] = field(default_factory=dict)
+    # Why the logs prove nothing about the rule (it does not log, a gateway sent no logs on some days, it changed
+    # within the window); empty when they do.
+    no_evidence: List[str] = field(default_factory=list)
+    rolled_up: bool = False  # addresses beyond the limit per rule were kept as networks
+    gateways: List[str] = field(default_factory=list)  # the gateways whose logs the rule depends on
+    elsewhere: List[str] = field(default_factory=list)  # gateways that logged it although it is not installed there
+
+
+@dataclass
 class Rule:
     name: str
     src_zones: List[str] = field(default_factory=lambda: [ANY])
@@ -209,6 +239,8 @@ class Rule:
     # policy is installed on. Converted nowhere: a target is one firewall (DEVICE_TARGET says so).
     targets: List[str] = field(default_factory=list)
     hits: Optional[HitCount] = None  # the hit counter of the source rule, where the input holds one
+    changed: Optional[int] = None  # when the source rule was created or last changed (UTC seconds), where the source says
+    log_usage: Optional[LogUsage] = None  # what the logs say about the rule (fwshift usage)
 
 
 @dataclass

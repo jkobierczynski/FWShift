@@ -286,7 +286,7 @@ def test_manual_and_code_name_the_same_findings(tmp_path: Path) -> None:
     stale = sorted(code for code in documented if f'"{code}"' not in source)
     assert not stale, stale
     raised = set()
-    samples = sorted(path.name for path in DATA.iterdir() if path.is_file() and "_sample." in path.name)
+    samples = sorted(path.name for path in DATA.iterdir() if path.is_file() and "_sample." in path.name and path.suffix != ".log")  # (logs, not configurations)
     assert len(samples) >= 13
     for sample in samples:
         for target in VENDORS:

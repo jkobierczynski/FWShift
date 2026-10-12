@@ -31,7 +31,7 @@ on which services, through which rules.
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.13).** The converter is tested against synthetic
+> **Status: alpha (0.14).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** is checked against the real thing: generated rulesets are
@@ -114,8 +114,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.13.0.pyz --version
-python3 fwshift-0.13.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.14.0.pyz --version
+python3 fwshift-0.14.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -273,7 +273,7 @@ Findings in the policy as it was read
 | Rules that allow a lot | any/any/any and its partial forms, very large networks, very wide port ranges, cleartext and remote administration protocols, industrial protocols, no logging, no security profile |
 | Rule order | shadowed rules (never match; earlier rules decide otherwise), redundant rules (can go without a change), rules that match nothing, shadowed NAT rules |
 | Loose ends | disabled rules, unused and duplicate objects, empty groups, a default that allows |
-| Use | allow rules whose hit counter is zero, where the counters are given (a Check Point rulebase exported with hits, or `--hits` with the answer of PAN-OS or FortiOS); rules about whose use the counters prove nothing |
+| Use | allow rules that the hit counters prove unused (a Check Point rulebase exported with hits, or `--hits` with the answer of PAN-OS or FortiOS) or the logs (`--usage-store`, below); objects and services of a used rule that no connection used; rules about whose use neither proves anything |
 | After a conversion | a blocking rule the target could not take, with what now allows its traffic (the rules below it, or a default) |
 
 Each check can be switched off, accepted (for all rules, or for one rule
@@ -285,6 +285,26 @@ a small world. A rule that was read only approximately is not called dead and
 proves nothing about another rule: the audit lists it instead.
 `--audit-fail-on high` makes it a gate for a pipeline. See
 [section 13 of the manual](docs/MANUAL.md#13-auditing-a-policy).
+
+## Rule usage
+
+`fwshift usage` reads the logs of a Check Point firewall (what Log Exporter
+sends, or the answer of `show-logs`) and says which rules, objects and
+services they show used: by the rule the gateway itself named, into a store
+that grows with every run, over a window of days.
+
+```
+$ fwshift usage checkpoint.json --logs gw-edge.log --store usage.db --html usage.html
+  ...
+  [medium] UNUSED_RULE: rule 'DMZ users' allows traffic from any zone to any zone, and the logs of gw-edge show no connection that the gateway attributed to it from 2026-07-03 to 2026-09-30, with logs on every day
+  [low] UNUSED_RULE_OBJECT: rule 'DNS' of its sources 'dmz-net' had no connection from 2026-07-03 to 2026-09-30, out of 96 connection(s) through the rule
+```
+
+A rule is only called unused when the logs can prove it: the rule logs, every
+gateway it is on sent logs on every day of the window, no line of them could
+not be read, and the rule did not change within it. Otherwise it says why
+they prove nothing. See
+[section 15 of the manual](docs/MANUAL.md#15-rule-usage-from-logs).
 
 Synthetic configurations to try it on, one per format, are in
 [`tests/data`](tests/data), with their conversions in
@@ -450,9 +470,10 @@ and everything else outside the policy.
   0.10, Barracuda 0.11, Juniper SRX 0.12. Next on the list: nftables,
   OPNsense and others (see TODO.md).
 * **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](docs/RULE_USAGE.md)):
-  rule identities and hit counters (0.13), then which objects and services of
-  each rule are used, from firewall logs, and narrower rules proposed from
-  that, as fwanalyser did for Check Point.
+  rule identities and hit counters (0.13), Check Point logs (0.14), then
+  connections without a rule uid (0.15), PAN-OS and FortiOS logs (0.16) and
+  narrower rules proposed from the use (0.17), as fwanalyser did for Check
+  Point.
 * Audit and matrix: the matrix before and after a conversion, a zone and
   conduit model as a file to check a policy against, an equivalence check as
   a command, zone ranks.

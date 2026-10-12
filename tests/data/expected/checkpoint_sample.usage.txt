@@ -1,0 +1,95 @@
+FWShift usage
+  source: checkpoint (Network)
+  store: (none: nothing is kept) (logs from 2026-07-03 to 2026-09-30, 1 run(s))
+  window: 2026-07-03 to 2026-09-30 (90 days)
+  read now: 1 file(s), 538 line(s), 412 connection(s)
+    90 not counted: an update of a connection logged before (Log Update)
+    36 not counted: a firewall log that names no rule (an update, a packet out of state, a NAT event)
+  hit counters: the configuration: counters of 20 of 22 rule(s)
+  gateway gw-edge: logs on 90 of 90 days
+  rules installed on every target are judged by the logs of gw-edge; name a gateway that sent none with --gateway
+  connections in the window: 412, attributed to a rule of the policy: 412
+
+Findings
+  [medium] UNUSED_RULE: rule 'Admins' allows traffic from any zone to any zone, and the logs of gw-edge show no connection that the gateway attributed to it from 2026-07-03 to 2026-09-30, with logs on every day
+  [medium] UNUSED_RULE: rule 'DMZ users' allows traffic from any zone to any zone, and the logs of gw-edge show no connection that the gateway attributed to it from 2026-07-03 to 2026-09-30, with logs on every day
+  [medium] UNUSED_RULE: rule 'Partners' allows traffic from any zone to any zone, and the logs of gw-edge show no connection that the gateway attributed to it from 2026-07-03 to 2026-09-30, with logs on every day
+  [medium] UNUSED_RULE: rule 'IPv6 out' allows traffic from any zone to any zone, and its hit counter (the rulebase) is 0 from 2026-07-01 to 2026-09-30 at least. Check Point counts only on gateways with hit counting on, for as long as 'Keep Hit Count data up to' says (3 months unless changed), or for the dates and gateway of hits-settings. Check that the counters cover every firewall the rule is on
+  [medium] UNUSED_RULE: rule 'DMZ access / Mail in' allows traffic from any zone to any zone, and the logs of gw-edge show no connection that the gateway attributed to it from 2026-07-03 to 2026-09-30, with logs on every day
+  [low] UNUSED_RULE_OBJECT: rule 'DNS' of its sources 'dmz-net' had no connection from 2026-07-03 to 2026-09-30, out of 96 connection(s) through the rule
+  [low] UNUSED_RULE_SERVICE: rule 'DNS' of its services 'domain-tcp' had no connection from 2026-07-03 to 2026-09-30, out of 96 connection(s) through the rule
+  [low] UNUSED_RULE_OBJECT: rule 'PLC access' of its sources 'admin-range' had no connection from 2026-07-03 to 2026-09-30, out of 9 connection(s) through the other parts of the same rule of the source
+  [low] UNUSED_RULE_OBJECT: rule 'PLC access (plc-operators)' of its sources 'lan-net' had no connection from 2026-07-03 to 2026-09-30, out of 9 connection(s) through the other parts of the same rule of the source
+  [low] UNUSED_RULE_SERVICE: rule 'PLC access (vendor-support)' of its services 'ssh' had no connection from 2026-07-03 to 2026-09-30, out of 9 connection(s) through the rule
+  [info] NO_USAGE_EVIDENCE: rule 'Tunnels' has no connection in the logs from 2026-07-03 to 2026-09-30, but they prove nothing: it was created or changed on 2026-08-20, after the window began; and has a hit counter of 0 (the rulebase), but it has counted only since 2026-08-20: 41 day(s) before the latest time its answer shows, fewer than the 90 the audit asks for. Check Point counts only on gateways with hit counting on, for as long as 'Keep Hit Count data up to' says (3 months unless changed), or for the dates and gateway of hits-settings
+
+Rules
+  'DNS' (allow): 96 connection(s)
+      source: lan-net 96, dmz-net 0
+      destination: dns-servers 96, dns-1 96, dns-2 0, 192.0.2.54 0, 2001:db8:53::54 0
+      service: domain-udp 96, domain-tcp 0
+  'rule-2' (allow): 30 connection(s)
+      source: admin-range 30
+      destination: dmz-servers 30, web-1 30, web-1_valid_address 0, mail-1 0
+      service: ssh 30
+  'Web out' (allow): 96 connection(s)
+      service: https 90, http 6
+  'Guests stay out' (drop): 0 connection(s)
+      source: guest-net 0
+  'Social' (allow): 13 connection(s)
+      source: lan-net 13
+      service: Facebook ?
+  'Admins' (allow): 0 connection(s)
+      source: netadmins ?
+      destination: plc-net 0
+  'PLC access' (allow): 0 connection(s)
+      the other parts of the same rule of the source: 9 connection(s)
+      source: admin-range 0
+      destination: plc-net 0
+      service: https 0, ssh 0
+  'PLC access (plc-operators)' (allow): 0 connection(s)
+      the other parts of the same rule of the source: 9 connection(s)
+      source: lan-net 0
+      destination: plc-net 0
+      service: https 0, ssh 0
+  'PLC access (vendor-support)' (allow): 9 connection(s)
+      destination: plc-net 9
+      service: https 9, ssh 0
+      user: Vendor Engineer (vendor1) 9
+  'DMZ users' (allow): 0 connection(s)
+      source: dmz-net 0
+      service: https 0
+  'Updates' (allow): 13 connection(s)
+      source: dmz-servers 13, web-1 0, web-1_valid_address 0, mail-1 13
+      destination: .updates.example.com ?
+      service: https 13
+  'Partners' (allow): 0 connection(s)
+      source: lan-net 0
+      destination: plc-net 0
+  'IPv6 out' (allow): 0 connection(s); proves nothing: it does not log its connections
+      source: lan6-net 0
+      service: https 0
+  'Public web' (allow): 30 connection(s)
+      destination: web-1 30, web-1_valid_address 30
+      service: https 30
+  'DMZ access / Web in' (allow): 13 connection(s)
+      destination: 10.20.0.10/32 13
+      service: app-ports 13, tcp-high 13, https 0
+  'DMZ access / Mail in' (allow): 0 connection(s)
+      destination: mail-1 0
+      service: smtp 0
+  'DMZ access / Ping from LAN' (allow): 0 connection(s); proves nothing: it does not log its connections
+      source: lan-net 0
+      destination: dmz-net 0
+      service: echo-request 0
+  'DMZ access (cleanup of DMZ-Layer)' (drop): 13 connection(s); proves nothing: it does not log its connections
+      destination: dmz-net 13
+  'Tunnels' (allow): 0 connection(s); proves nothing: it was created or changed on 2026-08-20, after the window began
+      destination: gw-edge 0
+      service: gre 0
+  'No ident' (reset-client): 9 connection(s)
+      service: ident 9
+  'Cleanup rule' (drop): 90 connection(s)
+
+Hit counters and logs disagree
+  'No ident': hit counter 0, and 9 connection(s) in the logs from 2026-07-03 to 2026-09-30 (the two cover other periods)

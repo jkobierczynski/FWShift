@@ -8,11 +8,11 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.13.0 (alpha) |
+| Version | 0.14.0 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
-| Tests | 3207, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
+| Tests | 3246, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, a Check Point management server, a Cisco Management Center or a Device Manager |
-| Next | rule usage from logs, 0.14.0 to 0.17.0 (see `docs/RULE_USAGE.md`); lab validation of the sample conversions; the brands not planned yet (see `TODO.md`) |
+| Next | rule usage, 0.15.0 to 0.17.0: simulation, PAN-OS and FortiOS logs, narrowing (see `docs/RULE_USAGE.md`); lab validation of the sample conversions; the brands not planned yet (see `TODO.md`) |
 
 ## Layout
 
@@ -69,6 +69,11 @@ src/fwshift/
                       use from hit counters (UNUSED_RULE, NO_USAGE_EVIDENCE)
     hits.py           hit counters from a file (PAN-OS rule-hit-count, FortiOS
                       monitor), put on the rules by their source identifiers
+    logreaders/
+        checkpoint.py Log Exporter (syslog, splunk, cef) and show-logs -> connections
+                      with the match table of the rules the gateway named
+    usage.py          fwshift usage: the store (SQLite), attribution of connections
+                      to rules, objects and services, evidence, the reports
     matrix.py         the zone matrix: what each zone may reach in each other
                       zone, from the sets of the audit; zones of the policy or
                       zones given as networks
@@ -86,7 +91,7 @@ src/fwshift/
 tests/
     data/             one synthetic sample per format
     data/expected/    their conversions and reports, byte for byte
-    tools/            the scripts that write the Check Point sample, the two
+    tools/            the scripts that write the Check Point sample and its logs, the two
                       Cisco Secure Firewall samples and the SonicWall,
                       WatchGuard, Barracuda and Juniper samples,
                       and the kernel check
@@ -120,6 +125,9 @@ tests/
     test_usage.py     rule identities, install-on targets, Check Point access
                       roles (against the cell as Check Point reads it), hit
                       counters and the audit of use
+    test_logs.py      the log readers, the store, attribution (the defects of
+                      fwanalyser, against a walk through the addresses) and
+                      evidence; the usage command
     test_audit.py     the audit, against a walk through every packet of a
                       small world
     test_matrix.py    the zone matrix, against the same walk: every packet
@@ -1891,6 +1899,108 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-12: version 0.14.0
+
+The second release of *rule usage* (`docs/RULE_USAGE.md`): `fwshift usage`,
+which rules, objects and services the logs of a Check Point firewall show
+used.
+
+**Built**
+
+* `logreaders/checkpoint.py`: Log Exporter in its formats syslog (also behind
+  a relay's header), splunk and cef, and the JSON answer of the Management API
+  command `show-logs` (pages one after the other). Every line becomes a
+  connection with the match table of the rules the gateway named, or a reason;
+  a reason says whether the line may have been a connection (a doubt).
+* `usage.py`: the store (SQLite; `runs`, `files`, `coverage`, `unplaced`,
+  `records`, `rolled`, `kept`), reading into it (a file once, by its content;
+  addresses beyond `--roll-up` per rule and side as their /24 or /64), the
+  window of days, attribution by the uids of the rules on the way through the
+  match table, counting inside the rule (every object that holds the address,
+  through groups; every service that holds the protocol and port), the
+  evidence, the comparison with hit counters, and the reports (text, JSON,
+  one HTML page that needs nothing else).
+* Model: `Rule.log_usage` (`LogUsage`), `Rule.changed` (Check Point
+  `meta-info`), `Address.part_of` (the translated address of automatic NAT).
+  Every Check Point rule also carries the uid of the layer the policy was read
+  from (`checkpoint.policy_layer_uid`).
+* Audit: `UNUSED_RULE` from the logs as well as from the counters,
+  `UNUSED_RULE_OBJECT` and `UNUSED_RULE_SERVICE` (low; report only), one
+  decision per rule from both sources; `--usage-store` and `--usage-gateway`
+  for `fwshift audit` and `fwshift convert`.
+* Command `fwshift usage`; the manual's section 15 and the command reference.
+* Sample: `checkpoint_sample.log` (90 days of one gateway, written by
+  `tests/tools/make_checkpoint_logs.py` from the sample policy), its report as
+  a golden file. The sample's rule uids are now unique (the generator gave
+  the rules of the inline layer the uids of the first rules of the main
+  layer, which no management server does).
+
+**What the platform made necessary**
+
+* *The gateway decides.* Check Point logs name the rule of every layer; the
+  connection is counted for that rule and nothing is simulated (that is 0.15).
+* *A flattened table.* Log Exporter writes the match table column by column
+  and leaves a column short where a rule has no name or a layer's implicit
+  cleanup no uid; uids are put on rows only where their number fits.
+* *Days, not files, are the evidence.* A rule is proven unused only when
+  every gateway it is on logged connections that name a rule on every day of
+  the window, at least one accepted one, and nothing of them could not be
+  read; the rule's own age comes from `meta-info`.
+* *The rule of the source, not its parts.* A rule split by access roles is
+  one rule on Check Point: a part without connections, whose siblings had
+  them, is reported by its sources.
+
+**Sources**
+
+Check Point's Log Exporter guide (format definitions, escaping) and CLI
+reference (`cp_log_export`, `fwm logexport`, `fw log`), CheckMates threads
+(inline layers, UTC, show-logs, the CSV export), and the parsers and test
+fixtures of Elastic, Splunk Connect for Syslog, syslog-ng, Wazuh and Sekoia,
+read and never run; fwanalyser and its Python port for what they read.
+
+**Review**
+
+*Round 22* by the independent reviewer, with repro scripts of its own and the
+real fixture lines of the published parsers. 3 high, 6 medium, 7 low:
+
+| | Finding | Fix |
+|---|---|---|
+| high | Lines that name a rule were skipped as no connection: a `packets` counter taken for an optimized drop, another blade's product (Application Control names the Network rule too), a line without a protocol. The day still counted, and the rule could be called unused | a line that names a rule is a connection of it whatever it lacks; what it lacks is "not in the log", and no member of that cell is called unused |
+| high | The layer of the policy was found only from rules without a parent: a main layer that only applies inline layers, a policy read from an inline layer, an export without the layer's uid. Every allow rule could be called unused | the uid of the layer is on every rule; its row starts the chain wherever it is; without it, or without any connection that names the layer, the logs prove nothing |
+| high | Gateways that never sent logs were not required, and `audit --usage-store` had no way to name them; cluster members log under their own names | `--usage-gateway`; `--gateway NAME=MEMBER,...`; the report names the gateways it judged by |
+| medium | show-logs: the log's own rule fields were mixed into the rows | rows from their own objects |
+| medium | Lines of Check Point formats that are not read (the gateway's syslog, leef, json, a relay's header) were no doubt | a doubt; the relay's header is read past |
+| medium | Any line counted as a day logged; an exporter that sends drops only proved every allow rule unused | only connections that name a rule count; at least one accepted connection per gateway |
+| medium | Reading into a large store was quadratic (the limit of addresses looked up in the records) | a table of the addresses kept; files read one at a time |
+| medium | Splunk keys with a dash made the line unreadable | read |
+| medium | Pages of show-logs one after the other were not read, and the file was marked as read | read; a file without a connection is not marked |
+| low | The translated address of automatic NAT called an unused member | it is its object |
+| low | A rule without `meta-info` was taken as old | no evidence, as for the counters |
+| low | Tracebacks: a window off the calendar, a store with other columns, a record that cannot be read, a locked store | messages |
+| low | Reasons carried text of the line (escapes, one reason per line) | fixed wording |
+| low | A user with a comma was two users | kept whole |
+| low | Overlapping files counted twice; lines without gateway and day stay against every window; a change after the window called "within" it | documented; reworded |
+
+Not changed: a `Log Update` that would carry the final match table of a
+connection the first line did not decide is skipped (not seen in any
+fixture); objects or services that changed within the window are not
+noticed (only the rule's own change is). The fixes were not reviewed again;
+they have tests (the last section of `test_logs.py`).
+
+**Verified, and not**
+
+* The tests: `tests/test_logs.py` holds 39 tests, the suite 3246. The
+  readers on the line shapes of the published fixtures; the regression cases
+  of fwanalyser (a negated cell, two objects of one address, install-on); the
+  counting of objects against a walk through the addresses on 25 random
+  policies; every reason the logs prove nothing. A mutation check with 13 ways
+  to break the reader, the store, the attribution and the audit: all caught.
+  200,000 lines are read in about 18 seconds, 100,000 more into that store in
+  9.
+* **No log of a real gateway was read.** IPv6 logs, logs of implied rules and
+  the json, leef and generic formats were not seen anywhere; the CSV export of
+  SmartConsole and `fwm logexport` have no rule uid that any source shows.
 
 ### 2026-10-12: version 0.13.0
 
