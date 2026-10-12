@@ -393,7 +393,7 @@ def test_unknown_xml_encoding_is_a_clean_error(capsys: pytest.CaptureFixture[str
 def test_output_is_utf8_whatever_the_console_encoding(monkeypatch: pytest.MonkeyPatch) -> None:
     raw = io.BytesIO()
     monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(raw, encoding="cp1252"))
-    source = (DATA / "fortios_sample.conf").read_text().replace("Engineering access", "Engineering → access")
+    source = (DATA / "fortios_sample.conf").read_text(encoding="utf-8").replace("Engineering access", "Engineering → access")
     monkeypatch.setattr(sys, "stdin", io.TextIOWrapper(io.BytesIO(source.encode("utf-8")), encoding="utf-8"))
     assert cli.main(["convert", "-", "--to", "panos", "-q"]) == 0
     assert "Engineering → access" in raw.getvalue().decode("utf-8")

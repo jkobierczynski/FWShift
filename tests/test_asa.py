@@ -696,7 +696,7 @@ def test_what_is_not_an_asa_configuration(text: str) -> None:
 
 def test_damaged_lines_do_not_stop_the_reading() -> None:
     rng = random.Random(7)
-    lines = (DATA / "asa_sample.cfg").read_text().splitlines()
+    lines = (DATA / "asa_sample.cfg").read_text(encoding="utf-8").splitlines()
     for _ in range(300):
         mutated = list(lines)
         for _ in range(rng.randint(1, 6)):
@@ -1458,7 +1458,7 @@ def test_sample_survives_the_way_there_and_back() -> None:
     original, _ = load("asa_sample.cfg")
     text, report = run("asa_sample.cfg", "asa")
     AsaConfig(text)
-    again, second = parse(HEAD.split("interface")[0] + (DATA / "asa_sample.cfg").read_text().split("object network web-srv")[0]
+    again, second = parse(HEAD.split("interface")[0] + (DATA / "asa_sample.cfg").read_text(encoding="utf-8").split("object network web-srv")[0]
                           .split("hostname edge-fw")[1] + text)  # fmt: skip
     # Same addresses, services and NAT; the rules differ in their generated names only.
     assert {n: (a.kind, a.value) for n, a in again.addresses.items() if not n.startswith("h-")} == {

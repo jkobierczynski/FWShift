@@ -197,7 +197,7 @@ def test_what_is_no_configuration_is_refused_with_a_reason() -> None:
 
 def test_broken_files_never_end_in_a_traceback() -> None:
     rng = random.Random(3)
-    sample = (DATA / "watchguard_sample.xml").read_text()
+    sample = (DATA / "watchguard_sample.xml").read_text(encoding="utf-8")
     for _ in range(200):
         text = list(sample)
         for _ in range(rng.randint(1, 6)):

@@ -13,6 +13,8 @@ from __future__ import annotations
 import copy
 import json
 import random
+import os
+import shutil
 import subprocess
 from typing import Any, Dict, List, Tuple
 
@@ -317,6 +319,10 @@ def test_rules_go_to_the_top_last_first_and_a_block_rule_follows_them_deactivate
     assert [e for e, _ in calls(text)].index("rules") > max(i for i, (e, _) in enumerate(calls(text)) if e.startswith("objects"))
 
 
+POSIX_SHELL = pytest.mark.skipif(os.name == "nt" or shutil.which("sh") is None, reason="needs a POSIX shell")
+
+
+@POSIX_SHELL
 def test_the_script_runs_in_a_shell_without_a_firewall() -> None:
     p = small(rules=[Rule(name="it's \"quoted\"", origin="q", sources=["lan"], services=["web"], description="a $HOME `x` 'y'")])
     text, _ = emit(p)
@@ -379,6 +385,7 @@ def test_negation_and_ranges_are_written_as_networks() -> None:
 # -- what the review of version 0.11.0 found ----------------------------------------------------------
 
 
+@POSIX_SHELL
 def test_a_refused_call_leaves_only_a_prefix_of_the_rules_active(tmp_path: Any) -> None:
     """The rules are created deactivated and activated first rule first: a call the firewall refuses stops the script,
     and what is active then is the start of the policy, never a later allow without the blocks above it."""
@@ -396,7 +403,7 @@ def test_a_refused_call_leaves_only_a_prefix_of_the_rules_active(tmp_path: Any) 
            "FAIL": "rules/allow-web", "TMPDIR": str(tmp_path)}  # fmt: skip
     result = subprocess.run(["sh", "-c", text, "fwshift"], env=env, capture_output=True, text=True, timeout=60)
     assert result.returncode != 0
-    made = log.read_text().split("\n")
+    made = log.read_text(encoding="utf-8").split("\n")
     patches = [line.split("/rules/")[1] for line in made if line.startswith("PATCH")]
     assert patches == ["block-guests", "allow-web"]  # the refused one is the last; allow-more was never activated
     assert all(line.startswith("POST") for line in made[: made.index(next(line for line in made if line.startswith("PATCH")))])

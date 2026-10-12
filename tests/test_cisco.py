@@ -1189,7 +1189,7 @@ def test_the_script_loads_what_the_model_says(seed: int, tmp_path: Any, capsys: 
     status, said = load_script(text, fmc, tmp_path)
     assert status == 0, (said, capsys.readouterr().err)
     assert "assigned to no device" in said[-1]
-    journal = json.loads((tmp_path / "journal.json").read_text())["created"]
+    journal = json.loads((tmp_path / "journal.json").read_text(encoding="utf-8"))["created"]
     made = fmc.created()
     assert sorted(entry["name"] for entry in journal) == sorted(name for names in made.values() for name in names)
     assert made["policy/accesspolicies"] == ["FWShift"] and made["object/securityzones"] == config.plan["zones"]
@@ -1313,7 +1313,7 @@ def test_a_run_that_stops_leaves_a_journal_and_undo_takes_it_all_back(tmp_path: 
     status, said = load_script(text, fmc, tmp_path)
     error = capsys.readouterr().err
     assert status == 1 and "POST object/portobjectgroups was refused (HTTP 422): Invalid port" in error
-    journal = json.loads((tmp_path / "journal.json").read_text())["created"]
+    journal = json.loads((tmp_path / "journal.json").read_text(encoding="utf-8"))["created"]
     assert f"Stopped. {len(journal)} object(s) exist that this run created; they are listed in" in error and "--undo" in error
     made = fmc.created()
     assert sorted(entry["name"] for entry in journal) == sorted(name for names in made.values() for name in names) and len(journal) > 10
@@ -1341,17 +1341,17 @@ def test_a_run_that_stops_leaves_a_journal_and_undo_takes_it_all_back(tmp_path: 
     assert sum(1 for line in said if line.startswith("  was not there any more:")) == len(said) - 2
     # A journal says where its run was: it is not carried out against another Management Center or domain.
     assert load_script(text, fmc, tmp_path)[0] == 0
-    data = json.loads((tmp_path / "journal.json").read_text())
+    data = json.loads((tmp_path / "journal.json").read_text(encoding="utf-8"))
     assert (data["domain"], data["host"]) == (FakeFmc.DOMAIN, "")
     for key, value in (("domain", "another-domain"), ("host", "https://other.example.net")):
-        (tmp_path / "journal.json").write_text(json.dumps({**data, key: value}))
+        (tmp_path / "journal.json").write_text(json.dumps({**data, key: value}), encoding="utf-8")
         before_undo = fmc.created()
         assert load_script(text, fmc, tmp_path, "--undo")[0] == 1 and "Nothing was deleted" in capsys.readouterr().err
         assert fmc.created() == before_undo
     # And a file that is no journal of this loader deletes nothing.
     for content in ('{"created": null}', '{"created": {}}', '{"created": [{"path": "policy/devicerecords", "id": "x", "name": "ftd1"}]}',
                     '{"created": [{"path": "object/hosts", "id": 5, "name": "web"}]}', "[]", "not json"):  # fmt: skip
-        (tmp_path / "journal.json").write_text(content)
+        (tmp_path / "journal.json").write_text(content, encoding="utf-8")
         calls = len(fmc.calls)
         assert load_script(text, fmc, tmp_path, "--undo")[0] == 1 and fmc.created() == before_undo
         assert all(method != "DELETE" for method, _ in fmc.calls[calls:]) and "Traceback" not in capsys.readouterr().err
@@ -1365,7 +1365,7 @@ def sloppy(tmp_path: Any, **settings: Any) -> Tuple["FakeFmc", str, Any]:
 
 
 def journaled(path: Any) -> List[str]:
-    return sorted(entry["name"] for entry in json.loads(path.read_text())["created"])
+    return sorted(entry["name"] for entry in json.loads(path.read_text(encoding="utf-8"))["created"])
 
 
 def everything(fmc: "FakeFmc") -> List[str]:
@@ -1476,7 +1476,7 @@ def test_the_journal_is_there_before_anything_is_created(tmp_path: Any, capsys: 
     missing = sorted(set(everything(fmc)) - set(journaled(journal)))
     assert missing and all(f"'{name}'" in error for name in missing)
     # The journal is replaced in one step: no half-written file under its name, and nothing left next to it.
-    assert json.loads(journal.read_text())["format"] == 1 and not (tmp_path / "journal.json.tmp").exists()
+    assert json.loads(journal.read_text(encoding="utf-8"))["format"] == 1 and not (tmp_path / "journal.json.tmp").exists()
 
 
 def test_zones_that_exist_under_another_spelling_or_as_something_else(tmp_path: Any, capsys: pytest.CaptureFixture[str]) -> None:
@@ -3714,7 +3714,7 @@ def test_the_script_follows_no_redirect_and_ends_cleanly_on_a_bad_line(tmp_path:
                                ("https://fmc.example.net:port", "is not a name or an address")):  # fmt: skip
             done = run("--host", value, "--user", "api")
             assert done.returncode == 1 and message in done.stderr and "Traceback" not in done.stderr, (value, done.stderr)
-        (tmp_path / "not-a-certificate.pem").write_text("hello\n")
+        (tmp_path / "not-a-certificate.pem").write_text("hello\n", encoding="utf-8")
         for value in ("no-such-file.pem", "not-a-certificate.pem"):
             done = run("--host", "fmc.example.net", "--user", "api", "--cafile", value)
             assert done.returncode == 1 and "no certificates could be read from it" in done.stderr and "Traceback" not in done.stderr, done.stderr

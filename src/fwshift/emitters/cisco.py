@@ -304,7 +304,8 @@ def loader_source() -> str:
     data = pkgutil.get_data(__package__ or "fwshift.emitters", "fmc_loader.py")
     if data is None:
         raise FwshiftError("the loader for a Management Center (fmc_loader.py) is missing from this installation of FWShift")
-    return data.decode("utf-8")
+    # A checkout or an unpacked archive may have given the file Windows line endings; the script is written with LF.
+    return data.decode("utf-8").replace("\r\n", "\n")
 
 
 def _port_parts(ports: str) -> List[str]:
