@@ -531,6 +531,12 @@ Then put the answers into one JSON array:
 jq -s . access-*.json nat-*.json layers.json > checkpoint.json
 ```
 
+Only these answers are read. JSON in another layout, such as a hand-written or
+generated "policy" with `access-layers`, `sections` and `rules` that name their
+objects, holds no `rulebase` and is refused with `no rulebase found`, which
+lists the keys it does hold. The same goes for an input of object listings
+alone (`show objects`, `show access-layers`): there is no rule to convert.
+
 Three things decide whether the export is complete:
 
 * **Pages.** One call returns at most 500 rules. Each answer says `"to"` and

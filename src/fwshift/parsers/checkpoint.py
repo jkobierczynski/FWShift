@@ -168,6 +168,35 @@ def _literal(interval: Interval) -> str:
     return str(networks[0]) if len(networks) == 1 else range_text(interval)
 
 
+def _has_key(document: Any, key: str, depth: int = 0) -> bool:
+    """True when a dict anywhere in the document (to a modest depth) has ``key``."""
+    if depth > _MAX_DEPTH:
+        return False
+    if isinstance(document, dict):
+        return key in document or any(_has_key(value, key, depth + 1) for value in document.values())
+    if isinstance(document, list):
+        return any(_has_key(item, key, depth + 1) for item in document)
+    return False
+
+
+def _no_rulebase(document: Any) -> str:
+    """Why an input with object listings but no rulebase cannot be converted, with what it holds instead."""
+    message = (
+        "no rulebase found: the input has no 'rulebase' array, so it holds neither 'show access-rulebase' "
+        "nor 'show nat-rulebase' output and there is no rule to read"
+    )
+    if isinstance(document, dict):
+        keys = sorted(str(key) for key in document)
+        message += "; its top-level keys are " + ", ".join(f"'{key}'" for key in keys[:8]) + (", ..." if len(keys) > 8 else "")
+    if _has_key(document, "rules") or _has_key(document, "nat-rules"):
+        message += (
+            ". The rules are in 'rules' lists that name their objects, a layout the Management API does not produce "
+            "(it lists rules in 'rulebase' and refers to objects by uid in 'objects-dictionary')"
+        )
+    return message + ". Export with: mgmt_cli -r true show access-rulebase name <layer> package <package> " \
+                     "details-level full use-object-dictionary true --format json"
+
+
 def parse(data: bytes, report: Report, layer: str = "") -> Policy:
     try:
         document = json.loads(data.decode("utf-8-sig"))
@@ -187,6 +216,8 @@ def parse(data: bytes, report: Report, layer: str = "") -> Policy:
             "no Management API response found; expected the JSON output of 'show access-rulebase' "
             "(optionally in an array with 'show nat-rulebase' and further pages)"
         )
+    if not any(isinstance(response.get("rulebase"), list) for response in responses):
+        raise ParseError(_no_rulebase(document))
     try:
         return _Builder(responses, report, layer).build()
     except (TypeError, AttributeError, KeyError, IndexError, ValueError) as exc:
@@ -297,8 +328,8 @@ class _Builder:
             Severity.REVIEW,
             "IMPLIED_RULES",
             "Check Point implied rules (global properties) and the other ordered layers of the policy package "
-            "are not part of the export; only the rules of one layer were read"
-            + (f" ('{self.p.scope}')" if self.p.scope else ""),
+            "are not part of the export; "
+            + (f"only the rules of one layer were read ('{self.p.scope}')" if layer else "no access layer was read"),
         )
         short = [
             f"layer '{self.layer_names.get(identity, identity)}' ({len(rules)} of {self.totals[identity]} rules)"

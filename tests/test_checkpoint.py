@@ -1182,6 +1182,52 @@ def test_export_with_the_wrong_types_is_a_clean_error_or_a_flagged_rule() -> Non
             pass
 
 
+def test_input_without_a_rulebase_is_refused_with_the_reason() -> None:
+    # Object listings alone ('show objects', 'show access-layers'): nothing to convert, not a policy of zero rules.
+    objects_only = {"objects": [{"uid": "h1", "name": "web", "type": "host", "ipv4-address": "10.0.0.1"}], "total": 1}
+    with pytest.raises(ParseError, match="no rulebase found.*top-level keys are 'objects', 'total'"):
+        parse_checkpoint.parse(json.dumps(objects_only).encode(), Report())
+    # A hand-written layout: rules in 'rules' lists that name their objects.
+    invented = {
+        "policy-package": {"name": "P"},
+        "objects": {"networks": [{"name": "LAN", "subnet": "10.0.0.0", "mask-length": 8}]},
+        "access-layers": [{"name": "Network", "sections": [{"name": "S", "rules": [
+            {"name": "r", "source": ["LAN"], "destination": ["Any"], "service": ["https"], "action": "Accept"}]}]}],
+        "nat-rules": [],
+    }  # fmt: skip
+    with pytest.raises(ParseError, match="no rulebase found.*'rules' lists that name their objects.*mgmt_cli"):
+        parse_checkpoint.parse(json.dumps(invented).encode(), Report())
+
+
+def test_perimeter_export_is_read_in_full() -> None:
+    # checkpoint_perimeter.json: a hand-written 'R81.20 style' policy, reshaped into real Management API output.
+    from fwshift import audit
+
+    policy, report = load("checkpoint_perimeter.json")
+    assert policy.scope == "Network"
+    assert len(policy.rules) == 23 and len(policy.nat_rules) == 5
+    assert policy.rules[0].name == "Drop Blacklisted IPs" and policy.rules[-1].name == "Cleanup rule"
+    assert policy.rules[0].action == policy.rules[-1].action == Action.DROP
+    unsupported = {item.name for item in report.items.values() if any(f.code == "UNSUPPORTED_ADDRESS" for f in item.findings)}
+    assert unsupported == {"threat-intel-feed", "o365-endpoints", "azure-ip-ranges"}  # network feed, updatable objects
+    hide = policy.nat_rules[0]
+    assert hide.name == "Hide NAT Internal" and hide.source_translation.kind == SnatKind.INTERFACE
+    web = policy.nat_rules[2]
+    assert web.destination_translation is not None and web.destination_translation.address == "Web_LB_VIP"
+    # The no-NAT rule for the VPN pool sits below the hide rule for 10.0.0.0/8, which takes the pool too.
+    found = [(f.check, f.name) for f in audit.run(policy).before if f.kind == "nat"]
+    assert ("SHADOWED_NAT", "No NAT for VPN") in found
+
+
+def test_nat_only_export_does_not_claim_a_layer_was_read() -> None:
+    nat_only = {"rulebase": [], "from": 0, "to": 0, "total": 0}
+    report = Report()
+    policy = parse_checkpoint.parse(json.dumps(nat_only).encode(), report)
+    assert policy.rules == [] and policy.scope == ""
+    implied = [note for note in report.notes if note.code == "IMPLIED_RULES"]
+    assert implied and "no access layer was read" in implied[0].message and "one layer" not in implied[0].message
+
+
 def test_inline_layers_that_multiply_are_refused_quickly() -> None:
     x = Export()
     x.layer("L0")
