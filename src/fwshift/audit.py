@@ -117,8 +117,8 @@ INDUSTRIAL_SERVICES: Dict[str, List[str]] = {
 INDUSTRIAL_APPLICATIONS = ("modbus", "siemens-s7", "dnp3", "ethernet-ip", "cip-ethernet-ip", "opc-ua", "bacnet", "iec-60870-5-104")
 
 _PLURAL = {"address": "addresses", "address-group": "address groups", "service": "services", "service-group": "service groups"}
-_LOGGING_BY_RULE = ("panos", "checkpoint", "sophos")  # where the model says whether a rule logs its sessions at all
-_PROFILES = ("panos", "fortios", "sophos")
+_LOGGING_BY_RULE = ("panos", "checkpoint", "sophos", "fmc", "fdm")  # where the model says whether a rule logs its sessions at all
+_PROFILES = ("panos", "fortios", "sophos", "fmc", "fdm")
 _MAX_BOXES = 4096  # pieces a rule may fall into while earlier rules are taken out of it
 _FEW_BOXES = 128  # pieces up to which the rules that take part of a rule are found by taking them out in their order
 

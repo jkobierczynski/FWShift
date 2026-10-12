@@ -1,0 +1,65 @@
+FWShift conversion report
+  source: fmc (Edge)
+  target: fmc
+
+Summary
+  Security rules:     22   exact 16, approximated 3, needs review 2 (2 emitted disabled), skipped 1
+  NAT rules:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Addresses:          16   exact 16, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           24   exact 24, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FMC_LOAD: the output is a Python script that loads the policy into a Management Center through its REST API. It creates the objects, a new access control policy 'FWShift' and, when there are NAT rules, a NAT policy of the same name, and assigns them to no device: nothing is in force until the policies are assigned and deployed. It changes nothing that exists, and stops before it creates anything when a name is taken. Run it with --show and with --dry-run first. The new access control policy uses the default prefilter policy and no intrusion or file policies. The script was written from Cisco's API documentation and has not been run against a Management Center: use it first where a mistake costs nothing
+  [needs-review] ZONES_REQUIRED: the rules name these security zones (rename them with --zone-map): inside, outside, dmz. A zone that exists on the Management Center is used as it is; one that does not is created empty, and matches no traffic until the interfaces of the devices are put in it
+  [approximated] OBJECT_OVERRIDES: 1 object(s) can have another value on a device than the one that was read (they allow overrides): ot-net. The values of the manager were converted; check them against the device the policy is for
+  [info] FQDN_DNS: FQDN objects need name resolution on the device (a DNS server group in its platform settings)
+
+Security rules
+  pre-backup  ->  exact
+      [info] PREFILTER_AS_TRUST: a prefilter rule of the source (Fastpath): written as an access rule with the action Trust, at the place it had in front of the access rules
+  pre-partner-gre  ->  approximated
+      [approximated] TUNNEL_RULE: tunnel rule of the prefilter policy: it is converted as a rule for the protocol that carries the tunnel, between the tunnel endpoints. What the source did with the connections inside the tunnel is not converted
+      [info] PREFILTER_AS_TRUST: a prefilter rule of the source (Fastpath): written as an access rule with the action Trust, at the place it had in front of the access rules
+  pre-partner-gre-reverse  ->  exact
+      [info] TUNNEL_RULE: the other direction of tunnel rule 'pre-partner-gre', which matches tunnels from source and destination
+      [info] PREFILTER_AS_TRUST: a prefilter rule of the source (Fastpath): written as an access rule with the action Trust, at the place it had in front of the access rules
+  LAN web  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (file=Block Malware, intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+  Helpdesk RDP  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match CORP\helpdesk is not converted.
+  Staff social media  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Uncategorised web  ->  approximated
+      [approximated] INTERACTIVE_BLOCK: the source showed web users a page from which they could go on to the site (Interactive Block); it is converted as a rule that blocks
+  Watch DMZ  ->  skipped
+      [info] MONITOR_RULE: rule with the action Monitor: it logs the traffic and leaves the decision to the rules below it. Nothing to convert
+
+NAT rules
+  nat-4  ->  exact  (emitted as 1 NAT rule)
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: round robin, flat port range, interface (as fallback)
+  nat-mail-srv  ->  exact  (emitted as 1 NAT rule)
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: translate DNS replies
+
+Addresses
+  any-ipv4  ->  exact
+      [info] EXISTING_OBJECT: an object the manager comes with: referenced by name, not created
+  any-ipv6  ->  exact
+      [info] EXISTING_OBJECT: an object the manager comes with: referenced by name, not created
+  IPv4-Private-10.0.0.0-8  ->  exact
+      [info] EXISTING_OBJECT: an object the manager comes with: referenced by name, not created
+
+Services
+  HTTP  ->  exact
+      [info] EXISTING_OBJECT: an object the manager comes with: referenced by name, not created
+  HTTPS  ->  exact
+      [info] EXISTING_OBJECT: an object the manager comes with: referenced by name, not created
+  SSH  ->  exact
+      [info] EXISTING_OBJECT: an object the manager comes with: referenced by name, not created
+  DNS_over_UDP  ->  exact
+      [info] EXISTING_OBJECT: an object the manager comes with: referenced by name, not created
+  DNS_over_TCP  ->  exact
+      [info] EXISTING_OBJECT: an object the manager comes with: referenced by name, not created
+  NTP-UDP  ->  exact
+      [info] EXISTING_OBJECT: an object the manager comes with: referenced by name, not created

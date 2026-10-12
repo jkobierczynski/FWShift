@@ -31,12 +31,15 @@ documentation, and to find out which export an administrator can actually
 produce.
 
 Done: **0.6.0, Sophos Firewall** (SFOS 18 and later; the `.tar` of *Import
-export* or its `Entities.xml`, read and written). What it rests on and what
-nobody has checked on a device is in the development log.
+export* or its `Entities.xml`, read and written), and **0.7.0, Cisco Secure
+Firewall** (the JSON of a Management Center's REST API and the configuration
+export of a Device Manager, read; a script that loads a new policy through
+the API of a Management Center and a file for the import of a Device Manager,
+written). What each rests on and what nobody has checked on a device is in
+the development log.
 
 | Release | Brand | Read (expected) | Write (expected) | What will need care |
 |---|---|---|---|---|
-| 0.7.0 | **Cisco Secure Firewall** (formerly Firepower Threat Defense), managed by FMC or FDM | access control policy, NAT policy and objects as JSON from the FMC and FDM REST API; the prefilter policy from the FMC (FDM has none) | a script of API calls, as for Check Point: nothing is deployed | FWShift already reads the `show running-config` of an FTD through the ASA parser; this release is about the policy as the manager has it: zones, applications, URL categories, intrusion and file policies, the prefilter in front of the access rules |
 | 0.8.0 | **pfSense** (with OPNsense, its relative, where the two agree) | `config.xml`: rules per interface, floating rules, aliases, port forwards, 1:1 and outbound NAT | a `config.xml` fragment | Floating rules that are not "quick" are last match, not first, and can be for several interfaces and for outgoing traffic. Interface rules are bound to the interface traffic arrives on, like ASA access lists. Port forwards are applied before the filter, so rules name the translated address (the model's `lookup_after_dnat`), and come with linked filter rules |
 | 0.9.0 | **SonicWall** (SonicOS 6.5 and 7) | the exported settings file (`.exp`, an encoded list of keys and values) or the output of the API or CLI (SonicOS 6.5 and 7 have both) | CLI commands | Access rules live in a matrix of zone pairs with a priority each. NAT policies are a separate table with original and translated source, destination and service |
 | 0.10.0 | **WatchGuard** (Fireware) | the XML configuration file of Policy Manager | XML for Policy Manager | Policies are ordered automatically by precedence unless auto-order is off: the order in the file is not the order of evaluation. Proxy policies, aliases, static NAT actions, 1-to-1 and dynamic NAT |
@@ -93,6 +96,33 @@ MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
    kept linked, and interface names of NAT rules kept as they are, Sophos to
    Sophos; IP lists written as IP lists. Find out whether a firewall rule
    sees the original or the translated service of a port translation.
+8. Cisco Secure Firewall:
+   * application conditions of a rule as App-ID names of the model (a table
+     from Cisco's application names), so that such rules reach PAN-OS as
+     application rules and port-based targets through the application map,
+     instead of being written disabled;
+   * Management Center to Management Center: intrusion, file and prefilter
+     policies of a rule by name where the target has them, time ranges and
+     users written back, rules in the default section, and the inheritance
+     kept instead of flattened;
+   * a blocking rule that can be written in part (the prefilter default
+     "block all tunnel traffic" for a Device Manager, which has no name for
+     two of its four protocols) written as that part, with the finding;
+   * the script for a cloud-delivered Management Center (it logs in with a
+     token of the Security Cloud Control tenant, not with a user);
+   * interface types for the NAT rules of a Device Manager, from an export of
+     the target given as an option, and its hardware model and software
+     version from the same file;
+   * static routes of the device, for the zone a translated destination is
+     reached in;
+   * the names of the predefined port objects of both managers with their
+     values, so that a partial export that names `HTTPS` can be read.
+9. A note where `--zone-map` merges two zones and a rule between them becomes
+   a rule inside the merged zone (it then covers traffic inside each of the
+   two as well). Found by the reviewer in round 15; older than 0.7.0.
+10. Static NAT between address sets of different size is reported for ASA and
+    Cisco Secure Firewall targets, which wrap around, and not for PAN-OS,
+    where the commit fails.
 
 ## Validation
 
@@ -111,7 +141,16 @@ MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
    a real rulebase with automatic NAT to compare with the sample. Extend
    `kernel_check.py` to NAT and IPv6, and run it on the legacy iptables
    backend.
-4. The reviewer's oracles as tests: every pre-image of a real packet through
+4. Cisco Secure Firewall, on a Management Center and an FTD device in a lab:
+   fetch a policy with the calls of the manual and compare the answers with
+   `fmc_sample.json` (above all: how a policy says that it inherits, whether
+   the list of a child holds the rules of its parent, the fields of a
+   prefilter rule); run `fmc_to_fmc` and `panos_to_fmc` with `--dry-run` and
+   then for real, and check the order of the rules, the names it refuses and
+   what `--undo` leaves; export a Device Manager, compare with
+   `fdm_sample.txt` (the container names of NAT rules, the protocol and ICMP
+   names), and import `panos_to_fdm.json`.
+5. The reviewer's oracles as tests: every pre-image of a real packet through
    a destination NAT (pre-NAT model to a post-NAT target, with several NAT
    rules for one address); same-kind round trips for FortiOS and iptables
    with rules that name both sides of a translation; `disable` across the

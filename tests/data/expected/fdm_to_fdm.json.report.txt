@@ -1,0 +1,40 @@
+FWShift conversion report
+  source: fdm (FTD 7.2.5-208 on Cisco Firepower 1010 Threat Defense)
+  target: fdm
+
+Summary
+  Security rules:      8   exact 5, approximated 1, needs review 0, skipped 2
+  NAT rules:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FDM_LOAD: the output is a file for the configuration import of a Firewall Device Manager (POST /action/uploadconfigfile, then /action/configimport). Its first object must say the hardware model and software version of the target: they are those of the export that was read. The import adds to what the device has: its access rules stay above the rules of this file and decide first, its default action stays what it is, and its NAT rules come first. Nothing is in force until the changes are deployed: look at them in the pending changes before that
+  [needs-review] ZONES_REQUIRED: the rules name these security zones, which must exist on the target (or be renamed with --zone-map): inside_zone, outside_zone. Zones are not written: an import would take the interfaces out of a zone that exists
+  [needs-review] INTERFACES_REQUIRED: the NAT rules name these interfaces by their logical name, as physical interfaces: outside, inside, iot. Map the names with --interface-map. Where one is a subinterface, an EtherChannel or a VLAN interface, change its "type" in the file (physicalinterface)
+  [info] EXISTING_OBJECTS: an import changes what the device has under the same name: an object or a rule of this file replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] FQDN_DNS: FQDN objects need name resolution on the device (a DNS server group in its platform settings)
+
+Security rules
+  Inside_Outside_web  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+  Staff_streaming  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. The rule is left out: a Device Manager has no rules that are switched off. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests_by_time  ->  skipped
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times. The rule is left out: a Device Manager has no rules that are switched off.
+
+Addresses
+  any-ipv4  ->  exact
+      [info] EXISTING_OBJECT: an object the manager comes with: referenced by name, not created
+  any-ipv6  ->  exact
+      [info] EXISTING_OBJECT: an object the manager comes with: referenced by name, not created
+
+Services
+  HTTPS  ->  exact
+      [info] EXISTING_OBJECT: an object the manager comes with: referenced by name, not created
+  HTTP  ->  exact
+      [info] EXISTING_OBJECT: an object the manager comes with: referenced by name, not created
+  DNS_over_UDP  ->  exact
+      [info] EXISTING_OBJECT: an object the manager comes with: referenced by name, not created

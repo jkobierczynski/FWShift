@@ -1,0 +1,40 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: fmc
+
+Summary
+  Security rules:     18   exact 16, approximated 0, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           5   exact 5, approximated 0, needs review 0, skipped 0
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FMC_LOAD: the output is a Python script that loads the policy into a Management Center through its REST API. It creates the objects, a new access control policy 'FWShift' and, when there are NAT rules, a NAT policy of the same name, and assigns them to no device: nothing is in force until the policies are assigned and deployed. It changes nothing that exists, and stops before it creates anything when a name is taken. Run it with --show and with --dry-run first. The new access control policy uses the default prefilter policy and no intrusion or file policies. The script was written from Cisco's API documentation and has not been run against a Management Center: use it first where a mistake costs nothing
+  [needs-review] ZONES_REQUIRED: the rules name these security zones (rename them with --zone-map): inside, outside, dmz, guest. A zone that exists on the Management Center is used as it is; one that does not is created empty, and matches no traffic until the interfaces of the devices are put in it
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] FQDN_DNS: FQDN objects need name resolution on the device (a DNS server group in its platform settings)
+
+Security rules
+  inside_access_in-4  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
+  inside_access_in-7  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match LOCAL\alice is not converted.
+  implicit-guest  ->  exact
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+
+Services
+  mail-services-inline  ->  exact  (emitted as mail-services-inline, tcp-25, tcp-587)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'mail-services-inline' of 'tcp-25', 'tcp-587'
+  dns-ntp  ->  exact  (emitted as dns-ntp, tcp-53, udp-53, udp-123)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'dns-ntp' of 'tcp-53', 'udp-53', 'udp-123'
+  ping-types  ->  exact  (emitted as ping-types, icmp-8, icmp-0)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'ping-types' of 'icmp-8', 'icmp-0'
+  web-ports  ->  exact  (emitted as web-ports, tcp-80, tcp-443, tcp-8000-8010)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'web-ports' of 'tcp-80', 'tcp-443', 'tcp-8000-8010'
+  tcp-udp-5060  ->  exact  (emitted as tcp-udp-5060, tcp-5060, udp-5060)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-udp-5060' of 'tcp-5060', 'udp-5060'

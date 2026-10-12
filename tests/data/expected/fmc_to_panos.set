@@ -1,0 +1,365 @@
+set address any-ipv4 ip-netmask 0.0.0.0/0
+set address any-ipv6 ip-netmask ::/0
+set address IPv4-Private-10.0.0.0-8 ip-netmask 10.0.0.0/8
+set address lan-net ip-netmask 10.10.0.0/24
+set address lan-net description "Office LAN"
+set address dmz-net ip-netmask 10.20.0.0/24
+set address ot-net ip-netmask 10.30.0.0/24
+set address ot-net description "Production cell"
+set address partner-net ip-netmask 198.51.100.0/24
+set address branch-v6 ip-netmask 2001:db8:10::/48
+set address web-srv ip-netmask 10.20.0.10/32
+set address web-srv-pub ip-netmask 203.0.113.10/32
+set address mail-srv ip-netmask 10.20.0.25/32
+set address mail-srv-pub ip-netmask 203.0.113.25/32
+set address admin-pcs ip-range 10.10.0.100-10.10.0.120
+set address nat-pool ip-range 203.0.113.100-203.0.113.110
+set address updates fqdn updates.example.com
+set address outside-interface ip-netmask 203.0.113.2/32
+set address outside-interface description "address of interface outside when the configuration was read"
+set address h-10.20.0.30 ip-netmask 10.20.0.30
+set address-group servers static [ web-srv mail-srv h-10.20.0.30 ]
+set address-group internal static [ lan-net dmz-net servers ]
+set address-group internal description "Everything behind the firewall"
+set service HTTP protocol tcp port 80
+set service HTTPS protocol tcp port 443
+set service SSH protocol tcp port 22
+set service DNS_over_UDP protocol udp port 53
+set service DNS_over_TCP protocol tcp port 53
+set service NTP-UDP protocol udp port 123
+set service web-alt protocol tcp port 8080-8081
+set service smtp protocol tcp port 25
+set service backup protocol tcp port 10000
+set service http-8080 protocol tcp port 8080
+set service http-8443 protocol tcp port 8443
+set service udp-3544 protocol udp port 3544
+set service tcp-3389 protocol tcp port 3389
+set service tcp-8443 protocol tcp port 8443
+set service tcp-21 protocol tcp port 21
+set service udp-53 protocol udp port 53
+set service udp-1024-65535 protocol udp port 1024-65535
+set service udp-src-53-dst-1024-65535 protocol udp port 1024-65535
+set service udp-src-53-dst-1024-65535 protocol udp source-port 53
+set service-group web members [ HTTP HTTPS web-alt ]
+set service-group mgmt members SSH
+set rulebase security rules pre-backup from inside
+set rulebase security rules pre-backup to dmz
+set rulebase security rules pre-backup source lan-net
+set rulebase security rules pre-backup destination [ mail-srv mail-srv-pub ]
+set rulebase security rules pre-backup source-user any
+set rulebase security rules pre-backup category any
+set rulebase security rules pre-backup application any
+set rulebase security rules pre-backup service backup
+set rulebase security rules pre-backup action allow
+set rulebase security rules pre-backup log-end no
+set rulebase security rules pre-spoofed from outside
+set rulebase security rules pre-spoofed to any
+set rulebase security rules pre-spoofed source IPv4-Private-10.0.0.0-8
+set rulebase security rules pre-spoofed destination any
+set rulebase security rules pre-spoofed source-user any
+set rulebase security rules pre-spoofed category any
+set rulebase security rules pre-spoofed application any
+set rulebase security rules pre-spoofed service any
+set rulebase security rules pre-spoofed action drop
+set rulebase security rules pre-spoofed log-start yes
+set rulebase security rules pre-spoofed log-end no
+set rulebase security rules pre-partner-gre from outside
+set rulebase security rules pre-partner-gre to dmz
+set rulebase security rules pre-partner-gre source partner-net
+set rulebase security rules pre-partner-gre destination [ web-srv web-srv-pub ]
+set rulebase security rules pre-partner-gre source-user any
+set rulebase security rules pre-partner-gre category any
+set rulebase security rules pre-partner-gre application gre
+set rulebase security rules pre-partner-gre service application-default
+set rulebase security rules pre-partner-gre action allow
+set rulebase security rules pre-partner-gre log-end no
+set rulebase security rules pre-partner-gre-reverse from dmz
+set rulebase security rules pre-partner-gre-reverse to outside
+set rulebase security rules pre-partner-gre-reverse source web-srv
+set rulebase security rules pre-partner-gre-reverse destination partner-net
+set rulebase security rules pre-partner-gre-reverse source-user any
+set rulebase security rules pre-partner-gre-reverse category any
+set rulebase security rules pre-partner-gre-reverse application gre
+set rulebase security rules pre-partner-gre-reverse service application-default
+set rulebase security rules pre-partner-gre-reverse action allow
+set rulebase security rules pre-partner-gre-reverse log-end no
+set rulebase security rules prefilter-default-block-tunnels from any
+set rulebase security rules prefilter-default-block-tunnels to any
+set rulebase security rules prefilter-default-block-tunnels source any
+set rulebase security rules prefilter-default-block-tunnels destination any
+set rulebase security rules prefilter-default-block-tunnels source-user any
+set rulebase security rules prefilter-default-block-tunnels category any
+set rulebase security rules prefilter-default-block-tunnels application any
+set rulebase security rules prefilter-default-block-tunnels service udp-3544
+set rulebase security rules prefilter-default-block-tunnels action drop
+set rulebase security rules prefilter-default-block-tunnels log-end no
+set rulebase security rules prefilter-default-block-tunnels disabled yes
+set rulebase security rules prefilter-default-block-tunnels description "FWSHIFT: disabled by the converter, see the report. Default action of the prefilter policy: block tunnel traffic."
+set rulebase security rules prefilter-default-block-tunnels-apps from any
+set rulebase security rules prefilter-default-block-tunnels-apps to any
+set rulebase security rules prefilter-default-block-tunnels-apps source any
+set rulebase security rules prefilter-default-block-tunnels-apps destination any
+set rulebase security rules prefilter-default-block-tunnels-apps source-user any
+set rulebase security rules prefilter-default-block-tunnels-apps category any
+set rulebase security rules prefilter-default-block-tunnels-apps application gre
+set rulebase security rules prefilter-default-block-tunnels-apps service application-default
+set rulebase security rules prefilter-default-block-tunnels-apps action drop
+set rulebase security rules prefilter-default-block-tunnels-apps log-end no
+set rulebase security rules prefilter-default-block-tunnels-apps disabled yes
+set rulebase security rules prefilter-default-block-tunnels-apps description "FWSHIFT: disabled by the converter, see the report. Default action of the prefilter policy: block tunnel traffic."
+set rulebase security rules "Block OT outbound" from inside
+set rulebase security rules "Block OT outbound" to outside
+set rulebase security rules "Block OT outbound" source ot-net
+set rulebase security rules "Block OT outbound" destination any
+set rulebase security rules "Block OT outbound" source-user any
+set rulebase security rules "Block OT outbound" category any
+set rulebase security rules "Block OT outbound" application any
+set rulebase security rules "Block OT outbound" service any
+set rulebase security rules "Block OT outbound" action drop
+set rulebase security rules "Block OT outbound" log-start yes
+set rulebase security rules "Block OT outbound" log-end yes
+set rulebase security rules "Block OT outbound" description "No production cell talks to the Internet"
+set rulebase security rules "LAN web" from inside
+set rulebase security rules "LAN web" to outside
+set rulebase security rules "LAN web" source lan-net
+set rulebase security rules "LAN web" destination any
+set rulebase security rules "LAN web" source-user any
+set rulebase security rules "LAN web" category any
+set rulebase security rules "LAN web" application any
+set rulebase security rules "LAN web" service web
+set rulebase security rules "LAN web" action allow
+set rulebase security rules "LAN web" log-end yes
+set rulebase security rules "LAN DNS and NTP" from inside
+set rulebase security rules "LAN DNS and NTP" to outside
+set rulebase security rules "LAN DNS and NTP" source lan-net
+set rulebase security rules "LAN DNS and NTP" destination any
+set rulebase security rules "LAN DNS and NTP" source-user any
+set rulebase security rules "LAN DNS and NTP" category any
+set rulebase security rules "LAN DNS and NTP" application any
+set rulebase security rules "LAN DNS and NTP" service [ DNS_over_UDP DNS_over_TCP NTP-UDP ]
+set rulebase security rules "LAN DNS and NTP" action allow
+set rulebase security rules "LAN DNS and NTP" log-end no
+set rulebase security rules Updates from [ inside dmz ]
+set rulebase security rules Updates to outside
+set rulebase security rules Updates source any
+set rulebase security rules Updates destination updates
+set rulebase security rules Updates source-user any
+set rulebase security rules Updates category any
+set rulebase security rules Updates application any
+set rulebase security rules Updates service HTTPS
+set rulebase security rules Updates action allow
+set rulebase security rules Updates log-end yes
+set rulebase security rules "Inbound web" from outside
+set rulebase security rules "Inbound web" to dmz
+set rulebase security rules "Inbound web" source any
+set rulebase security rules "Inbound web" destination [ web-srv web-srv-pub ]
+set rulebase security rules "Inbound web" source-user any
+set rulebase security rules "Inbound web" category any
+set rulebase security rules "Inbound web" application any
+set rulebase security rules "Inbound web" service [ HTTP HTTPS ]
+set rulebase security rules "Inbound web" action allow
+set rulebase security rules "Inbound web" log-end yes
+set rulebase security rules "Inbound mail" from outside
+set rulebase security rules "Inbound mail" to dmz
+set rulebase security rules "Inbound mail" source any
+set rulebase security rules "Inbound mail" destination [ mail-srv mail-srv-pub ]
+set rulebase security rules "Inbound mail" source-user any
+set rulebase security rules "Inbound mail" category any
+set rulebase security rules "Inbound mail" application any
+set rulebase security rules "Inbound mail" service smtp
+set rulebase security rules "Inbound mail" action allow
+set rulebase security rules "Inbound mail" log-start yes
+set rulebase security rules "Inbound mail" log-end yes
+set rulebase security rules "Admin access" from inside
+set rulebase security rules "Admin access" to dmz
+set rulebase security rules "Admin access" source admin-pcs
+set rulebase security rules "Admin access" destination [ servers mail-srv-pub ]
+set rulebase security rules "Admin access" source-user any
+set rulebase security rules "Admin access" category any
+set rulebase security rules "Admin access" application any
+set rulebase security rules "Admin access" service mgmt
+set rulebase security rules "Admin access" action allow
+set rulebase security rules "Admin access" log-end yes
+set rulebase security rules "Admin access-apps" from inside
+set rulebase security rules "Admin access-apps" to dmz
+set rulebase security rules "Admin access-apps" source admin-pcs
+set rulebase security rules "Admin access-apps" destination [ servers mail-srv-pub ]
+set rulebase security rules "Admin access-apps" source-user any
+set rulebase security rules "Admin access-apps" category any
+set rulebase security rules "Admin access-apps" application ping
+set rulebase security rules "Admin access-apps" service application-default
+set rulebase security rules "Admin access-apps" action allow
+set rulebase security rules "Admin access-apps" log-end yes
+set rulebase security rules "Helpdesk RDP" from inside
+set rulebase security rules "Helpdesk RDP" to dmz
+set rulebase security rules "Helpdesk RDP" source any
+set rulebase security rules "Helpdesk RDP" destination [ servers mail-srv-pub ]
+set rulebase security rules "Helpdesk RDP" source-user "CORP\\helpdesk"
+set rulebase security rules "Helpdesk RDP" category any
+set rulebase security rules "Helpdesk RDP" application any
+set rulebase security rules "Helpdesk RDP" service tcp-3389
+set rulebase security rules "Helpdesk RDP" action allow
+set rulebase security rules "Helpdesk RDP" log-end yes
+set rulebase security rules "Staff social media" from inside
+set rulebase security rules "Staff social media" to outside
+set rulebase security rules "Staff social media" source any
+set rulebase security rules "Staff social media" destination any
+set rulebase security rules "Staff social media" source-user any
+set rulebase security rules "Staff social media" category any
+set rulebase security rules "Staff social media" application any
+set rulebase security rules "Staff social media" service any
+set rulebase security rules "Staff social media" action drop
+set rulebase security rules "Staff social media" log-end yes
+set rulebase security rules "Staff social media" disabled yes
+set rulebase security rules "Staff social media" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Partner service" from outside
+set rulebase security rules "Partner service" to dmz
+set rulebase security rules "Partner service" source partner-net
+set rulebase security rules "Partner service" destination [ web-srv web-srv-pub ]
+set rulebase security rules "Partner service" source-user any
+set rulebase security rules "Partner service" category any
+set rulebase security rules "Partner service" application any
+set rulebase security rules "Partner service" service tcp-8443
+set rulebase security rules "Partner service" action allow
+set rulebase security rules "Partner service" log-end yes
+set rulebase security rules "Partner service-apps" from outside
+set rulebase security rules "Partner service-apps" to dmz
+set rulebase security rules "Partner service-apps" source partner-net
+set rulebase security rules "Partner service-apps" destination [ web-srv web-srv-pub ]
+set rulebase security rules "Partner service-apps" source-user any
+set rulebase security rules "Partner service-apps" category any
+set rulebase security rules "Partner service-apps" application ipsec-esp
+set rulebase security rules "Partner service-apps" service application-default
+set rulebase security rules "Partner service-apps" action allow
+set rulebase security rules "Partner service-apps" log-end yes
+set rulebase security rules "Uncategorised web" from inside
+set rulebase security rules "Uncategorised web" to outside
+set rulebase security rules "Uncategorised web" source 10.10.0.200-10.10.0.250
+set rulebase security rules "Uncategorised web" destination any
+set rulebase security rules "Uncategorised web" source-user any
+set rulebase security rules "Uncategorised web" category any
+set rulebase security rules "Uncategorised web" application any
+set rulebase security rules "Uncategorised web" service [ HTTP HTTPS ]
+set rulebase security rules "Uncategorised web" action drop
+set rulebase security rules "Uncategorised web" log-end yes
+set rulebase security rules "Old FTP" from inside
+set rulebase security rules "Old FTP" to outside
+set rulebase security rules "Old FTP" source any
+set rulebase security rules "Old FTP" destination any
+set rulebase security rules "Old FTP" source-user any
+set rulebase security rules "Old FTP" category any
+set rulebase security rules "Old FTP" application any
+set rulebase security rules "Old FTP" service tcp-21
+set rulebase security rules "Old FTP" action allow
+set rulebase security rules "Old FTP" log-end yes
+set rulebase security rules "Old FTP" disabled yes
+set rulebase security rules "DNS answers to resolver" from outside
+set rulebase security rules "DNS answers to resolver" to dmz
+set rulebase security rules "DNS answers to resolver" source any
+set rulebase security rules "DNS answers to resolver" destination 10.20.0.53
+set rulebase security rules "DNS answers to resolver" source-user any
+set rulebase security rules "DNS answers to resolver" category any
+set rulebase security rules "DNS answers to resolver" application any
+set rulebase security rules "DNS answers to resolver" service udp-src-53-dst-1024-65535
+set rulebase security rules "DNS answers to resolver" action allow
+set rulebase security rules "DNS answers to resolver" log-end no
+set rulebase security rules "Branch IPv6" from outside
+set rulebase security rules "Branch IPv6" to dmz
+set rulebase security rules "Branch IPv6" source branch-v6
+set rulebase security rules "Branch IPv6" destination 2001:db8:20::10
+set rulebase security rules "Branch IPv6" source-user any
+set rulebase security rules "Branch IPv6" category any
+set rulebase security rules "Branch IPv6" application any
+set rulebase security rules "Branch IPv6" service HTTPS
+set rulebase security rules "Branch IPv6" action allow
+set rulebase security rules "Branch IPv6" log-end yes
+set rulebase security rules "Branch IPv6-apps" from outside
+set rulebase security rules "Branch IPv6-apps" to dmz
+set rulebase security rules "Branch IPv6-apps" source branch-v6
+set rulebase security rules "Branch IPv6-apps" destination 2001:db8:20::10
+set rulebase security rules "Branch IPv6-apps" source-user any
+set rulebase security rules "Branch IPv6-apps" category any
+set rulebase security rules "Branch IPv6-apps" application ping6
+set rulebase security rules "Branch IPv6-apps" service application-default
+set rulebase security rules "Branch IPv6-apps" action allow
+set rulebase security rules "Branch IPv6-apps" log-end yes
+set rulebase security rules "Ping out" from [ inside dmz ]
+set rulebase security rules "Ping out" to any
+set rulebase security rules "Ping out" source any
+set rulebase security rules "Ping out" destination any
+set rulebase security rules "Ping out" source-user any
+set rulebase security rules "Ping out" category any
+set rulebase security rules "Ping out" application ping
+set rulebase security rules "Ping out" service application-default
+set rulebase security rules "Ping out" action allow
+set rulebase security rules "Ping out" log-end no
+set rulebase security rules "Reset the rest from inside" from inside
+set rulebase security rules "Reset the rest from inside" to any
+set rulebase security rules "Reset the rest from inside" source any
+set rulebase security rules "Reset the rest from inside" destination any
+set rulebase security rules "Reset the rest from inside" source-user any
+set rulebase security rules "Reset the rest from inside" category any
+set rulebase security rules "Reset the rest from inside" application any
+set rulebase security rules "Reset the rest from inside" service any
+set rulebase security rules "Reset the rest from inside" action reset-both
+set rulebase security rules "Reset the rest from inside" log-start yes
+set rulebase security rules "Reset the rest from inside" log-end yes
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules nat-1 from inside
+set rulebase nat rules nat-1 to outside
+set rulebase nat rules nat-1 source lan-net
+set rulebase nat rules nat-1 destination partner-net
+set rulebase nat rules nat-1 service any
+set rulebase nat rules nat-1 description "No NAT towards the partner"
+set rulebase nat rules nat-2 from outside
+set rulebase nat rules nat-2 to outside
+set rulebase nat rules nat-2 source any-ipv4
+set rulebase nat rules nat-2 destination web-srv-pub
+set rulebase nat rules nat-2 service any
+set rulebase nat rules nat-2 destination-translation translated-address web-srv
+set rulebase nat rules nat-2 description "Web server"
+set rulebase nat rules nat-3 from outside
+set rulebase nat rules nat-3 to outside
+set rulebase nat rules nat-3 source any
+set rulebase nat rules nat-3 destination outside-interface
+set rulebase nat rules nat-3 service http-8443
+set rulebase nat rules nat-3 destination-translation translated-address web-srv
+set rulebase nat rules nat-3 destination-translation translated-port 8080
+set rulebase nat rules nat-3 description "Test site on the interface address"
+set rulebase nat rules nat-4 from inside
+set rulebase nat rules nat-4 to outside
+set rulebase nat rules nat-4 source lan-net
+set rulebase nat rules nat-4 destination any
+set rulebase nat rules nat-4 service any
+set rulebase nat rules nat-4 source-translation dynamic-ip-and-port translated-address nat-pool
+set rulebase nat rules nat-mail-srv from dmz
+set rulebase nat rules nat-mail-srv to outside
+set rulebase nat rules nat-mail-srv source mail-srv
+set rulebase nat rules nat-mail-srv destination any
+set rulebase nat rules nat-mail-srv service any
+set rulebase nat rules nat-mail-srv source-translation static-ip translated-address mail-srv-pub
+set rulebase nat rules nat-mail-srv source-translation static-ip bi-directional yes
+set rulebase nat rules nat-dmz-net from dmz
+set rulebase nat rules nat-dmz-net to outside
+set rulebase nat rules nat-dmz-net source dmz-net
+set rulebase nat rules nat-dmz-net destination any
+set rulebase nat rules nat-dmz-net service any
+set rulebase nat rules nat-dmz-net source-translation dynamic-ip-and-port translated-address 203.0.113.2
+set rulebase nat rules nat-after-auto-1 from any
+set rulebase nat rules nat-after-auto-1 to outside
+set rulebase nat rules nat-after-auto-1 source internal
+set rulebase nat rules nat-after-auto-1 destination any
+set rulebase nat rules nat-after-auto-1 service any
+set rulebase nat rules nat-after-auto-1 source-translation dynamic-ip-and-port translated-address 203.0.113.2
+set rulebase nat rules nat-after-auto-1 description "Whatever else leaves"

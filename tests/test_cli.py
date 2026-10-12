@@ -12,7 +12,9 @@ from pathlib import Path
 import pytest
 from helpers import DATA
 
+from fwshift import __version__
 from fwshift.cli import detect_format, main
+from fwshift.emitters.cisco import loader_source
 
 GOLDEN = DATA / "expected"
 CASES = [
@@ -49,6 +51,34 @@ CASES = [
     ("checkpoint_sample.json", "sophos", "checkpoint_to_sophos.xml"),
     ("asa_sample.cfg", "sophos", "asa_to_sophos.xml"),
     ("iptables_sample.rules", "sophos", "iptables_to_sophos.xml"),
+    ("fmc_sample.json", "fmc", "fmc_to_fmc.policy.txt"),
+    ("fmc_sample.json", "fdm", "fmc_to_fdm.json"),
+    ("fmc_sample.json", "panos", "fmc_to_panos.set"),
+    ("fmc_sample.json", "fortios", "fmc_to_fortios.conf"),
+    ("fmc_sample.json", "checkpoint", "fmc_to_checkpoint.sh"),
+    ("fmc_sample.json", "asa", "fmc_to_asa.cfg"),
+    ("fmc_sample.json", "sophos", "fmc_to_sophos.xml"),
+    ("fmc_sample.json", "iptables", "fmc_to_iptables.rules"),
+    ("fdm_sample.txt", "fdm", "fdm_to_fdm.json"),
+    ("fdm_sample.txt", "fmc", "fdm_to_fmc.policy.txt"),
+    ("fdm_sample.txt", "panos", "fdm_to_panos.set"),
+    ("fdm_sample.txt", "fortios", "fdm_to_fortios.conf"),
+    ("fdm_sample.txt", "checkpoint", "fdm_to_checkpoint.sh"),
+    ("fdm_sample.txt", "asa", "fdm_to_asa.cfg"),
+    ("fdm_sample.txt", "sophos", "fdm_to_sophos.xml"),
+    ("fdm_sample.txt", "iptables", "fdm_to_iptables.rules"),
+    ("panos_sample.xml", "fmc", "panos_to_fmc.policy.txt"),
+    ("fortios_sample.conf", "fmc", "fortios_to_fmc.policy.txt"),
+    ("checkpoint_sample.json", "fmc", "checkpoint_to_fmc.policy.txt"),
+    ("asa_sample.cfg", "fmc", "asa_to_fmc.policy.txt"),
+    ("sophos_sample.xml", "fmc", "sophos_to_fmc.policy.txt"),
+    ("iptables_sample.rules", "fmc", "iptables_to_fmc.policy.txt"),
+    ("panos_sample.xml", "fdm", "panos_to_fdm.json"),
+    ("fortios_sample.conf", "fdm", "fortios_to_fdm.json"),
+    ("checkpoint_sample.json", "fdm", "checkpoint_to_fdm.json"),
+    ("asa_sample.cfg", "fdm", "asa_to_fdm.json"),
+    ("sophos_sample.xml", "fdm", "sophos_to_fdm.json"),
+    ("iptables_sample.rules", "fdm", "iptables_to_fdm.json"),
 ]
 
 
@@ -61,6 +91,10 @@ def test_detect_format() -> None:
     assert detect_format(b": Saved\n:\nASA Version 9.12(4)\n!\nhostname fw\n") == "asa"
     assert detect_format(b'<?xml version="1.0" encoding="UTF-8"?>\n<Configuration APIVersion="2000.1">') == "sophos"
     assert detect_format((DATA / "sophos_sample.xml").read_bytes()) == "sophos"
+    assert detect_format((DATA / "fmc_sample.json").read_bytes()) == "fmc" and detect_format((DATA / "fdm_sample.txt").read_bytes()) == "fdm"
+    assert detect_format((DATA / "checkpoint_sample.json").read_bytes()) == "checkpoint"
+    assert detect_format(b'{"items": [{"type": "AccessRule", "name": "r"}], "paging": {"count": 1}}') == "fmc"
+    assert detect_format(b'[{"type": "identitywrapper", "data": {"type": "accessrule", "name": "r"}}]') == "fdm"
 
 
 @pytest.mark.parametrize("source,target,expected", CASES)
@@ -69,11 +103,17 @@ def test_golden_output(source: str, target: str, expected: str, tmp_path: Path) 
     out, report = tmp_path / "out", tmp_path / "report.txt"
     assert main(["convert", str(DATA / source), "--to", target, "-o", str(out), "--report", str(report), "-q"]) == 0
     golden_out, golden_report = GOLDEN / expected, GOLDEN / (expected + ".report.txt")
+    written = out.read_text(encoding="utf-8")
+    if target == "fmc":
+        # The script is the loader, which is a file of its own in the package, and then the policy: the policy is what is kept.
+        head, marker, tail = written.partition("\n# The policy, as data.")
+        assert head == loader_source() and marker
+        written = (marker.lstrip("\n") + tail).replace(f'"generator": "FWShift {__version__}"', '"generator": "FWShift (this version)"')
     if os.environ.get("FWSHIFT_UPDATE_GOLDEN"):
         GOLDEN.mkdir(exist_ok=True)
-        golden_out.write_text(out.read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
+        golden_out.write_text(written, encoding="utf-8", newline="\n")
         golden_report.write_text(report.read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
-    assert out.read_text(encoding="utf-8") == golden_out.read_text(encoding="utf-8")
+    assert written == golden_out.read_text(encoding="utf-8")
     assert report.read_text(encoding="utf-8") == golden_report.read_text(encoding="utf-8")
 
 
@@ -142,9 +182,9 @@ def test_manual_and_code_name_the_same_findings(tmp_path: Path) -> None:
     assert not stale, stale
     raised = set()
     samples = ["panos_sample.xml", "fortios_sample.conf", "checkpoint_sample.json", "iptables_sample.rules", "asa_sample.cfg",
-               "sophos_sample.xml"]  # fmt: skip
+               "sophos_sample.xml", "fmc_sample.json", "fdm_sample.txt"]  # fmt: skip
     for sample in samples:
-        for target in ("panos", "fortios", "checkpoint", "asa", "sophos", "iptables", "ip6tables"):
+        for target in ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "iptables", "ip6tables"):
             report = tmp_path / "report.json"
             args = ["convert", str(DATA / sample), "--to", target, "-o", str(tmp_path / "out"), "--report-json", str(report)]
             assert main(args + ["-q", "--prune-unused"]) == 0

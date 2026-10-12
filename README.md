@@ -10,7 +10,9 @@ what was approximated and what a person has to look at.
 | Palo Alto PAN-OS / Panorama | XML configuration export | `set` commands |
 | Fortinet FortiOS | configuration backup (CLI text) | CLI configuration |
 | Check Point | Management API export (JSON) | shell script of `mgmt_cli` calls |
-| Cisco ASA (and FTD, read only) | `show running-config` | ASA commands (9.x) |
+| Cisco ASA (and the running configuration of an FTD, read only) | `show running-config` | ASA commands (9.x) |
+| Cisco Secure Firewall (FTD) managed by a Management Center (FMC) | the JSON its REST API returns | a Python script that creates a new policy through the REST API |
+| Cisco Secure Firewall (FTD) managed by its Device Manager (FDM) | the configuration export (`.txt` or `.zip`), or the JSON of its REST API | a file for the configuration import |
 | Sophos Firewall (SFOS 18 and later) | the export of *Import export* (`.tar` or its `Entities.xml`) | the same, for import |
 | Linux iptables / ip6tables | `iptables-save` output | `iptables-restore` file |
 
@@ -22,7 +24,7 @@ on which services, through which rules.
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.6).** The converter is tested against synthetic
+> **Status: alpha (0.7).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** is checked against the real thing: generated rulesets are
@@ -30,14 +32,18 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   compared with the model, in both directions. That covers the IPv4 filter
 >   rules on one kernel (iptables 1.8.10, nf_tables backend); NAT rules and
 >   IPv6 rulesets are loaded but no packets are sent through them.
-> * **PAN-OS, FortiOS, Check Point, Cisco ASA and Sophos Firewall** output
->   has **not been loaded on a device or management server**. The Check Point
->   input format is taken from the API documentation, not from a real export,
->   the ASA and FTD syntax from Cisco's command references, and the Sophos
->   format from the documentation of its XML API and the templates of
->   Sophos's own SDK; a few element names of a Sophos NAT rule are in neither.
->   Several conversion rules rest on vendor behaviour taken from documentation
->   rather than from a lab.
+> * **PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall and
+>   Sophos Firewall** output has **not been loaded on a device or management
+>   server**. The Check Point input format is taken from the API
+>   documentation, not from a real export, the ASA and FTD syntax from Cisco's
+>   command references, and the Sophos format from the documentation of its
+>   XML API and the templates of Sophos's own SDK; a few element names of a
+>   Sophos NAT rule are in neither. The JSON of a Management Center and of a
+>   Device Manager is taken from the API documentation and from the tooling
+>   Cisco publishes for both (Ansible, Terraform, its Python client); the
+>   script for a Management Center has only ever talked to a stand-in written
+>   for the tests. Several conversion rules rest on vendor behaviour taken
+>   from documentation rather than from a lab.
 >
 > Treat the output as a draft for a lab, read the report, and never load it in
 > production unreviewed.
@@ -91,8 +97,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.6.1.pyz --version
-python3 fwshift-0.6.1.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.7.0.pyz --version
+python3 fwshift-0.7.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -134,6 +140,22 @@ fwshift convert running-config.xml --to sophos -o import.tar --report report.txt
     --zone-map trust=LAN --zone-map untrust=WAN \
     --interface-map ethernet1/1=Port2 --interface-map ethernet1/2=Port1
 
+# Cisco Secure Firewall, Management Center: what its REST API answers, saved
+# to a file, is the input. To one, the output is a script: look at what it
+# would do, try it without creating anything, then run it. It creates a new
+# policy and assigns it to no device
+fwshift convert fmc-export.json --to panos -o panos.set --report report.txt
+fwshift convert asa-running.cfg --to fmc -o load_policy.py --report report.txt --target-policy "From the ASA"
+python3 load_policy.py --show
+python3 load_policy.py --host fmc.example.net --user api-user --dry-run
+
+# Cisco Secure Firewall, Device Manager: the export is read as it is (the zip
+# too); to one, the output is a file for its configuration import
+fwshift convert fdm-export.zip --to fortios -o fortigate.conf --report report.txt
+fwshift convert fgt-backup.conf --to fdm -o import.txt --report report.txt \
+    --zone-map lan=inside_zone --zone-map wan1=outside_zone \
+    --interface-map lan=inside --interface-map wan1=outside
+
 # What did the parser read?
 fwshift inspect fgt-backup.conf
 
@@ -155,7 +177,8 @@ fwshift matrix running-config.xml --network-zone office@trust=10.10.0.0/16 \
 The [manual](docs/MANUAL.md#3-getting-the-source-configuration) shows how to
 get the input for each platform; for Check Point that is three `mgmt_cli show`
 calls, for an ASA `show running-config`, for a Sophos Firewall an export under
-*Backup & firmware > Import export*.
+*Backup & firmware > Import export*, for a Management Center a handful of
+`curl` calls to its REST API, for a Device Manager its configuration export.
 
 The report starts with a summary and then lists every rule that is not exact:
 
@@ -201,7 +224,7 @@ proves nothing about another rule: the audit lists it instead.
 `--audit-fail-on high` makes it a gate for a pipeline. See
 [section 13 of the manual](docs/MANUAL.md#13-auditing-a-policy).
 
-Six synthetic configurations to try it on, one per format, are in
+Eight synthetic configurations to try it on, one per format, are in
 [`tests/data`](tests/data), with their conversions in
 [`tests/data/expected`](tests/data/expected).
 
@@ -274,6 +297,15 @@ knows only interfaces. Text, JSON or CSV. See
 | NAT | NAT rules, first match: source (MASQ, host, range), destination with port translation, both in one rule, no-NAT, load balancing as "one of these addresses"; linked NAT rules as rules of their own; interfaces as zones |
 | Scope | SFOS 18 and later; the whole export |
 
+| | Cisco Secure Firewall (Management Center, Device Manager) |
+|---|---|
+| Address objects | host, network, range, FQDN; literals of a rule or a group. Written: the same, with the predefined `any-ipv4` and `any-ipv6` for every address |
+| Address groups | network groups, nested. Written without host names, which the rules then name; flat for a Device Manager |
+| Services | port objects (TCP, UDP), ICMP and ICMPv6 objects, other protocols, port groups; source ports and destination ports of a rule together. Written: one port or range per object, more as a group; a rule per set of source ports |
+| Security rules | access rules, first match: mandatory before default, inherited policies around their children; Allow, Trust, Block, Block with reset, Interactive Block as Block, Monitor left out. The prefilter policy of a Management Center first: Fastpath, Block, tunnel rules as rules for GRE, IP in IP, IPv6 in IP and Teredo, its default action. Written: a new access control policy that blocks by default, or rules for an import; no negation (the addresses that are left are written) |
+| NAT | manual and automatic NAT in the order the device applies them: static, dynamic, PAT pools, the address of an interface, published ports, exemptions. Written as manual rules before the automatic ones |
+| Scope | one access control policy with the policies it inherits from, its prefilter policy and one NAT policy (Management Center); the device (Device Manager) |
+
 Not converted, and reported where a rule depends on it: security profiles,
 schedules, user and group matches, URL categories, HIP profiles, application
 filters, wildcard-mask and geography addresses, external dynamic lists,
@@ -282,7 +314,9 @@ Check Point access roles, application objects, VPN communities and implied
 rules, iptables match modules beyond addresses, ports and state, the `INPUT`
 and `OUTPUT` chains, ASA time ranges, identity (user and TrustSec) matches,
 outbound access lists that do more than deny, NAT of ASA releases before 8.3,
-the application, URL and user conditions of FTD rules, Sophos web server
+the application, URL, user, VLAN, security group tag and dynamic object
+conditions of FTD rules, its intrusion, file and SSL policies, what a prefilter
+rule with the action Analyze does to the traffic inside a tunnel, Sophos web server
 protection rules, Security Heartbeat conditions, MAC hosts and country groups,
 routing, interfaces, VPN, and everything else outside the policy.
 
@@ -290,9 +324,9 @@ routing, interfaces, VPN, and everything else outside the policy.
 
 [TODO.md](TODO.md) has the list. In short:
 
-* **More firewall brands, one per release**: Cisco Secure Firewall, formerly
-  Firepower (0.7), pfSense (0.8), SonicWall (0.9), WatchGuard (0.10),
-  Barracuda (0.11), Juniper (0.12). Sophos Firewall was 0.6.
+* **More firewall brands, one per release**: pfSense (0.8), SonicWall (0.9),
+  WatchGuard (0.10), Barracuda (0.11), Juniper (0.12). Sophos Firewall was
+  0.6, Cisco Secure Firewall (formerly Firepower) 0.7.
 * Audit and matrix: the matrix before and after a conversion, a zone and
   conduit model as a file to check a policy against, an equivalence check as
   a command, zone ranks, hit counts.

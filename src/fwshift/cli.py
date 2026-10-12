@@ -17,6 +17,7 @@ from . import __version__, audit, matrix, transform
 from .appmap import load_app_map
 from .emitters import asa as emit_asa
 from .emitters import checkpoint as emit_checkpoint
+from .emitters import cisco as emit_cisco
 from .emitters import fortios as emit_fortios
 from .emitters import iptables as emit_iptables
 from .emitters import panos as emit_panos
@@ -27,6 +28,7 @@ from .netutil import parse_literal
 from .options import Options
 from .parsers import asa as parse_asa
 from .parsers import checkpoint as parse_checkpoint
+from .parsers import cisco as parse_cisco
 from .parsers import fortios as parse_fortios
 from .parsers import iptables as parse_iptables
 from .parsers import panos as parse_panos
@@ -41,16 +43,29 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "checkpoint": emit_checkpoint.emit,
     "asa": emit_asa.emit,
     "sophos": emit_sophos.emit,
+    "fmc": emit_cisco.emit_fmc,
+    "fdm": emit_cisco.emit_fdm,
 }
-VENDORS = ("panos", "fortios", "checkpoint", "asa", "sophos", "iptables", "ip6tables")
+VENDORS = ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "iptables", "ip6tables")
 
 
 def detect_format(data: bytes) -> str:
-    """A Sophos export is a tar archive or XML that starts with <Configuration>, other XML is PAN-OS, Check Point
-    API output is JSON, iptables-save output starts with a table, an ASA configuration has lines only an ASA
-    writes; anything else is taken as FortiOS."""
-    if data[:2] == b"\x1f\x8b" or data[:3] == b"BZh" or data[:6] == b"\xfd7zXZ\x00" or data[:4] == b"PK\x03\x04":
-        raise FwshiftError("the input is compressed (gzip, bzip2, xz or zip); unpack it and give FWShift the file inside")
+    """A Sophos export is a tar archive or XML that starts with <Configuration>, other XML is PAN-OS; JSON is what a
+    Cisco manager or the Check Point API returns, told apart by the types of the objects in it; a zip is the export
+    of a Cisco Firewall Device Manager; iptables-save output starts with a table, an ASA configuration has lines
+    only an ASA writes; anything else is taken as FortiOS."""
+    if parse_cisco.is_zip(data):
+        # The one zip that is read as it is: the configuration export of a Cisco Firewall Device Manager.
+        try:
+            why = "" if parse_cisco.dialect_of(parse_cisco.unzip(data)) == "fdm" else "the file in it is not a configuration of a Device Manager"
+        except FwshiftError as error:
+            why = str(error)
+        if not why:
+            return "fdm"
+        raise FwshiftError("the input is compressed (a zip), and not the configuration export of a Firewall Device Manager as FWShift "
+                           f"reads it ({why}). Unpack it and give FWShift the file inside")  # fmt: skip
+    if data[:2] == b"\x1f\x8b" or data[:3] == b"BZh" or data[:6] == b"\xfd7zXZ\x00":
+        raise FwshiftError("the input is compressed (gzip, bzip2 or xz); unpack it and give FWShift the file inside")
     if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
         data = data[:65536].decode("utf-16", errors="replace").encode("utf-8")  # the start is enough to tell
     if parse_sophos.looks_like_sophos(data):
@@ -59,7 +74,7 @@ def detect_format(data: bytes) -> str:
     if head.startswith(b"<"):
         return "panos"
     if head.startswith((b"{", b"[")):
-        return "checkpoint"
+        return parse_cisco.dialect_of(data) or "checkpoint"
     for line in head.splitlines()[:50]:
         line = line.strip()
         if line.startswith(b"*") or (line.startswith(b"#") and b"tables-save" in line):
@@ -72,8 +87,9 @@ def detect_format(data: bytes) -> str:
 
 
 def load(
-    data: bytes, source: str, report: Report, vsys: str = "", device_group: str = "", vdom: str = "", layer: str = ""
-) -> Policy:
+    data: bytes, source: str, report: Report, vsys: str = "", device_group: str = "", vdom: str = "", layer: str = "",
+    policy: str = "", nat_policy: str = "",
+) -> Policy:  # fmt: skip
     if source == "panos":
         return parse_panos.parse(data, report, vsys=vsys, device_group=device_group)
     if source == "fortios":
@@ -84,6 +100,8 @@ def load(
         return parse_asa.parse(data, report)
     if source == "sophos":
         return parse_sophos.parse(data, report)
+    if source in ("fmc", "fdm"):
+        return parse_cisco.parse(data, report, source, policy=policy, nat_policy=nat_policy)
     if source in ("iptables", "ip6tables"):
         return parse_iptables.parse(data, report, family=6 if source == "ip6tables" else 0)
     raise FwshiftError(f"unknown source format '{source}'")
@@ -98,7 +116,7 @@ def convert(policy: Policy, target: str, report: Report, options: Optional[Optio
              "target scope": options.target_scope, "--target-vdom": options.target_vdom,
              "--target-nat-zone": options.nat_zone, "--target-layer": options.target_layer,
              "--target-package": options.target_package, "--target-gateway": options.target_gateway,
-             "--target-prefix": options.object_prefix,
+             "--target-prefix": options.object_prefix, "--target-policy": options.target_policy,
              "--zone-network": " ".join(options.zone_networks)}  # fmt: skip
     transform.check_words(words)
     if ANY in options.zone_map.values():
@@ -263,13 +281,15 @@ def _source_options(parser: argparse.ArgumentParser, optional: bool = False) -> 
     parser.add_argument("--device-group", default="", help="Panorama source: device group to read")
     parser.add_argument("--vdom", default="", help="FortiOS source: VDOM to read")
     parser.add_argument("--layer", default="", help="Check Point source: access layer to read")
+    parser.add_argument("--policy", default="", help="Management Center source (fmc): access control policy to read")
+    parser.add_argument("--nat-policy", default="", help="Management Center source (fmc): NAT policy to read")
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="fwshift",
-        description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Sophos Firewall and iptables, "
-        "with a lossiness report.",
+        description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall "
+        "(Management Center and Device Manager), Sophos Firewall and iptables, with a lossiness report.",
     )
     parser.add_argument("--version", action="version", version=f"fwshift {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -299,7 +319,8 @@ def build_parser() -> argparse.ArgumentParser:
     conv.add_argument(
         "--target-nat-zone", default="", metavar="ZONE",
         help="PAN-OS target: destination zone for NAT rules of a source that names none; "
-        "ASA target: interface for NAT to the outgoing interface where the rule names none",
+        "ASA target: interface for NAT to the outgoing interface where the rule names none; "
+        "Cisco Secure Firewall targets: its zone",
     )  # fmt: skip
     conv.add_argument("--target-vdom", default="", metavar="NAME", help="FortiOS target: write into this VDOM")
     conv.add_argument(
@@ -315,8 +336,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--target-gateway", default="", metavar="NAME", help="Check Point target: gateway object that hide NAT uses"
     )
     conv.add_argument(
-        "--target-prefix", default="", metavar="TEXT", help="Check Point, ASA and Sophos targets: prefix for the names of created objects"
-    )
+        "--target-prefix", default="", metavar="TEXT",
+        help="Check Point, ASA, Sophos and Cisco Secure Firewall targets: prefix for the names of created objects",
+    )  # fmt: skip
+    conv.add_argument(
+        "--target-policy", default="FWShift", metavar="NAME",
+        help="Management Center target (fmc): name of the access control policy and the NAT policy the script creates (default: FWShift)",
+    )  # fmt: skip
     conv.add_argument("--strict", action="store_true", help="exit with status 2 when anything needs review")
     conv.add_argument("-q", "--quiet", action="store_true", help="do not print the report or the summary")
     conv.add_argument(
@@ -353,7 +379,7 @@ def _run_convert(args: argparse.Namespace) -> int:
     data = _read(args.input)
     source = args.source or detect_format(data)
     report = Report()
-    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer)
+    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy)
     report.source = source + (f" ({policy.scope})" if policy.scope else "")
     if args.prune_unused:
         dropped = transform.prune_unused(policy)
@@ -377,6 +403,7 @@ def _run_convert(args: argparse.Namespace) -> int:
         target_package=args.target_package,
         target_gateway=args.target_gateway,
         object_prefix=args.target_prefix,
+        target_policy=args.target_policy,
         zone_networks=_networks(args.zone_network),
     )
     auditing = bool(args.audit or args.audit_config or args.audit_action or args.audit_accept or args.audit_fail_on)
@@ -432,7 +459,7 @@ def _run_audit(args: argparse.Namespace) -> int:
     data = _read(args.input)
     source = args.source or detect_format(data)
     report = Report()
-    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer)
+    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy)
     transform.harden(policy, report)
     result = audit.run(policy, config, report)
     disabled = sum(1 for rule in policy.rules if not rule.enabled)
@@ -459,7 +486,7 @@ def _run_matrix(args: argparse.Namespace) -> int:
     data = _read(args.input)
     source = args.source or detect_format(data)
     report = Report()
-    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer)
+    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy)
     transform.harden(policy, report)
     result = matrix.build(policy, config, report, networks)
     if args.json:
@@ -481,7 +508,7 @@ def _run_inspect(args: argparse.Namespace) -> int:
     data = _read(args.input)
     source = args.source or detect_format(data)
     report = Report()
-    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer)
+    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy)
     transform.harden(policy, report)
     lines: List[str] = [
         f"format:          {source}",

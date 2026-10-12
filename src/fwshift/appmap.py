@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from .errors import FwshiftError
 from .model import Protocol, ServiceEntry
@@ -278,3 +278,101 @@ SOPHOS_FACTORY_SERVICE_NAMES = frozenset(
     UUCP VDOLIVE WAIS WINFRAME X-WINDOWS UDP ICMP ICMPv6 RDP SMB TRACEROUTE VNC MS-SQL MYSQL RADIUS KERBEROS
     Chromecast SSLVPN Any""".split()
 )
+
+
+# -- Cisco Secure Firewall -------------------------------------------------------------------------
+
+_ALNUM = re.compile(r"[^a-z0-9]")
+# Other spellings of a protocol than the keyword of the IANA registry, as the managers and their
+# tools write them. A name that means two things somewhere is left out.
+_PROTOCOL_ALIASES = {"icmpv6": 58, "icmp6": 58, "ipv6icmp": 58, "ospf": 89, "ipinip": 4, "ipv4": 4, "ipencap": 4,
+                     "udplite": 136, "tpplusplus": 39, "threepc": 34, "nvp2": 11, "st2": 5, "ipv6nonxt": 59,
+                     "ipv6route": 43, "ipv6frag": 44, "ipv6opts": 60, "mobilityheader": 135}  # fmt: skip
+_IANA_NUMBERS = {_ALNUM.sub("", name.lower()): number for number, name in SOPHOS_PROTOCOL_NAMES.items()}
+
+
+def protocol_number(name: str) -> Optional[int]:
+    """The IP protocol behind a name or a number as a Cisco manager writes it; None when that is not known.
+
+    Names are compared without case and punctuation, against the keywords of the IANA registry.
+    """
+    text = name.strip()
+    if is_plain_number(text):
+        # 0 is "ip" on a Cisco command line, which is every protocol: not a protocol to convert as one.
+        return int(text) if len(text) <= 3 and 0 < int(text) <= 255 else None
+    key = _ALNUM.sub("", text.lower())
+    if key in ("ip", "all", "any", "hopopt"):
+        return None
+    if key in _PROTOCOL_ALIASES:
+        return _PROTOCOL_ALIASES[key]
+    return _IANA_NUMBERS.get(key)
+
+
+def is_plain_number(text: str) -> bool:
+    return text.isascii() and text.isdigit()
+
+
+# The Device Manager names protocols, ICMP types and ICMP codes with an enumeration. The names are the
+# keywords of the IANA registries without punctuation; the numbers were taken from the registries.
+FDM_PROTOCOLS: Dict[str, int] = {
+    "IGMP": 2, "GGP": 3, "ST2": 5, "TCP": 6, "CBT": 7, "EGP": 8, "IGP": 9, "BBNRCCMON": 10, "NVP2": 11, "PUP": 12,
+    "ARGUS": 13, "EMCON": 14, "XNET": 15, "CHAOS": 16, "UDP": 17, "MUX": 18, "DCNMEAS": 19, "HMP": 20, "PRM": 21,
+    "XNSIDP": 22, "TRUNK1": 23, "TRUNK2": 24, "LEAF1": 25, "LEAF2": 26, "RDP": 27, "IRTP": 28, "ISOTP4": 29,
+    "NETBLT": 30, "MFENSP": 31, "MERITINP": 32, "SEP": 33, "THREEPC": 34, "IDPR": 35, "XTP": 36, "DDP": 37,
+    "IDPRCMTP": 38, "TPPLUSPLUS": 39, "IL": 40, "SDRP": 42, "IDRP": 45, "RSVP": 46, "GRE": 47, "MHRP": 48, "BNA": 49,
+    "ESP": 50, "AH": 51, "INLSP": 52, "SWIPE": 53, "NARP": 54, "MOBILE": 55, "TLSP": 56, "SKIP": 57, "IPv6NONXT": 59,
+    "CFTP": 62, "SATEXPAK": 64, "KRYPTOLAN": 65, "RVD": 66, "IPPC": 67, "SATMON": 69, "VISA": 70, "IPCV": 71,
+    "CPNX": 72, "CPHB": 73, "WSN": 74, "PVP": 75, "BRSATMON": 76, "SUNND": 77, "WBMON": 78, "WBEXPAK": 79,
+    "ISOIP": 80, "VMTP": 81, "SECUREVMTP": 82, "VINES": 83, "TTP": 84, "NSFNETIGP": 85, "DGP": 86, "TCF": 87,
+    "EIGRP": 88, "OSPFIGP": 89, "SPRITERPC": 90, "LARP": 91, "MTP": 92, "AX25": 93, "IPIP": 94, "MICP": 95,
+    "SCCSP": 96, "ETHERIP": 97, "ENCAP": 98, "GMTP": 100, "IFMP": 101, "PNNI": 102, "PIM": 103, "ARIS": 104,
+    "SCPS": 105, "QNX": 106, "AN": 107, "IPCOMP": 108, "SNP": 109, "COMPAQPEER": 110, "IPXINIP": 111, "VRRP": 112,
+    "PGM": 113, "L2TP": 115, "DDX": 116, "IATP": 117, "ST": 118, "SRP": 119, "UTI": 120, "SMP": 121, "SM": 122,
+    "PTP": 123, "ISIS": 124, "FIRE": 125, "CRTP": 126, "CRUDP": 127, "SSCOPMCE": 128, "IPLT": 129, "SPS": 130,
+    "PIPE": 131, "SCTP": 132, "FC": 133,
+}  # fmt: skip
+FDM_PROTOCOL_NAMES: Dict[int, str] = {number: name for name, number in FDM_PROTOCOLS.items()}
+FDM_ICMP_TYPES: Dict[str, int] = {
+    "ECHO_REPLY": 0, "DESTINATION_UNREACHABLE": 3, "SOURCE_QUENCH": 4, "REDIRECT_MESSAGE": 5, "ALTERNATE_HOST_ADDRESS": 6,
+    "ECHO_REQUEST": 8, "ROUTER_ADVERTISEMENT": 9, "ROUTER_SOLICITATION": 10, "TIME_EXCEEDED": 11, "PARAMETER_PROBLEM": 12,
+    "TIMESTAMP": 13, "TIMESTAMP_REPLY": 14, "INFO_REQUEST": 15, "INFO_REPLY": 16, "ADDR_MASK_REQUEST": 17,
+    "ADDR_MASK_REPLY": 18, "TRACEROUTE": 30, "DATAGRAM_CONVERSION_ERROR": 31, "MOBILE_HOST_REDIRECT": 32,
+    "WHERE_ARE_YOU": 33, "HERE_I_AM": 34, "MOBILE_REG_REQUEST": 35, "MOBILE_REG_REPLY": 36, "DOMAIN_NAME_REQUEST": 37,
+    "DOMAIN_NAME_REPLY": 38, "SKIP_ALGORITHM_DISCOVERY_PROTOCOL": 39, "PHOTURIS": 40, "EXPERIMENTAL_MOB_PROTOCOLS": 41,
+}  # fmt: skip
+# Code name -> (type it belongs to, code).
+FDM_ICMP_CODES: Dict[str, Tuple[int, int]] = {
+    "NET_UNREACHABLE": (3, 0), "HOST_UNREACHABLE": (3, 1), "PROTOCOL_UNREACHABLE": (3, 2), "PORT_UNREACHABLE": (3, 3),
+    "FRAGMENTATION_NEEDED": (3, 4), "SOURCE_ROUTE_FAILED": (3, 5), "DEST_NETWORK_UNKNOWN": (3, 6),
+    "DEST_HOST_UNKNOWN": (3, 7), "SRC_HOST_ISOLATED": (3, 8), "COMMUNICATION_DEST_NET_PROHIBITED": (3, 9),
+    "COMMUNICATION_DEST_HOST_PROHIBITED": (3, 10), "DEST_NET_UNREACHABLE_FOR_TOS": (3, 11),
+    "DEST_HOST_UNREACHABLE_FOR_TOS": (3, 12), "COMM_ADMINISTRATIVELY_PROHIBITED": (3, 13),
+    "HOST_PRECEDENCE_VIOLATION": (3, 14), "PRECEDENCE_CUTOFF": (3, 15), "REDIRECT_DATAGRAM_NETWORK": (5, 0),
+    "REDIRECT_DATAGRAM_HOST": (5, 1), "REDIRECT_DATAGRAM_SERVICE_NETWORK": (5, 2), "REDIRECT_DATAGRAM_SERVICE_HOST": (5, 3),
+    "ALTERNATE_HOST_ADDR": (6, 0), "NORMAL_ROUTER_ADV": (9, 0), "DO_NOT_ROUTE_COMMON_TRAFFIC": (9, 16),
+    "TTL_EXPIRED_TRANSIT": (11, 0), "FRAG_ASSEMBLY": (11, 1), "PTR_ERROR": (12, 0), "MISSING_REQD_OPTION": (12, 1),
+    "BAD_LENGTH": (12, 2), "BAD_SPI": (40, 0), "AUTH_FAILED": (40, 1), "DECOMPRESSION_FAILED": (40, 2),
+    "DECRYPTION_FAILED": (40, 3), "NEED_AUTHENTICATION": (40, 4), "NEED_AUTHORIZATION": (40, 5),
+}  # fmt: skip
+FDM_ICMP6_TYPES: Dict[str, int] = {
+    "DESTINATION_UNREACHABLE": 1, "PACKET_TOO_BIG": 2, "TIME_EXCEEDED": 3, "PARAMETER_PROBLEM": 4, "ECHO_REQUEST": 128,
+    "ECHO_REPLY": 129, "MULTICAST_LISTENER_QUERY": 130, "MULTICAST_LISTENER_REPORT": 131, "MULTICAST_LISTENER_DONE": 132,
+    "ROUTER_SOLICITATION": 133, "ROUTER_ADVERTISEMENT": 134, "NEIGHBOUR_SOLICITATION": 135,
+    "NEIGHBOUR_ADVERTISEMENT": 136, "REDIRECT_MESSAGE": 137, "ROUTER_RENUMBERING": 138, "ICMP_NODE_INFO_QUERY": 139,
+    "ICMP_NODE_INFO_RESPONSE": 140, "INVERSE_NEIGHBOR_DISCOVERY_SOLICITATION": 141,
+    "INVERSE_NEIGHBOR_DISCOVERY_ADVERTISEMENT": 142, "VER2_MULTICAST_LISTENER_REPORT": 143,
+    "HOME_AGENT_ADDR_DISCOVERY_REQ": 144, "HOME_AGENT_ADDR_DISCOVERY_REPLY": 145, "MOBILE_PREFIX_SOLICITATION": 146,
+    "MOBILE_PREFIX_ADVERTISEMENT": 147, "CERT_PATH_SOLICITATION": 148, "CERT_PATH_ADVERTISEMENT": 149,
+    "ICMP_EXP_MOBILITY_PROTOCOLS": 150, "MULTICAST_ROUTER_ADVERTISEMENT": 151, "MULTICAST_ROUTER_SOLICITATION": 152,
+    "MULTICAST_ROUTER_TERMINATION": 153, "FMIPv6_MSG": 154, "RPL_CTRL_MSG": 155,
+}  # fmt: skip
+FDM_ICMP6_CODES: Dict[str, Tuple[int, int]] = {
+    "NO_ROUTE_DEST": (1, 0), "COMMUNICATION_PROHIBITED": (1, 1), "BEYOND_SCOPE_SRC_ADDR": (1, 2),
+    "ADDRESS_UNREACHABLE": (1, 3), "PORT_UNREACHABLE": (1, 4), "SOURCE_ADDRESS_FAILED": (1, 5), "REJECT_ROUTE": (1, 6),
+    "ERROR_SRC_ROUTING_HEADER": (1, 7), "HOP_LIMIT_EXCEEDED": (3, 0), "FRAGMENT_REASSEMBLY_TIME_EXCEEDED": (3, 1),
+    "ERRONEOUS_HEADER_ENCOUNTERED": (4, 0), "UNRECOGNIZED_NEXT_HEADER_TYPE_ENCOUNTERED": (4, 1),
+    "UNRECOGNIZED_IPv6_OPTION_ENCOUNTERED": (4, 2), "ROUTER_RENUMBERING_COMMAND": (138, 0),
+    "ROUTER_RENUMBERING_RESULT": (138, 1), "SEQUENCE_NUMBER_RESET": (138, 255), "DATA_CONTAINS_IPv6": (139, 0),
+    "DATA_CONTAINS_NAME": (139, 1), "DATA_CONTAINS_IPv4": (139, 2), "SUCCESSFUL_REPLY": (140, 0),
+    "RESPONDER_REFUSES_ANSWER": (140, 1), "QTYPE_UNKNOWN": (140, 2),
+}  # fmt: skip

@@ -1,0 +1,158 @@
+set address any-ipv4 ip-netmask 0.0.0.0/0
+set address any-ipv6 ip-netmask ::/0
+set address office-lan ip-netmask 10.40.0.0/24
+set address office-lan description "Branch office"
+set address iot-net ip-netmask 10.41.0.0/24
+set address nas ip-netmask 10.40.0.10/32
+set address nas-public ip-netmask 192.0.2.10/32
+set address printers ip-range 10.40.0.200-10.40.0.220
+set address head-office-v6 ip-netmask 2001:db8:1::/48
+set address vendor-cloud fqdn telemetry.example.net
+set address outside-interface ip-netmask 192.0.2.2/32
+set address outside-interface description "address of interface outside when the configuration was read"
+set address-group office-devices static [ nas printers ]
+set service HTTPS protocol tcp port 443
+set service HTTP protocol tcp port 80
+set service rdp protocol tcp port 3389
+set service nas-web protocol tcp port 5001
+set service nas-external protocol tcp port 8443
+set service DNS_over_UDP protocol udp port 53
+set service udp-high protocol udp port 1024-65535
+set service udp-src-53-dst-1024-65535 protocol udp port 1024-65535
+set service udp-src-53-dst-1024-65535 protocol udp source-port 53
+set service-group web members [ HTTP HTTPS ]
+set rulebase security rules Block_IoT_to_office from inside_zone
+set rulebase security rules Block_IoT_to_office to inside_zone
+set rulebase security rules Block_IoT_to_office source iot-net
+set rulebase security rules Block_IoT_to_office destination [ office-lan nas-public ]
+set rulebase security rules Block_IoT_to_office source-user any
+set rulebase security rules Block_IoT_to_office category any
+set rulebase security rules Block_IoT_to_office application any
+set rulebase security rules Block_IoT_to_office service any
+set rulebase security rules Block_IoT_to_office action drop
+set rulebase security rules Block_IoT_to_office log-start yes
+set rulebase security rules Block_IoT_to_office log-end yes
+set rulebase security rules Inside_Outside_web from inside_zone
+set rulebase security rules Inside_Outside_web to outside_zone
+set rulebase security rules Inside_Outside_web source office-lan
+set rulebase security rules Inside_Outside_web destination any
+set rulebase security rules Inside_Outside_web source-user any
+set rulebase security rules Inside_Outside_web category any
+set rulebase security rules Inside_Outside_web application any
+set rulebase security rules Inside_Outside_web service [ web DNS_over_UDP ]
+set rulebase security rules Inside_Outside_web action allow
+set rulebase security rules Inside_Outside_web log-end yes
+set rulebase security rules IoT_telemetry from inside_zone
+set rulebase security rules IoT_telemetry to outside_zone
+set rulebase security rules IoT_telemetry source iot-net
+set rulebase security rules IoT_telemetry destination vendor-cloud
+set rulebase security rules IoT_telemetry source-user any
+set rulebase security rules IoT_telemetry category any
+set rulebase security rules IoT_telemetry application any
+set rulebase security rules IoT_telemetry service HTTPS
+set rulebase security rules IoT_telemetry action allow
+set rulebase security rules IoT_telemetry log-end yes
+set rulebase security rules NAS_from_Internet from outside_zone
+set rulebase security rules NAS_from_Internet to inside_zone
+set rulebase security rules NAS_from_Internet source any
+set rulebase security rules NAS_from_Internet destination [ nas outside-interface nas-public ]
+set rulebase security rules NAS_from_Internet source-user any
+set rulebase security rules NAS_from_Internet category any
+set rulebase security rules NAS_from_Internet application any
+set rulebase security rules NAS_from_Internet service nas-web
+set rulebase security rules NAS_from_Internet action allow
+set rulebase security rules NAS_from_Internet log-end yes
+set rulebase security rules Head_office_v6 from outside_zone
+set rulebase security rules Head_office_v6 to any
+set rulebase security rules Head_office_v6 source head-office-v6
+set rulebase security rules Head_office_v6 destination [ office-devices nas-public ]
+set rulebase security rules Head_office_v6 source-user any
+set rulebase security rules Head_office_v6 category any
+set rulebase security rules Head_office_v6 application any
+set rulebase security rules Head_office_v6 service rdp
+set rulebase security rules Head_office_v6 action allow
+set rulebase security rules Head_office_v6 log-end no
+set rulebase security rules Head_office_v6-apps from outside_zone
+set rulebase security rules Head_office_v6-apps to any
+set rulebase security rules Head_office_v6-apps source head-office-v6
+set rulebase security rules Head_office_v6-apps destination [ office-devices nas-public ]
+set rulebase security rules Head_office_v6-apps source-user any
+set rulebase security rules Head_office_v6-apps category any
+set rulebase security rules Head_office_v6-apps application [ ping gre ]
+set rulebase security rules Head_office_v6-apps service application-default
+set rulebase security rules Head_office_v6-apps action allow
+set rulebase security rules Head_office_v6-apps log-end no
+set rulebase security rules DNS_answers from outside_zone
+set rulebase security rules DNS_answers to inside_zone
+set rulebase security rules DNS_answers source any
+set rulebase security rules DNS_answers destination any
+set rulebase security rules DNS_answers source-user any
+set rulebase security rules DNS_answers category any
+set rulebase security rules DNS_answers application any
+set rulebase security rules DNS_answers service udp-src-53-dst-1024-65535
+set rulebase security rules DNS_answers action allow
+set rulebase security rules DNS_answers log-end no
+set rulebase security rules Staff_streaming from inside_zone
+set rulebase security rules Staff_streaming to outside_zone
+set rulebase security rules Staff_streaming source any
+set rulebase security rules Staff_streaming destination any
+set rulebase security rules Staff_streaming source-user any
+set rulebase security rules Staff_streaming category any
+set rulebase security rules Staff_streaming application any
+set rulebase security rules Staff_streaming service any
+set rulebase security rules Staff_streaming action drop
+set rulebase security rules Staff_streaming log-end yes
+set rulebase security rules Staff_streaming disabled yes
+set rulebase security rules Staff_streaming description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules Guests_by_time from inside_zone
+set rulebase security rules Guests_by_time to outside_zone
+set rulebase security rules Guests_by_time source printers
+set rulebase security rules Guests_by_time destination any
+set rulebase security rules Guests_by_time source-user any
+set rulebase security rules Guests_by_time category any
+set rulebase security rules Guests_by_time application icmp
+set rulebase security rules Guests_by_time service application-default
+set rulebase security rules Guests_by_time action allow
+set rulebase security rules Guests_by_time log-end yes
+set rulebase security rules Guests_by_time disabled yes
+set rulebase security rules Guests_by_time description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules NAS_published from outside_zone
+set rulebase nat rules NAS_published to outside_zone
+set rulebase nat rules NAS_published source any
+set rulebase nat rules NAS_published destination outside-interface
+set rulebase nat rules NAS_published service nas-external
+set rulebase nat rules NAS_published destination-translation translated-address nas
+set rulebase nat rules NAS_published destination-translation translated-port 5001
+set rulebase nat rules NAS_published description "NAS web interface on the outside address"
+set rulebase nat rules nas_static from inside_zone
+set rulebase nat rules nas_static to outside_zone
+set rulebase nat rules nas_static source nas
+set rulebase nat rules nas_static destination any
+set rulebase nat rules nas_static service any
+set rulebase nat rules nas_static source-translation static-ip translated-address nas-public
+set rulebase nat rules nas_static source-translation static-ip bi-directional yes
+set rulebase nat rules InsideOutsideNatRule from inside_zone
+set rulebase nat rules InsideOutsideNatRule to outside_zone
+set rulebase nat rules InsideOutsideNatRule source any-ipv4
+set rulebase nat rules InsideOutsideNatRule destination any
+set rulebase nat rules InsideOutsideNatRule service any
+set rulebase nat rules InsideOutsideNatRule source-translation dynamic-ip-and-port translated-address 192.0.2.2
+set rulebase nat rules IoT_out from iot
+set rulebase nat rules IoT_out to outside_zone
+set rulebase nat rules IoT_out source iot-net
+set rulebase nat rules IoT_out destination any
+set rulebase nat rules IoT_out service any
+set rulebase nat rules IoT_out source-translation dynamic-ip-and-port translated-address 192.0.2.2
+set rulebase nat rules IoT_out disabled yes

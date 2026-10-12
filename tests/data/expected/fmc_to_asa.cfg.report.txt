@@ -1,0 +1,70 @@
+FWShift conversion report
+  source: fmc (Edge)
+  target: asa
+
+Summary
+  Security rules:     22   exact 4, approximated 10, needs review 7 (7 emitted disabled), skipped 1
+  NAT rules:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Addresses:          16   exact 16, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           24   exact 24, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: outside, inside, dmz. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [approximated] OBJECT_OVERRIDES: 1 object(s) can have another value on a device than the one that was read (they allow overrides): ot-net. The values of the manager were converted; check them against the device the policy is for
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+  [info] FQDN_DNS: objects with a host name need name resolution on the ASA ('dns domain-lookup' and a DNS server group)
+
+Security rules
+  pre-backup  ->  approximated  (emitted as inside_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  pre-partner-gre  ->  approximated  (emitted as outside_access_in)
+      [approximated] TUNNEL_RULE: tunnel rule of the prefilter policy: it is converted as a rule for the protocol that carries the tunnel, between the tunnel endpoints. What the source did with the connections inside the tunnel is not converted
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  pre-partner-gre-reverse  ->  approximated  (emitted as dmz_access_in)
+      [info] TUNNEL_RULE: the other direction of tunnel rule 'pre-partner-gre', which matches tunnels from source and destination
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Block OT outbound  ->  needs-review, emitted disabled  (emitted as inside_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, outside with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN web  ->  needs-review, emitted disabled  (emitted as inside_access_in)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (file=Block Malware, intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, outside with --zone-network.
+  LAN DNS and NTP  ->  needs-review, emitted disabled  (emitted as inside_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, outside with --zone-network.
+  Updates  ->  approximated  (emitted as inside_access_in, dmz_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Inbound web  ->  approximated  (emitted as outside_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Inbound mail  ->  approximated  (emitted as outside_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Admin access  ->  approximated  (emitted as inside_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Helpdesk RDP  ->  needs-review, emitted disabled  (emitted as inside_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] USER_MATCH: source user match CORP\helpdesk is not converted.
+  Staff social media  ->  needs-review, emitted disabled  (emitted as inside_access_in)
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, outside with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Partner service  ->  approximated  (emitted as outside_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Uncategorised web  ->  needs-review, emitted disabled  (emitted as inside_access_in)
+      [approximated] INTERACTIVE_BLOCK: the source showed web users a page from which they could go on to the site (Interactive Block); it is converted as a rule that blocks
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, outside with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Old FTP  ->  needs-review, emitted disabled  (emitted as inside_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, outside with --zone-network.
+  DNS answers to resolver  ->  approximated  (emitted as outside_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Branch IPv6  ->  approximated  (emitted as outside_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Reset the rest from inside  ->  exact  (emitted as inside_access_in)
+      [info] RESET_ACTION: action reset-both becomes deny; an ASA resets denied TCP connections only with 'service resetinbound' or 'service resetoutside'
+  Watch DMZ  ->  skipped
+      [info] MONITOR_RULE: rule with the action Monitor: it logs the traffic and leaves the decision to the rules below it. Nothing to convert
+
+NAT rules
+  nat-4  ->  exact  (emitted as 1 NAT line)
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: round robin, flat port range, interface (as fallback)
+  nat-mail-srv  ->  exact  (emitted as 1 NAT line)
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: translate DNS replies

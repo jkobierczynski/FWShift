@@ -1,0 +1,55 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: fdm
+
+Summary
+  Security rules:     18   exact 15, approximated 0, needs review 0, skipped 3
+  NAT rules:           5   exact 0, approximated 3, needs review 1, skipped 1
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FDM_LOAD: the output is a file for the configuration import of a Firewall Device Manager (POST /action/uploadconfigfile, then /action/configimport). Its first object must say the hardware model and software version of the target: copy both from the first object of an export of the target device. The import adds to what the device has: its access rules stay above the rules of this file and decide first, its default action stays what it is, and its NAT rules come first. Nothing is in force until the changes are deployed: look at them in the pending changes before that
+  [needs-review] ZONES_REQUIRED: the rules name these security zones, which must exist on the target (or be renamed with --zone-map): outside, dmz, inside, guest. Zones are not written: an import would take the interfaces out of a zone that exists
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] EXISTING_OBJECTS: an import changes what the device has under the same name: an object or a rule of this file replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] FQDN_DNS: FQDN objects need name resolution on the device (a DNS server group in its platform settings)
+
+Security rules
+  inside_access_in-4  ->  skipped
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times. The rule is left out: a Device Manager has no rules that are switched off.
+  inside_access_in-7  ->  skipped
+      [needs-review] USER_MATCH: source user match LOCAL\alice is not converted. The rule is left out: a Device Manager has no rules that are switched off.
+  inside_access_in-8  ->  skipped
+      [info] DISABLED_RULE: disabled on the source: a Device Manager has no rules that are switched off, so it is left out
+  implicit-guest  ->  exact
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+
+NAT rules
+  nat-1  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone inside only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  nat-2  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone outside only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  nat-mail-srv  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone dmz only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  nat-inside-net  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the rule is for the address of an interface of zone 'inside', and the interfaces of that zone on the target are not known; name them with --interface-map
+  nat-after-auto-1  ->  needs-review  (emitted as 1 NAT rule)
+      [needs-review] NAT_ZONES: the rule applied to traffic from zone guest only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+
+Services
+  mail-services-inline  ->  exact  (emitted as mail-services-inline, tcp-25, tcp-587)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'mail-services-inline' of 'tcp-25', 'tcp-587'
+  dns-ntp  ->  exact  (emitted as dns-ntp, tcp-53, udp-53, udp-123)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'dns-ntp' of 'tcp-53', 'udp-53', 'udp-123'
+  ping-types  ->  exact  (emitted as ping-types, icmp-8, icmp-0)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'ping-types' of 'icmp-8', 'icmp-0'
+  web-ports  ->  exact  (emitted as web-ports, tcp-80, tcp-443, tcp-8000-8010)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'web-ports' of 'tcp-80', 'tcp-443', 'tcp-8000-8010'
+  tcp-udp-5060  ->  exact  (emitted as tcp-udp-5060, tcp-5060, udp-5060)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-udp-5060' of 'tcp-5060', 'udp-5060'

@@ -1,0 +1,92 @@
+FWShift conversion report
+  source: fmc (Edge)
+  target: fdm
+
+Summary
+  Security rules:     22   exact 14, approximated 3, needs review 0, skipped 5
+  NAT rules:           7   exact 0, approximated 4, needs review 0, skipped 3
+  Addresses:          16   exact 16, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           24   exact 22, approximated 0, needs review 2, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FDM_LOAD: the output is a file for the configuration import of a Firewall Device Manager (POST /action/uploadconfigfile, then /action/configimport). Its first object must say the hardware model and software version of the target: copy both from the first object of an export of the target device. The import adds to what the device has: its access rules stay above the rules of this file and decide first, its default action stays what it is, and its NAT rules come first. Nothing is in force until the changes are deployed: look at them in the pending changes before that
+  [needs-review] ZONES_REQUIRED: the rules name these security zones, which must exist on the target (or be renamed with --zone-map): inside, dmz, outside. Zones are not written: an import would take the interfaces out of a zone that exists
+  [approximated] OBJECT_OVERRIDES: 1 object(s) can have another value on a device than the one that was read (they allow overrides): ot-net. The values of the manager were converted; check them against the device the policy is for
+  [info] EXISTING_OBJECTS: an import changes what the device has under the same name: an object or a rule of this file replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] FQDN_DNS: FQDN objects need name resolution on the device (a DNS server group in its platform settings)
+
+Security rules
+  pre-backup  ->  exact
+      [info] PREFILTER_AS_TRUST: a prefilter rule of the source (Fastpath): written as an access rule with the action Trust, at the place it had in front of the access rules
+  pre-partner-gre  ->  approximated
+      [approximated] TUNNEL_RULE: tunnel rule of the prefilter policy: it is converted as a rule for the protocol that carries the tunnel, between the tunnel endpoints. What the source did with the connections inside the tunnel is not converted
+      [info] PREFILTER_AS_TRUST: a prefilter rule of the source (Fastpath): written as an access rule with the action Trust, at the place it had in front of the access rules
+  pre-partner-gre-reverse  ->  exact
+      [info] TUNNEL_RULE: the other direction of tunnel rule 'pre-partner-gre', which matches tunnels from source and destination
+      [info] PREFILTER_AS_TRUST: a prefilter rule of the source (Fastpath): written as an access rule with the action Trust, at the place it had in front of the access rules
+  prefilter-default-block-tunnels  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ipinip': IP protocol 4, which a Device Manager has no name for. The rule is left out: a Device Manager has no rules that are switched off. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'proto-41': IP protocol 41, which a Device Manager has no name for. The rule is left out: a Device Manager has no rules that are switched off. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN web  ->  approximated  (emitted as LAN_web)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (file=Block Malware, intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+  Helpdesk RDP  ->  skipped
+      [needs-review] USER_MATCH: source user match CORP\helpdesk is not converted. The rule is left out: a Device Manager has no rules that are switched off.
+  Staff social media  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. The rule is left out: a Device Manager has no rules that are switched off. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Uncategorised web  ->  approximated  (emitted as Uncategorised_web)
+      [approximated] INTERACTIVE_BLOCK: the source showed web users a page from which they could go on to the site (Interactive Block); it is converted as a rule that blocks
+  Old FTP  ->  skipped
+      [info] DISABLED_RULE: disabled on the source: a Device Manager has no rules that are switched off, so it is left out
+  Reset the rest from inside  ->  exact  (emitted as Reset_the_rest_from_inside)
+      [info] RESET_ACTION: action reset-both becomes Block, which drops without an answer: a Device Manager has no rule that resets
+  Watch DMZ  ->  skipped
+      [info] MONITOR_RULE: rule with the action Monitor: it logs the traffic and leaves the decision to the rules below it. Nothing to convert
+
+NAT rules
+  nat-1  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone inside only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  nat-2  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone outside only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  nat-3  ->  skipped
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 203.0.113.2
+      [needs-review] NAT_NOT_CONVERTED: not converted: the rule is for the address of an interface of zone 'outside', and the interfaces of that zone on the target are not known; name them with --interface-map
+  nat-4  ->  approximated  (emitted as 1 NAT rule)
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: round robin, flat port range, interface (as fallback)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone inside only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  nat-mail-srv  ->  approximated  (emitted as 1 NAT rule)
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: translate DNS replies
+      [approximated] NAT_ZONES: the rule applied to traffic from zone dmz only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  nat-dmz-net  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the rule is for the address of an interface of zone 'dmz', and the interfaces of that zone on the target are not known; name them with --interface-map
+  nat-after-auto-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the rule is for the address of an interface of zone 'outside', and the interfaces of that zone on the target are not known; name them with --interface-map
+
+Addresses
+  any-ipv4  ->  exact
+      [info] PREDEFINED_OBJECT: every IPv4 address: the predefined object 'any-ipv4' is used for it
+  any-ipv6  ->  exact
+      [info] PREDEFINED_OBJECT: every IPv6 address: the predefined object 'any-ipv6' is used for it
+  IPv4-Private-10.0.0.0-8  ->  exact  (emitted as IPv4-Private-10.0.0.0-8_2)
+      [info] RENAMED: renamed to 'IPv4-Private-10.0.0.0-8_2' to fit the target's naming rules
+
+Services
+  HTTP  ->  exact  (emitted as HTTP_2)
+      [info] RENAMED: renamed to 'HTTP_2' to fit the target's naming rules
+  HTTPS  ->  exact  (emitted as HTTPS_2)
+      [info] RENAMED: renamed to 'HTTPS_2' to fit the target's naming rules
+  SSH  ->  exact  (emitted as SSH_2)
+      [info] RENAMED: renamed to 'SSH_2' to fit the target's naming rules
+  DNS_over_UDP  ->  exact  (emitted as DNS_over_UDP_2)
+      [info] RENAMED: renamed to 'DNS_over_UDP_2' to fit the target's naming rules
+  DNS_over_TCP  ->  exact  (emitted as DNS_over_TCP_2)
+      [info] RENAMED: renamed to 'DNS_over_TCP_2' to fit the target's naming rules
+  NTP-UDP  ->  exact  (emitted as NTP-UDP_2)
+      [info] RENAMED: renamed to 'NTP-UDP_2' to fit the target's naming rules
+  smtp  ->  exact  (emitted as smtp_2)
+      [info] RENAMED: renamed to 'smtp_2' to fit the target's naming rules
+  ipinip  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 4, which a Device Manager has no name for: not written, and the rules that use it are not converted
+  proto-41  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 41, which a Device Manager has no name for: not written, and the rules that use it are not converted

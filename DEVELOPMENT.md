@@ -8,11 +8,11 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.6.1 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
-| Tests | 1814, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall or a Check Point management server |
-| Next | 0.7.0: Cisco Secure Firewall (see `TODO.md`); lab validation of the sample conversions |
+| Version | 0.7.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
+| Tests | 2283, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a Check Point management server, a Cisco Management Center or a Device Manager |
+| Next | 0.8.0: pfSense (see `TODO.md`); lab validation of the sample conversions |
 
 ## Layout
 
@@ -24,6 +24,9 @@ src/fwshift/
         fortios.py    FortiOS configuration  -> model
         checkpoint.py Management API JSON    -> model (inline layers flattened)
         asa.py        ASA running-config     -> model (bound access lists, NAT sections)
+        cisco.py      JSON of a Management Center or a Device Manager -> model
+                      (sections and inheritance, the prefilter policy, NAT in
+                      the order of the device)
         sophos.py     Sophos Entities.xml    -> model (exclusions, a rulebase per IP version)
         iptables.py   iptables-save output   -> model (chains flattened)
     emitters/
@@ -31,6 +34,11 @@ src/fwshift/
         fortios.py    model -> FortiOS CLI configuration
         checkpoint.py model -> shell script of mgmt_cli calls
         asa.py        model -> ASA commands (access lists per interface, twice NAT)
+        cisco.py      model -> the script for a Management Center (fmc_loader.py
+                      and the policy as data), or the import file of a Device
+                      Manager
+        fmc_loader.py the program of that script: stands alone, imports
+                      nothing of the package, and is shipped as it is
         sophos.py     model -> Entities.xml (a rule per IP version, flat groups)
         iptables.py   model -> iptables-restore / ip6tables-restore file
     transform.py      passes shared by the emitters: hardening of names,
@@ -55,9 +63,10 @@ src/fwshift/
 tests/
     data/             one synthetic sample per format
     data/expected/    their conversions and reports, byte for byte
-    tools/            the script that writes the Check Point sample
+    tools/            the scripts that write the Check Point sample and the two
+                      Cisco Secure Firewall samples, and the kernel check
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
-                      Check Point, ASA and Sophos output
+                      Check Point, ASA, Sophos and Cisco Secure Firewall output
     test_parsers.py   netutil, FortiOS syntax, PAN-OS and FortiOS parsers
     test_emitters.py  PAN-OS and FortiOS emitters
     test_semantics.py one small configuration per semantic trap
@@ -68,6 +77,10 @@ tests/
                       packets itself and a strict reader of emitted commands
     test_sophos.py    Sophos Firewall both ways, against a strict reader of
                       Entities.xml that shares no code with the parser
+    test_cisco.py     Cisco Secure Firewall both ways and for both managers:
+                      a made-up device that judges packets, a strict reader
+                      of what is written, a made-up Management Center that
+                      the script is run against
     test_audit.py     the audit, against a walk through every packet of a
                       small world
     test_matrix.py    the zone matrix, against the same walk: every packet
@@ -316,9 +329,33 @@ python -m mypy
   agreed on every packet. Half of the packets are aimed at allow rules, so
   that "forwarded" is tested as much as "dropped". It covers the `filter`
   table for IPv4; NAT and IPv6 forwarding are not exercised.
+  For Cisco Secure Firewall there are three judges, none of them the
+  project's parser. `Lab` is a made-up device: random zones, objects, access
+  rules in sections with an inherited policy, a prefilter policy, and for
+  each a predicate that says what the device does with a packet; `Manager`
+  writes what a Management Center answers for it, or what a Device Manager
+  exports. The model read from that JSON has to agree with the lab on every
+  packet. `helpers.CiscoConfig` reads what the emitter writes, the plan of
+  the script or the import file, strictly: an object exists before it is
+  used (for a Management Center: an earlier call created it), a name is
+  given once whatever its case, a group has members, holds no port group and
+  no host name, and a rule says only what a rule of that manager can say.
+  `FakeFmc` is a made-up Management Center that speaks the REST API as far as
+  the script uses it (tokens that run out, paging, bulk calls, "too many
+  requests", names that are taken, objects in use that cannot be deleted):
+  the script is run against it, over a socket as well, and what it built is
+  read back by the parser and compared packet by packet with the model. A
+  mutation check (95 ways to break the parser, the emitter and the script) is
+  not part of the suite; when it was run, the ones the tests did not catch
+  got tests. All three judges are written from the same reading of Cisco's
+  documentation and tooling as the code they check: they find where the code
+  disagrees with that reading, not where the reading is wrong.
 * `tests/tools/make_checkpoint_sample.py` writes `checkpoint_sample.json`.
   The shape of that export follows the API documentation; it has not been
   compared with the output of a real management server.
+  `tests/tools/make_cisco_samples.py` writes `fmc_sample.json` and
+  `fdm_sample.txt` with the builder of the tests; neither has been compared
+  with what a manager gives.
 
 Test data is synthetic: hand-written, with RFC 1918, RFC 5737 and RFC 3849
 addresses. Do not add configurations from real networks, anonymised or not.
@@ -345,8 +382,8 @@ To release:
 2. Commit, then tag and push the tag:
 
    ```sh
-   git tag v0.6.1
-   git push origin v0.6.1
+   git tag v0.7.0
+   git push origin v0.7.0
    ```
 
 The workflow refuses a tag that is not the version the package says, runs
@@ -392,6 +429,15 @@ there for an old tag whose tests no longer run on today's tools.
 | Sophos output: zones are not written | A zone entity carries the device access of the zone (which services of the firewall itself answer there). An import overwrites what has the same name: writing `LAN` would change who can reach the admin console. |
 | Sophos output: every rule stands after the one before it | With `Bottom` for each, the order would hang on the order in which the firewall takes the entities, and a rule it does not take would let the rules after it move up. |
 | Sophos output: a placeholder is a host name under `.invalid` | It has to be an object every firewall takes and that matches nothing; `0.0.0.0` may be refused, and a refused entity can end an import. A name under `.invalid` never resolves. |
+| Cisco Secure Firewall: two formats, `fmc` and `fdm`, one parser and one emitter | The two managers hold the same policy for the same device in two shapes of JSON (CamelCase types with `objects`/`literals`, lower-case types with plain lists and wrappers). What a rule means, how NAT is ordered and what an object can say is the same; a second parser would repeat all of it. |
+| Management Center input is REST API JSON | There is no configuration file a person can export and read: the `.sfo` of Import/Export is a binary archive. The API is documented, and its answers are what Cisco's own tooling reads. |
+| Management Center output is a script that calls the API, and carries the policy as data | The API is the only way in. A list of `curl` calls cannot be written ahead of time: every reference needs the id the Management Center gave the object when it was created. So the output is a program that creates, remembers ids and goes on, and the policy it creates is data at its end, which a person (and a test) can read without running anything. |
+| The script creates new policies and changes nothing that exists | A Management Center has no session to review and discard, as a Check Point server has. What can be offered instead is a run that looks before it creates anything, refuses to touch a name that is taken, assigns nothing to a device, writes down what it created, and can delete it again. |
+| The loader is a file of its own that imports nothing of the package | It runs on another machine, long after the conversion, and has to be readable as what it is: 700 lines that talk to a firewall manager with someone's password. It is tested as a module and shipped as text. |
+| Prefilter rules are read as the first rules of the policy | They are evaluated first, and Fastpath and Block are final. Analyze is the one thing a single list cannot say: "the rules below me in this list do not get this traffic, the next list does". A Fastpath rule below an overlapping Analyze rule is therefore not converted, and a Block rule in that place is reported. |
+| A Device Manager gets no disabled rules and no placeholders | It has no rule that is switched off, and an import that is refused half way is worse than a shorter file. What cannot be written is left out and listed as skipped, with the warning for blocking rules. |
+| A file for a Device Manager holds no zones | An import replaces what has the same name: a zone written without its interfaces would take them out of the zone the device has. |
+| Access rules of a Cisco source keep their real addresses until an emitter needs otherwise | As for an ASA: the parser rewrites the rules for the model (pre-NAT), and the Cisco emitters turn that round again for the NAT rules that are really written. |
 | Standard library only | Runs on a bare RHEL box and is easy to audit. |
 | GPL-3.0-or-later | Copyleft: changes to a tool that rewrites security policy stay open to inspection. |
 
@@ -440,6 +486,21 @@ policy behaves unexpectedly.
 | Sophos names: 60 characters for a host or rule, 50 for a service, no comma (API documentation). Whether names differ by case is not known: names of another platform are kept apart whatever their case. The list of services a firewall comes with (`SOPHOS_FACTORY_SERVICE_NAMES`) is from memory and not complete | `names.py`, Sophos emitter |
 | Sophos import: takes a `.tar` that holds `Entities.xml`, of its own version or an older one; overwrites entities of the same name; can stop at an entity it does not take (a community log shows "IMPORT Failed ... Exiting"; another source describes other settings still being imported). What the web console says then is not known | Sophos emitter, manual |
 | A Sophos Firewall accepts what the emitter writes and has not been imported anywhere: an FQDN host under `.invalid`, IP ranges as what a NAT rule translates to, `Position` `After` with an anchor of the same IP version, `NATMethod` `OnetoOne` and `Round-robin` as written, rule names with spaces, a firewall rule without `WebFilter` and the other policy elements | Sophos emitter |
+| Management Center, access control: rules are first match; mandatory rules before default rules; with inheritance the mandatory rules of the parent, then the child, then the default rules of the child, then of the parent; the default action of the policy applies last; *Monitor* decides nothing; *Trust* allows without inspection; the access rules see the real (translated) destination. (Configuration guide; not run.) | Cisco parser, `Lab` of the tests |
+| Management Center, prefilter: evaluated before the access rules; *Fastpath* and *Block* are final, *Analyze* hands the traffic to the access rules **and ends the prefilter for it** (the first matching prefilter rule decides); tunnel rules match the outer packet of GRE, IP in IP, IPv6 in IP and Teredo (UDP 3544); the default action is "analyze all tunnel traffic" or "block all tunnel traffic". (Configuration guide.) | Cisco parser |
+| Management Center REST API, as read: object types `Host`, `Network`, `Range`, `FQDN`, `NetworkGroup` (`objects` and `literals`), `ProtocolPortObject` (`protocol`, `port`), `ICMPV4Object`/`ICMPV6Object` (`icmpType`, `code`; **without `icmpType`: every type**, an inference), `PortObjectGroup`, `SecurityZone`, `InterfaceGroup`; `AccessRule` with `sourceZones`, `destinationZones`, `sourceNetworks`, `destinationNetworks`, `sourcePorts`, `destinationPorts` (each `objects`/`literals`), `action`, `enabled`, `logBegin`, `logEnd`, `metadata.ruleIndex`, `metadata.section`, `metadata.accessPolicy`; lists with `items` and `paging.count`; names and ids only without `expanded=true`. (API documentation, the Python client `fmcapi`, the Terraform providers. Field by field, not from an answer of a real server.) | Cisco parser, `fmc_sample.json` |
+| Management Center, where a policy says it inherits: an `AccessPolicyInheritanceSetting` with `basePolicy` (a call of its own, `policy/accesspolicies/{id}/inheritancesettings`; a community post shows it with the id of the policy), or `metadata.inherit` and `metadata.parentPolicy` on the access policy (**not confirmed**, from tooling), or rules in the list of the policy that name another policy in `metadata.accessPolicy` (a community post reports that the list of a child holds the rules it inherits; whether those rules name the parent there is not known). Where none of the three is in the input, the policy is read without a parent and the report says that it is not known whether it has one (`INHERITANCE_UNKNOWN`). | `_inheritance` |
+| Management Center, `PrefilterRule`: `ruleType` `PREFILTER` or `TUNNEL`, `action` `FASTPATH`/`BLOCK`/`ANALYZE`, `sourceInterfaces`/`destinationInterfaces`, `encapsulationPorts` (`GRE`, `IP_IN_IP`, `IPV6_IN_IP`, `TEREDO`), `bidirectional`, `tunnelZone`; `PrefilterPolicy.defaultAction.action` `ANALYZE_TUNNELS`/`BLOCK_TUNNELS`; the access policy names its prefilter policy in `prefilterPolicySetting`. (API reference and the Terraform provider.) | `_prefilter` |
+| Management Center NAT: `FTDManualNatRule` and `FTDAutoNatRule` with the fields of the ASA `nat` command (`originalSource`, `translatedSource`, `originalDestination`, `translatedDestination`, the four port fields, `interfaceInTranslatedSource`, `interfaceInOriginalDestination`, `unidirectional`, `patOptions`, `dns`, `noProxyArp`, `routeLookup`, `fallThrough`); manual rules in `metadata.section` `BEFORE_AUTO`/`AFTER_AUTO` with `metadata.index`; automatic rules sorted by the device as on an ASA. `sourceInterface`/`destinationInterface` name a security zone or an interface group. (`fmcapi`, Terraform provider.) | `_nat`, `_manual`, `_automatic` |
+| Device Manager, as read: the export is a JSON list, first a `metadata` object (`hardwareModel`, `softwareVersion`, `apiVersion`, `configType`, `exportType`), then `identitywrapper` objects with `data`, `action` and, for a rule, `parentName` and `index`; types `networkobject` (`subType` `HOST`/`NETWORK`/`RANGE`/`FQDN`), `networkobjectgroup`, `tcpportobject`, `udpportobject`, `protocolobject`, `icmpv4portobject`, `icmpv6portobject`, `portobjectgroup`, `securityzone`, `accessrule` (`ruleAction` `PERMIT`/`TRUST`/`DENY`, `eventLogAction`), `manualnatrule`, `objectnatrule`. (The import/export chapter of the API guide and the API specification that ships with Cisco's Ansible modules.) | Cisco parser, `fdm_sample.txt` |
+| Device Manager: the names of its protocols (`GRE`, `ESP`, `OSPFIGP`, ... 121 of them, none for protocols 4 and 41) and of its ICMP types and codes (`ECHO_REQUEST`, `DESTINATION_UNREACHABLE`/`PORT_UNREACHABLE`, ...), and **which number each stands for**. The names are from the API specification; the numbers are those of the IANA registries for the same keywords, which the specification does not give. A wrong pair would read or write another protocol than was meant. | `appmap.py` (`FDM_PROTOCOLS`, `FDM_ICMP_TYPES`, ...) |
+| Device Manager: the containers of its NAT rules are called `NGFW-Before-Auto-NAT-Policy`, `NGFW-After-Auto-NAT-Policy` and `NGFW-Object-NAT-Policy`, its access policy `NGFW-Access-Policy`; a manual rule is "after auto" when its container says `afterAuto`. **The first name is what the emitter writes as `parentName`**; if a device calls it otherwise, the import of the NAT rules fails. (Seen in examples of the API guide; not on a device.) | Cisco parser and emitter |
+| Device Manager import: takes a text file or a zip of one; wants `hardwareModel` and `softwareVersion` of the target in the first object; `apiVersion` may be `latest`; `configType` `DELTA_CONFIG` and `exportType` `PARTIAL_EXPORT` are right for a file that adds; an object without `id` and `version` and with `action` `CREATE` is created, or replaces what has its name; **references are resolved by type and name**; an access rule without `parentName` goes to the one access policy, and one without `index` to the end of its rules; nothing is deployed unless `autoDeploy` says so. (API guide, import/export chapter, where the reviewer of round 15 found each of these stated, except two: that the model and the version are wanted for a file that only adds (the guide says it for a full import), and where manual NAT rules without an index land.) | `as_fdm` |
+| Device Manager: an access rule cannot be disabled (no `enabled` field in the specification); it has no description; a NAT rule can (`enabled`). Interfaces in a NAT rule are referred to with their own type (`physicalinterface`, `subinterface`, ...), which the emitter cannot know and writes as `physicalinterface`. | Cisco emitter (`DISABLED_RULE`, `INTERFACES_REQUIRED`) |
+| Both managers: a network group holds no FQDN object; a port group holds port objects and no group; source and destination ports of a rule are of one protocol; a rule that blocks cannot log at the end of a connection; object names take letters, digits, `.`, `_`, `-` up to 64 characters (rule names 50 on a Management Center, with spaces); names are compared without case. (Configuration guides for the first four; the name rules are **conservative guesses**: the managers take more. A name FWShift makes up, and a name from another platform, is never one they would refuse by these rules; a name read from a manager of the same kind is written back as it was.) | Cisco emitter, `names.py`, `helpers.CiscoConfig` |
+| Both managers come with `any-ipv4` (0.0.0.0/0) and `any-ipv6` (::/0), and the reader knows them without their being in the input. The value of the object `any` is **not** assumed. The other predefined objects whose names are avoided when writing (`IPv4-Private-10.0.0.0-8`, `HTTP`, `HTTPS`, `SSH`, `DNS_over_UDP`, ...) are a list from documentation and screenshots; a Management Center is asked for its names before anything is created, a Device Manager is not. | `_EVERY_ADDRESS`, `_SYSTEM_NETWORKS`, `_SYSTEM_PORTS` |
+| Management Center REST API, as the script uses it: `POST /api/fmc_platform/v1/auth/generatetoken` with basic authentication answers with `X-auth-access-token`, `DOMAIN_UUID` and `DOMAINS`; lists take `limit` (1000 at most) and `offset` and say `paging.count`; `POST <collection>?bulk=true` takes a list (1000 items, 2 MB) and answers with the created `items`; **`POST .../accessrules?bulk=true&section=mandatory` appends in the order of the list, and a second call below the first**; `POST .../manualnatrules?bulk=true&section=before_auto` likewise; **a list of the rules gives them in the order of the policy**, with their names also when it is not expanded; 429 with `Retry-After` when asked too often, 401 when the token ran out; `DELETE <collection>/<id>`; a new `AccessPolicy` takes `defaultAction.action` `BLOCK`; a `SecurityZone` takes `interfaceMode` `ROUTED` and no interfaces. a redirect is never the right answer to an API call. (API documentation and `fmcapi`. The order of bulk-created rules is the assumption everything hangs on: if a Management Center orders them otherwise, the policy is not the policy that was converted. The script lists the rules after it created them and stops when their number or their order is not what it sent, which finds a wrong order as long as the list itself is in the order of the policy.) Object and zone names are compared without case, and zones share their names with interface groups: both are the cautious reading, neither is confirmed. | `fmc_loader.py`, `FakeFmc` of the tests |
+| A manager accepts what the emitter writes and has not been loaded anywhere: host `192.0.0.8` as a placeholder, ranges from `0.0.0.0`, a `PortLiteral` with only a protocol number in a rule, `ICMPV4Object` with `icmpType` and `code` as strings, a NAT rule with `any-ipv4` as original and translated source, a PAT pool that is a network group of ranges, `newComments` on a rule that is created, `sendEventsToFMC` with `logBegin`. | Cisco emitter |
 | FTD: the device shows its access rules as `access-list CSM_FW_ACL_ advanced` with `ifc`, `rule-id` and remarks `rule-id N: L4 RULE: name` / `L7 RULE: name`; an L7 rule appears as `permit` whatever its action. From documentation and memory, no device output was available | ASA parser |
 
 ## Development log
@@ -1152,6 +1213,181 @@ trigger on a tag, nor the two actions it uses, nor the step that creates the
 release with `gh`. A test (`test_cli.py`) keeps the version, this log, the
 manual and the README in step, and the line of `__init__.py` in the form the
 workflow reads.
+
+### 2026-10-12: version 0.7.0
+
+**Built**
+
+* Cisco Secure Firewall, read and written, for both of its managers:
+  `parsers/cisco.py` and `emitters/cisco.py`, as the formats `fmc`
+  (Management Center) and `fdm` (Device Manager).
+* Read from a Management Center: the JSON its REST API answers, saved to a
+  file. Access rules in their sections, with the policies a policy inherits
+  from; the prefilter policy (Fastpath, Block, Analyze, tunnel rules, its
+  default for tunnels); objects, groups and what a rule spells out; manual
+  and automatic NAT in the order the device applies it. `--policy` and
+  `--nat-policy` choose among several.
+* Read from a Device Manager: its configuration export, as the text file or
+  as the zip it comes in, or what its REST API answers.
+* Written for a Management Center: a Python script (`--to fmc`). It holds a
+  loader, `emitters/fmc_loader.py`, and the policy as data. The loader lists
+  what the Management Center has, stops before it creates anything when a
+  name is taken, creates objects, a new access control policy and a new NAT
+  policy, assigns them to no device, checks the rules it made, keeps a
+  journal and can undo its run. `--show` and `--dry-run` look first.
+  `--target-policy` names the policies.
+* Written for a Device Manager: a file for its configuration import
+  (`--to fdm`).
+* The audit takes logging and inspection of a rule of both managers into
+  account; the matrix reads their policies like any other.
+* An ASA target writes "the interface" again for a NAT rule that was read
+  from a Management Center or a Device Manager as the address of one.
+* Groups nested more than 64 deep are not converted, for every source: the
+  passes that follow groups into groups would not come back from them.
+* Two samples, `fmc_sample.json` and `fdm_sample.txt`, with their
+  conversions to every target, and the conversions of the other six samples
+  to both managers.
+* The release workflow checks that the single-file package finds the loader
+  inside itself and writes a script that runs.
+
+**What the platform made necessary**
+
+* *Two lists in front of each other.* The prefilter policy is evaluated
+  before the access rules. Fastpath and Block are final, so its rules are
+  read as the first rules of the policy. Analyze is not: it hands traffic to
+  the access rules and ends the prefilter for it, which one list cannot say.
+  The Analyze rule itself is nothing to convert; a Fastpath rule below it
+  that overlaps it is not converted (it would let through what the access
+  rules were to decide), and a Block rule there is kept and reported.
+* *Inheritance.* The mandatory rules of a parent come before those of its
+  child, its default rules after them. Where a policy says that it inherits
+  is the least certain part of the format (below): the reader takes three
+  forms, and says so when it finds none.
+* *Source ports and destination ports are two conditions.* Read: one
+  service with both. Written: a rule per set of source ports, each with the
+  destination ports that go with it.
+* *No negation.* Written as the addresses that are left; a negated list
+  with a host name, or a negated service, cannot be written, and such a rule
+  is left out rather than written without its negation.
+* *Objects say one thing.* A port object is one port or range of one
+  protocol, a network group holds no host names, a port group no groups: a
+  service of the model becomes a group of objects, a host name moves from
+  the group into the rules that use the group.
+* *The only way into a Management Center is its API,* and every reference
+  needs the id an object got when it was created. So the output is a
+  program. It was built to be read and to be stopped: nothing that exists is
+  changed, nothing is assigned, everything created is written down.
+* *A Device Manager has no disabled rules,* and an import replaces what has
+  the same name. So: rules that are disabled or cannot be converted are left
+  out and reported as skipped, no placeholders, no zones in the file.
+* *NAT is the ASA's.* The reading of manual and automatic rules follows the
+  ASA parser; a manual rule with a destination is the rule of its
+  connections; access rules name real addresses and are rewritten for the
+  model, and back for the NAT rules that are written.
+
+**Sources**
+
+Cisco's REST API documentation for both managers (quick start guides, the
+import and export chapter of the Device Manager guide), the configuration
+guides for access control, prefilter and NAT, and the tooling Cisco and its
+community publish, which is where most field names come from: the Python
+client `fmcapi`, the Terraform providers for the Management Center, and the
+API specification that ships with Cisco's Ansible modules for the Device
+Manager. None of it was checked against an answer of a real manager. What
+comes from where is in the table *Vendor behaviour the code relies on*.
+
+**Review**
+
+*Round 15* by the independent reviewer, with its own generators and
+evaluators (none of the project's test helpers as judges): random Management
+Center JSON against the parser (600 policies, 6,365 rules, 240,000 packets),
+random Device Manager exports (600, 240,000 packets), its own policies
+through eight pairs of source and target with its own readers of the script
+and the import file (720,000 packets), the same through the project's
+simulators for the other platforms (323,000 packets), random models to both
+managers (1,200 models, 360,000 packets), the eight samples to both, NAT
+followed through to the access rules (500 policies, 30,000 packets), a
+mutation fuzz of both readers (4,060 inputs), about 90 hostile files through
+the command line, and about 85 scenarios of a hostile or sloppy server
+against the loader, 45 of them over real HTTP and HTTPS. No packet got
+through a converted policy that the device would not let through without a
+finding on the rule that decides. The findings were in the loader, in what
+the reader does with an incomplete input, and in the documents:
+
+| | Finding | Fix |
+|---|---|---|
+| high | A child policy was read without its parent, silently, when nothing in the input said that it inherits; the recipe of the manual did not fetch what says so, and the error for several policies pointed the user at `--policy` | the inheritance settings are in the recipe; a parent is also told from rules in the list of a policy that name another; where nothing tells, `INHERITANCE_UNKNOWN` at review level |
+| high | The loader followed redirects, and sent the password and the token along, also from https to plain http | no redirect is followed; it is an error that says why |
+| medium | The journal was not true after a call that was carried out and answered badly (a 500, a page of HTML, half an answer): objects existed that `--undo` did not know | after such a call the loader asks what is there; an object is the run's if it was not there before and says what was sent |
+| medium | The journal was first opened after the first object existed and rewritten in place: a path that cannot be written gave a traceback with a zone already created, a full disk a journal that could not be read | written before anything is created, replaced in one step, per call; `--name` is checked like `--target-policy` |
+| medium | From a Management Center to a Management Center, names FWShift made up held colons (`h-2001:db8::1`) and could differ from a name of the source in case only | made-up names follow the strict rule whatever the source, and names are kept apart whatever their case |
+| medium | A policy without the list of its rules, an error of the API saved in place of an answer, a list that says it has rules and holds none, and items of a rules list with a type FWShift does not know were all passed over without a word | `EXPORT_INCOMPLETE` for each |
+| medium | `--undo` counted a 404 as deleted (a journal run against another Management Center "deleted" everything and renamed the journal), and the manual said that changed objects are kept, which they are not | the journal names its host and domain and is refused elsewhere; what is gone is said to be gone; the manual says what a delete by id does |
+| medium | With a server that hid an object from the list and passed over it in the bulk call, the loader took the old object for its own, used it in the rules and deleted it on undo | ids are taken from the answer of the creating call; anything else is only the run's when it was not there before and says what was sent, otherwise the run stops and leaves it alone |
+| medium | The answer to the rules call was not looked at: 15 of 18 rules created, "created with 18 rules" | the rules are listed afterwards and compared, number and order |
+| low | Tracebacks of the loader: a `--cafile` that is none, a host with a space, an answer that is not HTTP, no password and no terminal, a policy or a journal that was edited | one line each; an edited policy is checked before anything is done, and can only post objects where objects go |
+| low | Zones were matched with their case and objects without; a zone name an interface group has was found out after two zones were created | a zone that exists in another case is used; the interface groups are listed first |
+| low | `RecursionError` in a conversion for groups nested about a thousand deep, or in a ring of that length | groups nested more than 64 deep are not converted, for every source |
+| low | An encrypted zip given without `--from` got the general "compressed" message; an empty zip was taken for FortiOS | a zip is looked into, and the message says what is wrong with it |
+| low | A Device Manager input without its interfaces and zones (FWShift's own import file read back): each interface of a NAT rule became a zone of its own, without a finding | read for any zone, `NAT_INTERFACE` at review level |
+| low | Time: the journal was rewritten for every object (55 s for 4,000), the Device Manager emitter was quadratic in port objects (34 s for 10,000 rules), a listing could go on for ever, a zip unpacked to 500 MB was read | per call; an index (5,000 rules in 6 s on a shared CPU); 5,000 pages at most; 128 MB |
+| low | A port object of a Device Manager with an empty port was every port, one without the field made the rule unusable; `"any"` as a port was every port | all three make the object unusable |
+| nits | `PERMIT` for a Management Center and `ALLOW` for a Device Manager were taken; an unknown section was mandatory without a note; a holder with nothing but a type inside another was "nothing"; ping with code 0 could not be written for a Device Manager; a second undo said "deleted" | each manager its own words; `RULE_SECTIONS_UNKNOWN`; a type further in is content; written as the type alone (`ICMP_CODE`); fixed |
+
+Not changed: a blocking rule that names protocols 4 and 41 next to others
+is left out whole for a Device Manager (the reviewer: "worse than it
+sounds"; it is now said in the manual and on the to-do list); `--policy` is
+ignored for sources that have no such thing, like `--vsys`; a zone map that
+merges two zones widens a rule between them without a note (older than this
+release, on the to-do list).
+
+The reviewer also went through the helpers the tests stand on. What it named
+and what was done: the reader of emitted output skipped the name check for a
+source of the same kind (a test of its own now), and did not keep ICMP codes
+(it does); the made-up Management Center accepted any name, any value and a
+blocking rule that logs at the end (it refuses them now), always answered in
+full (it can now answer badly after carrying a call out, hide an object from
+a list, pass over existing names, drop or reverse rules), and has interface
+groups. Open: the made-up device of the tests has no ICMP codes and no
+protocols 4 and 41, does not translate (packets name real addresses), and
+the round trip between managers is compared with the model the project's own
+parser read.
+
+The fixes were not reviewed again. They have tests (the last sections of
+`test_cisco.py`), and the suite, the mutation check and the type check were
+run on them.
+
+**Verified, and not**
+
+* The tests: `tests/test_cisco.py` holds 437 tests, the suite
+  2283. A mutation check with 67 ways to break the parser, the emitter
+  and the loader was run before the review: 66 were caught, the one that was
+  not (prefilter rules in the order of the file instead of their index) has a
+  test now. The fixes of the review got a check of their own, 28 ways to
+  take a fix back out: 27 were caught, and the one that was not was a line
+  of the loader that did nothing (it is gone).
+* **Nothing was run against a Management Center or a Device Manager.** The
+  script has only talked to the stand-in of the tests and to the reviewer's;
+  no import file was imported. The stand-ins are written from the same
+  documentation as the code.
+* The largest unknowns, in the order they would hurt: that rules created in
+  bulk keep the order of the list (the script now checks, as long as a list
+  of rules is in the order of the policy); how a real Management Center says
+  that a policy inherits (the reader takes three forms and reports when it
+  sees none); the names of the NAT containers of a Device Manager and the
+  numbers behind its protocol and ICMP names (a wrong container name makes
+  the import of NAT rules fail; a wrong number would read or write another
+  protocol); whether a Management Center folds the case of names and shares
+  them between zones and interface groups (the script assumes both, which is
+  the cautious side); what a Management Center says to a name with a colon
+  or a space (FWShift writes neither, except names it read from one).
+* Application, URL, user and time conditions are not converted: such rules
+  are written disabled, or left out for a Device Manager. Intrusion and file
+  policies are reported and not written, also from a manager to a manager of
+  the same kind.
+* Not read: SSL, identity and DNS policies, platform settings, object
+  overrides per device, routes. A cloud-delivered Management Center logs in
+  another way than the script does.
 
 ## To do
 

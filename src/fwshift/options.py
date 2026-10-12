@@ -35,7 +35,9 @@ class Options:
     target_package: str = "Standard"
     # Check Point target: gateway or cluster object that "NAT to the outgoing interface" hides behind.
     target_gateway: str = ""
-    # Check Point, ASA and Sophos targets: prefix for the name of every object that is created.
+    # Management Center target: name of the access control policy and the NAT policy that are created.
+    target_policy: str = "FWShift"
+    # Check Point, ASA, Sophos and Cisco Secure Firewall targets: prefix for the name of every object that is created.
     object_prefix: str = ""
     # ASA target: networks behind a zone, for rules that an access list can only keep to their
     # destination zone by leaving out the networks of the other zones.

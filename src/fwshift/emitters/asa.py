@@ -887,9 +887,9 @@ class _Emitter:
         return self.options.nat_zone
 
     def _interface_of(self, member: str) -> str:
-        """The interface whose address an object of an ASA source stands for, as the target names it."""
+        """The interface whose address an object of an ASA or FTD source stands for, as the target names it."""
         address = self.p.addresses.get(member)
-        if address is None or address.builtin != "asa" or not address.raw.startswith("interface "):
+        if address is None or address.builtin not in ("asa", "fmc", "fdm") or not address.raw.startswith("interface "):
             return ""
         nameif = address.raw.partition(" ")[2]
         mapped = self.options.zone_map.get(nameif, nameif)

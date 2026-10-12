@@ -41,6 +41,14 @@ SOPHOS_RULE = NameRules(60, SOPHOS.invalid, True)
 # Names that come from a Sophos Firewall are valid there: only what cannot stand in its XML, and the comma that
 # separates names in its lists, is replaced.
 SOPHOS_NATIVE = NameRules(60, re.compile("[\\x00-\\x1f\\x7f,\ufffe\uffff\ud800-\udfff]"), False)
+# Cisco Secure Firewall, both managers: kept to letters, digits, underscore, hyphen and period, which both take
+# for every kind of object. A rule of a Management Center may have 50 characters and spaces; a rule of a Device
+# Manager has no spaces.
+CISCO = NameRules(64, re.compile(r"[^A-Za-z0-9._-]"), True)
+CISCO_FMC_RULE = NameRules(50, re.compile(r"[^A-Za-z0-9 ._-]"), True)
+CISCO_FDM_RULE = NameRules(128, CISCO.invalid, True)
+# Names that come from the same manager are valid there: only what its API refuses anywhere is replaced.
+CISCO_NATIVE = NameRules(128, re.compile(r"[\x00-\x1f\x7f;]"), False)
 
 
 def clean(name: str, rules: NameRules) -> str:

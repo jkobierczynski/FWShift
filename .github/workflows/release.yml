@@ -91,6 +91,12 @@ jobs:
           test "$(python "$PYZ" --version)" = "fwshift $VERSION"
           python "$PYZ" convert "fwshift-$VERSION/tests/data/panos_sample.xml" --to fortios -q -o converted.conf
           cmp converted.conf "fwshift-$VERSION/tests/data/expected/panos_to_fortios.conf"
+          # From 0.7.0: the script for a Management Center carries a program that is a file of the package,
+          # and has to be found inside the single file too.
+          if python "$PYZ" convert --help | grep -q 'fmc'; then
+            python "$PYZ" convert "fwshift-$VERSION/tests/data/asa_sample.cfg" --to fmc -q -o load_policy.py
+            python load_policy.py --show > /dev/null
+          fi
           status=0
           python "$PYZ" inspect no-such-file 2> /dev/null || status=$?
           test "$status" -eq 1

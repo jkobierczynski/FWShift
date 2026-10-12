@@ -1,10 +1,11 @@
 # FWShift user manual
 
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
-Check Point, Cisco ASA, Sophos Firewall and Linux iptables, and tells you, rule
-by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
+Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
+or by its Device Manager), Sophos Firewall and Linux iptables, and tells you,
+rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; and show what each zone may reach in each
-other zone. This manual covers version 0.6.
+other zone. This manual covers version 0.7.
 
 **Contents**
 
@@ -49,14 +50,16 @@ FWShift converts the **policy**. It does not convert interfaces, routing, VPN,
 users, security profiles, or system settings, and it is not a substitute for
 testing the result.
 
-> **Status.** Version 0.6 is tested against synthetic configurations. iptables
+> **Status.** Version 0.7 is tested against synthetic configurations. iptables
 > output and input are checked against a Linux kernel (filter rules, one
 > kernel and iptables version). Output for PAN-OS, FortiOS, Check Point,
-> Cisco ASA and Sophos Firewall has not been loaded on a device or management
-> server yet; the Check Point input format follows the API documentation, the
-> ASA and FTD syntax Cisco's command references, the Sophos format the
-> documentation of its XML API and the templates of Sophos's own SDK. Use
-> FWShift to produce a draft for a lab.
+> Cisco ASA, Cisco Secure Firewall and Sophos Firewall has not been loaded on
+> a device or management server yet; the Check Point input format follows the
+> API documentation, the ASA and FTD syntax Cisco's command references, the
+> Sophos format the documentation of its XML API and the templates of
+> Sophos's own SDK, and the JSON of a Management Center and of a Device
+> Manager their API documentation and the tooling Cisco publishes for them.
+> Use FWShift to produce a draft for a lab.
 
 ## 2. Installation
 
@@ -78,8 +81,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.6.1.pyz --version
-python3 fwshift-0.6.1.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.7.0.pyz --version
+python3 fwshift-0.7.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -152,13 +155,174 @@ Only access lists that an `access-group` line binds are policy. Lists that
 serve a crypto map, NAT or a class map are counted and left out
 (`UNBOUND_ACL`).
 
-**Cisco Firepower Threat Defense.** The `show running-config` of an FTD device
-shows what its manager deployed, in ASA syntax, and FWShift reads that. It is
+**Cisco Secure Firewall (Firepower Threat Defense): which input.** The policy
+of an FTD device lives in its manager, and FWShift reads it from there: from
+a Management Center (`--from fmc`) or from the Device Manager of the device
+(`--from fdm`), both described below. That is the policy as it was written:
+rules in their sections, objects by name, the conditions a rule has.
+
+The `show running-config` of the device is a third way, read as an ASA
+configuration. It shows what the manager deployed, in ASA syntax, and it is
 the policy as far as addresses, ports and interfaces go, and no further: a
 rule with application, URL or user conditions is in it **without** those
 conditions. FWShift recognises such rules by the remark the manager writes
 (`L7 RULE`) and converts them disabled; intrusion and file policies are not in
 the device configuration at all (`FTD_CONFIGURATION`). NAT is read in full.
+Use it when the manager cannot be reached.
+
+**Cisco Secure Firewall Management Center (FMC).** There is no file to
+export that FWShift reads (the `.sfo` of *Import/Export* is a binary
+archive). FWShift reads what the REST API answers, as JSON: save the answers
+to one file, one after the other. Any tool that calls the API will do; with
+`curl` and a user that may read the configuration (Cisco's API guide says
+that a user who is logged in to the web interface at the same time is logged
+out there by an API login):
+
+> None of this was run against a Management Center. The calls follow Cisco's
+> REST API documentation; what the answers look like is taken from that
+> documentation and from the tooling Cisco publishes. Where an answer is not
+> shaped as FWShift expects, it says what it could not read rather than
+> guess, but look at `fwshift inspect` before you trust a conversion.
+
+```sh
+fmc=https://fmc.example.net
+curl -s -u api-user -X POST -D headers.txt -o /dev/null $fmc/api/fmc_platform/v1/auth/generatetoken
+token=$(grep -i '^x-auth-access-token:' headers.txt | tr -d '\r' | cut -d' ' -f2)
+domain=$(grep -i '^domain_uuid:' headers.txt | tr -d '\r' | cut -d' ' -f2)
+get() { curl -sS --fail-with-body -H "X-auth-access-token: $token" "$fmc/api/fmc_config/v1/domain/$domain/$1" || echo "FAILED: $1" >&2; echo; }
+
+# The ids of the policies and of the device: pick yours from these lists.
+get "policy/accesspolicies?limit=1000"   | jq -r '.items[] | "\(.id)  \(.name)"'
+get "policy/ftdnatpolicies?limit=1000"   | jq -r '.items[] | "\(.id)  \(.name)"'
+get "devices/devicerecords?limit=1000"   | jq -r '.items[] | "\(.id)  \(.name)"'
+acp=...; nat=...; device=...
+pre=$(get "policy/accesspolicies/$acp" | jq -r '.prefilterPolicySetting.id')
+
+{
+  for kind in hosts networks ranges fqdns networkgroups protocolportobjects icmpv4objects icmpv6objects \
+              portobjectgroups securityzones interfacegroups; do
+      get "object/$kind?expanded=true&limit=1000"
+  done
+  get "policy/accesspolicies/$acp"
+  get "policy/accesspolicies/$acp/inheritancesettings?expanded=true"
+  get "policy/accesspolicies/$acp/accessrules?expanded=true&limit=1000"
+  get "policy/prefilterpolicies/$pre"
+  get "policy/prefilterpolicies/$pre/prefilterrules?expanded=true&limit=1000"
+  get "policy/ftdnatpolicies/$nat"
+  get "policy/ftdnatpolicies/$nat/manualnatrules?expanded=true&limit=1000"
+  get "policy/ftdnatpolicies/$nat/autonatrules?expanded=true&limit=1000"
+  for kind in physicalinterfaces subinterfaces etherchannelinterfaces; do
+      get "devices/devicerecords/$device/$kind?expanded=true&limit=1000"
+  done
+} > fmc-export.json
+```
+
+(`curl` asks for the password. With a certificate that your machine does not
+trust, give `curl` the certificate of its authority with `--cacert`; `-k`
+switches the check off and belongs in a lab. A token is good for 30 minutes
+according to the API guide; `--fail-with-body` needs curl 7.76 or newer.)
+
+**Check that every call answered.** A call that fails (a token that ran out,
+an id that is wrong) answers with an error, and `curl` saves that like any
+other answer. FWShift reports an error it finds in the input, and a policy
+without a list of its rules (`EXPORT_INCOMPLETE`), but it cannot miss an
+answer it does not know was asked for: an object list that is missing only
+shows as objects that are "not in the input in full".
+
+Six things decide whether the export is complete:
+
+* **`expanded=true`.** Without it a list holds names and ids only. Rules that
+  are in the input by name alone are kept in their place and not converted
+  (`RULES_NOT_EXPANDED`); an object that is there by name alone cannot be
+  converted, and the rules that use it are written disabled.
+* **Pages.** One call returns at most 1000 items. Each answer says how many
+  there are (`paging.count`); with more, repeat the call with `&offset=1000`,
+  `&offset=2000` and so on, and include every page. FWShift compares the
+  number of rules it read with that count and reports a shortfall
+  (`EXPORT_INCOMPLETE`): the rules of a missing page are simply not there,
+  including its blocks.
+* **The policy itself**, not only its rules: it holds the default action, the
+  prefilter policy that is used and whether the policy inherits from another.
+  Without it the default action is taken to block, and that is said
+  (`DEFAULT_ACTION_UNKNOWN`).
+* **Whether the policy inherits from another.** The mandatory rules of a
+  parent policy come before the rules of yours and its default rules after
+  them. The inheritance settings (the call above) say whether there is a
+  parent, and which. Without them, and without anything else in the input
+  that tells, FWShift converts the policy as it stands and says that a parent,
+  if there is one, is missing from the result (`INHERITANCE_UNKNOWN`): a
+  blocking rule of the parent would be among what is missing.
+* **The policy it inherits from.** Fetch that policy, its inheritance
+  settings and its rules the same way, into the same file
+  (`PARENT_POLICY_MISSING` when they are not there). FWShift then reads the
+  policy nothing inherits from; `--policy` names another.
+* **The prefilter policy.** Its rules are evaluated before the access rules:
+  a Fastpath rule lets traffic through that no access rule sees, a Block rule
+  stops it. The default prefilter policy has no rules; one of your own has to
+  be in the input (`PREFILTER_MISSING`).
+
+The security zones and the interfaces of the device tell FWShift which
+interface a zone holds, which a NAT rule "to the address of the interface"
+needs; the interface groups are needed where a NAT or prefilter rule names
+one. Objects no rule uses can be left out, and so can whole kinds of object
+the policy does not use.
+
+An input with several access control policies or NAT policies is read with
+`--policy NAME` and `--nat-policy NAME` (the name, or the id where two
+domains have a policy of one name). One domain is read per run.
+
+What is in a Management Center and not in this input: intrusion, file,
+SSL, identity and DNS policies, platform settings, routing and VPN. Objects
+that allow **overrides** have the value of the Management Center, not that of
+a device (`OBJECT_OVERRIDES`).
+
+**Cisco Secure Firewall Device Manager (FDM).** FWShift reads the
+configuration export of the device: a zip that holds one text file, a JSON
+list of every object. Give FWShift the zip as it is, or the text file:
+
+```sh
+fwshift inspect export.zip
+fwshift convert export.zip --to panos -o panos.set --report report.txt
+```
+
+The export is made in the web interface (in the device settings, under the
+configuration export or download; the name of the page differs between
+versions) or through the REST API, version 6.5 and later:
+
+```sh
+ftd=https://ftd.example.net
+token=$(curl -s -X POST -H 'Content-Type: application/json' $ftd/api/fdm/latest/fdm/token \
+        -d '{"grant_type": "password", "username": "admin", "password": "..."}' | jq -r .access_token)
+call() { curl -s -H "Authorization: Bearer $token" "$@"; }
+
+call -X POST $ftd/api/fdm/latest/action/configexport -H 'Content-Type: application/json' \
+     -d '{"type": "scheduleconfigexport", "configExportType": "FULL_EXPORT", "doNotEncrypt": true}'
+call $ftd/api/fdm/latest/jobs/configexportstatus | jq -r '.items[0] | "\(.status)  \(.diskFileName)"'
+call $ftd/api/fdm/latest/action/downloadconfigfile/NAME-OF-THE-FILE -o export.zip
+```
+
+Export without encryption (`doNotEncrypt`): an encrypted zip cannot be read,
+and FWShift says so. A full export is best. A partial export holds the
+objects that were asked for and names the others: what is named and not in
+the file cannot be converted, except the two objects every device has for
+"every address", `any-ipv4` and `any-ipv6` (`PREDEFINED_OBJECT`).
+
+What the REST API answers to `GET` requests (`/object/networks`,
+`/policy/accesspolicies/default/accessrules`, `/policy/manualnatpolicies/...`
+and so on), saved to a file one after the other, is read the same way. An
+export says the order of the rules; a list of the API is taken in its order.
+
+A device has one access control policy and no prefilter policy. Intrusion,
+file, SSL decryption and identity policies are not converted.
+
+FWShift wants the **security zones and the interfaces** in the input, which a
+full export holds. A NAT rule of a Device Manager names interfaces, and the
+zones say which zone an interface is in; where the input does not say, the
+rule is read for any zone and reported (`NAT_INTERFACE`).
+
+> None of this was run against a Device Manager either: the export format is
+> taken from the import and export chapter of Cisco's API guide and from the
+> API specification that ships with Cisco's Ansible modules.
 
 **Sophos Firewall (SFOS 18 and later).** In the web admin console, go to
 *Backup & firmware > Import export* and export the configuration: all of it,
@@ -308,7 +472,7 @@ TCP 502 and TCP 102, not the applications themselves.
 ### `fwshift convert`
 
 ```
-fwshift convert INPUT --to {panos,fortios,checkpoint,asa,sophos,iptables,ip6tables,json} [options]
+fwshift convert INPUT --to {panos,fortios,checkpoint,asa,fmc,fdm,sophos,iptables,ip6tables,json} [options]
 ```
 
 `INPUT` is a file, or `-` for standard input.
@@ -317,11 +481,13 @@ fwshift convert INPUT --to {panos,fortios,checkpoint,asa,sophos,iptables,ip6tabl
 
 | Option | Meaning |
 |---|---|
-| `--from {panos,fortios,checkpoint,asa,sophos,iptables,ip6tables}` | Source format. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; other XML is PAN-OS, JSON is Check Point, a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from {panos,fortios,checkpoint,asa,fmc,fdm,sophos,iptables,ip6tables}` | Source format. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; other XML is PAN-OS; JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
 | `--layer NAME` | Check Point source with several access layers: the one to read. |
+| `--policy NAME` | Management Center source with several access control policies: the one to read, by its name or its id. Without it the policy that no other policy in the input inherits from is read, if there is one such policy. |
+| `--nat-policy NAME` | Management Center source with several NAT policies: the one to read, by its name or its id. |
 
 For iptables the IP version is taken from the header that `iptables-save` or
 `ip6tables-save` writes, and otherwise from the addresses and protocols in the
@@ -335,6 +501,8 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to fortios` | FortiOS CLI configuration. |
 | `--to checkpoint` | A shell script of `mgmt_cli` calls for a Check Point management server. |
 | `--to asa` | Cisco ASA commands (9.x): objects, access lists, twice NAT. |
+| `--to fmc` | A Python script that creates the policy on a Cisco Secure Firewall Management Center through its REST API: objects, a new access control policy, a new NAT policy (section 10). |
+| `--to fdm` | A file for the configuration import of a Cisco Secure Firewall Device Manager: objects, access rules, manual NAT rules (section 10). |
 | `--to sophos` | An `Entities.xml` for *Import export* of a Sophos Firewall (SFOS 18 and later). With `-o NAME.tar`, the archive an import takes. |
 | `--to iptables` | A file for `iptables-restore`: the IPv4 half of the policy. |
 | `--to ip6tables` | A file for `ip6tables-restore`: the IPv6 half. |
@@ -342,13 +510,14 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--target-vsys NAME` | PAN-OS: prefix commands with `vsys NAME`. Default: a single-vsys firewall, no prefix. |
 | `--target-device-group NAME` | Panorama: write into this device group; rules go to its pre-rulebase. |
 | `--target-shared` | Panorama: write into `shared`; rules go to the shared pre-rulebase. |
-| `--target-nat-zone ZONE` | PAN-OS: destination zone for NAT rules of a source that names none (Check Point, some iptables and ASA rules). Without it those NAT rules are skipped. ASA: the interface for source NAT "to the address of the outgoing interface" where the rule does not name one. |
+| `--target-nat-zone ZONE` | PAN-OS: destination zone for NAT rules of a source that names none (Check Point, some iptables and ASA rules). Without it those NAT rules are skipped. ASA: the interface for source NAT "to the address of the outgoing interface" where the rule does not name one. Management Center and Device Manager: the zone of that interface. |
 | `--target-vdom NAME` | FortiOS: wrap the output in `config vdom` / `edit NAME`. |
 | `--policy-id-start N` | FortiOS: number policies from N. Default is `edit 0`, which lets the FortiGate pick free ids and appends after existing policies. |
 | `--target-layer NAME` | Check Point: the access layer the rules are written to. Default `Network`. It must exist. |
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
-| `--target-prefix TEXT` | Check Point, ASA and Sophos: put `TEXT` in front of the name of every object (on an ASA also every access list) that is created, so that none collides with one the target has. On a Sophos Firewall an import overwrites an object of the same name. |
+| `--target-prefix TEXT` | Check Point, ASA, Sophos, Management Center and Device Manager: put `TEXT` in front of the name of every object (on an ASA also every access list) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
+| `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates. Default `FWShift`. The script can be given another name when it is run (`--name`). |
 
 **Adapting the policy**
 
@@ -356,7 +525,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 |---|---|
 | `--zone-map SRC=DST` | Use `DST` wherever the source names zone or interface `SRC`. Repeatable. For iptables and ASA this is how a zone becomes an interface name, and the other way round. |
 | `--zone-network ZONE=NET[,NET...]` | ASA target: the networks that lie behind a zone (its name after `--zone-map`). Repeatable. An ASA access list cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
-| `--interface-map SRC=DST` | Map a source interface to a target interface: zone members written for FortiOS, source NAT to an interface address on PAN-OS, and the interfaces of a NAT rule on Sophos Firewall, which matches interfaces and not zones. For Sophos, map every interface of a zone the NAT rules name (for an iptables or ASA source, whose zones are interfaces, that is the zone name itself). Repeatable. |
+| `--interface-map SRC=DST` | Map a source interface to a target interface: zone members written for FortiOS, source NAT to an interface address on PAN-OS, and the interfaces of a NAT rule on Sophos Firewall and on a Device Manager, which match interfaces and not zones. For those two, map every interface of a zone the NAT rules name (for an iptables or ASA source, whose zones are interfaces, that is the zone name itself); for a Device Manager `DST` is the logical name of the interface (`inside`, `outside`). Repeatable. |
 | `--app-map FILE` | JSON file that adds or overrides application port definitions (section 9). |
 | `--prune-unused` | Leave out objects that no rule or NAT rule uses, directly or through a group. |
 
@@ -395,7 +564,7 @@ actions each can take.
 
 ```
 fwshift matrix INPUT [--from ...] [--vsys ...] [--device-group ...] [--vdom ...] [--layer ...]
-                     [-o FILE] [--json | --csv] [--summary]
+                     [--policy ...] [--nat-policy ...] [-o FILE] [--json | --csv] [--summary]
                      [--network-zone NAME[@ZONE]=NETWORK[,NETWORK...]] [--audit-config FILE]
 ```
 
@@ -414,6 +583,7 @@ through which rules (section 14). Nothing is converted.
 
 ```
 fwshift inspect INPUT [--from ...] [--vsys ...] [--device-group ...] [--vdom ...] [--layer ...]
+                      [--policy ...] [--nat-policy ...]
 ```
 
 Prints what was read and the findings raised while reading. Nothing is
@@ -530,9 +700,9 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `HANDLING_NOT_CONVERTED` | I | Sophos source: what else the rule does with the traffic it matches (traffic shaping, DSCP marking, a gateway of its own, an element FWShift does not know that is no match criterion) is not converted. |
 | `EXCLUSION_AS_ADDRESSES` | I | Sophos source: an exclusion of addresses from a list of addresses is written as the addresses that are left. |
 | `IP_FAMILY` | A | Sophos source: a rule of the IPv4 (or IPv6) rulebase whose addresses do not say which of the two it is: host names on both sides. In the model, and on the target, it matches both IP versions. |
-| `NEGATION` | R, disabled | To Sophos: several fields of the rule are negated, and more than one of them cannot be written as the addresses that are left (a host name). Exclusions apply together, so two of them would say something else (section 8). |
-| `NEGATION_AS_ADDRESSES` | I | To Sophos: of several negated fields one is an exclusion; the others are written as the addresses that are left, which matches the same traffic. |
-| `APP_PORTS` | R, disabled | To Sophos: the ports of an application hold something a Sophos service cannot say (SCTP ports). |
+| `NEGATION` | R, disabled or skipped | To Sophos: several fields of the rule are negated, and more than one of them cannot be written as the addresses that are left (a host name). Exclusions apply together, so two of them would say something else (section 8). To a Management Center or a Device Manager, whose rules cannot negate: a negated service (written disabled for a Management Center, left out for a Device Manager), or negated addresses that hold a host name: that rule is left out on both, because written without its negation it would say the opposite. |
+| `NEGATION_AS_ADDRESSES` | I | To Sophos: of several negated fields one is an exclusion; the others are written as the addresses that are left, which matches the same traffic. To a Management Center or a Device Manager: every negated address list is written that way, as range objects and the predefined object for the other IP version. |
+| `APP_PORTS` | R, disabled | To Sophos, a Management Center or a Device Manager: the ports of an application hold something a service of the target cannot say (SCTP ports). |
 | `SCHEDULE` | R, disabled | The rule had a schedule; converted without it, it would apply at all times. |
 | `SERVICE_NEGATE` | R, disabled | To PAN-OS or ASA: a negated service match does not exist there. On an ASA only a remark is written for the rule: an inactive entry without the negation would say the opposite. |
 | `EGRESS_INTERFACE` | A, or R and disabled | To ASA: the rule is for traffic to certain zones, and an access list entry cannot name the interface traffic leaves by. A: the rule names destination addresses and is written for those, by whatever interface they are reached; also on an intrazone rule, which an ASA only serves with `same-security-traffic permit intra-interface`. R, disabled: the rule is for any address; give the networks behind the zones with `--zone-network`, or the rule a destination. |
@@ -542,7 +712,7 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `NEGATION_NOT_STATIC` | R, disabled | To ASA: a negated list with a host name. What it leaves cannot be written out; only a remark is written for the rule. |
 | `IMPLICIT_PERMIT` | I | ASA source: a rule for an interface without access list, which the ASA lets send traffic to interfaces of a lower security level (section 8). |
 | `NO_SERVICE` | R, disabled | To PAN-OS: none of the rule's services could be converted. |
-| `RULE_TYPE` | R, disabled | To FortiOS, Sophos or iptables: an intrazone or interzone rule with zone `any` cannot be written as interface or zone pairs. To ASA: an intrazone rule with zone `any`. |
+| `RULE_TYPE` | R, disabled | To FortiOS, Sophos, iptables, a Management Center or a Device Manager: an intrazone or interzone rule with zone `any` cannot be written as interface or zone pairs. To ASA: an intrazone rule with zone `any`. |
 | `RULE_TYPE_EMPTY` | I, skipped (R to Check Point with zone `any`) | An interzone rule whose zones leave no pair of different zones. It matched nothing. |
 | `RULE_TYPE_ANY_ZONE` | R | To Check Point: an intrazone or interzone rule for zone `any` is written for the zones the policy names. For traffic between zones that no rule names it cannot be known whether they are one zone or two: a deny is applied to all of it, an allow to none. |
 | `NEGATED_ANY` | R, disabled | To Check Point: a negated "any" matches nothing. |
@@ -568,9 +738,16 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `PROFILES_NOT_CONVERTED` | A | Security profiles on the rule are not converted. Attach equivalent inspection on the target. |
 | `PROFILES_BY_NAME` | I | PAN-OS to PAN-OS: profiles are referenced by name and must exist on the target. Sophos to Sophos: the same for the policies of a rule (web filter, intrusion prevention, application control and the scanning it switches on). |
 | `DEVICE_TARGET` | R | Panorama or Check Point source: the rule is installed on selected devices only. Decide whether it belongs on the target. |
-| `RULE_SPLIT` | I | One rule became several: one per zone pair on FortiOS and Sophos, or one for port-based and one for application-based services on PAN-OS. Sophos source: a rule with exclusions of several kinds became one rule per kind (`name`, `name-2`, ...), which between them match what the one rule matched (section 8). |
-| `RESET_ACTION` | I | A reset action has no exact equivalent: deny on FortiOS and ASA, a plain `REJECT` on iptables when the rule is not TCP only, `Reject` on Check Point and on Sophos (which answers the sender only). |
-| `ATTRIBUTES_IGNORED` | I | FortiOS source: NAT details such as `fixedport` have no equivalent. ASA source, on a NAT rule: options such as `dns`, `round-robin` or the fallback to the interface address. |
+| `RULE_SPLIT` | I | One rule became several: one per zone pair on FortiOS, Sophos and the two Cisco managers, or one for port-based and one for application-based services on PAN-OS. To a Management Center or a Device Manager also: one rule per set of source ports, because source ports and destination ports are two conditions of a rule there that must both hold (section 8). Sophos source: a rule with exclusions of several kinds became one rule per kind (`name`, `name-2`, ...), which between them match what the one rule matched (section 8). |
+| `RESET_ACTION` | I | A reset action has no exact equivalent: deny on FortiOS and ASA, a plain `REJECT` on iptables when the rule is not TCP only, `Reject` on Check Point and on Sophos (which answers the sender only), *Block with reset* on a Management Center (which resets both sides), *Block* on a Device Manager (which answers nobody). |
+| `ATTRIBUTES_IGNORED` | I | FortiOS source: NAT details such as `fixedport` have no equivalent. ASA, Management Center or Device Manager source, on a NAT rule: options such as `dns`, round robin, extended PAT or the fallback to the interface address. |
+| `MONITOR_RULE` | I, skipped | Management Center source: a rule with the action *Monitor*. It logs the traffic and leaves the decision to the rules below it: there is nothing to convert. |
+| `INTERACTIVE_BLOCK` | A | Management Center source: *Interactive Block* (with or without reset) shows web users a page from which they can go on to the site. It is converted as a rule that blocks. |
+| `PREFILTER_AS_TRUST` | I | Management Center source, to a Management Center or a Device Manager: a Fastpath rule of the prefilter policy is written as an access rule with the action *Trust*, in the place it had before the access rules. Both let the traffic through without inspection; a Trust rule is evaluated by the access control policy, a Fastpath rule before it. |
+| `PREFILTER_ANALYZE` | I, skipped; or R | Management Center source. On a prefilter rule with the action *Analyze* (I, skipped): it hands its traffic to the access rules, which is what happens to traffic no prefilter rule matches, so there is nothing to convert. On a prefilter rule that blocks, or on the default action of the prefilter policy (R): a rule above it hands part of its traffic to the access rules, and one list of rules cannot make that exception: the rule now blocks that traffic too. A Fastpath rule in that position is not converted at all (`UNSUPPORTED_MATCH`): it would let through what the access rules were to decide. |
+| `TUNNEL_RULE` | A or I | Management Center source: a tunnel rule of the prefilter policy is converted as a rule for the protocol that carries the tunnel (GRE, IP in IP, IPv6 in IP, Teredo on UDP port 3544) between the tunnel endpoints. What the source did with the connections inside the tunnel is not converted. I on the second rule that a rule for both directions becomes (`name-reverse`). |
+| `DISABLED_RULE` | I, skipped | To a Device Manager: the rule is disabled on the source. A Device Manager has no rules that are switched off, so it is left out. |
+| `NO_MATCH` | I, skipped | To a Management Center or a Device Manager: the rule matches nothing (a negation that leaves no address or no service). It is left out. |
 | `INCOMPLETE_ADDRESS_PAIR` | I | FortiOS source: addresses of one IP version on one side only. FortiOS cannot match that version, so they were left out. |
 
 ### NAT rules
@@ -579,31 +756,31 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 |---|---|---|
 | `NAT_NOT_CONVERTED` | R, skipped | The rule uses something that is not converted (NAT64, dynamic destination translation, an unconvertible object, an ASA NAT line that could not be read in full, a Sophos NAT rule with an element FWShift does not know or a link to a firewall rule that is not in the input), or something the target cannot say: the message names it. To Sophos: a translation to something that is not one address, one range or one host name; a port translation whose rule has no service of exactly one port; a translation address for address between a different number of addresses. To PAN-OS, a rule without a destination zone needs `--target-nat-zone`; to Check Point, source NAT to the outgoing interface needs `--target-gateway`; to ASA it needs an interface, from the rule or from `--target-nat-zone`. |
 | `NAT_ORDER` | R | From PAN-OS or Check Point to FortiOS, iptables or ASA: the source applies one NAT rule to a connection, the first that matches; the target translates destinations and sources apart. This rule now also applies to traffic that another rule used to claim, or loses its source translation to one (section 8). On every target: a NAT rule above this one was not converted, and its traffic now reaches this rule. |
-| `NAT_REVERSE_DIRECTION` | A | ASA source: a static twice NAT rule with a destination also translates connections opened from the other side. That direction is not converted. |
+| `NAT_REVERSE_DIRECTION` | A | ASA, Management Center or Device Manager source: a static twice NAT rule (a manual rule with a destination) also translates connections opened from the other side. That direction is not converted. |
 | `NAT_ZONE_BY_ROUTE` | I | ASA source: the destination zone of a NAT rule that translates the destination is the zone its original address is reached in, taken from the interface addresses and static routes. |
-| `NAT_DYNAMIC_ONE_ADDRESS`, `NAT_STATIC_SIZE` | A | To ASA: dynamic NAT to a single address is port address translation on an ASA; static NAT between address sets of different size is mapped in order and wraps around. |
-| `NAT_ZONES` | A or R | To Check Point: the rule applied to some zones only and is written without them. To Sophos, whose NAT rules match interfaces: the interfaces of a zone are not known, and the rule is written for any interface; name them with `--interface-map`. R where the zone was the only limit: a source NAT towards one zone now translates traffic towards every zone. |
+| `NAT_DYNAMIC_ONE_ADDRESS`, `NAT_STATIC_SIZE` | A | To ASA, a Management Center or a Device Manager: dynamic NAT to a single address is port address translation there; static NAT between address sets of different size is mapped in order and wraps around. |
+| `NAT_ZONES` | A or R | To Check Point: the rule applied to some zones only and is written without them. To Sophos or a Device Manager, whose NAT rules match interfaces: the interfaces of a zone are not known, and the rule is written for any interface; name them with `--interface-map`. R where the zone was the only limit: a source NAT towards one zone now translates traffic towards every zone. |
 | `NAT_LINKED` | I or A | Sophos source: a linked NAT rule has no match of its own. It is written with the zones, addresses and services of its firewall rule. A when that rule has exclusions, users or a schedule, which a NAT rule cannot say: the NAT rule then applies to more traffic than it did. |
 | `NAT_LINKED_ABOVE` | A | Sophos source: a linked NAT rule translates only what its own firewall rule lets through. As a rule of its own it also applies to traffic of the same zones, addresses and services that a rule higher up lets through. |
-| `NAT_INTERFACE` | A or R | Sophos source: a NAT rule matches interfaces. The interface became its zone, which holds other interfaces as well; or the input does not say which zone the interface is in, and the rule was read for any zone. R where the interface was all that limited the rule. Export the zones and interfaces with the rules. |
+| `NAT_INTERFACE` | A or R | Sophos source: a NAT rule matches interfaces. The interface became its zone, which holds other interfaces as well; or the input does not say which zone the interface is in, and the rule was read for any zone. R where the interface was all that limited the rule. Export the zones and interfaces with the rules. Management Center source: a NAT rule names an interface group. It was read as the zones of its interfaces (A when those zones hold other interfaces too), or for any zone when the input does not show the group, its interfaces and their zones (R). Device Manager source: the interface of a NAT rule became its zone, which holds other interfaces as well (A); or the input does not hold the interface or its zone (a partial listing, a file written for an import), and the rule was read for any zone (R). |
 | `NAT_LINKED_INACTIVE` | I | Sophos source: a NAT rule linked to a firewall rule that is disabled, or that blocks. It translated nothing, and is converted disabled. |
 | `NAT_LOAD_BALANCING` | A | Sophos source: a rule that spreads connections over several servers by a method other than round robin, or with a health check. It is converted as a translation that picks one of the addresses per connection. |
 | `NAT_DESTINATION_ZONE` | A or R | To Sophos: the rule translated the destination of traffic that was on its way to one zone. A Sophos NAT rule cannot say that, and applies to its destination addresses in whatever zone they lie. R when the rule names no destination address: it now translates traffic to every destination. Not raised for a rule that names a few addresses, where the zone adds nothing. |
 | `NAT_OUTBOUND_INTERFACE` | A | Sophos source: a rule that translates the destination and is limited to an outbound interface. That limit is not converted. |
 | `NAT_INTERFACE_OVERRIDE` | R | Sophos source: the rule translates the source to other addresses for some outbound interfaces. Only its general translation is converted. |
-| `NAT_IP_VERSION` | A | To Sophos: a NAT rule is for one IP version. The addresses of the other version in its lists were left out. |
+| `NAT_IP_VERSION` | A or I | To Sophos: a NAT rule is for one IP version. The addresses of the other version in its lists were left out. To a Management Center or a Device Manager (I): a rule that names no address at all is written for IPv4. |
 | `NAT_DYNAMIC_IP` | A | To Sophos: translation to a pool without port translation becomes source NAT that shares the addresses, with port translation. |
 | `NAT_ZONE_ASSUMED` | A | To PAN-OS: the source rule names no destination zone; the zone given with `--target-nat-zone` was used. |
 | `NAT_GROUP` | I | To Check Point: a group was created, because a NAT rule cell holds one object. |
-| `NAT_ADDRESSES`, `NAT_SERVICE`, `NAT_RANGE` | R, skipped (`NAT_RANGE`: A) | To Sophos (`NAT_ADDRESSES`): source and destination of the rule share no IP version. To iptables: the rule needs static IPv4 addresses and a TCP, UDP or SCTP service. DNAT to a range picks an address per connection. To ASA: the rule needs static addresses of one IP version per object, and a service of at most 16 TCP, UDP or SCTP ports or ranges without source ports. |
+| `NAT_ADDRESSES`, `NAT_SERVICE`, `NAT_RANGE` | R, skipped (`NAT_RANGE`: A) | To Sophos (`NAT_ADDRESSES`): source and destination of the rule share no IP version. To iptables: the rule needs static IPv4 addresses and a TCP, UDP or SCTP service. DNAT to a range picks an address per connection. To ASA, a Management Center or a Device Manager: the rule needs static addresses of one IP version per object, and a service of at most 16 TCP or UDP ports or ranges without source ports (on an ASA also SCTP; on a Device Manager single ports only). |
 | `NAT_ANY_DESTINATION` | R | To iptables: the rule translates traffic to every destination; the security rules were not adjusted to the translated address. |
 | `NAT_INPUT_INTERFACE` | A or R | To iptables: source NAT is done in `POSTROUTING`, which cannot match the interface the traffic came in on. R when that was the rule's only limit. |
 | `NAT_OUTPUT_INTERFACE` | A | To iptables or FortiOS: a rule that translates destination and source. After the destination translation the traffic leaves by another interface than the rule names, so the source translation is written for every interface. |
 | `NAT_AFTER_DNAT` | A | The same kind of rule. Its source translation is matched after the destination was translated, and cannot be tied to the original destination: it also applies to traffic from the same sources that is sent to the translated address directly. iptables output avoids this where the original destination is an address or network (`--ctorigdst`); FortiOS central SNAT cannot. |
 | `AUTOMATIC_NAT_IN_GROUP` | R | Check Point source: a manual NAT rule names a group that holds an object with automatic static NAT. In the converted rule the group also matches the translated address; whether Check Point does is not known. |
 | `AUTOMATIC_NAT_SHAPE` | R | Check Point source: an automatic NAT rule that does not name the same object in its original and translated column. It was read as it stands. |
-| `NAT_DESTINATION`, `NAT_DESTINATION_SIZE`, `NAT_PORT` | R, skipped | To FortiOS: the destination NAT cannot become a virtual IP: it needs one IPv4 address or range on each side, of equal size, and for a port translation a service with one protocol and one port or range. To ASA: one static address object on each side; a port translation needs a service with single ports. |
-| `NAT_POOL` | R, skipped | To FortiOS or iptables: the translated address is not a static IPv4 address, or not exactly one address or range. To ASA: it is not a static address. |
+| `NAT_DESTINATION`, `NAT_DESTINATION_SIZE`, `NAT_PORT` | R, skipped | To FortiOS: the destination NAT cannot become a virtual IP: it needs one IPv4 address or range on each side, of equal size, and for a port translation a service with one protocol and one port or range. To ASA, a Management Center or a Device Manager: one static address object on each side; a port translation needs a service with single ports. |
+| `NAT_POOL` | R, skipped | To FortiOS or iptables: the translated address is not a static IPv4 address, or not exactly one address or range. To ASA, a Management Center or a Device Manager: it is not a static address. |
 | `NAT_IPV6` | R or I, skipped | To FortiOS: the rule is not IPv4 (R). With `--to ip6tables`: NAT rules are written for IPv4 only (I, on every NAT rule). |
 | `NAT_DISABLED` | I | A NAT rule that is disabled in the source. To FortiOS no virtual IP is created for it (skipped); to iptables it is written as a comment line. |
 | `NAT_OVERLAP` | R | FortiOS source: another policy passes overlapping traffic without NAT, for other services. NAT rules do not match on service, so that traffic would be translated. Add a no-NAT rule or narrow this one. |
@@ -612,7 +789,7 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `NAT_SOURCE_DROPPED` | A | To FortiOS: the destination NAT applied to some sources only; the virtual IP applies to all. |
 | `NAT_BIDIRECTIONAL` | I, A or R | Bi-directional static NAT is written as two parts: a central SNAT entry plus a virtual IP on FortiOS, an SNAT and a DNAT rule on iptables, two NAT rules on Check Point and on Sophos (`name` and `name-in`). R when the inbound half could not be written. |
 | `NAT_STATIC_RANGE` | A | To FortiOS: static NAT of several addresses becomes a one-to-one pool, which does not promise the same translated address per host. To Sophos: it becomes source NAT to a range, which does not promise it either. |
-| `NAT_INTERFACE_ADDRESS` | A | To PAN-OS or Check Point: source NAT to an interface address was written with the address that interface has in the backup. Use `--interface-map` (PAN-OS) or `--target-gateway` (Check Point) to follow the interface instead. ASA source: a rule that publishes a port on the address of an interface (`interface`) is converted with the address the interface has in the configuration; back to an ASA it is written with `interface` again. |
+| `NAT_INTERFACE_ADDRESS` | A | To PAN-OS or Check Point: source NAT to an interface address was written with the address that interface has in the backup. Use `--interface-map` (PAN-OS) or `--target-gateway` (Check Point) to follow the interface instead. ASA, Management Center or Device Manager source: a rule that publishes a port on the address of an interface is converted with the address the interface has in the input; to an ASA, a Management Center or a Device Manager it is written as "the interface" again, and the finding is withdrawn. |
 | `VIP_REVERSE_NAT` | A | FortiOS source: a static virtual IP also translates sessions the mapped host opens, when the outgoing policy has NAT. That direction is not converted. |
 | `NAT_MERGED` | I | FortiOS source: several policies had identical source NAT and share one rule. |
 | `RULE_SPLIT` | I | To PAN-OS: one rule per destination zone. |
@@ -621,22 +798,24 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 
 | Code | Sev. | Meaning and what to do |
 |---|---|---|
-| `UNSUPPORTED_ADDRESS`, `INVALID_ADDRESS` | R | An address type that is not converted (wildcard mask, geography, dynamic, a Check Point access role, group with exclusion or updatable object, a Sophos MAC host, country group, host name with a wildcard or system host), an object that is not in a Check Point export in full, or a value that cannot be read. Emitted as a placeholder; rules using it are disabled. |
+| `UNSUPPORTED_ADDRESS`, `INVALID_ADDRESS` | R | An address type that is not converted (wildcard mask, geography, dynamic, a Check Point access role, group with exclusion or updatable object, a Sophos MAC host, country group, host name with a wildcard or system host), an object that is not in a Check Point export or in the JSON of a Cisco manager in full (named, without its value), an object of a Cisco manager of a kind that has no addresses to read (a country, a dynamic object), or a value that cannot be read. Emitted as a placeholder; rules using it are disabled. A Device Manager gets no placeholder: the rules are left out. |
 | `UNSUPPORTED_VIP` | R | A virtual IP that is not a static NAT (load balancing and others) or cannot be read. |
 | `GROUP_EXCLUDE` | R | A FortiOS address group with excluded members. |
-| `UNSUPPORTED_GROUP` | R | A group that holds itself, directly or through other groups: no platform takes one. ASA source: an object group with a member that could not be read, or object groups nested more than 64 deep. Emitted as a placeholder; rules using it are disabled. |
+| `UNSUPPORTED_GROUP` | R | A group that holds itself, directly or through other groups: no platform takes one. Groups nested more than 64 deep are not followed either. ASA source: an object group with a member that could not be read, or object groups nested more than 64 deep. Management Center or Device Manager source: a group with a member, or a field, that could not be read. Emitted as a placeholder; rules using it are disabled. |
 | `UNDEFINED_REFERENCE` | R | A rule names something that is not an object in the input: a region, an external dynamic list, a missing object. Emitted as a placeholder. |
-| `UNSUPPORTED_SERVICE` | R | A service that cannot be converted: a proxy service, one limited to a destination address, an unreadable port list, a Check Point application or RPC object, an object that is not in the export in full. To Sophos: SCTP ports, an ICMP type or code that is not on the list of a Sophos service, an IP protocol Sophos has no name for. |
+| `UNSUPPORTED_SERVICE` | R | A service that cannot be converted: a proxy service, one limited to a destination address, an unreadable port list, a Check Point application or RPC object, an object that is not in the export in full. To Sophos: SCTP ports, an ICMP type or code that is not on the list of a Sophos service, an IP protocol Sophos has no name for. To a Management Center or a Device Manager: SCTP ports, an ICMP code without a type, port 0 alone; to a Device Manager also an IP protocol or an ICMP type or code it has no name for (among them IP in IP, protocol 4, and IPv6 in IP, protocol 41). |
 | `DUPLICATE_NAME` | R | Sophos source: the input defines a name twice. The last definition was kept. |
-| `GROUP_SPLIT` | I | To Sophos: IPv4 hosts, IPv6 hosts and host names are kept in groups of their own, and groups hold hosts only. A group of the source became `name`, `name_v6` and `name_fqdn` as far as it has members of each kind. |
-| `SERVICE_SPLIT` | I | To Sophos: a service holds one kind of protocol. A service with several became `name-tcpudp`, `name-ip`, `name-icmp`, `name-icmpv6` and a service group `name`. |
+| `GROUP_SPLIT` | I | To Sophos: IPv4 hosts, IPv6 hosts and host names are kept in groups of their own, and groups hold hosts only. A group of the source became `name`, `name_v6` and `name_fqdn` as far as it has members of each kind. To a Management Center or a Device Manager: a network group holds no FQDN objects. The group is written without them, and every rule that uses the group names them next to it. |
+| `SERVICE_SPLIT` | I | To Sophos: a service holds one kind of protocol. A service with several became `name-tcpudp`, `name-ip`, `name-icmp`, `name-icmpv6` and a service group `name`. To a Management Center or a Device Manager: a port object holds one port or range of one protocol. A service with several became a port group `name` of objects such as `tcp-80` and `tcp-443`. |
 | `PROTOCOL_NAME` | I | To Sophos: an IP protocol is written by name, and the name is the keyword of the IANA registry. For the protocols the Sophos documentation does not show, check that the import took the service. |
-| `PORT_ZERO` | I | To Sophos: a port list that starts at port 0. No connection has port 0, and a Sophos service starts at port 1: it is left out. |
+| `ICMP_CODE` | I | To a Device Manager: an ICMP type for which it has no codes was given with code 0 (ping, type 8 code 0, as several platforms write it). It is written as the type alone: 0 is the only code such a type has. |
+| `PORT_ZERO` | I | To Sophos, a Management Center or a Device Manager: a port list that starts at port 0. No connection has port 0, and a service of these platforms starts at port 1: it is left out. |
 | `SYSTEM_HOST` | I | Sophos to Sophos: a system host of the firewall (`#Port1`). It is referred to by name and must exist on the target. |
 | `AUTOMATIC_NAT` | I or R | Check Point source: the object has automatic static NAT. As on Check Point, rules and groups that name it also match its translated address, written as a second object `<name>_valid_address`. R when the NAT settings could not be read. |
 | `GATEWAY_OBJECT` | A | Check Point source: a gateway or cluster object. It is converted as its main address; a Check Point target refers to it by name and does not create it. |
 | `PROTOCOL_SIGNATURE` | A | Check Point source: the service also matches on the signature of its protocol. |
-| `EXISTING_OBJECT` | I | Check Point to Check Point: an object the management server has already (predefined, or a gateway). It is referred to by name and not created. |
+| `EXISTING_OBJECT` | I | Check Point to Check Point: an object the management server has already (predefined, or a gateway). It is referred to by name and not created. Management Center to Management Center, Device Manager to Device Manager: an object the manager comes with (`any-ipv4`, `HTTPS`, ...). The script for a Management Center checks that each is there before it creates anything. |
+| `PREDEFINED_OBJECT` | I | To a Management Center or a Device Manager: an object for every IPv4 or every IPv6 address is not created; the object the manager has for that, `any-ipv4` or `any-ipv6`, is used. Management Center or Device Manager source: the input names one of those two objects and does not hold it (a partial export). It was read as what it is on every manager. |
 | `POOL_TYPE` | A | A FortiOS IP pool type other than overload or one-to-one, converted as port address translation. |
 | `FACTORY_DEFAULT` | I | A FortiOS default service was referenced but not defined in the input; the factory definition was assumed. |
 | `RENAMED` | I | The name was changed: characters or length the target rejects, a collision, or a name the target predefines. |
@@ -646,19 +825,19 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | Code | Sev. | Meaning and what to do |
 |---|---|---|
 | `CENTRAL_NAT` | R | To FortiOS: NAT is written as central NAT, which has to be enabled first (section 10). |
-| `INTRAZONE_DEFAULT` | R | To FortiOS, Sophos, iptables or ASA: the source allowed traffic inside a zone by default and the target does not, or (iptables with `FORWARD` policy `ACCEPT`) the other way round. |
+| `INTRAZONE_DEFAULT` | R | To FortiOS, Sophos, iptables, ASA, a Management Center or a Device Manager: the source allowed traffic inside a zone by default and the target does not, or (iptables with `FORWARD` policy `ACCEPT`) the other way round. |
 | `INTRAZONE_ALLOW` | R | To iptables or ASA: a FortiOS zone with `set intrazone allow`. No rule was written for the traffic between its interfaces. |
-| `INTERZONE_DEFAULT` | R | The source allows what no rule matches (a PAN-OS `interzone-default` override, an iptables `FORWARD` policy `ACCEPT`, a Check Point layer whose implicit cleanup accepts). That is not carried over; only iptables output keeps it, as the chain policy, and ASA output, as a final `permit ip any any` in the global access list. |
+| `INTERZONE_DEFAULT` | R | The source allows what no rule matches (a PAN-OS `interzone-default` override, an iptables `FORWARD` policy `ACCEPT`, a Check Point layer whose implicit cleanup accepts, an access control policy of a Cisco manager whose default action is not *Block*). That is not carried over; only iptables output keeps it, as the chain policy, and ASA output, as a final `permit ip any any` in the global access list. |
 | `ZONES_WITHOUT_INTERFACES` | R | To FortiOS: zones were created empty. Assign interfaces or use `--zone-map` / `--interface-map`. |
-| `ZONES_REQUIRED` | R | To PAN-OS, Check Point or Sophos: the zones named by the rules must exist on the target and be assigned to interfaces. |
-| `INTERFACES_REQUIRED` | R | To iptables or ASA: zones are written as interface names. Map each zone to its interface with `--zone-map`. For an ASA the note also states what the access lists count on: that the ASA has no other interfaces than the policy names, and does not send traffic back out of the interface it came in on (section 8). |
+| `ZONES_REQUIRED` | R | To PAN-OS, Check Point, Sophos or a Device Manager: the zones named by the rules must exist on the target and be assigned to interfaces. To a Management Center: the script uses a zone that exists and creates one that does not, empty: it matches no traffic until interfaces are put in it. |
+| `INTERFACES_REQUIRED` | R | To iptables or ASA: zones are written as interface names. Map each zone to its interface with `--zone-map`. For an ASA the note also states what the access lists count on: that the ASA has no other interfaces than the policy names, and does not send traffic back out of the interface it came in on (section 8). To a Device Manager: the NAT rules name interfaces by their logical name and as physical interfaces; map the names with `--interface-map`, and change the type in the file where one is a subinterface, an EtherChannel or a VLAN interface. |
 | `INTRAZONE_ALLOW_MERGED` | R | To PAN-OS or Check Point: `--zone-map` merges a zone that allows intrazone traffic with another one; no allow rule was written for it. |
 | `NAT_ORDER` | A | To PAN-OS, Check Point or Sophos, from FortiOS, iptables, ASA, or Check Point automatic NAT rules: the source applies a destination NAT rule and a source NAT rule to one connection, the target one NAT rule only (section 8). To ASA from those sources: a destination NAT without a port is written as a rule that leaves the source alone, with the same effect. |
 | `TABLE_NOT_CONVERTED` | R | FortiOS source: a table such as `firewall policy6` or `firewall local-in-policy` has entries and is not converted. iptables source: the `mangle`, `raw` or `security` table has rules. ASA source before 9.0: `ipv6 access-list` lines; the result has no IPv6 rules. |
 | `SUSPICIOUS_QUOTING` | R | FortiOS source: a quoted value runs over lines that look like configuration. An unescaped quote may have hidden entries; check the line given. |
 | `NO_HIERARCHY` | R | Panorama source without `<readonly>`: parent device groups could not be found. |
 | `INTRAZONE_DENY_ADDED` | I | To PAN-OS: `fwshift-intrazone-deny` was appended (section 8). |
-| `EXISTING_OBJECTS` | I | To FortiOS, ASA or Sophos: objects are created by name and change existing ones of the same name; an ASA object group that exists gets the new members added to its own. |
+| `EXISTING_OBJECTS` | I | To FortiOS, ASA, Sophos or a Device Manager: objects are created by name and change existing ones of the same name; an ASA object group that exists gets the new members added to its own. |
 | `PANORAMA_SOURCE` | I | Reminder of what a Panorama export does not contain. |
 | `PRUNED` | I | `--prune-unused` left out this many objects. |
 
@@ -729,6 +908,28 @@ Notes that only a Sophos Firewall source or target raises:
 | `IP_VERSION_SPLIT` | I | Target: this many rules match both IP versions and were written twice; the name of the IPv6 rule ends in `_v6`. |
 | `INTRAZONE_ALLOW_ADDED` | I | Target: rules were appended for the zones that allow traffic between their own interfaces on the source. |
 
+Notes that only a Cisco Secure Firewall source or target raises (Management
+Center, Device Manager):
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `RULES_NOT_EXPANDED` | R | Source: rules are in the input by name only, as the API lists them without `expanded=true`. They are kept in their place and not converted (section 3). |
+| `EXPORT_INCOMPLETE` | R | Source: the manager says it has more access rules, prefilter rules or NAT rules than the input holds as rules FWShift could read: pages are missing (section 3), or the list holds items that are not rules of that kind. Or the input holds the access control policy and no list of its rules; or one of the saved answers is an error of the manager (a token that ran out) instead of what was asked for. In each case rules are missing, and the rules that are there now decide traffic the missing ones decided. |
+| `DEFAULT_ACTION_UNKNOWN` | R | Source: the input does not hold the access control policy itself, or its default action is one FWShift does not know. The default action was taken to block. A file written for the import of a Device Manager is read that way too: it holds what is added, not the policy. |
+| `INHERITANCE_UNKNOWN` | R | Source: nothing in the input says whether the access control policy inherits from another: not the policy itself, not its inheritance settings, not the rules listed with it. If it does, the mandatory rules of the parent come before the rules that were read and its default rules after them, and they are not in the result. Fetch `policy/accesspolicies/<id>/inheritancesettings` as well (section 3). |
+| `PARENT_POLICY_MISSING` | R | Source: the access control policy inherits from another whose rules are not in the input. Its mandatory rules come before the rules that were read and its default rules after them. |
+| `RULE_SECTIONS_UNKNOWN` | R | Source: the policy inherits, or is inherited from, and its rules do not say whether they are mandatory or default rules, which decides where the rules of the other policy go. They were read as mandatory rules. |
+| `PREFILTER_MISSING` | R | Source: the access control policy uses a prefilter policy whose rules are not in the input. They come before the access rules. |
+| `PREFILTER_DEFAULT_UNKNOWN` | R | Source: the input does not hold the prefilter policy itself, so it is not known whether it blocks tunnel traffic that none of its rules match or hands it to the access rules. It was read as handing it on. |
+| `PREFILTER_ASSUMED` | I | Source: the rules of one prefilter policy are in the input and the access control policy, which says which prefilter policy it uses, is not. They were read as its prefilter rules. |
+| `PREFILTER_NOT_READ` | R | Source: the input holds the rules of several prefilter policies and not the access control policy that says which one it uses. None was read. |
+| `OBJECT_OVERRIDES` | A | Source: objects that allow overrides can have another value on a device than the one the Management Center holds. The values of the Management Center were converted. |
+| `FMC_LOAD` | R | Target: the output is a script that creates objects, a new access control policy and a new NAT policy, and assigns them to no device (section 10). |
+| `FDM_LOAD` | R | Target: the output is a file for a configuration import; what its first object must say, where its rules land and that nothing is in force before a deployment (section 10). |
+| `ZONE_RENAMED` | I | Source: a zone is named `any`. Target: a zone name that cannot be an object name was changed; choose another with `--zone-map`. |
+| `INTRAZONE_ALLOW_ADDED` | I | Target: rules were appended for the zones that allow traffic between their own interfaces on the source. |
+| `FQDN_DNS` | I | Target: FQDN objects need name resolution on the device. |
+
 ## 8. How the differences between platforms are handled
 
 ### Applications and services
@@ -785,12 +986,19 @@ Sophos Firewall has *exclusions*, which are one condition for the whole rule
 and not a negation per field. What that means in both directions is described
 under *Sophos Firewall* below.
 
+An access rule of a Cisco Secure Firewall cannot negate either. A negated
+address list is written as the addresses it leaves (`NEGATION_AS_ADDRESSES`);
+a rule with a negated service, or with a negated list that holds a host name,
+is not converted (`NEGATION`).
+
 ### Zones and interfaces
 
 Zone and interface names are carried over unchanged; rename them with
 `--zone-map`. To FortiOS, zones are created, empty unless `--interface-map`
 names their interfaces; a zone you map onto an existing name is not created.
-To PAN-OS and to Sophos Firewall, zones are not created: they must exist.
+To PAN-OS, to Sophos Firewall and to a Device Manager, zones are not created:
+they must exist. The script for a Management Center creates the zones that
+are missing, empty.
 
 PAN-OS rule types are translated for FortiOS: an intrazone rule becomes one
 policy per zone, an interzone rule one policy per pair of different zones.
@@ -824,12 +1032,21 @@ unless a rule allows it, the difference is reported (`INTRAZONE_DEFAULT`). A
 zone that allowed it on the source (FortiOS `set intrazone allow`) gets a rule
 of its own below all others (`INTRAZONE_ALLOW_ADDED`).
 
+*To a Cisco Secure Firewall,* whose access rules decide about traffic between
+the interfaces of a zone as about any other, the same: the difference is
+reported, and a zone that allowed its own traffic on the source gets a rule
+below all others. A policy read from a Management Center or a Device Manager
+has one default action for everything; converted to another platform it is
+both defaults.
+
 A source that allows what **no** rule matches (an iptables `FORWARD` chain
 with policy `ACCEPT`, a Check Point layer whose implicit cleanup accepts, a
 PAN-OS `interzone-default` override) keeps that only in iptables output. The
 other targets end in their own deny, and the report says so
 (`INTERZONE_DEFAULT`); ASA output ends its global access list in
-`permit ip any any` instead, and the report says that.
+`permit ip any any` instead, and the report says that. The access control
+policy the script for a Management Center creates blocks by default, and an
+import does not change the default action of a Device Manager.
 
 ### NAT
 
@@ -1356,6 +1573,189 @@ The second column matters too:
   disabled, as to every target. Linked NAT rules come out as rules of their
   own, IP lists as host groups.
 
+### Cisco Secure Firewall
+
+A Firewall Threat Defense device is managed by a Management Center (FMC) or by
+its own Device Manager (FDM). The two hold the same kind of policy in two
+shapes of JSON, and FWShift reads and writes both: `fmc` and `fdm`.
+
+**What is read**
+
+* **Access rules**, first match, top to bottom. A Management Center keeps
+  them in a mandatory and a default section, and a policy can inherit from
+  another: the mandatory rules of the policy at the top come first, then
+  those of its children down to the policy that is read, then the default
+  rules back up. A Device Manager has one list. The place of a rule is the
+  index the manager gives it, not where it stands in the file.
+* **Actions.** *Allow* and *Trust* allow; *Trust* is kept as "no inspection"
+  and comes back as *Trust* for another Cisco manager. *Block* drops, *Block
+  with reset* resets. *Interactive Block* is converted as a block
+  (`INTERACTIVE_BLOCK`). A *Monitor* rule decides nothing and is left out
+  (`MONITOR_RULE`). An action FWShift does not know makes the rule
+  unsupported, as a rule that blocks.
+* **The default action** of the policy is what happens to traffic no rule
+  matches: *Block* is the model's deny, anything else (network discovery, an
+  intrusion policy) lets the traffic through. Without the policy in the input
+  it is taken to block (`DEFAULT_ACTION_UNKNOWN`).
+* **The prefilter policy** of a Management Center comes before the access
+  rules, and its rules are read as the first rules of the policy. A
+  *Fastpath* rule allows without inspection, a *Block* rule drops. An
+  *Analyze* rule hands its traffic to the access rules: that is what happens
+  to traffic no prefilter rule matches, so the rule itself is not converted.
+  But it also keeps the prefilter rules **below** it from deciding that
+  traffic, and one list of rules cannot say that. A Fastpath rule below an
+  Analyze rule that it overlaps is therefore not converted, since it would
+  let through what the access rules were to decide; a Block rule in that
+  position is kept and reported, since it blocks more than it did
+  (`PREFILTER_ANALYZE`). Whether two rules overlap is told from their zones
+  and addresses; ports are not looked at, so that a rule is rather called
+  overlapping than not.
+* **Tunnel rules** of the prefilter policy match the traffic that carries a
+  tunnel. They are converted as rules for that traffic: GRE (protocol 47),
+  IP in IP (4), IPv6 in IP (41), Teredo (UDP port 3544), between the tunnel
+  endpoints the rule names (`TUNNEL_RULE`); a rule for both directions
+  becomes two. What happens to the connections inside the tunnel (a tunnel
+  zone, rezoning) is not converted. The default action of the prefilter
+  policy for tunnels, when it blocks them, becomes a last prefilter rule
+  (`prefilter-default-block-tunnels`).
+* **Conditions.** Zones, networks and ports are read. A rule's source ports
+  and destination ports must both match, and are read as one service with
+  both. Users are read and reported; no target converts them, so the rule is
+  disabled. Application, URL, VLAN tag, security group tag, dynamic object
+  and identity conditions, time ranges, and any field FWShift does not know
+  make the rule unsupported: it is written disabled. A condition that is
+  there and cannot be read (not a list, a reference without a name) does the
+  same; a condition that holds nothing is no condition, which is how the
+  managers write "any".
+* **Objects.** Hosts, networks, ranges and FQDN objects, network groups with
+  objects and (Management Center) literal addresses; port objects for TCP and
+  UDP, ICMP and ICMPv6 objects, other protocols by number or by name, port
+  groups; and what a rule spells out itself. An object the rules name and
+  the input does not hold in full cannot be converted, and what uses it is
+  disabled, with two exceptions that every manager has and nobody can change:
+  `any-ipv4` and `any-ipv6` (`PREDEFINED_OBJECT`). Objects of a kind that has
+  no addresses to read (countries, dynamic objects) cannot be converted.
+  Objects the manager comes with are remembered as such.
+* **What a rule does with its traffic.** Intrusion and file policies are
+  reported as security profiles, logging at the beginning and the end of a
+  connection is read, the category of a rule is kept as a tag.
+* **NAT**, in the order the device applies it: manual rules before the
+  automatic ones, the automatic ones as the device sorts them (static before
+  dynamic, then the fewest addresses first), then the manual rules "after
+  auto". The rules are those of an ASA and mean the same: static and dynamic
+  translation, PAT pools, the address of an interface, ports of a server
+  published on an address, identity rules that exempt traffic. A manual rule
+  with a destination is the rule of its connections: no other rule takes
+  part in them. A static rule translates in both directions; where it also
+  names a destination, only the direction it is written for is converted
+  (`NAT_REVERSE_DIRECTION`).
+* **Interfaces.** A NAT rule of a Management Center names security zones or
+  interface groups, one of a Device Manager names interfaces. The model has
+  zones: an interface becomes its zone, an interface group the zones of its
+  interfaces (`NAT_INTERFACE` when that is more than the rule named, or when
+  the input does not tell). "The address of the interface" is converted with
+  the address the interface has in the input (`NAT_INTERFACE_ADDRESS`), which
+  needs the interfaces of the device in the input.
+* **Access rules name real addresses.** The device translates the
+  destination before it asks its access rules. Other platforms ask first:
+  for them FWShift adds or replaces the translated address in the rules that
+  cover it, as for an ASA (`NAT_DESTINATION_REWRITTEN`, and the other
+  findings of that kind under *NAT* above).
+
+**What is written**
+
+* **For a Management Center, a script** (section 10): the objects, a new
+  access control policy that blocks by default, with every rule in its
+  mandatory section, and a new NAT policy. **For a Device Manager, a file**
+  for its configuration import: the objects, the access rules, the NAT rules.
+* **Addresses.** A host, a network and a range are objects of three kinds;
+  an address a rule or a group spells out gets an object (`h-192.0.2.7`,
+  `n-192.0.2.0_24`, `r-...`). Every address of an IP version is the object
+  the manager has for it (`any-ipv4`, `any-ipv6`); both together is a rule
+  without that condition.
+* **Groups.** A network group holds no FQDN objects: the group is written
+  without them and the rules that use it name them as well (`GROUP_SPLIT`).
+  A group of a Management Center can hold groups; the script creates them
+  level by level, because one call cannot name what the same call creates. A
+  Device Manager is given the objects themselves.
+* **Services.** A port object is one port or one range of TCP or UDP: a
+  service with more becomes a port group of such objects under its name
+  (`SERVICE_SPLIT`). ICMP and ICMPv6 are objects with a type and a code.
+  Another IP protocol is written into the rule as a number for a Management
+  Center, and as a protocol object for a Device Manager, which has names for
+  most protocols and none for some (IP in IP and IPv6 in IP among them): a
+  service with one of those is not converted there. SCTP ports cannot be
+  said by either. A port that an object of the source, or of the manager,
+  already says is that object: no second one is made.
+* **Source ports** are a condition of their own, next to the destination
+  ports, and both must hold. A service with source ports for some of its
+  entries becomes one rule per set of source ports, each with the
+  destination ports that go with it (`RULE_SPLIT`): `name`, `name-2`, ...
+* **Negation.** No access rule negates. A negated address list is written
+  as the addresses that are left, as ranges for the IP version it names and
+  the whole of the other one (`NEGATION_AS_ADDRESSES`). A negated list with a
+  host name cannot be turned round: the rule is left out, because written
+  without the negation it would say the opposite (`NEGATION`). A negated
+  service is not converted.
+* **Rules that cannot be converted.** For a Management Center they are
+  written in their place, disabled, with a comment that says so
+  (`FWSHIFT: disabled by the converter, see the report.`), and the objects
+  they need are placeholders: a host object for an address nothing has
+  (192.0.0.8), a port object for TCP port 1, each with `FWSHIFT PLACEHOLDER`
+  in its description. **A Device Manager has no rule that is switched off.**
+  A rule that is disabled on the source (`DISABLED_RULE`) or cannot be
+  converted is left out of the file, and the report lists it as skipped.
+  Read the report with that in mind: a blocking rule that is left out is not
+  there to be finished by hand.
+* **Actions and logging.** Allow, Trust (for a rule that was a Trust or a
+  Fastpath rule on a Cisco source), Block, Block with reset. A Device Manager
+  has no reset (`RESET_ACTION`). A rule that blocks logs at the beginning of
+  a connection, since a blocked connection has no end; a Device Manager logs
+  at the end, at both ends or not at all. The description of a rule becomes
+  its comment on a Management Center; a rule of a Device Manager has none.
+* **Zones.** Rules name security zones. For a Management Center the script
+  uses those that exist and creates those that do not, empty. A file for a
+  Device Manager does not hold zones, because an import would replace a zone
+  of the same name and take its interfaces out of it: they must exist
+  (`ZONES_REQUIRED`).
+* **Names.** Letters, digits, `.`, `_` and `-`, up to 64 characters for an
+  object; a rule name may hold spaces on a Management Center (50 characters;
+  128 without spaces on a Device Manager). Names that differ in case only
+  are kept apart with a suffix. An object named like one the managers come
+  with (`any`, `any-ipv4`, `HTTP`, `HTTPS`, `SSH`, ...) is renamed.
+  `--target-prefix` puts a prefix in front of every object that is created.
+  From a manager to a manager of the same kind the names of the source are
+  kept as they are, whatever is in them; the names FWShift adds (`h-...`,
+  `tcp-...`) follow the rule above, and two names that differ in case only
+  are still kept apart.
+* **NAT rules** are written as manual rules, before the automatic ones, in
+  their order: the place where a first-match list of another platform fits.
+  Automatic rules of a Cisco source become manual rules in the place the
+  device gave them. A service of several ports becomes a rule per port (16
+  at most). A translation to several addresses with port translation is a
+  PAT pool, which holds hosts and ranges: a network of the source is written
+  as the range it is. A destination translation is written the way the
+  device writes one: a static rule that leaves the source alone, works in
+  one direction and names the interface the traffic comes in on. For a Cisco
+  source a published port comes back as the device had it, from the side of
+  the server, and "the interface" as that word.
+* **Interfaces of a NAT rule.** A Management Center takes zones. A Device
+  Manager takes interfaces, by their logical name: give them with
+  `--interface-map` (for each interface of a zone; for a source whose zones
+  are interfaces, the zone name itself). Without them a rule is written for
+  any interface (`NAT_ZONES`), and one that needs the address of an interface
+  is not converted. The file names every interface as a physical interface;
+  a subinterface or an EtherChannel needs its type changed by hand
+  (`INTERFACES_REQUIRED`).
+* **Cisco to Cisco** is not a copy. Objects the manager comes with are named
+  and not created (`EXISTING_OBJECT`); the script checks that they are
+  there. Intrusion and file policies, users, time ranges and the application
+  and URL conditions are not written: the first are reported, a rule with
+  one of the others is not converted, as to every target. Prefilter rules
+  are written as access rules: a Fastpath rule as a Trust rule in the same
+  place (`PREFILTER_AS_TRUST`). The inheritance of a policy is flattened into
+  the one policy that is written.
+
 ### Names
 
 Names the target would reject are changed: `10.0.0.0/8` becomes `10.0.0.0_8`
@@ -1546,10 +1946,158 @@ holds it.
    Sophos, the file keeps the version it was read with.
 8. FQDN hosts need name resolution on the firewall.
 
+### Cisco Secure Firewall Management Center
+
+> **The script has never talked to a Management Center.** It was written
+> from Cisco's REST API documentation and run against a stand-in that the
+> tests bring along. What it counts on is listed in `DEVELOPMENT.md` (*Vendor
+> behaviour the code relies on*); the first run belongs on a Management
+> Center where a mistake costs nothing.
+
+The output is a Python script. It holds a small program and, after it, the
+policy as data; it needs Python 3.8 or newer and nothing else, on any machine
+that reaches the Management Center. It talks to the REST API, which must be
+enabled, as a user that may create objects and policies. Use a user of its
+own: according to the API guide, one that is logged in to the web interface
+at the same time is logged out there.
+
+```sh
+python3 load_policy.py --show
+python3 load_policy.py --host fmc.example.net --user api-user --dry-run
+python3 load_policy.py --host fmc.example.net --user api-user
+```
+
+1. `--show` says what the script would create, without connecting: the
+   policies, how many objects of each kind, the zones, and the objects it
+   counts on. `--plan` prints the policy it carries, as JSON.
+2. `--dry-run` logs in, reads what the Management Center has and checks every
+   name. Nothing is created.
+3. A run without either does the same checks and then creates, in this
+   order: the security zones the rules name and that are missing; the
+   network objects, the port objects and the groups; a new access control
+   policy with the rules; a new NAT policy with the NAT rules, when there are
+   any. It stops at the first thing the Management Center refuses. After the
+   rules it asks for them again and compares: as many as were sent, in the
+   order they were sent. If not, it says so and stops; the policy is then not
+   the policy that was converted.
+
+The password is asked for, or taken from the environment variable
+`FMC_PASSWORD`. The certificate of the Management Center is checked: give the
+certificate of the authority that signed it with `--cafile`. `--insecure`
+switches the check off and belongs in a lab. The password and the token go to
+the host that was named and nowhere else: a redirect is not followed, and
+plain `http` is spoken only to the machine the script runs on.
+
+What the script will not do:
+
+* **Change anything that exists.** If an object it would create exists under
+  the same name (whatever its case), it lists the names and stops before it
+  creates anything: convert again with `--target-prefix`. The same when an
+  access control policy or NAT policy of its name exists: give another with
+  `--name`, or with `--target-policy` when converting. A security zone that
+  exists is used as it is, also when it is written there in another case; a
+  zone name that an interface group has stops the run, before anything is
+  created.
+* **Create an object the policy only counts on.** A policy that was read from
+  a Management Center names the objects it comes with (`any-ipv4`, `HTTPS`);
+  if one is missing on the target, the script says which and stops.
+* **Assign or deploy.** The policies are assigned to no device. Nothing
+  reaches a firewall until someone assigns them and deploys.
+
+What else to know:
+
+* The new access control policy **blocks by default**, has every rule in its
+  mandatory section, and uses the default prefilter policy and no intrusion,
+  file or SSL policy. Attach the inspection the report lists
+  (`PROFILES_NOT_CONVERTED`).
+* A **zone the script creates is empty** and matches no traffic. Put the
+  interfaces of the devices in it. A rule for such a zone does nothing until
+  then, which for a rule that blocks is worth knowing.
+* What is created is written to a **journal**, call by call
+  (`fwshift-fmc-NAME.journal.json`, or `--journal`; it is there before the
+  first object is). `--undo` reads the journal and deletes it all again, the
+  policies first, on the Management Center and in the domain the journal
+  names. It deletes by id: **an object you changed since is deleted too**,
+  and so is a rule you added to the new policy. What something else uses by
+  then is refused by the Management Center, stays, and is listed; what is
+  gone already is said to be gone. After a run that stopped half way: undo
+  it, correct the cause, run again.
+* When a call is answered with an error, or with something that cannot be
+  read, the script asks the Management Center what is there. An object is
+  taken as created by the run, and written to the journal, only if it was not
+  there before and says what was sent. An object under one of its names that
+  says something else is someone else's: the run stops and leaves it alone.
+* `--domain NAME` names the domain to work in, for a user that has several.
+* The Management Center limits how often it is asked. The script waits when
+  it is told to, and logs in again when its token runs out.
+* Rules the converter disabled carry the comment
+  `FWSHIFT: disabled by the converter, see the report.`
+
+### Cisco Secure Firewall Device Manager
+
+> **The file has never been imported on a device.** Its format follows the
+> import and export chapter of Cisco's API guide. Where the steps below say
+> what the device does, that is what the guide says, or, where marked, what
+> FWShift assumes; `DEVELOPMENT.md` has the list.
+
+The output is a text file for the configuration import of the device: a JSON
+list whose first object says what the file is for, and then an object, an
+access rule or a NAT rule per line.
+
+1. **The first line.** The guide wants the hardware model and the software
+   version of the target in the first object of a file (it says so for a full
+   import; FWShift assumes it for a file that adds as well). Converting from an
+   export of a Device Manager, FWShift copies both from it. Otherwise the
+   file says `REPLACE WITH THE VALUE FROM AN EXPORT OF THE TARGET` in both
+   places: export the configuration of the target (section 3), and copy
+   `hardwareModel` and `softwareVersion` from its first object.
+2. Make sure the zones named in `ZONES_REQUIRED` exist on the device and hold
+   their interfaces, and convert with `--interface-map` so that the NAT rules
+   name its interfaces (`inside`, `outside`: the logical names). The file
+   names every interface as a physical interface; for a subinterface, an
+   EtherChannel or a VLAN interface change `"type": "physicalinterface"` in
+   that rule to the type an export of the device shows for it.
+3. Import it, through the REST API of the device (version 6.5 and later; the
+   web interface of newer versions has an upload for it as well):
+
+   ```sh
+   call -X POST $ftd/api/fdm/latest/action/uploadconfigfile -F 'fileToUpload=@import.txt'
+   call -X POST $ftd/api/fdm/latest/action/configimport -H 'Content-Type: application/json' \
+        -d '{"type": "scheduleconfigimport", "diskFileName": "NAME-THE-UPLOAD-ANSWERED", "autoDeploy": false}'
+   call $ftd/api/fdm/latest/jobs/configimportstatus
+   ```
+
+   (`call` as in section 3.) With `autoDeploy` false nothing is in force
+   after the import: the changes are pending. A device that has pending
+   changes of its own refuses an import unless the request says
+   `"allowPendingChange": true`; deploy or discard them first.
+4. **Look at the pending changes** in the web interface before deploying, and
+   compare the number of objects and rules with the summary of the report.
+5. An import **changes what the device has under the same name**: an object
+   or a rule of the file replaces it. FWShift avoids the names of the objects
+   a device comes with; for everything else that might exist already, convert
+   with `--target-prefix`.
+6. The access rules land **below the rules the device has** (a rule without
+   an index is added at the end, says the guide), and its default action
+   stays what it is. A rule that is there already decides first. The NAT
+   rules are manual rules before the automatic ones; FWShift assumes they land
+   below the manual rules the device has, and that the container for them is
+   called `NGFW-Before-Auto-NAT-Policy`, as in the guide's examples. If an
+   export of your device shows another name for it, change `parentName` in
+   the file.
+7. **What is not in the file:** rules that are disabled on the source, and
+   rules that could not be converted. A Device Manager has no rule that is
+   switched off, so there is nothing to write them as; the report lists each
+   as skipped, with the reason. Go through them before deploying: the rules
+   below a blocking rule that is missing allow more than they did.
+8. FQDN objects need a DNS group on the device.
+
 ### After loading
 
 Search the configuration for `FWSHIFT`: every placeholder object and every
 rule the converter disabled carries that word in its comment or description.
+(Not on a Device Manager, where such rules and objects are not written: there
+the report is the list.)
 
 ## 11. Errors and troubleshooting
 
@@ -1567,7 +2115,8 @@ rule the converter disabled carries that word in its comment or description.
 | `the archive holds more than one Entities.xml` | Unpack the archive and give FWShift the file that is meant. |
 | `the XML holds several <Configuration> elements, or one inside another` | Two exports in one file. Convert them one by one. |
 | `the answer of the firewall says that the login failed` | The file is what the XML API answered to a request it refused. It holds no configuration. |
-| `the input is compressed (gzip, bzip2, xz or zip)` | Unpack it and give FWShift the file inside. A Sophos export is a plain `.tar`, which is read as it is. |
+| `the input is compressed (gzip, bzip2 or xz)` | Unpack it and give FWShift the file inside. A Sophos export is a plain `.tar`, which is read as it is. |
+| `the input is compressed (a zip), and not the configuration export of a Firewall Device Manager as FWShift reads it (...)` | The one zip that is read as it is, is the export of a Device Manager. The message says what is wrong with this one: it is encrypted (export with `doNotEncrypt`), it holds several text files or none, it is damaged, or what it holds is something else. |
 | `zone '...' carries a name that is a word of the Sophos format` | To Sophos: a zone called `Any`, `None`, `Original` or `MASQ`. `<Zone>Any</Zone>` is every zone there. Give the zone another name with `--zone-map`. The same message exists for the values of `--zone-map` and `--interface-map`. |
 | `no 'config' sections found` | The file is not a FortiOS configuration. An encrypted backup looks like this. |
 | `unterminated quoted string starting on line N` | A double quote on that line is never closed. Fix or escape it. |
@@ -1579,6 +2128,19 @@ rule the converter disabled carries that word in its comment or description.
 | `the export holds several access layers; choose one with --layer: ...` | Name one of the listed layers. Inline layers are found by themselves. |
 | `layer '...' not found; available: ...` | `--layer` names a layer that is not in the input. |
 | `the inline layers expand to more than 50000 rules` | Inline layers nested many times over. Not converted. |
+| `the input holds several access control policies (...): choose one with --policy` | Management Center source: name one of the listed policies. The same for `--nat-policy`. Where two policies have one name (two domains), the message gives their ids, which the option takes as well. |
+| `access control policy '...' is not in the input (found: ...)` | `--policy` names a policy that is not there. |
+| `N access rules do not say which policy they are in ...` | Rules without their `metadata` and `links`, next to several policies. Fetch the rules of one policy with `expanded=true` and leave the answers as they are. |
+| `the input is the JSON of a Firewall Device Manager; read it with --from fdm` | `--from fmc` on the export of a Device Manager, or the other way round. Leave `--from` out. |
+| `the input holds objects of a Firewall Management Center and of a Firewall Device Manager; convert them apart` | Two exports in one file. |
+| `no Cisco Secure Firewall configuration found; expected ...` | `--from fmc` or `--from fdm` on JSON that holds none of their objects: an error message of the API, for instance, saved instead of an answer. |
+| `no rules and no objects found in the input` | The JSON is of a Cisco manager and holds nothing of a policy. |
+| `not valid JSON (after N complete documents): ...` | One of the saved answers is cut short or is not JSON: often an HTML error page, or a token that ran out half way. Fetch again. |
+| `the zip is encrypted. Export the configuration with doNotEncrypt ...` | Device Manager source: the export was made with a key. Export again without, or unpack the zip with its key and give FWShift the text file. |
+| `the zip holds N text files; the export of a Firewall Device Manager holds one` | Not an export of a Device Manager, or one that was repacked. Give FWShift the file with the configuration. |
+| `the input is a zip; unpack it and give FWShift the JSON inside` | `--from fmc` on a zip. |
+| `--target-policy '...' is not a name a Management Center takes for a policy` | Up to 50 letters, digits, spaces, periods, underscores and hyphens. |
+| `--target-prefix takes up to 20 letters, digits, periods, underscores and hyphens` | Management Center or Device Manager target. |
 | `no Cisco ASA configuration found; expected the output of 'show running-config'` | `--from asa` on a file that has no interfaces, objects, access lists or NAT of an ASA. |
 | `this is the system configuration of an ASA in multiple context mode` | It holds no policy. Convert the configuration of each context. |
 | `the configuration could not be read (...)` | An ASA configuration that is damaged in a way FWShift did not foresee. Please report it. |
@@ -1596,6 +2158,20 @@ single cause usually explains many: applications missing from the port table
 FWShift does not know, or a Check Point export without `details-level full`
 and `dereference-group-members true`, in which the objects are names without
 content.
+
+**Rules from a Management Center are disabled, with "not in the input in
+full" or `RULES_NOT_EXPANDED`.** The lists were fetched without
+`expanded=true`, or the objects were not fetched at all: the input holds
+names without content. Section 3 has the calls.
+
+**The script for a Management Center stops with "exist already".** Names of
+the policy are taken on the target. Nothing was created. Convert again with
+`--target-prefix`, or, when the objects on the target are the same objects
+from an earlier run, undo that run first (`--undo`).
+
+**A conversion from a Management Center says `INHERITANCE_UNKNOWN`.** The
+input does not say whether the policy has a parent. Add the answer of
+`policy/accesspolicies/<id>/inheritancesettings` to the input (section 3).
 
 **Most rules for an ASA are inactive, with `EGRESS_INTERFACE`.** The source
 policy has rules "from zone A to zone B, any address", and an ASA access list
@@ -1623,8 +2199,9 @@ deliberate: see *IPv4 and IPv6* in section 8.
 * The emitted syntax follows the vendors' documented formats. Only iptables
   output has been loaded into the real thing (a Linux kernel with iptables
   1.8.10, nf_tables backend; filter rules, not NAT); nothing has been
-  validated on PAN-OS, FortiOS, ASA or Sophos devices or a Check Point
-  management server, or across versions.
+  validated on PAN-OS, FortiOS, ASA or Sophos devices, a Check Point
+  management server, a Cisco Secure Firewall Management Center or Device
+  Manager, or across versions.
 * Statements about vendor behaviour that the conversion relies on (FortiOS
   policy lookup after destination NAT, `match-vip`, PAN-OS FQDN resolution, the
   commands each CLI accepts, the fields of the Check Point Management API, what
@@ -1665,9 +2242,28 @@ deliberate: see *IPv4 and IPv6* in section 8.
   been imported on a Sophos Firewall. The element names of a NAT rule's match
   and the first line of the file are not in the documentation FWShift was
   written from; `DEVELOPMENT.md` lists what is assumed.
-* Cisco FTD: only what the device configuration shows. Rules with
-  application, URL or user conditions come out disabled; for those the
-  manager's policy is the source, and FWShift does not read it.
+* Cisco Secure Firewall: one access control policy (with the policies it
+  inherits from, as far as the input says that it inherits), its prefilter
+  policy and one NAT policy of one domain per run. Application, URL, user, VLAN, security group tag and dynamic object
+  conditions, time ranges, intrusion, file, SSL, identity and DNS policies,
+  what happens inside a tunnel that a prefilter rule hands on, object
+  overrides per device, platform settings, routing and VPN are not converted.
+  A Fastpath rule below a prefilter rule that hands the same traffic to the
+  access rules is not converted. Written for a Management Center: a new
+  policy, never a change to an existing one; rules go to the mandatory
+  section; prefilter rules of a Cisco source become access rules. Written
+  for a Device Manager: no rule that is disabled or could not be converted,
+  no zones, no IP in IP and IPv6 in IP as protocols (a rule that names one of
+  them next to other services is left out whole, a blocking rule too: the
+  prefilter default "block all tunnel traffic" of a Management Center is such
+  a rule), NAT rules with single ports only. The JSON of both managers, the calls of the script and the
+  format of the import file are taken from documentation and from Cisco's
+  published tooling; nothing has been run against a Management Center or a
+  Device Manager. `DEVELOPMENT.md` lists what is assumed.
+* The running configuration of an FTD device, read as an ASA configuration,
+  shows only what the device was given. Rules with application, URL or user
+  conditions come out disabled; for those the policy in the manager is the
+  source (`--from fmc`, `--from fdm`).
 * To an ASA, a rule "to zone B, any address" needs `--zone-network`; without
   it the rule is written inactive. The networks you give are taken to be
   right: a zone or an address nobody mentioned is handled on the side that

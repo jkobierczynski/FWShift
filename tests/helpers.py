@@ -876,3 +876,530 @@ class SophosConfig:
         make = ipaddress.IPv4Address if held["version"] == 4 else ipaddress.IPv6Address
         first, last = str(make(held["first"])), str(make(held["last"]))
         return first if first == last else f"{first}-{last}"
+
+
+class CiscoConfig:
+    """What ``--to fmc`` or ``--to fdm`` wrote, read the way the manager would take it.
+
+    This is not fwshift's parser, and not the loader of the script either: it reads the policy the
+    script carries, or the import file, and is strict the way the managers are documented to be.
+    An object exists before it is used (for a Management Center: it was created by an earlier
+    call), a name is given once whatever its case, a group has members and holds no group of ports
+    and no host name, and a rule only says what a rule of that manager can say.
+    """
+
+    NAME = r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}"
+    FMC_NETWORKS = {"Host": "host", "Network": "network", "Range": "range", "FQDN": "fqdn", "NetworkGroup": "group"}
+    FMC_PORTS = {"ProtocolPortObject": "port", "ICMPV4Object": "icmp4", "ICMPV6Object": "icmp6", "PortObjectGroup": "group"}
+    FMC_PATHS = {"Host": "object/hosts", "Network": "object/networks", "Range": "object/ranges", "FQDN": "object/fqdns",
+                 "NetworkGroup": "object/networkgroups", "ProtocolPortObject": "object/protocolportobjects",
+                 "ICMPV4Object": "object/icmpv4objects", "ICMPV6Object": "object/icmpv6objects",
+                 "PortObjectGroup": "object/portobjectgroups"}  # fmt: skip
+    PROTOCOLS = {"tcp": 6, "udp": 17, "icmp": 1, "icmp6": 58, "sctp": 132}
+
+    def __init__(self, text: str, zones: Optional[Tuple[str, ...]] = None, interfaces: Optional[Tuple[str, ...]] = None,
+                 existing: Optional[Dict[str, List[str]]] = None, existing_ports: Optional[Dict[str, Dict[str, Any]]] = None,
+                 resolved: Optional[Dict[str, List[str]]] = None, native: bool = False) -> None:  # fmt: skip
+        import json
+
+        self.text = text
+        self.fdm = text.startswith("[")
+        self.native = native  # names came from the same manager: they are what they are
+        self.known_zones, self.known_interfaces = zones, interfaces
+        self.resolved = resolved or {}
+        self.networks: Dict[str, Dict[str, Any]] = {}
+        self.ports: Dict[str, Dict[str, Any]] = {}
+        self.rules: List[Dict[str, Any]] = []
+        self.nat: List[Dict[str, Any]] = []
+        self.zones: List[str] = []
+        self.used_existing: List[str] = []
+        self._folded: Dict[str, set] = {"network": set(), "port": set(), "rule": set(), "nat": set()}
+        system = {"any-ipv4": ["0.0.0.0/0"], "any-ipv6": ["::/0"]}
+        system.update(existing or {})
+        self._system, self._system_ports = system, existing_ports or {}
+        if self.fdm:
+            for line in text.splitlines()[1:-1]:
+                assert line.startswith("{") and (line.endswith("},") or line.endswith("}")), line[:80]
+            entries = json.loads(text)
+            assert isinstance(entries, list) and entries, "an import file is a list of objects"
+            self._fdm(entries)
+        else:
+            assert text.startswith("#!/usr/bin/env python3\n"), text[:40]
+            head, marker, tail = text.partition("\n# The policy, as data.")
+            assert marker and "def main(" in head, "the script holds the loader and then the policy"
+            lines = [line[3:] for line in tail.splitlines() if line.startswith("#: ")]
+            assert all(line.startswith("#") for line in tail.splitlines()[1:] if line), "only comment lines after the loader"
+            self.plan = json.loads("\n".join(lines))
+            self._fmc(self.plan)
+
+    # -- shared -----------------------------------------------------------
+
+    def _name(self, name: Any, space: str, limit: int = 64, spaces: bool = False) -> str:
+        import re
+
+        assert isinstance(name, str) and name, f"name {name!r}"
+        if not self.native:
+            pattern = r"[A-Za-z0-9][A-Za-z0-9 ._-]*" if spaces else r"[A-Za-z0-9][A-Za-z0-9._-]*"
+            assert re.fullmatch(pattern, name) and len(name) <= limit and name == name.strip(), f"{space} name '{name}'"
+        assert name.lower() not in self._folded[space], f"{space} '{name}' is created twice"
+        assert space != "network" or name.lower() not in {n.lower() for n in self._system}, f"'{name}' is an object of the manager"
+        self._folded[space].add(name.lower())
+        return name
+
+    @staticmethod
+    def _address(kind: str, value: Any) -> Dict[str, Any]:
+        import ipaddress
+
+        assert isinstance(value, str) and value == value.strip(), value
+        if kind == "host":
+            first = last = int(ipaddress.ip_address(value))
+            version = ipaddress.ip_address(value).version
+        elif kind == "network":
+            network = ipaddress.ip_network(value, strict=True)
+            assert "/" in value and network.num_addresses > 1 and network.prefixlen > 0, f"network '{value}'"
+            first, last, version = int(network.network_address), int(network.broadcast_address), network.version
+        else:
+            assert kind == "range" and value.count("-") == 1, f"range '{value}'"
+            low, high = (ipaddress.ip_address(part) for part in value.split("-"))
+            assert low.version == high.version and int(low) < int(high), f"range '{value}'"
+            first, last, version = int(low), int(high), low.version
+        return {"kind": kind, "intervals": [(version, first, last)]}
+
+    @staticmethod
+    def _port(value: Any) -> Tuple[int, int]:
+        assert isinstance(value, str) and value and all(part.isdigit() for part in value.split("-")), f"port '{value}'"
+        parts = [int(part) for part in value.split("-")]
+        assert len(parts) in (1, 2) and 1 <= parts[0] <= parts[-1] <= 65535 and (len(parts) == 1 or parts[0] < parts[1]), value
+        return parts[0], parts[-1]
+
+    def _system_network(self, name: str) -> None:
+        if name not in self.networks:
+            assert name in self._system, f"network object '{name}' is used and neither created nor on the manager already"
+            self.networks[name] = {"kind": "existing", "intervals": [parse_literal(v) for v in self._system[name]]}
+            self.used_existing.append(name)
+
+    def _zone(self, name: Any, where: str) -> str:
+        assert isinstance(name, str) and name and name.lower() != "any", f"{where}: zone {name!r}"
+        assert self.known_zones is None or name in self.known_zones, f"{where}: zone '{name}' does not exist"
+        if name not in self.zones:
+            self.zones.append(name)
+        return name
+
+    # -- a Management Center ----------------------------------------------
+
+    def _fmc_ref(self, ref: Any, where: str, kinds: Tuple[str, ...]) -> str:
+        assert isinstance(ref, dict) and set(ref) == {"@ref", "name"}, f"{where}: {ref}"
+        kind, name = ref["@ref"], ref["name"]
+        assert kind in kinds, f"{where}: a {kind} where one of {kinds} is expected"
+        if kind == "SecurityZone":
+            assert name in self.plan["zones"], f"{where}: zone '{name}' is not among the zones of the script"
+            return self._zone(name, where)
+        table = self.networks if kind in self.FMC_NETWORKS else self.ports
+        if name not in table:
+            listed = {"type": kind, "name": name} in self.plan["existing"]
+            assert listed, f"{where}: {kind} '{name}' is used before a call created it"
+            if kind in self.FMC_NETWORKS:
+                self._system_network(name)
+            else:
+                assert name in self._system_ports, f"{where}: port object '{name}' is not on the manager"
+                self.ports[name] = dict(self._system_ports[name])
+        held = table[name]
+        expected = (self.FMC_NETWORKS if kind in self.FMC_NETWORKS else self.FMC_PORTS)[kind]
+        assert held["kind"] in (expected, "existing") or held.get("fmc") == kind, f"{where}: '{name}' is a {held['kind']}, not a {kind}"
+        return name
+
+    def _fmc(self, plan: Dict[str, Any]) -> None:
+        assert set(plan) == {"format", "generator", "policy", "description", "default_action", "zones", "existing", "steps",
+                             "rules", "nat"} and plan["format"] == 1, sorted(plan)  # fmt: skip
+        assert plan["default_action"] == "BLOCK" and isinstance(plan["policy"], str) and 0 < len(plan["policy"]) <= 50
+        assert all(isinstance(zone, str) and zone for zone in plan["zones"]) and len(set(plan["zones"])) == len(plan["zones"])
+        seen_paths: List[str] = []
+        for step in plan["steps"]:
+            assert set(step) == {"what", "type", "path", "items"} and step["items"], step.get("what")
+            kind = step["type"]
+            assert self.FMC_PATHS[kind] == step["path"], step
+            assert kind == "NetworkGroup" or step["path"] not in seen_paths, f"{step['path']} in two steps"
+            seen_paths.append(step["path"])
+            created: List[Tuple[str, Dict[str, Any]]] = []
+            for item in step["items"]:
+                assert item["type"] == kind, item
+                where = f"{kind} '{item.get('name')}'"
+                assert len(item.get("description", "x")) <= 200 and item.get("description", "x") != "", where
+                if kind in self.FMC_NETWORKS:
+                    name = self._name(item["name"], "network")
+                    if kind == "NetworkGroup":
+                        assert set(item) <= {"type", "name", "description", "objects"} and item["objects"], where
+                        members = [self._fmc_ref(ref, where, ("Host", "Network", "Range", "NetworkGroup")) for ref in item["objects"]]
+                        assert len(set(members)) == len(members), f"{where} lists a member twice"
+                        created.append((name, {"kind": "group", "members": members}))
+                    elif kind == "FQDN":
+                        assert set(item) <= {"type", "name", "description", "value", "dnsResolution"}, where
+                        assert item["dnsResolution"] in ("IPV4_ONLY", "IPV6_ONLY", "IPV4_AND_IPV6") and "." in item["value"], where
+                        created.append((name, {"kind": "fqdn", "fqdn": item["value"], "resolution": item["dnsResolution"]}))
+                    else:
+                        assert set(item) <= {"type", "name", "description", "value"}, where
+                        created.append((name, self._address(self.FMC_NETWORKS[kind], item["value"])))
+                else:
+                    name = self._name(item["name"], "port")
+                    if kind == "PortObjectGroup":
+                        assert set(item) <= {"type", "name", "description", "objects"} and item["objects"], where
+                        members = [self._fmc_ref(ref, where, ("ProtocolPortObject", "ICMPV4Object", "ICMPV6Object"))
+                                   for ref in item["objects"]]  # fmt: skip
+                        assert len(set(members)) == len(members), f"{where} lists a member twice"
+                        created.append((name, {"kind": "group", "members": members}))
+                    elif kind == "ProtocolPortObject":
+                        assert set(item) <= {"type", "name", "description", "protocol", "port"}, where
+                        assert item["protocol"] in ("TCP", "UDP"), where
+                        low, high = self._port(item["port"]) if "port" in item else (0, 65535)
+                        created.append((name, {"kind": "port", "protocol": item["protocol"].lower(), "low": low, "high": high}))
+                    else:
+                        assert set(item) <= {"type", "name", "description", "icmpType", "code"}, where
+                        assert "code" not in item or "icmpType" in item, f"{where}: a code without a type"
+                        for key in ("icmpType", "code"):
+                            assert key not in item or (isinstance(item[key], str) and item[key].isdigit() and int(item[key]) < 256), where
+                        created.append((name, {"kind": "icmp4" if kind == "ICMPV4Object" else "icmp6",
+                                               "type": int(item["icmpType"]) if "icmpType" in item else None,
+                                               "code": int(item["code"]) if "code" in item else None}))  # fmt: skip
+            # What one call creates is there for the next call, not for itself.
+            for name, held in created:
+                held["fmc"] = kind
+                (self.networks if kind in self.FMC_NETWORKS else self.ports)[name] = held
+        for rule in plan["rules"]:
+            self.rules.append(self._fmc_rule(rule))
+        for rule in plan["nat"]:
+            self.nat.append(self._fmc_nat(rule))
+
+    def _fmc_rule(self, rule: Dict[str, Any]) -> Dict[str, Any]:
+        allowed = {"type", "name", "enabled", "action", "logBegin", "logEnd", "sendEventsToFMC", "logFiles", "sourceZones",
+                   "destinationZones", "sourceNetworks", "destinationNetworks", "sourcePorts", "destinationPorts", "newComments"}  # fmt: skip
+        assert rule["type"] == "AccessRule" and set(rule) <= allowed, sorted(set(rule) - allowed)
+        name = self._name(rule["name"], "rule", 50, spaces=True)
+        where = f"rule '{name}'"
+        assert rule["action"] in ("ALLOW", "TRUST", "BLOCK", "BLOCK_RESET"), where
+        for key in ("enabled", "logBegin", "logEnd", "sendEventsToFMC", "logFiles"):
+            assert isinstance(rule[key], bool), f"{where}: {key}"
+        assert not (rule["action"].startswith("BLOCK") and rule["logEnd"]), f"{where}: a blocked connection has no end to log"
+        assert rule["sendEventsToFMC"] == (rule["logBegin"] or rule["logEnd"]), where
+        assert all(isinstance(c, str) and 0 < len(c) <= 500 for c in rule.get("newComments", [])), where
+        out: Dict[str, Any] = {"name": name, "enabled": rule["enabled"], "log": rule["logBegin"] or rule["logEnd"],
+                               "action": {"ALLOW": "allow", "TRUST": "trust", "BLOCK": "block", "BLOCK_RESET": "reset"}[rule["action"]],
+                               "comment": " ".join(rule.get("newComments", []))}  # fmt: skip
+        for key, short in (("sourceZones", "src_zones"), ("destinationZones", "dst_zones")):
+            out[short] = None
+            if key in rule:
+                assert set(rule[key]) == {"objects"} and rule[key]["objects"], f"{where}: {key}"
+                out[short] = [self._fmc_ref(ref, where, ("SecurityZone",)) for ref in rule[key]["objects"]]
+        for key, short in (("sourceNetworks", "sources"), ("destinationNetworks", "destinations")):
+            out[short] = None
+            if key in rule:
+                assert set(rule[key]) == {"objects"} and rule[key]["objects"], f"{where}: {key} that names nothing"
+                out[short] = [self._fmc_ref(ref, where, tuple(self.FMC_NETWORKS)) for ref in rule[key]["objects"]]
+        for key, short in (("sourcePorts", "src_ports"), ("destinationPorts", "dst_ports")):
+            out[short] = None
+            if key in rule:
+                assert set(rule[key]) <= {"objects", "literals"} and all(rule[key].values()), f"{where}: {key}"
+                listed: List[Any] = [self._fmc_ref(ref, where, tuple(self.FMC_PORTS)) for ref in rule[key].get("objects", [])]
+                for literal in rule[key].get("literals", []):
+                    assert set(literal) == {"type", "protocol"} and literal["type"] == "PortLiteral", f"{where}: {literal}"
+                    number = int(literal["protocol"])
+                    assert isinstance(literal["protocol"], str) and 1 < number < 256 and number not in (6, 17, 58), f"{where}: {literal}"
+                    listed.append(number)
+                out[short] = listed
+        if out["src_ports"] is not None:
+            # Source and destination ports of one rule are of one transport protocol.
+            protocols = {p for name_ in out["src_ports"] + (out["dst_ports"] or []) for p in self._port_protocols(name_)}
+            assert protocols in ({"tcp"}, {"udp"}), f"{where}: source ports with {sorted(map(str, protocols))}"
+        return out
+
+    def _port_protocols(self, name: Any) -> List[Any]:
+        if isinstance(name, int):
+            return [name]
+        held = self.ports[name]
+        if held["kind"] == "group":
+            return [p for member in held["members"] for p in self._port_protocols(member)]
+        return [held["protocol"] if held["kind"] == "port" else held["kind"]]
+
+    def _nat_checks(self, out: Dict[str, Any], where: str) -> Dict[str, Any]:
+        """What the documentation of both managers says about the fields of a manual NAT rule."""
+        for name in (out["osrc"], out["tsrc"], out["odst"], out["tdst"], out["pool"]):
+            if name is not None:
+                assert self._kinds(name) <= {"host", "network", "range", "existing"}, f"{where}: '{name}' holds a host name"
+                versions = {i[0] for i in self.span_of(name)}
+                assert len(versions) == 1, f"{where}: '{name}' holds IPv4 and IPv6 addresses"
+        ports = [out[key] for key in ("osp", "tsp", "odp", "tdp") if out[key] is not None]
+        assert len({self.ports[name]["protocol"] for name in ports}) <= 1, f"{where}: ports of two protocols"
+        for name in ports:
+            assert self.ports[name]["kind"] == "port" and (self.ports[name]["low"], self.ports[name]["high"]) != (0, 65535), \
+                f"{where}: '{name}' is every port"
+        assert (out["osp"] is None) == (out["tsp"] is None) and (out["odp"] is None) == (out["tdp"] is None), f"{where}: half a port translation"
+        if out["to_interface"]:
+            assert out["tsrc"] is None and out["dst_if"], f"{where}: the interface address of no interface"
+        if out["from_interface"]:
+            assert out["odst"] is None and out["tdst"] is not None and out["odp"] is not None and out["src_if"], where
+        else:
+            assert (out["odst"] is None) == (out["tdst"] is None), f"{where}: half a destination translation"
+        if out["pool"] is not None:
+            assert not out["static"] and out["tsrc"] is None and self._kinds(out["pool"]) <= {"host", "range"}, f"{where}: pool"
+        if not out["static"]:
+            assert not out["unidirectional"], f"{where}: unidirectional is said of a static rule"
+            assert out["to_interface"] or out["pool"] is not None or (out["tsrc"] is not None and self._kinds(out["tsrc"]) <= {"host", "range"}), \
+                f"{where}: a dynamic rule translates to hosts and ranges"
+        elif not out["to_interface"]:
+            assert (out["osrc"] is None) == (out["tsrc"] is None) or self.fdm is False, f"{where}: a static rule maps a source to a source"
+            assert out["tsrc"] is not None or out["osrc"] is None, f"{where}: static NAT to nothing"
+        return out
+
+    def _kinds(self, name: str) -> set:
+        held = self.networks[name]
+        if held["kind"] == "group":
+            return {kind for member in held["members"] for kind in self._kinds(member)}
+        return {held["kind"]}
+
+    def _fmc_nat(self, rule: Dict[str, Any]) -> Dict[str, Any]:
+        flags = {"enabled", "unidirectional", "interfaceInTranslatedSource", "interfaceInOriginalDestination", "noProxyArp",
+                 "routeLookup", "dns", "fallThrough", "netToNet", "interfaceIpv6"}  # fmt: skip
+        refs = {"originalSource": "osrc", "translatedSource": "tsrc", "originalDestination": "odst", "translatedDestination": "tdst"}
+        ports = {"originalSourcePort": "osp", "translatedSourcePort": "tsp", "originalDestinationPort": "odp",
+                 "translatedDestinationPort": "tdp"}  # fmt: skip
+        allowed = {"type", "natType", "description", "sourceInterface", "destinationInterface", "patOptions"} | flags | set(refs) | set(ports)
+        assert rule["type"] == "FTDManualNatRule" and set(rule) <= allowed and flags <= set(rule), sorted(set(rule) ^ allowed)
+        where = f"NAT rule {len(self.nat) + 1}"
+        assert rule["natType"] in ("STATIC", "DYNAMIC") and all(isinstance(rule[flag], bool) for flag in flags), where
+        assert not (rule["dns"] or rule["fallThrough"] or rule["netToNet"] or rule["interfaceIpv6"]), where
+        assert len(rule.get("description", "x")) <= 200, where
+        out: Dict[str, Any] = {"name": f"nat-{len(self.nat) + 1}", "enabled": rule["enabled"], "static": rule["natType"] == "STATIC",
+                               "unidirectional": rule["unidirectional"], "to_interface": rule["interfaceInTranslatedSource"],
+                               "from_interface": rule["interfaceInOriginalDestination"], "pool": None,
+                               "description": rule.get("description", "")}  # fmt: skip
+        for key, short in (("sourceInterface", "src_if"), ("destinationInterface", "dst_if")):
+            out[short] = self._fmc_ref(rule[key], where, ("SecurityZone",)) if key in rule else ""
+        for key, short in refs.items():
+            out[short] = self._fmc_ref(rule[key], where, tuple(self.FMC_NETWORKS)) if key in rule else None
+        for key, short in ports.items():
+            out[short] = self._fmc_ref(rule[key], where, ("ProtocolPortObject",)) if key in rule else None
+        if "patOptions" in rule:
+            options = rule["patOptions"]
+            assert set(options) == {"patPoolAddress", "interfacePat", "includeReserve", "roundRobin", "extendedPat", "flatPortRange"}, where
+            assert not any(options[key] for key in options if key != "patPoolAddress"), where
+            out["pool"] = self._fmc_ref(options["patPoolAddress"], where, tuple(self.FMC_NETWORKS))
+        assert out["osrc"] is not None, f"{where}: a Management Center wants an original source"
+        return self._nat_checks(out, where)
+
+    # -- a Device Manager -------------------------------------------------
+
+    def _fdm_ref(self, ref: Any, where: str, kinds: Tuple[str, ...]) -> str:
+        assert isinstance(ref, dict) and set(ref) == {"type", "name"}, f"{where}: {ref}"
+        kind, name = ref["type"], ref["name"]
+        assert kind in kinds, f"{where}: a {kind} where one of {kinds} is expected"
+        if kind == "securityzone":
+            return self._zone(name, where)
+        if kind == "physicalinterface":
+            assert isinstance(name, str) and name and (self.known_interfaces is None or name in self.known_interfaces), f"{where}: {name}"
+            return name
+        if kind in ("networkobject", "networkobjectgroup"):
+            if name not in self.networks:
+                self._system_network(name)
+            held = self.networks[name]
+            assert (held["kind"] == "group") == (kind == "networkobjectgroup") or held["kind"] == "existing", f"{where}: '{name}' as {kind}"
+            return name
+        if name not in self.ports:
+            assert name in self._system_ports, f"{where}: port object '{name}' is used before it is created"
+            self.ports[name] = dict(self._system_ports[name])
+        assert self.ports[name]["fdm"] == kind, f"{where}: '{name}' is a {self.ports[name]['fdm']}, not a {kind}"
+        return name
+
+    def _fdm(self, entries: List[Any]) -> None:
+        from fwshift.appmap import FDM_ICMP6_CODES, FDM_ICMP6_TYPES, FDM_ICMP_CODES, FDM_ICMP_TYPES, FDM_PROTOCOLS
+
+        head = entries[0]
+        assert set(head) == {"type", "hardwareModel", "softwareVersion", "apiVersion", "configType", "exportType"}, sorted(head)
+        assert head["type"] == "metadata" and head["apiVersion"] == "latest" and head["configType"] == "DELTA_CONFIG", head
+        assert all(isinstance(head[key], str) and head[key] for key in head)
+        self.metadata = head
+        port_objects = ("tcpportobject", "udpportobject", "protocolobject", "icmpv4portobject", "icmpv6portobject")
+        stage = 0  # objects, then rules, then NAT rules
+        for entry in entries[1:]:
+            assert set(entry) <= {"type", "action", "data", "parentName"} and entry["type"] == "identitywrapper", entry
+            assert entry["action"] == "CREATE" and list(entry)[-1] == "data", entry
+            data = entry["data"]
+            kind = data["type"]
+            where = f"{kind} '{data.get('name')}'"
+            assert "id" not in data and "version" not in data, f"{where}: an id or a version of another device"
+            assert 0 < len(data.get("description", "x")) <= 200 and ";" not in data.get("description", ""), where
+            order = 1 if kind == "accessrule" else 2 if kind == "manualnatrule" else 0
+            assert order >= stage, f"{where} after what uses it"
+            stage = order
+            assert ("parentName" in entry) == (kind == "manualnatrule"), where
+            if kind == "networkobject":
+                assert set(data) <= {"type", "name", "description", "subType", "value", "dnsResolution"}, where
+                name = self._name(data["name"], "network")
+                if data["subType"] == "FQDN":
+                    assert data["dnsResolution"] in ("IPV4_ONLY", "IPV6_ONLY", "IPV4_AND_IPV6") and "." in data["value"], where
+                    self.networks[name] = {"kind": "fqdn", "fqdn": data["value"], "resolution": data["dnsResolution"]}
+                else:
+                    assert data["subType"] in ("HOST", "NETWORK", "RANGE") and "dnsResolution" not in data, where
+                    self.networks[name] = self._address(data["subType"].lower(), data["value"])
+            elif kind == "networkobjectgroup":
+                assert set(data) <= {"type", "name", "description", "objects"} and data["objects"], where
+                name = self._name(data["name"], "network")
+                members = [self._fdm_ref(ref, where, ("networkobject",)) for ref in data["objects"]]
+                assert len(set(members)) == len(members) and "fqdn" not in {self.networks[m]["kind"] for m in members}, where
+                self.networks[name] = {"kind": "group", "members": members}
+            elif kind in ("tcpportobject", "udpportobject"):
+                assert set(data) <= {"type", "name", "description", "port"}, where
+                low, high = self._port(data["port"])
+                self.ports[self._name(data["name"], "port")] = {"kind": "port", "protocol": kind[:3], "low": low, "high": high, "fdm": kind}
+            elif kind == "protocolobject":
+                assert set(data) <= {"type", "name", "description", "protocol"} and data["protocol"] in FDM_PROTOCOLS, where
+                assert data["protocol"] not in ("TCP", "UDP"), where
+                self.ports[self._name(data["name"], "port")] = {"kind": "protocol", "number": FDM_PROTOCOLS[data["protocol"]], "fdm": kind}
+            elif kind in ("icmpv4portobject", "icmpv6portobject"):
+                prefix = kind[:6]
+                types, codes = (FDM_ICMP_TYPES, FDM_ICMP_CODES) if prefix == "icmpv4" else (FDM_ICMP6_TYPES, FDM_ICMP6_CODES)
+                assert set(data) <= {"type", "name", "description", f"{prefix}Type", f"{prefix}Code"}, where
+                type_name = data[f"{prefix}Type"]
+                assert type_name == "ANY" or type_name in types, f"{where}: type {type_name}"
+                if f"{prefix}Code" in data:
+                    assert type_name != "ANY" and codes[data[f"{prefix}Code"]][0] == types[type_name], f"{where}: code"
+                self.ports[self._name(data["name"], "port")] = {
+                    "kind": "icmp4" if prefix == "icmpv4" else "icmp6", "type": None if type_name == "ANY" else types[type_name],
+                    "code": codes[data[f"{prefix}Code"]][1] if f"{prefix}Code" in data else None, "fdm": kind}  # fmt: skip
+            elif kind == "portobjectgroup":
+                assert set(data) <= {"type", "name", "description", "objects"} and data["objects"], where
+                name = self._name(data["name"], "port")
+                members = [self._fdm_ref(ref, where, port_objects) for ref in data["objects"]]
+                assert len(set(members)) == len(members), where
+                self.ports[name] = {"kind": "group", "members": members, "fdm": kind}
+            elif kind == "accessrule":
+                self.rules.append(self._fdm_rule(data, port_objects))
+            else:
+                assert kind == "manualnatrule" and entry["parentName"] == "NGFW-Before-Auto-NAT-Policy", where
+                self.nat.append(self._fdm_nat(data))
+
+    def _fdm_rule(self, rule: Dict[str, Any], port_objects: Tuple[str, ...]) -> Dict[str, Any]:
+        lists = ("sourceZones", "destinationZones", "sourceNetworks", "destinationNetworks", "sourcePorts", "destinationPorts")
+        assert set(rule) == {"type", "name", "ruleAction", "eventLogAction"} | set(lists), sorted(rule)
+        name = self._name(rule["name"], "rule", 128)
+        where = f"rule '{name}'"
+        assert rule["ruleAction"] in ("PERMIT", "TRUST", "DENY") and rule["eventLogAction"] in ("LOG_FLOW_END", "LOG_BOTH", "LOG_NONE"), where
+        out: Dict[str, Any] = {"name": name, "enabled": True, "log": rule["eventLogAction"] != "LOG_NONE", "comment": "",
+                               "action": {"PERMIT": "allow", "TRUST": "trust", "DENY": "block"}[rule["ruleAction"]]}  # fmt: skip
+        kinds = {"Zones": ("securityzone",), "Networks": ("networkobject", "networkobjectgroup"), "Ports": port_objects + ("portobjectgroup",)}
+        short = {"sourceZones": "src_zones", "destinationZones": "dst_zones", "sourceNetworks": "sources",
+                 "destinationNetworks": "destinations", "sourcePorts": "src_ports", "destinationPorts": "dst_ports"}  # fmt: skip
+        for key in lists:
+            assert isinstance(rule[key], list), f"{where}: {key}"
+            listed = [self._fdm_ref(ref, where, next(v for k, v in kinds.items() if key.endswith(k))) for ref in rule[key]]
+            assert len(set(listed)) == len(listed), f"{where}: {key} names something twice"
+            out[short[key]] = listed or None  # an empty list is any
+        if out["src_ports"] is not None:
+            protocols = {p for name_ in out["src_ports"] + (out["dst_ports"] or []) for p in self._port_protocols(name_)}
+            assert protocols in ({"tcp"}, {"udp"}), f"{where}: source ports with {sorted(map(str, protocols))}"
+        return out
+
+    def _fdm_nat(self, rule: Dict[str, Any]) -> Dict[str, Any]:
+        flags = {"enabled", "unidirectional", "interfaceInTranslatedSource", "interfaceInOriginalDestination", "noProxyArp",
+                 "routeLookup", "dns", "netToNet", "interfaceIPv6"}  # fmt: skip
+        refs = {"originalSource": "osrc", "translatedSource": "tsrc", "originalDestination": "odst", "translatedDestination": "tdst"}
+        ports = {"originalSourcePort": "osp", "translatedSourcePort": "tsp", "originalDestinationPort": "odp",
+                 "translatedDestinationPort": "tdp"}  # fmt: skip
+        allowed = {"type", "name", "natType", "description", "sourceInterface", "destinationInterface", "patOptions"} | flags | set(refs) | set(ports)
+        assert set(rule) <= allowed and flags <= set(rule), sorted(set(rule) ^ allowed)
+        name = self._name(rule["name"], "nat", 128)
+        where = f"NAT rule '{name}'"
+        assert rule["natType"] in ("STATIC", "DYNAMIC") and all(isinstance(rule[flag], bool) for flag in flags), where
+        assert not (rule["dns"] or rule["netToNet"] or rule["interfaceIPv6"]), where
+        out: Dict[str, Any] = {"name": name, "enabled": rule["enabled"], "static": rule["natType"] == "STATIC",
+                               "unidirectional": rule["unidirectional"], "to_interface": rule["interfaceInTranslatedSource"],
+                               "from_interface": rule["interfaceInOriginalDestination"], "pool": None,
+                               "description": rule.get("description", "")}  # fmt: skip
+        for key, short in (("sourceInterface", "src_if"), ("destinationInterface", "dst_if")):
+            out[short] = self._fdm_ref(rule[key], where, ("physicalinterface",)) if key in rule else ""
+        for key, short in refs.items():
+            out[short] = self._fdm_ref(rule[key], where, ("networkobject", "networkobjectgroup")) if key in rule else None
+        for key, short in ports.items():
+            out[short] = self._fdm_ref(rule[key], where, ("tcpportobject", "udpportobject")) if key in rule else None
+            if out[short] is not None:
+                assert self.ports[out[short]]["low"] == self.ports[out[short]]["high"], f"{where}: {key} is not one port"
+        if "patOptions" in rule:
+            options = rule["patOptions"]
+            assert set(options) == {"type", "patPoolAddress", "interfacePat", "roundRobin", "flat", "extended", "includeReserve"}, where
+            assert options["type"] == "patoptions" and not any(options[k] for k in options if k not in ("type", "patPoolAddress")), where
+            out["pool"] = self._fdm_ref(options["patPoolAddress"], where, ("networkobject", "networkobjectgroup"))
+        return self._nat_checks(out, where)
+
+    # -- what the firewall would do ---------------------------------------
+
+    def span_of(self, name: str) -> List[Tuple[int, int, int]]:
+        """The addresses of a network object or group; a host name stands for what a test says it resolves to."""
+        held = self.networks[name]
+        if held["kind"] == "group":
+            return [interval for member in held["members"] for interval in self.span_of(member)]
+        if held["kind"] == "fqdn":
+            wanted = {"IPV4_ONLY": (4,), "IPV6_ONLY": (6,)}.get(held["resolution"], (4, 6))
+            found = [parse_literal(literal) for literal in self.resolved.get(name, [])]
+            return [interval for interval in found if interval is not None and interval[0] in wanted]
+        return list(held["intervals"])
+
+    def _in(self, names: Optional[List[str]], address: str) -> bool:
+        if names is None:
+            return True
+        probe = parse_literal(address)
+        assert probe is not None
+        return any(i[0] == probe[0] and i[1] <= probe[1] <= i[2] for name in names for i in self.span_of(name))
+
+    def _port_matches(self, name: Any, pkt: Any, source: bool) -> bool:
+        number = self.PROTOCOLS.get(pkt.proto) or int(pkt.proto)
+        if isinstance(name, int):
+            return name == number
+        held = self.ports[name]
+        if held["kind"] == "group":
+            return any(self._port_matches(member, pkt, source) for member in held["members"])
+        if held["kind"] == "port":
+            return held["protocol"] == pkt.proto and held["low"] <= (pkt.sport if source else pkt.dport) <= held["high"]
+        if held["kind"] == "protocol":
+            return held["number"] == number
+        return pkt.proto == ("icmp" if held["kind"] == "icmp4" else "icmp6") and held["type"] in (None, pkt.icmp_type)
+
+    def deciding(self, pkt: Any) -> Optional[Dict[str, Any]]:
+        """The rule that decides about a packet that opens a connection: the first that matches."""
+        for rule in self.rules:
+            if not rule["enabled"]:
+                continue
+            if rule["src_zones"] is not None and pkt.in_if not in rule["src_zones"]:
+                continue
+            if rule["dst_zones"] is not None and pkt.out_if not in rule["dst_zones"]:
+                continue
+            if not self._in(rule["sources"], pkt.src) or not self._in(rule["destinations"], pkt.dst):
+                continue
+            if rule["src_ports"] is not None and not any(self._port_matches(name, pkt, True) for name in rule["src_ports"]):
+                continue
+            if rule["dst_ports"] is not None and not any(self._port_matches(name, pkt, False) for name in rule["dst_ports"]):
+                continue
+            return rule
+        return None
+
+    def allows(self, pkt: Any) -> bool:
+        rule = self.deciding(pkt)
+        return rule is not None and rule["action"] in ("allow", "trust")  # what no rule matches is blocked
+
+    def translating(self, pkt: Any) -> Optional[Dict[str, Any]]:
+        """The manual NAT rule that applies to a packet that opens a connection: the first that matches."""
+        for rule in self.nat:
+            if not rule["enabled"]:
+                continue
+            if rule["src_if"] and pkt.in_if != rule["src_if"]:
+                continue
+            # A rule that translates the destination decides where the packet leaves by: it does not ask.
+            if rule["dst_if"] and rule["tdst"] == rule["odst"] and pkt.out_if != rule["dst_if"]:
+                continue
+            if rule["osrc"] is not None and not self._in([rule["osrc"]], pkt.src):
+                continue
+            if rule["odst"] is not None and not self._in([rule["odst"]], pkt.dst):
+                continue
+            if rule["odp"] is not None and not self._port_matches(rule["odp"], pkt, False):
+                continue
+            if rule["osp"] is not None and not self._port_matches(rule["osp"], pkt, True):
+                continue
+            return rule
+        return None

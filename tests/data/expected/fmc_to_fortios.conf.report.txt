@@ -1,0 +1,54 @@
+FWShift conversion report
+  source: fmc (Edge)
+  target: fortios
+
+Summary
+  Security rules:     22   exact 16, approximated 3, needs review 2 (2 emitted disabled), skipped 1
+  NAT rules:           7   exact 4, approximated 3, needs review 0, skipped 0
+  Addresses:          16   exact 16, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           24   exact 24, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CENTRAL_NAT: NAT is emitted as central NAT. Enable it first ('config system settings', 'set central-nat enable'); on a FortiGate that already uses per-policy NAT this changes how existing policies translate. Virtual IPs are created with 'extintf any'
+  [needs-review] ZONES_WITHOUT_INTERFACES: zones created without interfaces: inside, dmz, outside. Assign interfaces, or rerun with --zone-map / --interface-map to use existing names
+  [approximated] OBJECT_OVERRIDES: 1 object(s) can have another value on a device than the one that was read (they allow overrides): ot-net. The values of the manager were converted; check them against the device the policy is for
+  [info] EXISTING_OBJECTS: objects are created by name: an object that already exists on the target under the same name is overwritten by the one in this output
+
+Security rules
+  pre-partner-gre  ->  approximated
+      [approximated] TUNNEL_RULE: tunnel rule of the prefilter policy: it is converted as a rule for the protocol that carries the tunnel, between the tunnel endpoints. What the source did with the connections inside the tunnel is not converted
+  pre-partner-gre-reverse  ->  exact
+      [info] TUNNEL_RULE: the other direction of tunnel rule 'pre-partner-gre', which matches tunnels from source and destination
+  LAN web  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (file=Block Malware, intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+  Helpdesk RDP  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match CORP\helpdesk is not converted.
+  Staff social media  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Uncategorised web  ->  approximated
+      [approximated] INTERACTIVE_BLOCK: the source showed web users a page from which they could go on to the site (Interactive Block); it is converted as a rule that blocks
+  Reset the rest from inside  ->  exact
+      [info] RESET_ACTION: action reset-both becomes deny; FortiOS sends resets only with 'set send-deny-packet enable'
+  Watch DMZ  ->  skipped
+      [info] MONITOR_RULE: rule with the action Monitor: it logs the traffic and leaves the decision to the rules below it. Nothing to convert
+
+NAT rules
+  nat-2  ->  approximated  (emitted as virtual IP nat-2)
+      [approximated] NAT_SOURCE_DROPPED: the rule translated only traffic from any-ipv4; the virtual IP applies to all sources
+  nat-3  ->  approximated  (emitted as virtual IP nat-3)
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 203.0.113.2
+  nat-4  ->  exact  (emitted as central SNAT entry)
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: round robin, flat port range, interface (as fallback)
+  nat-mail-srv  ->  approximated  (emitted as central SNAT entry, virtual IP nat-mail-srv-in)
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: translate DNS replies
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a central SNAT entry plus virtual IP 'nat-mail-srv-in' for the inbound direction
+
+Services
+  HTTP  ->  exact  (emitted as HTTP_2)
+      [info] RENAMED: renamed to 'HTTP_2' to fit the target's naming rules
+  HTTPS  ->  exact  (emitted as HTTPS_2)
+      [info] RENAMED: renamed to 'HTTPS_2' to fit the target's naming rules
+  SSH  ->  exact  (emitted as SSH_2)
+      [info] RENAMED: renamed to 'SSH_2' to fit the target's naming rules

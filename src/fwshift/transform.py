@@ -87,17 +87,27 @@ def harden(p: Policy, report: Report) -> None:
     are not ports. A parser that validates its input leaves nothing to do here.
     """
     _without_control(p)
-    # No platform takes a group that holds itself, and nothing can be read off one.
-    for name in _circular({name: group.members for name, group in p.address_groups.items()}):
+    # No platform takes a group that holds itself, and nothing can be read off one. Nor is a group
+    # converted that lies deeper in other groups than any platform nests them: the passes that follow
+    # groups into groups would not come back from it.
+    circular = _circular({name: group.members for name, group in p.address_groups.items()})
+    deep = [name for name in _deep({name: group.members for name, group in p.address_groups.items()}) if name not in circular]
+    for name in circular + deep:
         group = p.address_groups[name]
         if not group.unsupported:
-            group.unsupported = "address group that holds itself, or a group that does"
+            group.unsupported = ("address group that holds itself, or a group that does" if name in circular else
+                                 f"address groups nested more than {MAX_NESTING} deep")  # fmt: skip
             report.add("address-group", name, Severity.REVIEW, "UNSUPPORTED_GROUP", f"{group.unsupported}: not converted")
-    for name in _circular({name: sgroup.members for name, sgroup in p.service_groups.items()}):
+        if name in deep or len(circular) > MAX_NESTING:
+            group.members = []
+    circular = _circular({name: sgroup.members for name, sgroup in p.service_groups.items()})
+    deep = [name for name in _deep({name: sgroup.members for name, sgroup in p.service_groups.items()}) if name not in circular]
+    for name in circular + deep:
         p.service_groups[name].members = []
         report.add(
             "service-group", name, Severity.REVIEW, "UNSUPPORTED_GROUP",
-            "service group that holds itself, or a group that does: not converted",
+            ("service group that holds itself, or a group that does" if name in circular else
+             f"service groups nested more than {MAX_NESTING} deep") + ": not converted",
         )  # fmt: skip
     for address in p.addresses.values():
         if address.kind == AddressKind.FQDN and not _HOST_NAME.fullmatch(address.value):
@@ -122,6 +132,29 @@ def harden(p: Policy, report: Report) -> None:
         if bad and not service.unsupported:
             service.unsupported = "ports that could not be read"
             report.add("service", service.name, Severity.REVIEW, "UNSUPPORTED_SERVICE", f"{service.unsupported}: not converted")
+
+
+MAX_NESTING = 64  # groups in groups: more levels than this are not followed
+
+
+def _deep(groups: Mapping[str, List[str]]) -> List[str]:
+    """Groups that hold groups to more than ``MAX_NESTING`` levels (groups that hold themselves are not counted)."""
+    inner = {name: {member for member in members if member in groups} for name, members in groups.items()}
+    users: Dict[str, List[str]] = {}
+    for name, held in inner.items():
+        for member in held:
+            users.setdefault(member, []).append(name)
+    waiting = {name: len(held) for name, held in inner.items()}
+    depth = {name: 1 for name in groups}
+    done = [name for name, count in waiting.items() if not count]
+    while done:
+        name = done.pop()
+        for user in users.get(name, []):
+            depth[user] = max(depth[user], depth[name] + 1)
+            waiting[user] -= 1
+            if not waiting[user]:
+                done.append(user)
+    return [name for name in groups if not waiting[name] and depth[name] > MAX_NESTING]
 
 
 def _circular(groups: Mapping[str, List[str]]) -> List[str]:
