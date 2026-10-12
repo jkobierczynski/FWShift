@@ -1,15 +1,22 @@
 FWShift audit
   source: checkpoint (Network)
-  security rules: 18 (1 disabled), NAT rules: 9
+  security rules: 22 (1 disabled), NAT rules: 9
+  hit counters: the configuration: counters of 20 of 22 rule(s)
 
 Summary
-  high 0, medium 3, low 9, info 1
+  high 0, medium 7, low 11, info 3
 
 Findings in the policy as it was read
   [medium] ANY_TO_ANY: rule 'Web out' allows its services from any source to any destination, from zone InternalZone to zone ExternalZone
   [medium] ANY_SERVICE: rule 'Admins' allows any service between its addresses, from any zone to any zone
   [medium] ANY_SERVICE: rule 'Partners' allows any service between its addresses, from any zone to any zone
+  [medium] UNUSED_RULE: rule 'Admins' allows traffic from any zone to any zone, and its hit counter (the rulebase) is 0 from 2026-07-01 to 2026-09-30 at least. Check Point counts only on gateways with hit counting on, for as long as 'Keep Hit Count data up to' says (3 months unless changed), or for the dates and gateway of hits-settings. Check that the counters cover every firewall the rule is on
+  [medium] UNUSED_RULE: rule 'DMZ users' allows traffic from any zone to any zone, and its hit counter (the rulebase) is 0 from 2026-07-01 to 2026-09-30 at least. Check Point counts only on gateways with hit counting on, for as long as 'Keep Hit Count data up to' says (3 months unless changed), or for the dates and gateway of hits-settings. Check that the counters cover every firewall the rule is on
+  [medium] UNUSED_RULE: rule 'IPv6 out' allows traffic from any zone to any zone, and its hit counter (the rulebase) is 0 from 2026-07-01 to 2026-09-30 at least. Check Point counts only on gateways with hit counting on, for as long as 'Keep Hit Count data up to' says (3 months unless changed), or for the dates and gateway of hits-settings. Check that the counters cover every firewall the rule is on
+  [medium] UNUSED_RULE: rule 'DMZ access / Mail in' allows traffic from any zone to any zone, and its hit counter (the rulebase) is 0 from 2026-07-01 to 2026-09-30 at least. Check Point counts only on gateways with hit counting on, for as long as 'Keep Hit Count data up to' says (3 months unless changed), or for the dates and gateway of hits-settings. Check that the counters cover every firewall the rule is on
   [low] ANY_DESTINATION: rule 'Social' allows its sources to reach any destination, from any zone to any zone
+  [low] ANY_SOURCE: rule 'PLC access (vendor-support)' allows any source, from any zone to any zone
+  [low] ANY_DESTINATION: rule 'DMZ users' allows its sources to reach any destination, from any zone to any zone
   [low] NO_LOG: rule 'IPv6 out' allows traffic from any zone to any zone without logging it
   [low] ANY_DESTINATION: rule 'IPv6 out' allows its sources to reach any destination, from any zone to any zone
   [low] ANY_SOURCE: rule 'Public web' allows any source, from any zone to any zone
@@ -19,8 +26,13 @@ Findings in the policy as it was read
   [low] NO_LOG: rule 'DMZ access (cleanup of DMZ-Layer)' blocks traffic from any zone to any zone without logging it
   [low] ANY_SOURCE: rule 'Tunnels' allows any source, from any zone to any zone
   [info] DISABLED_RULE: rule 'Old rule' is disabled: remove it, or note why it is kept
+  [info] NO_USAGE_EVIDENCE: rule 'Partners' has no hit counter in the input, while other rules have one: nothing can be said about its use
+  [info] NO_USAGE_EVIDENCE: rule 'Tunnels' has a hit counter of 0 (the rulebase), but it has counted only since 2026-08-20: 41 day(s) before the latest time its answer shows, fewer than the 90 the audit asks for. Check Point counts only on gateways with hit counting on, for as long as 'Keep Hit Count data up to' says (3 months unless changed), or for the dates and gateway of hits-settings
 
 Left out of the order checks
-  2 rule(s) that the model holds only approximately are neither called dead nor used to call another rule dead:
+  5 rule(s) that the model holds only approximately are neither called dead nor used to call another rule dead:
     'rule-2' (DEVICE_TARGET)
+    'PLC access (plc-operators)' (ACCESS_ROLE)
+    'PLC access (vendor-support)' (ACCESS_ROLE)
+    'DMZ users' (ACCESS_ROLE)
     'Tunnels' (GATEWAY_OBJECT)

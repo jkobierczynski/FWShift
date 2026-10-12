@@ -8,11 +8,11 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.12.4 (alpha) |
+| Version | 0.13.0 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
-| Tests | 3175, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
+| Tests | 3207, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, a Check Point management server, a Cisco Management Center or a Device Manager |
-| Next | lab validation of the sample conversions; the brands not planned yet (see `TODO.md`) |
+| Next | rule usage from logs, 0.14.0 to 0.17.0 (see `docs/RULE_USAGE.md`); lab validation of the sample conversions; the brands not planned yet (see `TODO.md`) |
 
 ## Layout
 
@@ -65,7 +65,10 @@ src/fwshift/
                       references, placeholders, names, application lowering,
                       NAT destination rewriting, NAT order, pruning
     audit.py          the audit: what rules match as sets, the checks, the
-                      actions (accept, disable, reorder), before and after
+                      actions (accept, disable, reorder), before and after;
+                      use from hit counters (UNUSED_RULE, NO_USAGE_EVIDENCE)
+    hits.py           hit counters from a file (PAN-OS rule-hit-count, FortiOS
+                      monitor), put on the rules by their source identifiers
     matrix.py         the zone matrix: what each zone may reach in each other
                       zone, from the sets of the audit; zones of the policy or
                       zones given as networks
@@ -114,12 +117,17 @@ tests/
     test_watchguard.py WatchGuard both ways, against the judge in helpers.py
     test_barracuda.py Barracuda both ways, against the judge in helpers.py
     test_junos.py     Juniper SRX both ways, against the judge in helpers.py
+    test_usage.py     rule identities, install-on targets, Check Point access
+                      roles (against the cell as Check Point reads it), hit
+                      counters and the audit of use
     test_audit.py     the audit, against a walk through every packet of a
                       small world
     test_matrix.py    the zone matrix, against the same walk: every packet
                       that gets through is in it, and nothing else
     test_cli.py       command line, golden files
 docs/MANUAL.md        user manual
+docs/RULE_USAGE.md    design of rule usage from hit counters and logs (0.13.0
+                      to 0.17.0)
 TODO.md               what is planned, release by release
 ```
 
@@ -192,6 +200,15 @@ Two fields are for the audit only:
 |---|---|
 | `Rule.handling` | what the source rule does to a session besides its verdict, logging and profiles, as far as a parser reads it: NAT and a traffic shaper in a FortiOS policy (and every other key of a policy that the parser does not model and that is not switched off), a PAN-OS log forwarding profile, QoS marking and the like, the track setting of a Check Point rule. Two rules handle traffic "the same way" only when this is equal too. No emitter reads it |
 | `Options.written` | not in the model but next to it: when it is a list, an emitter adds the copy of the policy it writes its output from (zones mapped, names made valid, destinations rewritten for the side of NAT the target matches on). The audit proves on it that a rule it disables changes nothing for the target either |
+
+Three fields carry what the source knows about a rule beyond what it
+matches. No emitter writes them; `--to json` shows them:
+
+| Field | Meaning |
+|---|---|
+| `Rule.source_ids` | the source platform's own identifiers of the rule, which its hit counters and logs use: `checkpoint.rule_uid`, `checkpoint.layer_uid`, and for a rule of an inline layer `checkpoint.parent_rule_uid` (the direct parent) and `checkpoint.rule_path` (every rule uid on the way, outer first); `panos.name`, `panos.uuid`; `fortios.policyid`, `fortios.uuid`. A rule the parser split or combined keeps those of its source rule. The implicit cleanup of an inline layer has `checkpoint.implicit` and no rule uid. Counters and log lines are matched by these, never by position (fwanalyser keyed by rule number, and history moved to the wrong rule after a reorder) |
+| `Rule.targets` | the devices the source installs the rule on, by name (Check Point install-on, Panorama targets that are not negated); empty for all. `DEVICE_TARGET` still says that a target is one firewall |
+| `Rule.hits` | the hit counter of the rule (`HitCount`): count, first and last hit, since when it counts where the source says, where it was read, what limits it, and whether it may leave out firewalls the rule is on. The audit's `UNUSED_RULE` and `NO_USAGE_EVIDENCE` read it (`docs/RULE_USAGE.md`) |
 
 A finding on a rule that is about one NAT rule carries the origin of that NAT
 rule (`Finding.subject`, not shown in the report). `to_post_nat_lookup` uses
@@ -1875,6 +1892,120 @@ were not reviewed again; they have tests (the last section of
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
 
+### 2026-10-12: version 0.13.0
+
+The first release of *rule usage* (`docs/RULE_USAGE.md`): what the source
+calls each rule, where it is installed, Check Point access roles in the
+model, and the hit counters of the firewall in the audit.
+
+**Built**
+
+* Model: `Rule.source_ids`, `Rule.targets`, `Rule.hits` (`HitCount`), shown
+  by `--to json` and written by no emitter (*The neutral model* above).
+* Check Point: every rule keeps its uid and the uid of its layer; a rule of an
+  inline layer also the uid of the rule applying the layer and the uids of
+  every rule on the way (`checkpoint.rule_path`); the implicit cleanup of an
+  inline layer is marked as such. Install-on gateways are kept on the rule,
+  for an inline rule where both rules are installed (none in common: written
+  disabled). Hit counts of a rulebase exported with `show-hits`, and the
+  creation and last change of a rule from `meta-info`.
+* Check Point **access roles** in the source of a rule are networks with users
+  (`ACCESS_ROLE`): a cell with roles of different users becomes one rule per
+  set of users, and one for the plain addresses, in place and with the same
+  action. Roles that also limit machines or a remote access client, roles in
+  a destination or a negated source, roles without their content in the
+  export and roles with a user named like a keyword stay unsupported. Inside
+  an inline layer the users of both rules must agree. PAN-OS writes the users
+  as `source-user`; the other targets write such rules disabled (`USER_MATCH`,
+  as before for users from other sources).
+* PAN-OS keeps the name and uuid of a rule and the Panorama targets that are
+  not negated; FortiOS the policy ID and uuid.
+* `hits.py`: hit counters from the answer of PAN-OS `show rule-hit-count`
+  (XML API) and of the FortiOS monitor `firewall/policy` (JSON), given with
+  `--hits FILE` to `fwshift audit` and `fwshift convert` (which then audits),
+  matched to rules by `source_ids` and added up over several files.
+* Audit: `UNUSED_RULE` (medium; an allow rule whose counter proves it unused
+  for at least `usage_days`, 90) and `NO_USAGE_EVIDENCE` (info; no counter,
+  a counter whose period is too short or not known, or that may leave out a
+  firewall). `--hits-since` and `hits_since` give a start the counters do not
+  give. The JSON findings carry `source_ids`. The header of `fwshift audit`
+  and the report note `HIT_COUNTERS` say what was read.
+* Sample: `checkpoint_sample.json` now has hit counts, creation dates, three
+  access roles with content and the one without; its conversions, audit and
+  matrix changed accordingly. The packet simulator of the tests treats a rule
+  that matches users as matching no packet (packets there carry no user).
+* Documents: `docs/RULE_USAGE.md`, the brief this release starts, with its
+  review against the code and the plan to 0.17.0; the manual (sections 3, 5,
+  7, 8, 13), README, TODO.
+
+**What the platforms made necessary**
+
+* *A zero is only as good as its period.* No answer says when it was read; the
+  latest time it shows stands in, never later than the reading. PAN-OS gives
+  the start of each counter; Check Point keeps counts for a period only, so
+  the start is the later of the change of the rule and the earliest first
+  hit in the export; FortiOS gives none, and its zeros prove nothing unless
+  the user gives the start.
+* *Counters belong to the firewall, policies to the manager.* A Panorama
+  policy counted on one firewall, or a rule one of several answers does not
+  count, proves nothing about the other firewalls.
+* *Identities by name, not by position.* PAN-OS counts by rule name, FortiOS by
+  uuid or policy ID (a policy ID only where the VDOM is known, and never
+  against another uuid), Check Point by uid.
+* *An access role is an intersection.* Its networks hold only for its users;
+  a cell is a union. Merging the networks and users of several roles would
+  let one role's networks through for another's users.
+
+**Sources**
+
+The brief written in another session from fwanalyser (Perl, and its Python
+port), with its defects verified there; Check Point's admin guides (hit
+count, access roles), its Ansible collection, Terraform provider and export
+tools; PAN-OS release notes and pan.dev (rule UUIDs, rule hit counts) with
+pan-os-python and a test fixture of the XSOAR integration; Fortinet's
+documentation and community posts (policy uuid, the monitor answer, `iprope`)
+with the Ansible collection. Code was read, never run. What rests on which,
+and what is not confirmed, is in the review section of
+`docs/RULE_USAGE.md` and below.
+
+**Review**
+
+*Round 21* by the independent reviewer, with repro scripts of its own. 1 high,
+5 medium, 5 low:
+
+| | Finding | Fix |
+|---|---|---|
+| high | An inline layer whose last rule is for some users (an access role) was taken as closed: its cleanup was left out, and what the layer dropped for other users reached the rules below | a rule for some users matches everything only when they are the users of the rule applying the layer; the same for the end of the main layer |
+| medium | `UNUSED_RULE` where nobody knows how long the counter counted (Check Point, FortiOS, PAN-OS with every time 0) | `NO_USAGE_EVIDENCE` without a known start; Check Point's start from `meta-info` and the earliest first hit; `--hits-since` for the user's word |
+| medium | With several answers, a zero was measured up to the latest time of any answer, not of its own | each counter keeps the reading of its own answer; zero on two is measured over the time both counted; a rule one answer does not count is incomplete |
+| medium | `²` passes `isdigit()` and ends in a traceback | ASCII digits only |
+| medium | An install-on reference the export does not resolve read as every gateway | kept by uid, and reported |
+| medium | (release) no log entry for 0.13.0 | this one |
+| low | a group named `unknown` or `pre-logon` written as the PAN-OS word for every user not signed in, or before signing in | refused, as `any` and `known-user` are |
+| low | a FortiOS answer without a VDOM matched a policy of a VDOM by policy ID | by uuid only |
+| low | a remote access client given as a uid made every role unsupported | resolved |
+| low | the same answer given twice counted twice | refused |
+| low | documentation drift (counts, TODO, README, the modification timestamp) | corrected |
+
+Not changed: whether "Any user" in a Check Point access role also matches
+traffic nobody signed in for is not confirmed; FWShift reads it as the
+networks alone, since "All identified users" is the other choice the role
+offers. Whether the FortiOS monitor counts IPv6 policies without
+`ip_version` is not known (TODO). The fixes were not reviewed again; they
+have tests (the last section of `test_usage.py`).
+
+**Verified, and not**
+
+* The tests: `tests/test_usage.py` holds 32 tests, the suite 3207. The
+  access role split is compared with the cell as Check Point reads it (any
+  member: an address, or a role's networks for its users) on 60 random cells,
+  for every source and user. A mutation check with 12 ways to break the
+  parser, the counters and the audit: all 12 caught.
+* **Nothing was read from a real management server or firewall.** The shapes
+  of access roles in an export (inferred from SDK code), of `meta-info` on a
+  rule, of the PAN-OS and FortiOS answers (from one fixture and posts each)
+  are as documented or published, not seen here.
+
 ### 2026-10-12: version 0.12.4
 
 **Built**
@@ -2047,5 +2178,7 @@ fixes were not reviewed again; they have tests (the last section of
 ## To do
 
 See [TODO.md](TODO.md): the firewall brands that are planned, one per
-release, and what else is on the list for the audit, the matrix, the
-conversion and its validation.
+release, rule usage from hit counters and logs (designed in
+[docs/RULE_USAGE.md](docs/RULE_USAGE.md), releases 0.13.0 to 0.17.0), and what
+else is on the list for the audit, the matrix, the conversion and its
+validation.

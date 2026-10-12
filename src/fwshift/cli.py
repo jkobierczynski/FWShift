@@ -11,9 +11,9 @@ import copy
 import dataclasses
 import json
 import sys
-from typing import Callable, Dict, List, Optional, Sequence, TextIO, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Set, TextIO, Tuple
 
-from . import __version__, audit, matrix, transform
+from . import __version__, audit, hits, matrix, transform
 from .appmap import load_app_map
 from .emitters import asa as emit_asa
 from .emitters import checkpoint as emit_checkpoint
@@ -208,6 +208,15 @@ def _audit_options(parser: argparse.ArgumentParser) -> None:
         help="let a rule pass a check, or every check; * and ? match as in file names",
     )  # fmt: skip
     group.add_argument("--audit-fail-on", metavar="LEVEL", help="exit with status 3 when a finding of this level or higher is reported: info, low, medium, high")
+    group.add_argument(
+        "--hits", action="append", default=[], metavar="FILE",
+        help="hit counters of the firewall, for UNUSED_RULE: the XML answer of PAN-OS 'show rule-hit-count' or the JSON answer of the "
+        "FortiOS monitor 'firewall/policy'; repeatable (counters of several firewalls are added up). A Check Point rulebase "
+        "exported with show-hits carries its own",
+    )  # fmt: skip
+    group.add_argument("--hits-since", metavar="YYYY-MM-DD",
+                       help="the hit counters have counted since this day (UTC), where they do not say so themselves (Check Point, "
+                       "FortiOS): your word, for UNUSED_RULE")  # fmt: skip
 
 
 def _audit_config(args: argparse.Namespace) -> audit.AuditConfig:
@@ -224,7 +233,38 @@ def _audit_config(args: argparse.Namespace) -> audit.AuditConfig:
         config.accept(rule, checks.split(",") if checks else [], "accepted on the command line", "--audit-accept")
     if args.audit_fail_on:
         config.fail_on = audit.level_of(args.audit_fail_on, "--audit-fail-on")
+    if args.hits_since:
+        config.hits_since = audit.day_of(args.hits_since, "--hits-since")
     return config
+
+
+def _hit_counters(args: argparse.Namespace, policy: Policy) -> List[str]:
+    """Put the counters of the --hits files on the rules; a line per file, and one for the counters the input held itself.
+
+    With several files, a rule that not every file counts has a counter that may leave out a firewall.
+    """
+    lines: List[str] = []
+    counted_by: List[Set[str]] = []
+    seen: Dict[bytes, str] = {}
+    for path in args.hits:
+        data = _read(path)
+        if data in seen:
+            raise FwshiftError(f"--hits {path}: the same counters as {seen[data]}; given twice, they would be counted twice")
+        seen[data] = path
+        applied = hits.apply(policy, data, path)
+        lines.append(applied.text())
+        counted_by.append(applied.rules)
+    if len(counted_by) > 1:
+        for rule in policy.rules:
+            missing = sum(1 for origins in counted_by if (rule.origin or rule.name) not in origins)
+            if rule.hits is not None and missing:
+                rule.hits.complete = False
+                rule.hits.note = "; ".join(part for part in (rule.hits.note, f"{missing} of the {len(counted_by)} answers given do not "
+                                                             "count it") if part)  # fmt: skip
+    counted = sum(1 for rule in policy.rules if rule.hits is not None)
+    if counted and not args.hits:
+        lines.append(f"the configuration: counters of {counted} of {len(policy.rules)} rule(s)")
+    return lines
 
 
 def _lost(policy: Policy, report: Report) -> List[str]:
@@ -452,13 +492,16 @@ def _run_convert(args: argparse.Namespace) -> int:
         target_policy=args.target_policy,
         zone_networks=_networks(args.zone_network),
     )
-    auditing = bool(args.audit or args.audit_config or args.audit_action or args.audit_accept or args.audit_fail_on)
+    auditing = bool(args.audit or args.audit_config or args.audit_action or args.audit_accept or args.audit_fail_on or args.hits
+                    or args.hits_since)
     if auditing and args.target == "json":
         raise FwshiftError("--to json writes the model as it was read; audit the configuration with 'fwshift audit'")
     config = _audit_config(args) if auditing else audit.AuditConfig()
     audited: Optional[audit.AuditResult] = None
     if auditing:
         transform.harden(policy, report)
+        for line in _hit_counters(args, policy):
+            report.note(Severity.INFO, "HIT_COUNTERS", line)
         audited = report.audit = audit.run(policy, config, report)
         # A rule is only redundant next to rules that are written, and as they are written: the audit
         # converts on trial to see which rules the target cannot take and what it makes of the others.
@@ -508,13 +551,16 @@ def _run_audit(args: argparse.Namespace) -> int:
     policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy,
                   args.interface_address)  # fmt: skip
     transform.harden(policy, report)
+    counters = _hit_counters(args, policy)
     result = audit.run(policy, config, report)
     disabled = sum(1 for rule in policy.rules if not rule.enabled)
     if args.json:
-        text = json.dumps({"source": source, "scope": policy.scope, **result.to_dict()}, indent=2, ensure_ascii=False) + "\n"
+        extra = {"hit_counters": counters} if counters else {}
+        text = json.dumps({"source": source, "scope": policy.scope, **extra, **result.to_dict()}, indent=2, ensure_ascii=False) + "\n"
     else:
         head = (f"FWShift audit\n  source: {source}{f' ({policy.scope})' if policy.scope else ''}\n"
-                f"  security rules: {len(policy.rules)} ({disabled} disabled), NAT rules: {len(policy.nat_rules)}\n\n")  # fmt: skip
+                f"  security rules: {len(policy.rules)} ({disabled} disabled), NAT rules: {len(policy.nat_rules)}\n"
+                + "".join(f"  hit counters: {line}\n" for line in counters) + "\n")  # fmt: skip
         text = head + result.to_text("Summary")
     if args.output:
         _write(args.output, text)

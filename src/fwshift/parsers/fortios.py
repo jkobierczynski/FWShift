@@ -738,6 +738,9 @@ class _Builder:
         for policy_id, block in self.section("firewall policy").entries.items():
             rule = Rule(name=_unique(block.get("name") or f"policy-{policy_id}", taken))
             rule.origin = rule.name
+            rule.source_ids["fortios.policyid"] = str(policy_id)
+            if block.get("uuid"):
+                rule.source_ids["fortios.uuid"] = block.get("uuid")
             rule.description = block.get("comments")
             uses_isdb = any(
                 key.startswith("internet-service") and values not in _OFF_VALUES for key, values in block.settings.items()

@@ -5,7 +5,7 @@ Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
 or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX and Linux iptables, and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; and show what each zone may reach in each
-other zone. This manual covers version 0.12.
+other zone. This manual covers version 0.13.
 
 **Contents**
 
@@ -116,6 +116,21 @@ With VDOMs enabled, one VDOM is converted per run.
 Do not use the output of `show full-configuration`. It lists every attribute
 of every policy with its default value, and FWShift treats attributes it does
 not know as something to review, so nearly every rule would be flagged.
+
+**Hit counters of PAN-OS and FortiOS** are not in the configuration. They are
+an answer of the firewall's API, given to the audit with `--hits FILE`
+(section 13):
+
+```sh
+# PAN-OS (8.1 and later), on the firewall itself; one answer per virtual system
+curl -sk -H "X-PAN-KEY: $KEY" "https://fw.example.net/api/?type=op&cmd=<show><rule-hit-count><vsys><vsys-name><entry%20name='vsys1'><rule-base><entry%20name='security'><rules><all/></rules></entry></rule-base></entry></vsys-name></vsys></rule-hit-count></show>" > hits-fw1.xml
+# FortiOS: the counters of the firewall policies of a VDOM
+curl -sk -H "Authorization: Bearer $TOKEN" "https://fg.example.net/api/v2/monitor/firewall/policy?vdom=root" > hits-fg.json
+```
+
+Panorama counts rules per device group and only says whether they were used;
+give the answers of the firewalls themselves instead, one `--hits` per
+firewall.
 
 **iptables.** Save the running ruleset, one file per IP version:
 
@@ -534,6 +549,20 @@ Three things decide whether the export is complete:
 traffic that none of its rules matches; without it, a layer that does not end
 in a cleanup rule is assumed to drop, and the report says so.
 
+Two more things are worth adding:
+
+* **Hit counts.** Add `show-hits true` to the `show access-rulebase` calls
+  (optionally `hits-settings.from-date 2026-07-01 hits-settings.to-date
+  2026-09-30`, and `hits-settings.target <gateway>` for one gateway). Each
+  rule then carries its hit count, which the audit reads (`UNUSED_RULE`,
+  section 13). Nothing else changes.
+* **Access roles.** A rule cell names an access role by reference; what the
+  role holds (networks, users, machines) is only in the export when the role
+  objects are:
+  `mgmt_cli show access-roles details-level full limit 500 --format json -s sid.txt > roles.json`,
+  added to the array with the other answers. Without it the roles are
+  unsupported objects and their rules are written disabled.
+
 One ordered layer is converted per run (`--layer` chooses it when the input
 holds several). A policy package with several ordered layers accepts a
 connection only if every one of them does: convert each and compare.
@@ -659,7 +688,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to pfsense` | A configuration file with the areas Aliases, NAT and Firewall Rules, for *Diagnostics > Backup & Restore* of pfSense 2.7 or later. Each restore of an area **replaces** that area (section 10). |
 | `--to iptables` | A file for `iptables-restore`: the IPv4 half of the policy. |
 | `--to ip6tables` | A file for `ip6tables-restore`: the IPv6 half. |
-| `--to json` | The neutral model as JSON, for inspection or other tools. It is the model as it was read: the audit options cannot be combined with it. |
+| `--to json` | The neutral model as JSON, for inspection or other tools. It is the model as it was read: the audit options cannot be combined with it. Each rule carries what the source calls it (`source_ids`: the uid of a Check Point rule, the name and uuid of a PAN-OS rule, the policy ID and uuid of a FortiOS policy), the devices it is installed on where the source limits that (`targets`), and its hit count where the input has one (`hits`). |
 | `--target-vsys NAME` | PAN-OS: prefix commands with `vsys NAME`. Default: a single-vsys firewall, no prefix. |
 | `--target-device-group NAME` | Panorama: write into this device group; rules go to its pre-rulebase. |
 | `--target-shared` | Panorama: write into `shared`; rules go to the shared pre-rulebase. |
@@ -696,6 +725,8 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--audit-action CHECK=ACTION` | What to do with the findings of a check: `off`, `accept`, `report`, `disable`, and for shadowed rules `reorder`. Not every check takes every action (section 13). Repeatable. |
 | `--audit-accept RULE[=CHECK,...]` | Let a rule (or a NAT rule, or an object) pass a check, or every check. `*` and `?` stand for any text and any one character. Repeatable. |
 | `--audit-fail-on LEVEL` | Exit with status 3 when a finding of this level (`info`, `low`, `medium`, `high`) or higher is reported. |
+| `--hits FILE` | Hit counters of the firewall, for `UNUSED_RULE` and `NO_USAGE_EVIDENCE` (section 13): the XML answer of PAN-OS `show rule-hit-count`, or the JSON answer of the FortiOS monitor `firewall/policy` (section 3). Repeatable: the counters of several firewalls are added up. A Check Point rulebase exported with `show-hits` carries its own. |
+| `--hits-since YYYY-MM-DD` | The hit counters have counted since this day (UTC), where they do not say so themselves (Check Point without a rule that was ever hit, FortiOS). Your word: it decides whether a zero is `UNUSED_RULE` (section 13). |
 
 All output is UTF-8.
 
@@ -704,6 +735,7 @@ All output is UTF-8.
 ```
 fwshift audit INPUT [--from ...] [-o FILE] [--json] [--audit-config FILE]
                     [--audit-action CHECK=ACTION] [--audit-accept RULE[=CHECK,...]] [--audit-fail-on LEVEL]
+                    [--hits FILE] [--hits-since YYYY-MM-DD]
 fwshift audit --list-checks
 ```
 
@@ -892,6 +924,7 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `PROFILES_NOT_CONVERTED` | A | Security profiles on the rule are not converted. Attach equivalent inspection on the target. |
 | `PROFILES_BY_NAME` | I | PAN-OS to PAN-OS: profiles are referenced by name and must exist on the target. Sophos to Sophos: the same for the policies of a rule (web filter, intrusion prevention, application control and the scanning it switches on). |
 | `DEVICE_TARGET` | R | Panorama or Check Point source: the rule is installed on selected devices only. Decide whether it belongs on the target. |
+| `ACCESS_ROLE` | R | Check Point source: the rule matches the networks of an access role for its users. The users are names of Check Point identities (Active Directory, LDAP or internal groups, identity tags; `known-user` for "all identified users") and are kept as the rule's users: PAN-OS writes them as `source-user`, which must name users or groups the firewall knows; the other targets write the rule disabled (`USER_MATCH`). A cell with roles of different users became one rule per set of users (section 8). |
 | `RULE_SPLIT` | I | One rule became several: one per zone pair on FortiOS, Sophos and the two Cisco managers, or one for port-based and one for application-based services on PAN-OS. To a Management Center or a Device Manager also: one rule per set of source ports, because source ports and destination ports are two conditions of a rule there that must both hold (section 8). Sophos source: a rule with exclusions of several kinds became one rule per kind (`name`, `name-2`, ...), which between them match what the one rule matched (section 8). |
 | `RESET_ACTION` | I | A reset action has no exact equivalent: deny on FortiOS and ASA, a plain `REJECT` on iptables when the rule is not TCP only, `Reject` on Check Point and on Sophos (which answers the sender only), *Block with reset* on a Management Center (which resets both sides), *Block* on a Device Manager (which answers nobody). |
 | `ATTRIBUTES_IGNORED` | I | FortiOS source: NAT details such as `fixedport` have no equivalent. ASA, Management Center or Device Manager source, on a NAT rule: options such as `dns`, round robin, extended PAT or the fallback to the interface address. |
@@ -1009,6 +1042,7 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `EXISTING_OBJECTS` | I | To FortiOS, ASA, Sophos or a Device Manager: objects are created by name and change existing ones of the same name; an ASA object group that exists gets the new members added to its own. |
 | `PANORAMA_SOURCE` | I | Reminder of what a Panorama export does not contain. |
 | `PRUNED` | I | `--prune-unused` left out this many objects. |
+| `HIT_COUNTERS` | I | With `--hits` (or a configuration that carries hit counts): which counters were read, how many rules they counted, and the rules they count that the policy does not have (section 13). |
 
 Notes that only an iptables source or target raises:
 
@@ -1053,6 +1087,7 @@ Notes that only a Check Point source or target raises:
 | Code | Sev. | Meaning and what to do |
 |---|---|---|
 | `IMPLIED_RULES` | R | Implied rules (Global Properties) and the other ordered layers of a policy package are not part of the export, and not of the output. Check that they allow no more and no less than intended. |
+| `HITS_NOT_READ` | I | Source: rules have a `hits` field without a whole number in `value`. The audit says nothing about the use of those rules. |
 | `IMPLICIT_CLEANUP` | R | Source: the layer does not end in a rule that matches everything. Either the export shows that its implicit cleanup accepts, or it does not show it and drop was assumed. |
 | `NO_NAT_RULEBASE` | R | Source: the input holds no answer of `show nat-rulebase`. No NAT rule was read, automatic ones included. |
 | `INCOMPLETE_EXPORT` | R | Source: fewer rules were read than the server says the layer or the NAT rulebase has. Pages are missing (section 3). |
@@ -1525,8 +1560,26 @@ The second column matters too:
   meant; the address is taken from the NAT settings of the object.
 * A **gateway object** in a rule stands for every address of the gateway. The
   export has its main address only (`GATEWAY_OBJECT`).
-* Not converted, and reported on the rules that use them: access roles, groups
-  with exclusion, wildcard, dynamic and updatable objects, application and
+* An **access role** in the source of a rule is its networks for its users:
+  the networks go into the source, the users (Active Directory, LDAP or
+  internal groups, identity tags; "all identified users" as `known-user`)
+  into the rule's users (`ACCESS_ROLE`). A cell that holds roles of different
+  users, or roles next to plain addresses, becomes one rule per set of users
+  and one for the plain addresses, in place and with the same action
+  (`PLC access`, `PLC access (operators)`, ...): together they match what the
+  cell matched, and the networks of one role never meet the users of another.
+  A role that also names machines or a remote access client, a role in a
+  destination or a negated source, and a role whose content is not in the
+  export (section 3) are not converted: their rules are written disabled.
+  Inside an inline layer the users of the rule applying the layer and of the
+  rule inside must agree, or the rule is written disabled.
+* Each rule keeps its **uid** (and for a rule of an inline layer the uid of the
+  rule applying it, and the uids of every rule on the way), its
+  **install-on** gateways and its **hit count** in the model (`--to json`:
+  `source_ids`, `targets`, `hits`). The audit reads the hit counts (section
+  13); nothing of it is written to a target.
+* Not converted, and reported on the rules that use them: access roles that
+  the model cannot hold (above), groups with exclusion, wildcard, dynamic and updatable objects, application and
   site objects, RPC and other services with a match expression, VPN
   communities, content, time objects, service resources, the identity captive
   portal.
@@ -3226,6 +3279,8 @@ Findings in the policy as it was read
 | `EMPTY_GROUP` | low | A group without members: it matches nothing. | off, accept, report |
 | `DEFAULT_ALLOW` | high | Traffic between zones that no rule matches is allowed. | off, accept, report |
 | `EXPOSED_BY_CONVERSION` | high | After a conversion only: a blocking rule that is not in the output as it was, with something that now allows part of what it blocked. | off, accept, report |
+| `UNUSED_RULE` | medium | An allow rule whose hit counter is zero (below). | off, accept, report, disable |
+| `NO_USAGE_EVIDENCE` | info | A rule whose use cannot be told: it has no counter while other rules have one, its counter of 0 has counted for fewer than 90 days or for a time that is not known, or it does not come from every firewall the rule may be on. | off, accept, report |
 
 The level of `ANY_ANY_ANY`, `ANY_SERVICE` and `ANY_TO_ANY` is one lower for
 a rule whose zones keep it to a part of the firewall: there is a zone it
@@ -3234,9 +3289,9 @@ from one zone to *every* other zone
 names zones without being kept anywhere, and keeps its level: that is what
 every access list on an ASA or a chain on iptables looks like.
 
-Only enabled rules are looked at. The audit knows what a policy *says*, not
-how it is used: which rules are hit, and which zone is the trusted one, is
-not in a configuration.
+Only enabled rules are looked at. The audit knows what a policy *says*; how
+it is used only where the firewall's hit counters are given (below). Which
+zone is the trusted one is not in a configuration.
 
 ### Rules that never match
 
@@ -3357,6 +3412,76 @@ as what a conversion would do, which makes it the place to try a
 configuration out. `--to json` writes the model as it was read and refuses
 the audit options.
 
+### Hit counters
+
+A firewall counts how often each rule matched. Where the counters are given,
+the audit names the allow rules that never matched (`UNUSED_RULE`):
+
+* **Check Point:** the counts are in the rulebase when it was exported with
+  `show-hits true` (section 3).
+* **PAN-OS and FortiOS:** the counters are an answer of the firewall's API,
+  given with `--hits FILE` (section 3). Repeat `--hits` for several
+  firewalls: their counters are added up.
+
+```sh
+fwshift audit running-config.xml --hits hits-fw1.xml
+```
+
+```
+FWShift audit
+  source: panos (vsys1)
+  security rules: 42 (2 disabled), NAT rules: 6
+  hit counters: hits-fw1.xml (vsys vsys1): counters of 40 rule(s); it also counts 1 rule(s) the policy does not have ('test-rule'): are the counters and the configuration from the same moment?
+  ...
+  [medium] UNUSED_RULE: rule 'old-ftp' allows traffic from zone trust to zone dmz, and its hit counter (hits-fw1.xml (vsys vsys1)) is 0 from 2026-02-11 to 2026-09-30 at least. Check that the counters cover every firewall the rule is on
+```
+
+A counter is matched to its rule by what the firewall itself calls the rule:
+the name on PAN-OS, the uuid (or else the policy ID) on FortiOS, the uid on
+Check Point. A counter that names a rule the policy does not have is listed
+in the header, never put on another rule.
+
+A zero is evidence only for the time the counter has counted, from its start
+to the moment the counters were read. No answer records that moment; the
+latest time the answer shows stands in for it, and is never later than it, so
+a period is never taken longer than it was. Each answer is measured by its own
+times. The start:
+
+* **PAN-OS** says it: the latest of the last reset of the counter, the
+  creation and the last change of the rule.
+* **Check Point** says when the rule was created and last changed
+  (`meta-info`, part of `details-level full`), but keeps counts for a period
+  only ('Keep Hit Count data up to', 3 months unless changed). The start is
+  the later of the change of the rule and the earliest first hit of any rule
+  in the export, which is the earliest time the counts are known to reach
+  back to. An export in which no rule was ever hit tells neither.
+* **FortiOS** does not say. A FortiGate starts again when its counters are
+  cleared, and a model without a disk when it restarts.
+* `--hits-since YYYY-MM-DD` (or `"hits_since"` in the configuration file) is
+  your word that the counters have counted since that day, where they do not
+  say so themselves. It never moves a start that the counter gives earlier
+  than a later one it gives.
+
+Then:
+
+* **Long enough** (at least 90 days, the threshold `usage_days`): `UNUSED_RULE`,
+  with the period it covers: "0 from 2026-07-01 to 2026-09-30 at least".
+* **Too short, or not known**: `NO_USAGE_EVIDENCE`, which says which.
+* **Not every firewall.** Counters of one firewall for a Panorama device group
+  cannot show that a rule pushed to several firewalls is unused anywhere; with
+  several answers, a rule that one of them does not count is not known to be
+  unused on that firewall: `NO_USAGE_EVIDENCE`. The same answer given twice is
+  refused (it would count everything twice).
+* **No counter.** A rule without a counter, where other rules have one, gets
+  `NO_USAGE_EVIDENCE`.
+
+A blocking rule gets no `UNUSED_RULE`: that nothing tried to get past it does
+not mean it is not needed. `UNUSED_RULE=disable` writes unused rules disabled
+in a conversion. The findings in JSON carry the identifiers of the rule on the
+source (`source_ids`), so that a ticket can name the rule the firewall knows.
+Usage per object and service, from logs, is planned
+([RULE_USAGE.md](RULE_USAGE.md)).
+
 ### The configuration file
 
 Everything in it is optional; a key that is not known is refused, at every
@@ -3374,16 +3499,18 @@ level, and so is a check that does not exist.
     "Legacy-*",
     {"rule": "Inbound-Web", "checks": ["ANY_SOURCE"], "reason": "the public web server"}
   ],
-  "thresholds": {"wide_network_v4": 8, "wide_network_v6": 32, "wide_ports": 1024},
+  "thresholds": {"wide_network_v4": 8, "wide_network_v6": 32, "wide_ports": 1024, "usage_days": 90},
   "services": {
     "risky": {"telnet": ["tcp/23"], "rdp": ["tcp/3389", "udp/3389"]},
     "industrial": {"modbus": ["tcp/502"]}
   },
   "applications": {"risky": ["telnet", "ms-rdp"], "industrial": ["modbus"]},
-  "fail_on": "high"
+  "fail_on": "high",
+  "hits_since": "2026-01-01"
 }
 ```
 
+`hits_since` is `--hits-since` (section 13, *Hit counters*).
 `services.risky` and `services.industrial` replace the built-in lists of
 ports; `applications.risky` and `applications.industrial` replace the lists
 of application names (for sources that name applications). Options on the
@@ -3448,8 +3575,9 @@ Memory stays in the tens of megabytes.
 
 ### Limits of the audit
 
-* It reads the policy, not the traffic: no hit counts, no "unused for a
-  year".
+* It reads the policy, and the traffic only as the hit counters of the
+  firewall count it: per rule, not per object or service in a rule. Usage from
+  logs is planned (`docs/RULE_USAGE.md`).
 * Zones have no rank in a configuration. `ANY_SOURCE` from the Internet and
   from the server network look the same.
 * `NO_LOG` and `NO_PROFILE` are only raised where the model holds what the

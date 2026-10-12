@@ -134,7 +134,8 @@ def _entry_matches(entry: ServiceEntry, pkt: Packet) -> bool:
 def model_verdict(p: Policy, pkt: Packet) -> Optional[bool]:
     """First-match evaluation of the neutral model for a packet that opens a connection; None if no rule matches."""
     for rule in p.rules:
-        if not rule.enabled or rule.unsupported:
+        # A packet here carries no user: a rule that matches users (an access role, a source user) never matches it.
+        if not rule.enabled or rule.unsupported or rule.users != [ANY]:
             continue
         zone_ok = (ANY in rule.src_zones or pkt.in_if in rule.src_zones) and (
             ANY in rule.dst_zones or pkt.out_if in rule.dst_zones

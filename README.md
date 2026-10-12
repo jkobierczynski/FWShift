@@ -23,13 +23,15 @@ what was approximated and what a person has to look at.
 
 It also **audits** a policy, of any of these formats: rules that allow too
 much, rules that never match because earlier rules cover them, unused and
-duplicate objects. On its own, or before and after a conversion. And it draws
+duplicate objects, and - from the hit counters of Check Point, PAN-OS and
+FortiOS - allow rules that the counters prove unused. On its own, or before and after a
+conversion. And it draws
 the **zone matrix** of a policy: what each zone may reach in each other zone,
 on which services, through which rules.
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.12).** The converter is tested against synthetic
+> **Status: alpha (0.13).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** is checked against the real thing: generated rulesets are
@@ -112,8 +114,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.12.4.pyz --version
-python3 fwshift-0.12.4.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.13.0.pyz --version
+python3 fwshift-0.13.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -271,6 +273,7 @@ Findings in the policy as it was read
 | Rules that allow a lot | any/any/any and its partial forms, very large networks, very wide port ranges, cleartext and remote administration protocols, industrial protocols, no logging, no security profile |
 | Rule order | shadowed rules (never match; earlier rules decide otherwise), redundant rules (can go without a change), rules that match nothing, shadowed NAT rules |
 | Loose ends | disabled rules, unused and duplicate objects, empty groups, a default that allows |
+| Use | allow rules whose hit counter is zero, where the counters are given (a Check Point rulebase exported with hits, or `--hits` with the answer of PAN-OS or FortiOS); rules about whose use the counters prove nothing |
 | After a conversion | a blocking rule the target could not take, with what now allows its traffic (the rules below it, or a default) |
 
 Each check can be switched off, accepted (for all rules, or for one rule
@@ -417,7 +420,9 @@ Not converted, and reported where a rule depends on it: security profiles,
 schedules, user and group matches, URL categories, HIP profiles, application
 filters, wildcard-mask and geography addresses, external dynamic lists,
 internet-service (ISDB) policies, load-balancing virtual IPs, NAT64/NAT46,
-Check Point access roles, application objects, VPN communities and implied
+Check Point access roles that name machines or a remote access client (roles of
+networks and users are read; PAN-OS writes their users, the other targets
+write such rules disabled), application objects, VPN communities and implied
 rules, iptables match modules beyond addresses, ports and state, the `INPUT`
 and `OUTPUT` chains, ASA time ranges, identity (user and TrustSec) matches,
 outbound access lists that do more than deny, NAT of ASA releases before 8.3,
@@ -444,9 +449,13 @@ and everything else outside the policy.
   Firewall (formerly Firepower) 0.7, pfSense 0.8, SonicWall 0.9, WatchGuard
   0.10, Barracuda 0.11, Juniper SRX 0.12. Next on the list: nftables,
   OPNsense and others (see TODO.md).
+* **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](docs/RULE_USAGE.md)):
+  rule identities and hit counters (0.13), then which objects and services of
+  each rule are used, from firewall logs, and narrower rules proposed from
+  that, as fwanalyser did for Check Point.
 * Audit and matrix: the matrix before and after a conversion, a zone and
   conduit model as a file to check a policy against, an equivalence check as
-  a command, zone ranks, hit counts.
+  a command, zone ranks.
 * Validation of the output on lab devices of every platform.
 
 ## Licence

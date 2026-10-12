@@ -48,7 +48,7 @@ call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "guest-net", "included": [{"entry": {"ip": "10.10.200.0/24"}}]}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
-{"name": "netadmins", "included": [{"entry": {"ip": "192.0.0.8"}}], "comment": "FWSHIFT PLACEHOLDER, matches nothing: object of type 'access-role'"}
+{"name": "netadmins", "included": [{"entry": {"ip": "192.0.0.8"}}], "comment": "FWSHIFT PLACEHOLDER, matches nothing: access role whose networks and users are not in the export (add the output of 'show access-roles details-level full')"}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "plc-net", "included": [{"entry": {"ip": "10.30.1.0/24"}}]}
@@ -134,6 +134,15 @@ FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "Admins.src", "included": [{"entry": {"ip": "192.0.0.8"}}]}
 FWSHIFT_JSON
+call POST objects/services <<'FWSHIFT_JSON'
+{"name": "PLC_access.svc", "entries": [{"entry": {"protocol": "tcp", "ports": ["443"]}}, {"entry": {"protocol": "tcp", "ports": ["22"]}}]}
+FWSHIFT_JSON
+call POST objects/services <<'FWSHIFT_JSON'
+{"name": "PLC_access__plc-operators_.svc", "entries": [{"entry": {"protocol": "tcp", "ports": ["443"]}}, {"entry": {"protocol": "tcp", "ports": ["22"]}}]}
+FWSHIFT_JSON
+call POST objects/services <<'FWSHIFT_JSON'
+{"name": "PLC_access__vendor-support_.svc", "entries": [{"entry": {"protocol": "tcp", "ports": ["443"]}}, {"entry": {"protocol": "tcp", "ports": ["22"]}}]}
+FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "Updates.dst", "included": [{"entry": {"ip": "192.0.0.8"}}]}
 FWSHIFT_JSON
@@ -197,6 +206,18 @@ call POST rules <<'FWSHIFT_JSON'
 {"name": "Updates", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "dmz-servers"}, "destination": {"references": "Updates.dst"}, "service": {"references": "https"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
+{"name": "DMZ_users", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "dmz-net"}, "destination": {"references": "Any"}, "service": {"references": "https"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
+FWSHIFT_JSON
+call POST rules <<'FWSHIFT_JSON'
+{"name": "PLC_access__vendor-support_", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Any"}, "destination": {"references": "plc-net"}, "service": {"references": "PLC_access__vendor-support_.svc"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report. Operators from the office, vendor support from anywhere"}
+FWSHIFT_JSON
+call POST rules <<'FWSHIFT_JSON'
+{"name": "PLC_access__plc-operators_", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "lan-net"}, "destination": {"references": "plc-net"}, "service": {"references": "PLC_access__plc-operators_.svc"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report. Operators from the office, vendor support from anywhere"}
+FWSHIFT_JSON
+call POST rules <<'FWSHIFT_JSON'
+{"name": "PLC_access", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "admin-range"}, "destination": {"references": "plc-net"}, "service": {"references": "PLC_access.svc"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "Operators from the office, vendor support from anywhere"}
+FWSHIFT_JSON
+call POST rules <<'FWSHIFT_JSON'
 {"name": "Admins", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Admins.src"}, "destination": {"references": "plc-net"}, "service": {"references": "Any"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
@@ -226,6 +247,9 @@ call PATCH rules/rule-2 <<'FWSHIFT_JSON'
 {"deactivated": false}
 FWSHIFT_JSON
 call PATCH rules/Guests_stay_out <<'FWSHIFT_JSON'
+{"deactivated": false}
+FWSHIFT_JSON
+call PATCH rules/PLC_access <<'FWSHIFT_JSON'
 {"deactivated": false}
 FWSHIFT_JSON
 call PATCH rules/IPv6_out <<'FWSHIFT_JSON'

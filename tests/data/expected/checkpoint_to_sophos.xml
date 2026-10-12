@@ -98,7 +98,7 @@
   </IPHost>
   <FQDNHost transactionid="">
     <Name>netadmins</Name>
-    <Description>FWSHIFT PLACEHOLDER, matches nothing: object of type 'access-role'</Description>
+    <Description>FWSHIFT PLACEHOLDER, matches nothing: access role whose networks and users are not in the export (add the output of 'show access-roles details-level full')</Description>
     <FQDN>placeholder1.fwshift.invalid</FQDN>
   </FQDNHost>
   <FQDNHost transactionid="">
@@ -476,6 +476,107 @@
     </NetworkPolicy>
   </FirewallRule>
   <FirewallRule transactionid="">
+    <Name>PLC access</Name>
+    <Description>Operators from the office, vendor support from anywhere</Description>
+    <IPFamily>IPv4</IPFamily>
+    <Status>Enable</Status>
+    <Position>After</Position>
+    <PolicyType>Network</PolicyType>
+    <After>
+      <Name>Admins</Name>
+    </After>
+    <NetworkPolicy>
+      <Action>Accept</Action>
+      <LogTraffic>Enable</LogTraffic>
+      <SkipLocalDestined>Disable</SkipLocalDestined>
+      <Schedule>All The Time</Schedule>
+      <SourceNetworks>
+        <Network>admin-range</Network>
+      </SourceNetworks>
+      <DestinationNetworks>
+        <Network>plc-net</Network>
+      </DestinationNetworks>
+      <Services>
+        <Service>https_2</Service>
+        <Service>ssh_2</Service>
+      </Services>
+    </NetworkPolicy>
+  </FirewallRule>
+  <FirewallRule transactionid="">
+    <Name>PLC access _plc-operators_</Name>
+    <Description>FWSHIFT: disabled by the converter, see the report. Operators from the office, vendor support from anywhere</Description>
+    <IPFamily>IPv4</IPFamily>
+    <Status>Disable</Status>
+    <Position>After</Position>
+    <PolicyType>Network</PolicyType>
+    <After>
+      <Name>PLC access</Name>
+    </After>
+    <NetworkPolicy>
+      <Action>Accept</Action>
+      <LogTraffic>Enable</LogTraffic>
+      <SkipLocalDestined>Disable</SkipLocalDestined>
+      <Schedule>All The Time</Schedule>
+      <SourceNetworks>
+        <Network>lan-net</Network>
+      </SourceNetworks>
+      <DestinationNetworks>
+        <Network>plc-net</Network>
+      </DestinationNetworks>
+      <Services>
+        <Service>https_2</Service>
+        <Service>ssh_2</Service>
+      </Services>
+    </NetworkPolicy>
+  </FirewallRule>
+  <FirewallRule transactionid="">
+    <Name>PLC access _vendor-support_</Name>
+    <Description>FWSHIFT: disabled by the converter, see the report. Operators from the office, vendor support from anywhere</Description>
+    <IPFamily>IPv4</IPFamily>
+    <Status>Disable</Status>
+    <Position>After</Position>
+    <PolicyType>Network</PolicyType>
+    <After>
+      <Name>PLC access _plc-operators_</Name>
+    </After>
+    <NetworkPolicy>
+      <Action>Accept</Action>
+      <LogTraffic>Enable</LogTraffic>
+      <SkipLocalDestined>Disable</SkipLocalDestined>
+      <Schedule>All The Time</Schedule>
+      <DestinationNetworks>
+        <Network>plc-net</Network>
+      </DestinationNetworks>
+      <Services>
+        <Service>https_2</Service>
+        <Service>ssh_2</Service>
+      </Services>
+    </NetworkPolicy>
+  </FirewallRule>
+  <FirewallRule transactionid="">
+    <Name>DMZ users</Name>
+    <Description>FWSHIFT: disabled by the converter, see the report.</Description>
+    <IPFamily>IPv4</IPFamily>
+    <Status>Disable</Status>
+    <Position>After</Position>
+    <PolicyType>Network</PolicyType>
+    <After>
+      <Name>PLC access _vendor-support_</Name>
+    </After>
+    <NetworkPolicy>
+      <Action>Accept</Action>
+      <LogTraffic>Enable</LogTraffic>
+      <SkipLocalDestined>Disable</SkipLocalDestined>
+      <Schedule>All The Time</Schedule>
+      <SourceNetworks>
+        <Network>dmz-net</Network>
+      </SourceNetworks>
+      <Services>
+        <Service>https_2</Service>
+      </Services>
+    </NetworkPolicy>
+  </FirewallRule>
+  <FirewallRule transactionid="">
     <Name>Updates</Name>
     <Description>FWSHIFT: disabled by the converter, see the report.</Description>
     <IPFamily>IPv4</IPFamily>
@@ -483,7 +584,7 @@
     <Position>After</Position>
     <PolicyType>Network</PolicyType>
     <After>
-      <Name>Admins</Name>
+      <Name>DMZ users</Name>
     </After>
     <NetworkPolicy>
       <Action>Accept</Action>

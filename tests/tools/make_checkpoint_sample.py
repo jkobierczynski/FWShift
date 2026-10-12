@@ -61,7 +61,15 @@ obj("dns-servers", "group", members=[objects["dns-1"], objects["dns-2"]])
 obj("dmz-servers", "group", members=[objects["web-1"], objects["mail-1"]], comments="Everything in the DMZ")
 obj(".updates.example.com", "dns-domain", is_sub_domain=False)
 obj("lan-without-guests", "group-with-exclusion", include=ref("lan-net"), **{"except": ref("guest-net")})
-obj("netadmins", "access-role")
+obj("netadmins", "access-role")  # only the reference, as in an export without the access roles in full
+# Identities of an access role: Active Directory groups (the names are invented).
+obj("ad_group_PLC-Operators", "CpmiAdGroup", base_dn="CN=PLC-Operators,OU=Groups,DC=example,DC=com")
+obj("ad_group_Vendor-Support", "CpmiAdGroup", base_dn="CN=Vendor-Support,OU=Groups,DC=example,DC=com")
+obj("plc-operators", "access-role", networks=[objects["lan-net"]], users=[objects["ad_group_PLC-Operators"]],
+    machines="any", remote_access_client=objects["Any"])
+obj("vendor-support", "access-role", networks="any", users=[objects["ad_group_Vendor-Support"]], machines="any",
+    remote_access_client=objects["Any"])
+obj("all-identified", "access-role", networks=[objects["dmz-net"]], users="all identified", machines="any")
 obj("gw-edge", "simple-gateway", ipv4_address="198.51.100.1")
 for zone in ("InternalZone", "ExternalZone", "DMZZone"):
     obj(zone, "security-zone", True)
@@ -120,6 +128,7 @@ def rule(name, source, destination, service, action="Accept", track="Log", numbe
         "comments": "",
         "enabled": True,
         "install-on": cell(["Policy Targets"]),
+        "meta-info": meta("2025-01-15", "2025-03-02"),
     }
     if name:
         entry["name"] = name
@@ -132,6 +141,29 @@ def rule(name, source, destination, service, action="Accept", track="Log", numbe
             value = ref(value)
         entry[key] = value
     return entry
+
+
+def meta(created, modified):
+    """The creation and last change of an object, as the Management API dates them."""
+    return {"lock": "unlocked", "validation-state": "ok", "creation-time": date(created), "last-modify-time": date(modified),
+            "creator": "admin", "last-modifier": "admin"}
+
+
+def date(day):
+    import datetime
+    moment = datetime.datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=datetime.timezone.utc)
+    return {"posix": int(moment.timestamp()) * 1000, "iso-8601": moment.strftime("%Y-%m-%dT%H:%M+0000")}
+
+
+def hits(value, first="", last=""):
+    """The hits of a rule as 'show access-rulebase' with show-hits gives them; dates as YYYY-MM-DD (UTC)."""
+    import datetime
+    out = {"percentage": "0%" if not value else "5%", "level": "zero" if not value else "low", "value": value}
+    for key, day in (("first-date", first), ("last-date", last)):
+        if day:
+            moment = datetime.datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=datetime.timezone.utc)
+            out[key] = {"posix": int(moment.timestamp()) * 1000, "iso-8601": moment.strftime("%Y-%m-%dT%H:%M+0000")}
+    return out
 
 
 def section(name, rules):
@@ -152,25 +184,31 @@ def dictionary(names):
 
 
 infrastructure = [
-    rule("DNS", ["lan-net", "dmz-net"], ["dns-servers"], ["domain-udp", "domain-tcp"], comments="Name resolution"),
-    rule("", ["admin-range"], ["dmz-servers"], ["ssh"], install_on=["gw-edge"]),
+    rule("DNS", ["lan-net", "dmz-net"], ["dns-servers"], ["domain-udp", "domain-tcp"], comments="Name resolution",
+         hits=hits(48210, "2026-07-01", "2026-09-30")),
+    rule("", ["admin-range"], ["dmz-servers"], ["ssh"], install_on=["gw-edge"], hits=hits(12, "2026-07-03", "2026-09-12")),
 ]
 outbound = [
-    rule("Web out", ["InternalZone"], ["ExternalZone"], ["http", "https"]),
-    rule("Guests stay out", ["guest-net"], ["dns-servers"], ["Any"], "Drop", destination_negate=True),
-    rule("Social", ["lan-net"], ["Any"], ["Facebook"]),
-    rule("Admins", ["netadmins"], ["plc-net"], ["Any"]),
-    rule("Updates", ["dmz-servers"], [".updates.example.com"], ["https"], time=["Work-Hours"]),
-    rule("Old rule", ["lan-without-guests"], ["Any"], ["syslog-from-high"], enabled=False),
+    rule("Web out", ["InternalZone"], ["ExternalZone"], ["http", "https"], hits=hits(905113, "2026-07-01", "2026-09-30")),
+    rule("Guests stay out", ["guest-net"], ["dns-servers"], ["Any"], "Drop", destination_negate=True, hits=hits(0)),
+    rule("Social", ["lan-net"], ["Any"], ["Facebook"], hits=hits(3310, "2026-07-02", "2026-09-29")),
+    rule("Admins", ["netadmins"], ["plc-net"], ["Any"], hits=hits(0)),
+    rule("PLC access", ["plc-operators", "vendor-support", "admin-range"], ["plc-net"], ["https", "ssh"],
+         comments="Operators from the office, vendor support from anywhere", hits=hits(77, "2026-07-08", "2026-09-28")),
+    rule("DMZ users", ["all-identified"], ["Any"], ["https"], hits=hits(0)),
+    rule("Updates", ["dmz-servers"], [".updates.example.com"], ["https"], time=["Work-Hours"],
+         hits=hits(1520, "2026-07-01", "2026-09-30")),
+    rule("Old rule", ["lan-without-guests"], ["Any"], ["syslog-from-high"], enabled=False, hits=hits(0)),
     rule("Partners", ["lan-net"], ["plc-net"], ["Any"], vpn=["Partner-VPN"]),
-    rule("IPv6 out", ["lan6-net"], ["Any"], ["https"], track="None"),
+    rule("IPv6 out", ["lan6-net"], ["Any"], ["https"], track="None", hits=hits(0)),
 ]
 inbound = [
-    rule("Public web", ["Any"], ["web-1"], ["https"], comments="web-1 has automatic static NAT"),
+    rule("Public web", ["Any"], ["web-1"], ["https"], comments="web-1 has automatic static NAT",
+         hits=hits(310442, "2026-07-01", "2026-09-30")),
     rule("DMZ access", ["Any"], ["dmz-net"], ["Any"], "Inner Layer", "None", inline_layer="DMZ-Layer"),
-    rule("Tunnels", ["Any"], ["gw-edge"], ["gre"]),
-    rule("No ident", ["Any"], ["Any"], ["ident"], "Reject"),
-    rule("Cleanup rule", ["Any"], ["Any"], ["Any"], "Drop"),
+    rule("Tunnels", ["Any"], ["gw-edge"], ["gre"], hits=hits(0), meta_info=meta("2025-01-15", "2026-08-20")),
+    rule("No ident", ["Any"], ["Any"], ["ident"], "Reject", hits=hits(0)),
+    rule("Cleanup rule", ["Any"], ["Any"], ["Any"], "Drop", hits=hits(61540, "2026-07-01", "2026-09-30")),
 ]
 network_used = set(used) | {"Network"}
 network = {
@@ -186,9 +224,9 @@ network = {
 used.clear()
 counter["n"] = 0
 dmz_rules = [
-    rule("Web in", ["Any"], ["web-1"], ["app-ports"]),
-    rule("Mail in", ["Any"], ["mail-1"], ["smtp"]),
-    rule("Ping from LAN", ["lan-net"], ["Any"], ["echo-request"], track="None"),
+    rule("Web in", ["Any"], ["web-1"], ["app-ports"], hits=hits(220431, "2026-07-01", "2026-09-30")),
+    rule("Mail in", ["Any"], ["mail-1"], ["smtp"], hits=hits(0)),
+    rule("Ping from LAN", ["lan-net"], ["Any"], ["echo-request"], track="None", hits=hits(904, "2026-07-01", "2026-09-30")),
 ]
 dmz = {
     "uid": ref("DMZ-Layer"),

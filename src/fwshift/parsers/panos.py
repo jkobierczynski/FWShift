@@ -131,9 +131,14 @@ def parse(data: bytes, report: Report, vsys: str = "", device_group: str = "") -
     for label, rulebase, layer in ordered:
         for entry in layer.findall(f"{rulebase}/security/rules/entry"):
             rule = _rule(entry, app_groups, app_filters)
+            rule.source_ids["panos.name"] = rule.name
+            if entry.get("uuid"):
+                rule.source_ids["panos.uuid"] = entry.get("uuid", "")
             rule.name = rule.origin = _unique(rule.name, taken_rules)
             policy.rules.append(rule)
             targets = [d.get("name", "") for d in entry.findall("target/devices/entry")]
+            if _text(entry, "target/negate") != "yes":
+                rule.targets = [target for target in targets if target]  # (every device but these is not a list of devices)
             if targets or _text(entry, "target/negate") == "yes":
                 report.add(
                     "rule",

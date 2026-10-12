@@ -4,4 +4,4 @@
 
 """FWShift - multi-vendor firewall policy converter."""
 
-__version__ = "0.12.4"
+__version__ = "0.13.0"

@@ -71,6 +71,18 @@ service-group "svc Web out"
     service-object "http 2"
     service-object "https 2"
     exit
+service-group "svc PLC access"
+    service-object "https 2"
+    service-object "ssh 2"
+    exit
+service-group "svc PLC access (plc-operators)"
+    service-object "https 2"
+    service-object "ssh 2"
+    exit
+service-group "svc PLC access (vendor-support)"
+    service-object "https 2"
+    service-object "ssh 2"
+    exit
 nat-policy inbound any outbound any source name "web-1" translated-source name "web-1_valid_address" destination any translated-destination original service any translated-service original
     name "nat-1"
     comment "automatic NAT rule"
@@ -196,64 +208,140 @@ access-rule ipv4 from InternalZone to InternalZone action allow source address n
     priority manual 5
     no enable
     exit
+access-rule ipv4 from ExternalZone to ExternalZone action allow source address name "admin-range" service group "svc PLC access" destination address name "plc-net"
+    name "PLC access"
+    priority manual 6
+    exit
+access-rule ipv4 from ExternalZone to InternalZone action allow source address name "admin-range" service group "svc PLC access" destination address name "plc-net"
+    name "PLC access 2"
+    priority manual 6
+    exit
+access-rule ipv4 from InternalZone to ExternalZone action allow source address name "admin-range" service group "svc PLC access" destination address name "plc-net"
+    name "PLC access 3"
+    priority manual 7
+    exit
+access-rule ipv4 from InternalZone to InternalZone action allow source address name "admin-range" service group "svc PLC access" destination address name "plc-net"
+    name "PLC access 4"
+    priority manual 6
+    exit
+access-rule ipv4 from ExternalZone to ExternalZone action allow source address name "lan-net" service group "svc PLC access (plc-operators)" destination address name "plc-net"
+    name "PLC access (plc-operators)"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from ExternalZone to InternalZone action allow source address name "lan-net" service group "svc PLC access (plc-operators)" destination address name "plc-net"
+    name "PLC access (plc-operators) 2"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from InternalZone to ExternalZone action allow source address name "lan-net" service group "svc PLC access (plc-operators)" destination address name "plc-net"
+    name "PLC access (plc-operators) 3"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from InternalZone to InternalZone action allow source address name "lan-net" service group "svc PLC access (plc-operators)" destination address name "plc-net"
+    name "PLC access (plc-operators) 4"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from ExternalZone to ExternalZone action allow source address any service group "svc PLC access (vendor-support)" destination address name "plc-net"
+    name "PLC access (vendor-support)"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from ExternalZone to InternalZone action allow source address any service group "svc PLC access (vendor-support)" destination address name "plc-net"
+    name "PLC access (vendor-support) 2"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from InternalZone to ExternalZone action allow source address any service group "svc PLC access (vendor-support)" destination address name "plc-net"
+    name "PLC access (vendor-support) 3"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from InternalZone to InternalZone action allow source address any service group "svc PLC access (vendor-support)" destination address name "plc-net"
+    name "PLC access (vendor-support) 4"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from ExternalZone to ExternalZone action allow source address name "dmz-net" service name "https 2" destination address any
+    name "DMZ users"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from ExternalZone to InternalZone action allow source address name "dmz-net" service name "https 2" destination address any
+    name "DMZ users 2"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from InternalZone to ExternalZone action allow source address name "dmz-net" service name "https 2" destination address any
+    name "DMZ users 3"
+    priority manual 10
+    no enable
+    exit
+access-rule ipv4 from InternalZone to InternalZone action allow source address name "dmz-net" service name "https 2" destination address any
+    name "DMZ users 4"
+    priority manual 9
+    no enable
+    exit
 access-rule ipv4 from ExternalZone to ExternalZone action allow source address group "dmz-servers" service name "https 2" destination address name "x.updates.example.com"
     name "Updates"
-    priority manual 6
+    priority manual 10
     no enable
     exit
 access-rule ipv4 from ExternalZone to InternalZone action allow source address group "dmz-servers" service name "https 2" destination address name "x.updates.example.com"
     name "Updates 2"
-    priority manual 6
+    priority manual 10
     no enable
     exit
 access-rule ipv4 from InternalZone to ExternalZone action allow source address group "dmz-servers" service name "https 2" destination address name "x.updates.example.com"
     name "Updates 3"
-    priority manual 7
+    priority manual 11
     no enable
     exit
 access-rule ipv4 from InternalZone to InternalZone action allow source address group "dmz-servers" service name "https 2" destination address name "x.updates.example.com"
     name "Updates 4"
-    priority manual 6
+    priority manual 10
     no enable
     exit
 access-rule ipv4 from ExternalZone to ExternalZone action allow source address name "lan-without-guests" service any destination address any
     name "Old rule"
-    priority manual 7
+    priority manual 11
     no enable
     exit
 access-rule ipv4 from ExternalZone to InternalZone action allow source address name "lan-without-guests" service any destination address any
     name "Old rule 2"
-    priority manual 7
+    priority manual 11
     no enable
     exit
 access-rule ipv4 from InternalZone to ExternalZone action allow source address name "lan-without-guests" service any destination address any
     name "Old rule 3"
-    priority manual 8
+    priority manual 12
     no enable
     exit
 access-rule ipv4 from InternalZone to InternalZone action allow source address name "lan-without-guests" service any destination address any
     name "Old rule 4"
-    priority manual 7
+    priority manual 11
     no enable
     exit
 access-rule ipv4 from ExternalZone to ExternalZone action allow source address name "lan-net" service any destination address name "plc-net"
     name "Partners"
-    priority manual 8
+    priority manual 12
     no enable
     exit
 access-rule ipv4 from ExternalZone to InternalZone action allow source address name "lan-net" service any destination address name "plc-net"
     name "Partners 2"
-    priority manual 8
+    priority manual 12
     no enable
     exit
 access-rule ipv4 from InternalZone to ExternalZone action allow source address name "lan-net" service any destination address name "plc-net"
     name "Partners 3"
-    priority manual 9
+    priority manual 13
     no enable
     exit
 access-rule ipv4 from InternalZone to InternalZone action allow source address name "lan-net" service any destination address name "plc-net"
     name "Partners 4"
-    priority manual 8
+    priority manual 12
     no enable
     exit
 access-rule ipv6 from ExternalZone to ExternalZone action allow source address name "lan6-net" service name "https 2" destination address any
@@ -274,107 +362,107 @@ access-rule ipv6 from InternalZone to InternalZone action allow source address n
     exit
 access-rule ipv4 from ExternalZone to ExternalZone action allow source address any service name "https 2" destination address group "dst Public web"
     name "Public web"
-    priority manual 9
+    priority manual 13
     exit
 access-rule ipv4 from ExternalZone to InternalZone action allow source address any service name "https 2" destination address group "dst Public web"
     name "Public web 2"
-    priority manual 9
+    priority manual 13
     exit
 access-rule ipv4 from InternalZone to ExternalZone action allow source address any service name "https 2" destination address group "dst Public web"
     name "Public web 3"
-    priority manual 10
+    priority manual 14
     exit
 access-rule ipv4 from InternalZone to InternalZone action allow source address any service name "https 2" destination address group "dst Public web"
     name "Public web 4"
-    priority manual 9
+    priority manual 13
     exit
 access-rule ipv4 from ExternalZone to ExternalZone action allow source address any service group "app-ports" destination address name "web-1"
     name "DMZ access / Web in"
-    priority manual 10
+    priority manual 14
     exit
 access-rule ipv4 from ExternalZone to InternalZone action allow source address any service group "app-ports" destination address name "web-1"
     name "DMZ access / Web in 2"
-    priority manual 10
+    priority manual 14
     exit
 access-rule ipv4 from InternalZone to ExternalZone action allow source address any service group "app-ports" destination address name "web-1"
     name "DMZ access / Web in 3"
-    priority manual 11
+    priority manual 15
     exit
 access-rule ipv4 from InternalZone to InternalZone action allow source address any service group "app-ports" destination address name "web-1"
     name "DMZ access / Web in 4"
-    priority manual 10
+    priority manual 14
     exit
 access-rule ipv4 from ExternalZone to ExternalZone action allow source address any service name "smtp" destination address name "mail-1"
     name "DMZ access / Mail in"
-    priority manual 11
+    priority manual 15
     exit
 access-rule ipv4 from ExternalZone to InternalZone action allow source address any service name "smtp" destination address name "mail-1"
     name "DMZ access / Mail in 2"
-    priority manual 11
+    priority manual 15
     exit
 access-rule ipv4 from InternalZone to ExternalZone action allow source address any service name "smtp" destination address name "mail-1"
     name "DMZ access / Mail in 3"
-    priority manual 12
+    priority manual 16
     exit
 access-rule ipv4 from InternalZone to InternalZone action allow source address any service name "smtp" destination address name "mail-1"
     name "DMZ access / Mail in 4"
-    priority manual 11
+    priority manual 15
     exit
 access-rule ipv4 from ExternalZone to ExternalZone action allow source address name "lan-net" service name "Ping" destination address name "dmz-net"
     name "DMZ access / Ping from LAN"
-    priority manual 12
+    priority manual 16
     exit
 access-rule ipv4 from ExternalZone to InternalZone action allow source address name "lan-net" service name "Ping" destination address name "dmz-net"
     name "DMZ access / Ping from LAN 2"
-    priority manual 12
+    priority manual 16
     exit
 access-rule ipv4 from InternalZone to ExternalZone action allow source address name "lan-net" service name "Ping" destination address name "dmz-net"
     name "DMZ access / Ping from LAN 3"
-    priority manual 13
+    priority manual 17
     exit
 access-rule ipv4 from InternalZone to InternalZone action allow source address name "lan-net" service name "Ping" destination address name "dmz-net"
     name "DMZ access / Ping from LAN 4"
-    priority manual 12
+    priority manual 16
     exit
 access-rule ipv4 from ExternalZone to ExternalZone action discard source address any service any destination address name "dmz-net"
     name "DMZ access (cleanup of DMZ-Layer"
-    priority manual 13
+    priority manual 17
     exit
 access-rule ipv4 from ExternalZone to InternalZone action discard source address any service any destination address name "dmz-net"
     name "DMZ access (cleanup of DMZ-Lay 2"
-    priority manual 13
+    priority manual 17
     exit
 access-rule ipv4 from InternalZone to ExternalZone action discard source address any service any destination address name "dmz-net"
     name "DMZ access (cleanup of DMZ-Lay 3"
-    priority manual 14
+    priority manual 18
     exit
 access-rule ipv4 from InternalZone to InternalZone action discard source address any service any destination address name "dmz-net"
     name "DMZ access (cleanup of DMZ-Lay 4"
-    priority manual 13
+    priority manual 17
     exit
 access-rule ipv4 from ExternalZone to ExternalZone action allow source address any service any destination address name "gw-edge"
     name "Tunnels"
-    priority manual 14
+    priority manual 18
     no enable
     exit
 access-rule ipv4 from ExternalZone to InternalZone action allow source address any service any destination address name "gw-edge"
     name "Tunnels 2"
-    priority manual 14
+    priority manual 18
     no enable
     exit
 access-rule ipv4 from InternalZone to ExternalZone action allow source address any service any destination address name "gw-edge"
     name "Tunnels 3"
-    priority manual 15
+    priority manual 19
     no enable
     exit
 access-rule ipv4 from InternalZone to InternalZone action allow source address any service any destination address name "gw-edge"
     name "Tunnels 4"
-    priority manual 14
+    priority manual 18
     no enable
     exit
 access-rule ipv4 from ExternalZone to ExternalZone action deny source address any service name "ident" destination address any
     name "No ident"
-    priority manual 15
+    priority manual 19
     exit
 access-rule ipv6 from ExternalZone to ExternalZone action deny source address any service name "ident" destination address any
     name "No ident 2"
@@ -382,7 +470,7 @@ access-rule ipv6 from ExternalZone to ExternalZone action deny source address an
     exit
 access-rule ipv4 from ExternalZone to InternalZone action deny source address any service name "ident" destination address any
     name "No ident 3"
-    priority manual 15
+    priority manual 19
     exit
 access-rule ipv6 from ExternalZone to InternalZone action deny source address any service name "ident" destination address any
     name "No ident 4"
@@ -390,7 +478,7 @@ access-rule ipv6 from ExternalZone to InternalZone action deny source address an
     exit
 access-rule ipv4 from InternalZone to ExternalZone action deny source address any service name "ident" destination address any
     name "No ident 5"
-    priority manual 16
+    priority manual 20
     exit
 access-rule ipv6 from InternalZone to ExternalZone action deny source address any service name "ident" destination address any
     name "No ident 6"
@@ -398,7 +486,7 @@ access-rule ipv6 from InternalZone to ExternalZone action deny source address an
     exit
 access-rule ipv4 from InternalZone to InternalZone action deny source address any service name "ident" destination address any
     name "No ident 7"
-    priority manual 15
+    priority manual 19
     exit
 access-rule ipv6 from InternalZone to InternalZone action deny source address any service name "ident" destination address any
     name "No ident 8"
@@ -406,7 +494,7 @@ access-rule ipv6 from InternalZone to InternalZone action deny source address an
     exit
 access-rule ipv4 from ExternalZone to ExternalZone action discard source address any service any destination address any
     name "Cleanup rule"
-    priority manual 16
+    priority manual 20
     exit
 access-rule ipv6 from ExternalZone to ExternalZone action discard source address any service any destination address any
     name "Cleanup rule 2"
@@ -414,7 +502,7 @@ access-rule ipv6 from ExternalZone to ExternalZone action discard source address
     exit
 access-rule ipv4 from ExternalZone to InternalZone action discard source address any service any destination address any
     name "Cleanup rule 3"
-    priority manual 16
+    priority manual 20
     exit
 access-rule ipv6 from ExternalZone to InternalZone action discard source address any service any destination address any
     name "Cleanup rule 4"
@@ -422,7 +510,7 @@ access-rule ipv6 from ExternalZone to InternalZone action discard source address
     exit
 access-rule ipv4 from InternalZone to ExternalZone action discard source address any service any destination address any
     name "Cleanup rule 5"
-    priority manual 17
+    priority manual 21
     exit
 access-rule ipv6 from InternalZone to ExternalZone action discard source address any service any destination address any
     name "Cleanup rule 6"
@@ -430,7 +518,7 @@ access-rule ipv6 from InternalZone to ExternalZone action discard source address
     exit
 access-rule ipv4 from InternalZone to InternalZone action discard source address any service any destination address any
     name "Cleanup rule 7"
-    priority manual 16
+    priority manual 20
     exit
 access-rule ipv6 from InternalZone to InternalZone action discard source address any service any destination address any
     name "Cleanup rule 8"

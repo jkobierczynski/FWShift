@@ -28,6 +28,7 @@ How Check Point behaviour is mapped onto the neutral model:
 
 from __future__ import annotations
 
+import copy
 import ipaddress
 import json
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -43,6 +44,7 @@ from ..model import (
     AddressGroup,
     AddressKind,
     DestNat,
+    HitCount,
     L4_PROTOCOLS,
     NatRule,
     Policy,
@@ -83,6 +85,11 @@ _MAX_RULES = 50000
 _MAX_NESTING = 30
 _RESERVED_NAMES = (ANY, APP_DEFAULT)
 _MAX_DEPTH = 8
+KNOWN_USER = "known-user"  # an access role for "all identified users": anybody who is signed in (as for Sophos)
+_USER_WORDS = (ANY, KNOWN_USER, "unknown", "pre-logon")
+_ROLE_FIELDS = ("networks", "users", "machines", "remote-access-client", "remote-access-clients")
+_HITS_NOTE = ("Check Point counts only on gateways with hit counting on, for as long as 'Keep Hit Count data up to' says "
+              "(3 months unless changed), or for the dates and gateway of hits-settings")  # fmt: skip
 
 
 def _ports(text: str) -> Optional[str]:
@@ -122,14 +129,23 @@ def _rules_of(rulebase: List[Any], rule_type: str, depth: int = 0) -> List[Tuple
     return out
 
 
-def _catch_all(rule: Rule) -> bool:
-    """True for an enabled rule that matches every packet."""
+def _posix(holder: Any, key: str) -> Optional[int]:
+    """A date of the Management API ({"posix": milliseconds, "iso-8601": ...}) in seconds; None without one."""
+    date = holder.get(key) if isinstance(holder, dict) else None
+    posix = date.get("posix") if isinstance(date, dict) else None
+    return posix // 1000 if isinstance(posix, int) and not isinstance(posix, bool) and posix > 0 else None
+
+
+def _catch_all(rule: Rule, users: Optional[List[str]] = None) -> bool:
+    """True for an enabled rule that matches every packet: of any user, or of the ``users`` given (those of the rule
+    applying an inline layer, which is all the layer receives)."""
     return (
         rule.enabled
         and not rule.unsupported
         and not rule.schedule
         and rule.src_zones == rule.dst_zones == rule.sources == rule.destinations == rule.services == [ANY]
         and not (rule.negate_source or rule.negate_destination or rule.negate_service)
+        and (rule.users == [ANY] or (users is not None and set(rule.users) == set(users)))
     )
 
 
@@ -186,6 +202,10 @@ class _Builder:
         self.objects: Dict[str, Obj] = {}
         self.layers: Dict[str, List[Tuple[Obj, str]]] = {}  # layer uid or name -> rules, pages in order
         self.layer_names: Dict[str, str] = {}
+        self.layer_uids: Dict[str, str] = {}  # layer identity -> its uid, where the response gave one
+        self.role_names: Dict[int, Tuple[Rule, List[str]]] = {}  # id of a rule -> (the rule, the access roles its users come from)
+        self.unread_hits = 0  # rules whose hits field could not be read
+        self.combined: Set[str] = set()  # rules of inline layers, whose findings went to the rules combined from them
         self.nat: List[Tuple[Obj, str]] = []
         self.address_names: Dict[str, str] = {}  # uid -> name in the model, for objects already converted
         self.service_names: Dict[str, str] = {}
@@ -231,6 +251,8 @@ class _Builder:
                 identity = identity if isinstance(identity, str) else json.dumps(identity)
                 pages.setdefault(identity, []).append((start, access))
                 self.layer_names[identity] = str(response.get("name") or identity)
+                if isinstance(response.get("uid"), str) and response["uid"]:
+                    self.layer_uids[identity] = response["uid"]
                 self.totals[identity] = max(self.totals.get(identity, 0), total)
         for identity, parts in pages.items():
             self.layers[identity] = self._in_order(parts)
@@ -259,6 +281,9 @@ class _Builder:
         if layer:
             self.p.rules = self._layer(layer, (layer,))
             self._implicit_cleanup(layer)
+        for origin in self.combined:
+            self.report.discard("rule", origin)
+        self._hit_period()
         for index, (entry, _) in enumerate(self.nat, 1):
             self.p.nat_rules.append(self._nat_rule(entry, index))
         for zone in transform.dedupe(
@@ -287,6 +312,13 @@ class _Builder:
                 "are not in the output either: what they denied is allowed by the rules that follow them. Export "
                 "every page (offset) and convert again",
             )
+        if self.unread_hits:
+            self.report.note(
+                Severity.INFO,
+                "HITS_NOT_READ",
+                f"the hit counts of {self.unread_hits} rule(s) could not be read (a 'hits' field without a whole number in "
+                "'value'): the audit says nothing about the use of those rules",
+            )
         if not self.has_nat_rulebase:
             self.report.note(
                 Severity.REVIEW,
@@ -301,6 +333,21 @@ class _Builder:
                 "the addresses alone decide, as they do on Check Point",
             )
         return self.p
+
+    def _hit_period(self) -> None:
+        """What the hit counts of the export cover: up to the latest time they show, back to the earliest first hit.
+
+        Check Point keeps counts for a period only, so a rule created long ago is counted from where the counts
+        begin, not from its creation; the earliest first hit of any rule is the earliest time known to be in them.
+        """
+        counted = [rule.hits for rule in self.p.rules if rule.hits is not None]
+        firsts = [h.first_hit for h in counted if h.first_hit is not None]
+        moments = firsts + [m for h in counted for m in (h.last_hit, h.counting_since) if m is not None]
+        for hits in counted:
+            hits.read_until = max(moments) if moments else None
+            hits.covers_from = min(firsts) if firsts else None
+            if hits.covers_from is None:
+                hits.counting_since = None  # (no rule was ever hit: how far back the counts reach is not known)
 
     def _implicit_cleanup(self, layer: str) -> None:
         """What the layer does with traffic no rule matches, when its rules leave any."""
@@ -429,6 +476,11 @@ class _Builder:
             return name
         elif kind == "host" or kind in _GATEWAY_TYPES:
             literals += [f"{obj[key]}" for key in ("ipv4-address", "ipv6-address") if obj.get(key)]
+        elif kind == "access-role":
+            # Read as networks with users where it stands in the source of a rule, not negated (_role): here it
+            # cannot be, or it stands somewhere else.
+            why = self._role_problem(obj) or "in a destination or a negated source, where a rule cannot match users,"
+            return self._unsupported_address(name, f"access role {why}", comment)
         else:
             what = f"object of type '{kind}'" if kind else f"object that {_NOT_EXPORTED}"
             return self._unsupported_address(name, what, comment)
@@ -591,14 +643,26 @@ class _Builder:
         refs = value if isinstance(value, list) else [] if value is None else [value]
         return [self._object(ref) for ref in refs]
 
-    def _address_column(self, entry: Obj, column: str, rule: Rule, negated: bool) -> Tuple[List[str], List[str]]:
-        """(zones, addresses) of a source or destination column."""
+    def _address_column(self, entry: Obj, column: str, rule: Rule, negated: bool,
+                        roles: Optional[List[Tuple[str, List[str], List[str]]]] = None) -> Tuple[List[str], List[str]]:  # fmt: skip
+        """(zones, addresses) of a source or destination column.
+
+        With ``roles`` (a source that is not negated), the access roles that can be read go there as (name,
+        networks, users) instead of into the addresses; the addresses are then empty when the cell holds nothing else.
+        """
         cells = self._cells(entry, column)
         if not cells:
             rule.unsupported.append(f"rule without {column}")
         zones = [str(cell.get("name")) for cell in cells if cell.get("type") == "security-zone"]
         others = [cell for cell in cells if cell.get("type") != "security-zone"]
-        addresses = self._also_valid([self._address(cell) for cell in others])
+        plain: List[Obj] = []
+        for cell in others:
+            role = self._role(cell) if roles is not None and cell.get("type") == "access-role" else None
+            if role is None:
+                plain.append(cell)
+            else:
+                roles.append(role)  # type: ignore[union-attr]
+        addresses = self._also_valid([self._address(cell) for cell in plain])
         if ANY in addresses:
             addresses = [ANY]
         if zones and others:
@@ -607,18 +671,119 @@ class _Builder:
             )
         if zones and negated:
             rule.unsupported.append(f"negated zone in {column}")
+        if roles and not plain:
+            return (zones or [ANY]), []
         return (zones or [ANY]), (addresses or [ANY])
 
-    def _rule(self, entry: Obj, section: str, number: int) -> Rule:
+    def _role(self, obj: Obj) -> Optional[Tuple[str, List[str], List[str]]]:
+        """(name, networks, users) of an access role the model can hold; None when it cannot (then it is an unsupported address).
+
+        The model has users (Rule.users) and no machines or remote access clients: a role that limits either is not read.
+        """
+        name = str(obj.get("name") or obj.get("uid") or "")
+        if self._role_problem(obj):
+            return None
+        networks_value, users_value = obj.get("networks", ANY), obj.get("users", ANY)
+        networks: List[str]
+        if isinstance(networks_value, str) and networks_value.lower() == ANY:
+            networks = [ANY]
+        elif isinstance(networks_value, list) and networks_value:
+            networks = self._also_valid([self._address(ref) for ref in networks_value])
+            networks = [ANY] if ANY in networks else networks
+        else:
+            return None
+        users: List[str]
+        if isinstance(users_value, str) and users_value.lower() in (ANY, "all identified"):
+            users = [ANY] if users_value.lower() == ANY else [KNOWN_USER]
+        elif isinstance(users_value, list) and users_value:
+            users = [str(self._object(ref).get("name") or "") for ref in users_value]
+            if not all(users):
+                return None
+            users = transform.dedupe(users)
+        else:
+            return None
+        return name, networks, users
+
+    def _role_problem(self, obj: Obj) -> str:
+        """Why an access role cannot be networks with users ("" when it can, as far as its machines and clients go)."""
+        if not any(key in obj for key in _ROLE_FIELDS):
+            return "whose networks and users are not in the export (add the output of 'show access-roles details-level full')"
+        machines = obj.get("machines", ANY)
+        client = obj.get("remote-access-client", obj.get("remote-access-clients", ANY))
+        if not (isinstance(machines, str) and machines.lower() == ANY):
+            return "that also limits the machines, which FWShift does not convert"
+        if isinstance(client, str) and client in self.objects:
+            client = self.objects[client]  # a uid
+        if isinstance(client, dict):
+            if not (self._is_any(self._object(client)) or str(self._object(client).get("name", "")).lower() == ANY):
+                return "that also limits the remote access client, which FWShift does not convert"
+        elif not (isinstance(client, str) and client.lower() == ANY):
+            return "that also limits the remote access client, which FWShift does not convert"
+        networks, users = obj.get("networks", ANY), obj.get("users", ANY)
+        if not ((isinstance(networks, str) and networks.lower() == ANY) or (isinstance(networks, list) and networks)):
+            return "whose networks cannot be read"
+        if not ((isinstance(users, str) and users.lower() in (ANY, "all identified")) or (isinstance(users, list) and users)):
+            return "whose users cannot be read"
+        if isinstance(users, list):
+            names = [str(self._object(ref).get("name") or "") for ref in users]
+            if not all(names):
+                return "whose users cannot be read"
+            if any(name.lower() in _USER_WORDS for name in names):
+                # (in the model and on PAN-OS these words mean every user, every signed-in user, every user not signed
+                # in, or every user before signing in: far more than one group)
+                return "with a user or group named " + ", ".join(f"'{word}'" for word in _USER_WORDS)
+        return ""
+
+    def _set_roles(self, rule: Rule, names: List[str]) -> None:
+        if names:
+            self.role_names[id(rule)] = (rule, names)  # (the rule is kept, so that its id is not given to another)
+
+    def _roles_of(self, rule: Rule) -> List[str]:
+        known = self.role_names.get(id(rule))
+        return list(known[1]) if known is not None and known[0] is rule else []
+
+    def _targets(self, entry: Obj) -> List[str]:
+        """The gateways a rule is installed on; empty for every target of the policy."""
+        # A reference the export does not resolve is a target of its own (by uid), never "every target".
+        targets = [str(cell.get("name") or cell.get("uid") or "") for cell in self._cells(entry, "install-on")]
+        return [target for target in targets if target and target != "Policy Targets"]
+
+    def _hits(self, entry: Obj) -> Optional[HitCount]:
+        """The hit count of a rule exported with show-hits; None without one."""
+        hits = entry.get("hits")
+        if hits is None:
+            return None
+        value = hits.get("value") if isinstance(hits, dict) else None
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            self.unread_hits += 1
+            return None
+
+        meta = entry.get("meta-info")
+        # The rule as it stands has existed since it was created or last changed; before that nothing counted it.
+        made = [moment for moment in (_posix(meta, "creation-time"), _posix(meta, "last-modify-time")) if moment is not None]
+        return HitCount(value, _posix(hits, "first-date"), _posix(hits, "last-date"), max(made) if made else None, "the rulebase",
+                        _HITS_NOTE)  # fmt: skip
+
+    def _rule(self, entry: Obj, section: str, number: int, layer: str = "") -> Tuple[Rule, List[Tuple[str, List[str], List[str]]]]:
+        """The rule, and the access roles of its source as (name, networks, users): see _variants."""
         name = str(entry.get("name") or "") or f"rule-{entry.get('rule-number') or number}"
         rule = Rule(name=name)
         rule.description = str(entry.get("comments") or "")
         rule.tags = [section] if section else []
+        uid = entry.get("uid")
+        if isinstance(uid, str) and uid:
+            rule.source_ids["checkpoint.rule_uid"] = uid
+        if layer in self.layer_uids:
+            rule.source_ids["checkpoint.layer_uid"] = self.layer_uids[layer]
+        rule.targets = self._targets(entry)
+        rule.hits = self._hits(entry)
         negated = {
             column: self._flag(entry, f"{column}-negate", False, rule.unsupported)
             for column in ("source", "destination", "service", "content")
         }
-        rule.src_zones, rule.sources = self._address_column(entry, "source", rule, negated["source"])
+        roles: List[Tuple[str, List[str], List[str]]] = []
+        rule.src_zones, rule.sources = self._address_column(entry, "source", rule, negated["source"],
+                                                            None if negated["source"] else roles)  # fmt: skip
         rule.dst_zones, rule.destinations = self._address_column(entry, "destination", rule, negated["destination"])
         rule.negate_source = negated["source"] and rule.sources != [ANY]
         rule.negate_destination = negated["destination"] and rule.destinations != [ANY]
@@ -665,7 +830,44 @@ class _Builder:
             extras = [key for key in ("alert", "accounting", "per-session", "per-connection") if track.get(key) not in (None, False, "none")]
             if (track_type or "None").lower() not in ("none", "log") or extras:
                 rule.handling["track"] = " ".join([track_type or "None"] + [f"{key}={track[key]}" for key in extras])
-        return rule
+        return rule, roles
+
+    def _variants(self, rule: Rule, roles: List[Tuple[str, List[str], List[str]]]) -> List[Rule]:
+        """The rule as the model can hold it: one rule per set of users its access roles name.
+
+        An access role matches its networks for its users. A cell is any of its members, so a cell with roles of
+        different users is split into rules next to each other with the same action, which together match what
+        the cell matched; the networks of one role never meet the users of another. The plain addresses of the
+        cell are a rule of their own, for any user.
+        """
+        if not roles:
+            return [rule]
+        base = rule.name
+        plain = list(rule.sources)
+        groups: Dict[Tuple[str, ...], Tuple[List[str], List[str]]] = {}
+        for name, networks, users in roles:
+            if users == [ANY]:
+                plain = [ANY] if ANY in networks else transform.dedupe(plain + networks)
+                continue
+            names, members = groups.setdefault(tuple(users), ([], []))
+            names.append(name)
+            members[:] = [ANY] if ANY in networks or ANY in members else transform.dedupe(members + networks)
+        if ANY in plain:
+            groups = {}  # every source, for any user: the roles add nothing
+            plain = [ANY]
+        out: List[Rule] = []
+        if plain:
+            rule.sources = plain
+            out.append(rule)
+        several = len(groups) + bool(plain) > 1
+        for user_set, (names, members) in groups.items():
+            variant = copy.deepcopy(rule) if out else rule
+            variant.sources, variant.users = list(members), list(user_set)
+            if several:
+                variant.name = f"{base} ({', '.join(names)})"
+            self._set_roles(variant, names)
+            out.append(variant)
+        return out
 
     def _reach(self, members: List[str], groups: Dict[str, Any]) -> Set[str]:
         """The members and everything they hold through groups."""
@@ -720,8 +922,7 @@ class _Builder:
             )
 
     def _install_on(self, entry: Obj, kind: str, origin: str) -> None:
-        targets = [str(cell.get("name") or "") for cell in self._cells(entry, "install-on")]
-        specific = [t for t in targets if t and t != "Policy Targets"]
+        specific = self._targets(entry)
         if specific:
             self.report.add(
                 kind,
@@ -735,60 +936,70 @@ class _Builder:
     def _layer(self, layer: str, stack: Tuple[str, ...]) -> List[Rule]:
         out: List[Rule] = []
         for number, (entry, section) in enumerate(self.layers.get(layer, []), 1):
-            rule = self._rule(entry, section, number)
-            inline = str(entry.get("inline-layer") or "")
-            if not inline:
-                out.append(self._register(rule, entry))
-                continue
-            inline_name = self.layer_names.get(inline) or str(self._object(inline).get("name") or inline)
-            if inline not in self.layers or inline in stack or len(stack) >= _MAX_DEPTH:
-                rule.action = Action.DROP
-                if inline not in self.layers:
-                    why = "is not in the export; add its 'show access-rulebase' output"
-                elif inline in stack:
-                    why = "is applied from inside itself"
-                else:
-                    why = f"is nested more than {_MAX_DEPTH} layers deep"
-                rule.unsupported.append(f"inline layer '{inline_name}' {why}")
-                out.append(self._register(rule, entry))
-                continue
-            children = self._layer(inline, stack + (inline,))
-            closed = bool(children) and _catch_all(children[-1])
-            for child in children:
-                combined = self._combine(rule, child)
-                if combined is not None:
-                    out.append(self._register(combined, entry, registered=child.origin))
-            if closed:
-                continue  # the layer ends in a rule that matches everything the layer receives
-            implicit = str(self._object(inline).get("implicit-cleanup-action") or "").lower()
-            cleanup = Rule(
-                name=f"{rule.name} (cleanup of {inline_name})",
-                src_zones=list(rule.src_zones), dst_zones=list(rule.dst_zones), sources=list(rule.sources),
-                destinations=list(rule.destinations), services=list(rule.services),
-                action=Action.ALLOW if implicit == "accept" else Action.DROP,
-                enabled=rule.enabled, negate_source=rule.negate_source, negate_destination=rule.negate_destination,
-                negate_service=rule.negate_service, schedule=rule.schedule, unsupported=list(rule.unsupported),
-                log_end=False, description=f"implicit cleanup of inline layer {inline_name}", tags=list(rule.tags),
-            )  # fmt: skip
-            out.append(self._register(cleanup, entry))
-            if implicit in ("accept", "drop"):
-                self.report.add(
-                    "rule",
-                    cleanup.origin,
-                    Severity.INFO,
-                    "INLINE_CLEANUP",
-                    f"added for the implicit cleanup of inline layer '{inline_name}', which is {implicit}",
-                )
+            for rule in self._variants(*self._rule(entry, section, number, layer)):
+                out += self._applied(rule, entry, stack)
+        return out
+
+    def _applied(self, rule: Rule, entry: Obj, stack: Tuple[str, ...]) -> List[Rule]:
+        """The rule, or - for a rule that applies an inline layer - the rules of that layer limited to it."""
+        inline = str(entry.get("inline-layer") or "")
+        if not inline:
+            return [self._register(rule, entry)]
+        inline_name = self.layer_names.get(inline) or str(self._object(inline).get("name") or inline)
+        if inline not in self.layers or inline in stack or len(stack) >= _MAX_DEPTH:
+            rule.action = Action.DROP
+            if inline not in self.layers:
+                why = "is not in the export; add its 'show access-rulebase' output"
+            elif inline in stack:
+                why = "is applied from inside itself"
             else:
-                self.report.add(
-                    "rule",
-                    cleanup.origin,
-                    Severity.REVIEW,
-                    "INLINE_CLEANUP",
-                    f"added for the implicit cleanup of inline layer '{inline_name}'. The export does not show "
-                    "its action; drop, the default of a firewall layer, was assumed. Add the output of "
-                    "'show access-layers details-level full' to the input to have it read",
-                )
+                why = f"is nested more than {_MAX_DEPTH} layers deep"
+            rule.unsupported.append(f"inline layer '{inline_name}' {why}")
+            return [self._register(rule, entry)]
+        out: List[Rule] = []
+        children = self._layer(inline, stack + (inline,))
+        closed = bool(children) and _catch_all(children[-1], rule.users)
+        for child in children:
+            combined = self._combine(rule, child)
+            if combined is not None:
+                out.append(self._register(combined, entry, registered=child.origin))
+        if closed:
+            return out  # the layer ends in a rule that matches everything the layer receives
+        implicit = str(self._object(inline).get("implicit-cleanup-action") or "").lower()
+        cleanup = Rule(
+            name=f"{rule.name} (cleanup of {inline_name})",
+            src_zones=list(rule.src_zones), dst_zones=list(rule.dst_zones), sources=list(rule.sources),
+            destinations=list(rule.destinations), services=list(rule.services),
+            action=Action.ALLOW if implicit == "accept" else Action.DROP,
+            enabled=rule.enabled, negate_source=rule.negate_source, negate_destination=rule.negate_destination,
+            negate_service=rule.negate_service, schedule=rule.schedule, unsupported=list(rule.unsupported),
+            log_end=False, description=f"implicit cleanup of inline layer {inline_name}", tags=list(rule.tags),
+            users=list(rule.users), targets=list(rule.targets),
+        )  # fmt: skip
+        parent_uid = rule.source_ids.get("checkpoint.rule_uid", "")
+        cleanup.source_ids = {key: value for key, value in (
+            ("checkpoint.parent_rule_uid", parent_uid), ("checkpoint.layer_uid", self.layer_uids.get(inline, "")),
+            ("checkpoint.rule_path", parent_uid), ("checkpoint.implicit", "cleanup")) if value}  # fmt: skip
+        self._set_roles(cleanup, self._roles_of(rule))
+        out.append(self._register(cleanup, entry))
+        if implicit in ("accept", "drop"):
+            self.report.add(
+                "rule",
+                cleanup.origin,
+                Severity.INFO,
+                "INLINE_CLEANUP",
+                f"added for the implicit cleanup of inline layer '{inline_name}', which is {implicit}",
+            )
+        else:
+            self.report.add(
+                "rule",
+                cleanup.origin,
+                Severity.REVIEW,
+                "INLINE_CLEANUP",
+                f"added for the implicit cleanup of inline layer '{inline_name}'. The export does not show "
+                "its action; drop, the default of a firewall layer, was assumed. Add the output of "
+                "'show access-layers details-level full' to the input to have it read",
+            )
         return out
 
     def _register(self, rule: Rule, entry: Obj, registered: str = "") -> Rule:
@@ -816,8 +1027,22 @@ class _Builder:
             # Findings were recorded for the rule inside the inline layer: carry them to the combined rule.
             for finding in self.report.item("rule", registered).findings:
                 self.report.add("rule", candidate, finding.severity, finding.code, finding.message)
-            self.report.discard("rule", registered)
+            self.combined.add(registered)  # discarded at the end: a split parent combines the same rules again
         self._install_on(entry, "rule", candidate)
+        roles = self._roles_of(rule)
+        if roles:
+            several = "s" if len(roles) > 1 else ""
+            self.report.add(
+                "rule",
+                candidate,
+                Severity.REVIEW,
+                "ACCESS_ROLE",
+                f"access role{several} {', '.join(roles)}: the rule matches the networks of the role{several} for "
+                + ("all identified users, written 'known-user' as PAN-OS calls them" if rule.users == [KNOWN_USER] else
+                   "its users " + ", ".join(rule.users) + ", which are names of Check Point identities (Active Directory, LDAP "
+                   "or internal groups, identity tags; 'known-user': all identified users). Where the target matches users, "
+                   "map them to the users or groups it knows"),  # fmt: skip
+            )
         return rule
 
     def _combine(self, parent: Rule, child: Rule) -> Optional[Rule]:
@@ -828,6 +1053,28 @@ class _Builder:
         out.enabled = parent.enabled and child.enabled
         out.unsupported = transform.dedupe(parent.unsupported + child.unsupported)
         out.schedule = ", ".join(s for s in (parent.schedule, child.schedule) if s)
+        out.hits = child.hits  # the counter of the rule inside the layer is the one that counts this rule
+        parent_uid = parent.source_ids.get("checkpoint.rule_uid", "")
+        out.source_ids = dict(child.source_ids)
+        if parent_uid:
+            out.source_ids.setdefault("checkpoint.parent_rule_uid", parent_uid)
+            inner = child.source_ids.get("checkpoint.rule_path") or child.source_ids.get("checkpoint.rule_uid", "")
+            out.source_ids["checkpoint.rule_path"] = " ".join(uid for uid in (parent_uid, inner) if uid)
+        if parent.targets and child.targets:
+            out.targets = [target for target in child.targets if target in parent.targets]
+            if not out.targets:
+                out.unsupported.append("installed on no gateway: the rule applying the layer is installed on "
+                                       + ", ".join(parent.targets) + ", the rule inside it on " + ", ".join(child.targets))  # fmt: skip
+        else:
+            out.targets = list(parent.targets or child.targets)
+        if parent.users == [ANY] or set(child.users) == set(parent.users):
+            out.users = list(child.users)
+        elif child.users == [ANY]:
+            out.users = list(parent.users)
+        else:
+            out.users = list(child.users)
+            out.unsupported.append("users limited both by the rule applying the layer and inside the layer")
+        self._set_roles(out, transform.dedupe(self._roles_of(parent) + self._roles_of(child)))
         for attribute in ("src_zones", "dst_zones"):
             outer, inner = getattr(parent, attribute), getattr(child, attribute)
             zones = inner if outer == [ANY] else outer if inner == [ANY] else [z for z in inner if z in outer]

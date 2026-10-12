@@ -42,7 +42,7 @@ m add host name web-1 ip-address 10.20.0.10 comments 'Web server in the DMZ'
 m add host name web-1_valid_address ip-address 203.0.113.10 comments 'address automatic NAT gives web-1'
 m add host name mail-1 ip-address 10.20.0.25
 m add network name guest-net subnet 10.10.200.0 mask-length 24
-m add group name netadmins comments 'FWSHIFT PLACEHOLDER, matches nothing: object of type '\''access-role'\'''
+m add group name netadmins comments 'FWSHIFT PLACEHOLDER, matches nothing: access role whose networks and users are not in the export (add the output of '\''show access-roles details-level full'\'')'
 m add network name plc-net subnet 10.30.1.0 mask-length 24
 m add dns-domain name .updates.example.com is-sub-domain false
 m add group name lan-without-guests comments 'FWSHIFT PLACEHOLDER, matches nothing: object of type '\''group-with-exclusion'\'''
@@ -68,18 +68,22 @@ m add access-rule layer Network position 3 name 'Web out' source.1 InternalZone 
 m add access-rule layer Network position 4 name 'Guests stay out' source.1 guest-net destination.1 dns-servers destination-negate true action Drop track.type Log
 m add access-rule layer Network position 5 name Social source.1 lan-net service.1 Facebook action Accept track.type Log
 m add access-rule layer Network position 6 name Admins source.1 netadmins destination.1 plc-net action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 7 name Updates source.1 dmz-servers destination.1 .updates.example.com service.1 https action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 8 name 'Old rule' source.1 lan-without-guests service.1 syslog-from-high action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 9 name Partners source.1 lan-net destination.1 plc-net action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 10 name 'IPv6 out' source.1 lan6-net service.1 https action Accept track.type None
-m add access-rule layer Network position 11 name 'Public web' destination.1 web-1 destination.2 web-1_valid_address service.1 https action Accept track.type Log comments 'web-1 has automatic static NAT'
-m add access-rule layer Network position 12 name 'DMZ access / Web in' destination.1 web-1 service.1 app-ports action Accept track.type Log
-m add access-rule layer Network position 13 name 'DMZ access / Mail in' destination.1 mail-1 service.1 smtp action Accept track.type Log
-m add access-rule layer Network position 14 name 'DMZ access / Ping from LAN' source.1 lan-net destination.1 dmz-net service.1 echo-request action Accept track.type None
-m add access-rule layer Network position 15 name 'DMZ access (cleanup of DMZ-Layer)' destination.1 dmz-net action Drop track.type None comments 'implicit cleanup of inline layer DMZ-Layer'
-m add access-rule layer Network position 16 name Tunnels destination.1 gw-edge service.1 gre action Accept track.type Log
-m add access-rule layer Network position 17 name 'No ident' service.1 ident action Reject track.type Log
-m add access-rule layer Network position 18 name 'Cleanup rule' action Drop track.type Log
+m add access-rule layer Network position 7 name 'PLC access' source.1 admin-range destination.1 plc-net service.1 https service.2 ssh action Accept track.type Log comments 'Operators from the office, vendor support from anywhere'
+m add access-rule layer Network position 8 name 'PLC access (plc-operators)' source.1 lan-net destination.1 plc-net service.1 https service.2 ssh action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report. Operators from the office, vendor support from anywhere'
+m add access-rule layer Network position 9 name 'PLC access (vendor-support)' destination.1 plc-net service.1 https service.2 ssh action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report. Operators from the office, vendor support from anywhere'
+m add access-rule layer Network position 10 name 'DMZ users' source.1 dmz-net service.1 https action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
+m add access-rule layer Network position 11 name Updates source.1 dmz-servers destination.1 .updates.example.com service.1 https action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
+m add access-rule layer Network position 12 name 'Old rule' source.1 lan-without-guests service.1 syslog-from-high action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
+m add access-rule layer Network position 13 name Partners source.1 lan-net destination.1 plc-net action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
+m add access-rule layer Network position 14 name 'IPv6 out' source.1 lan6-net service.1 https action Accept track.type None
+m add access-rule layer Network position 15 name 'Public web' destination.1 web-1 destination.2 web-1_valid_address service.1 https action Accept track.type Log comments 'web-1 has automatic static NAT'
+m add access-rule layer Network position 16 name 'DMZ access / Web in' destination.1 web-1 service.1 app-ports action Accept track.type Log
+m add access-rule layer Network position 17 name 'DMZ access / Mail in' destination.1 mail-1 service.1 smtp action Accept track.type Log
+m add access-rule layer Network position 18 name 'DMZ access / Ping from LAN' source.1 lan-net destination.1 dmz-net service.1 echo-request action Accept track.type None
+m add access-rule layer Network position 19 name 'DMZ access (cleanup of DMZ-Layer)' destination.1 dmz-net action Drop track.type None comments 'implicit cleanup of inline layer DMZ-Layer'
+m add access-rule layer Network position 20 name Tunnels destination.1 gw-edge service.1 gre action Accept track.type Log
+m add access-rule layer Network position 21 name 'No ident' service.1 ident action Reject track.type Log
+m add access-rule layer Network position 22 name 'Cleanup rule' action Drop track.type Log
 
 # NAT rules of package Standard
 m add nat-rule package Standard position bottom original-source web-1 translated-source web-1_valid_address method static comments 'nat-1: automatic NAT rule'

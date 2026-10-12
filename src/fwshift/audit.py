@@ -20,6 +20,7 @@ Three things are kept apart:
 from __future__ import annotations
 
 import copy
+import datetime
 import json
 from dataclasses import dataclass, field
 from enum import IntEnum
@@ -82,6 +83,9 @@ CHECKS: Dict[str, Check] = {
     "DUPLICATE_OBJECT": Check(Level.INFO, "objects with the same content under several names", _FOR_OTHERS),
     "EMPTY_GROUP": Check(Level.LOW, "group without members", _FOR_OTHERS),
     "DEFAULT_ALLOW": Check(Level.HIGH, "traffic that no rule matches is allowed", _FOR_OTHERS),
+    # Use, from the hit counters of the firewall.
+    "UNUSED_RULE": Check(Level.MEDIUM, "allow rule whose hit counter is zero"),
+    "NO_USAGE_EVIDENCE": Check(Level.INFO, "rule whose use cannot be told: no counter, or one that has not counted long", _FOR_OTHERS),
     # Only after a conversion.
     "EXPOSED_BY_CONVERSION": Check(Level.HIGH, "blocking rule the conversion could not write, with allow rules below it", _FOR_OTHERS),
 }
@@ -172,6 +176,8 @@ class AuditConfig:
     wide_network_v4: int = 8  # a network with this prefix length or shorter is "very large"
     wide_network_v6: int = 32
     wide_ports: int = 1024  # a range of at least this many ports is "very wide"
+    usage_days: int = 90  # a hit counter that has counted for fewer days than this proves nothing by a zero
+    hits_since: Optional[int] = None  # the user's word: the counters have counted since then (UTC seconds)
     risky_services: Dict[str, List[str]] = field(default_factory=lambda: copy.deepcopy(RISKY_SERVICES))
     industrial_services: Dict[str, List[str]] = field(default_factory=lambda: copy.deepcopy(INDUSTRIAL_SERVICES))
     risky_applications: List[str] = field(default_factory=lambda: list(RISKY_APPLICATIONS))
@@ -231,7 +237,7 @@ def load_config(text: str, where: str = "the audit configuration") -> AuditConfi
         raise FwshiftError(f"{where} is not JSON: {str(exc)[:200]}") from None
     if not isinstance(data, dict):
         raise FwshiftError(f"{where}: a JSON object is expected")
-    _only(data, ("checks", "accept", "thresholds", "services", "applications", "fail_on"), where, "the configuration")
+    _only(data, ("checks", "accept", "thresholds", "services", "applications", "fail_on", "hits_since"), where, "the configuration")
     config = AuditConfig()
     checks = data.get("checks", {})
     if not isinstance(checks, dict):
@@ -266,7 +272,7 @@ def load_config(text: str, where: str = "the audit configuration") -> AuditConfi
     thresholds = data.get("thresholds", {})
     if not isinstance(thresholds, dict):
         raise FwshiftError(f"{where}: 'thresholds' is an object")
-    limits = {"wide_network_v4": (0, 32), "wide_network_v6": (0, 128), "wide_ports": (2, 65536)}
+    limits = {"wide_network_v4": (0, 32), "wide_network_v6": (0, 128), "wide_ports": (2, 65536), "usage_days": (1, 3650)}
     for key, value in thresholds.items():
         if key not in limits or not isinstance(value, int) or isinstance(value, bool):
             raise FwshiftError(f"{where}: threshold '{str(key)[:40]}' is not known, or not a whole number")
@@ -299,7 +305,18 @@ def load_config(text: str, where: str = "the audit configuration") -> AuditConfi
             setattr(config, target, [str(name) for name in applications[key]])
     if "fail_on" in data:
         config.fail_on = level_of(str(data["fail_on"]), where)
+    if "hits_since" in data:
+        config.hits_since = day_of(str(data["hits_since"]), where)
     return config
+
+
+def day_of(text: str, option: str) -> int:
+    """A day written YYYY-MM-DD, as the UTC seconds of its start."""
+    try:
+        moment = datetime.datetime.strptime(text.strip(), "%Y-%m-%d").replace(tzinfo=datetime.timezone.utc)
+    except ValueError:
+        raise FwshiftError(f"{option}: '{text[:20]}' is not a day written YYYY-MM-DD") from None
+    return int(moment.timestamp())
 
 
 @dataclass
@@ -315,12 +332,15 @@ class Finding:
     done: str = ""  # what was done about it, or would be
     reason: str = ""  # why it was accepted
     dead: bool = False  # the rule never matches (and not: matches, but adds nothing)
+    ids: Dict[str, str] = field(default_factory=dict)  # the source platform's own identifiers of the rule (Rule.source_ids)
 
     def to_dict(self) -> Dict[str, Any]:
         out: Dict[str, Any] = {
             "check": self.check, "level": _LEVEL_NAMES[self.level], "kind": self.kind, "name": self.shown or self.name,
             "message": self.message, "action": self.action,
         }  # fmt: skip
+        if self.ids:
+            out["source_ids"] = dict(self.ids)
         if self.related:
             out["related"] = self.related
         if self.done:
@@ -887,6 +907,22 @@ def _quoted(names: Sequence[str], limit: int = 4) -> str:
     return shown + (f" and {len(names) - limit} more" if len(names) > limit else "")
 
 
+def _day(moment: int) -> str:
+    """A time of a hit counter (UTC seconds) as its day."""
+    try:
+        return datetime.datetime.fromtimestamp(moment, datetime.timezone.utc).strftime("%Y-%m-%d")
+    except (OverflowError, OSError, ValueError):
+        return f"{moment} (seconds since 1970)"
+
+
+def _counted_on_source(rule: Rule) -> bool:
+    """Whether the rule is a rule of the source with an identity of its own, which a hit counter could name.
+
+    The implicit cleanup of a Check Point inline layer, a rule FWShift added, has none.
+    """
+    return any(key.endswith((".rule_uid", ".name", ".uuid", ".policyid")) for key in rule.source_ids)
+
+
 def _where(rule: Rule) -> str:
     src = "any zone" if ANY in rule.src_zones else "zone " + ", ".join(rule.src_zones)
     if rule.scope == RuleScope.INTRAZONE:
@@ -910,12 +946,13 @@ class _Audit:
         return self.config.action(check) != OFF
 
     def add(self, check: str, kind: str, name: str, message: str, shown: str = "", related: Sequence[str] = (),
-            level: Optional[Level] = None, names: Sequence[str] = (), dead: bool = False) -> None:  # fmt: skip
+            level: Optional[Level] = None, names: Sequence[str] = (), dead: bool = False,
+            ids: Optional[Dict[str, str]] = None) -> None:  # fmt: skip
         if not self.on(check):
             return
         finding = Finding(check, self.config.level(check) if level is None else level,
                           kind, name, message, shown if shown != name else "", list(related), self.config.action(check),
-                          dead=dead)  # fmt: skip
+                          dead=dead, ids=dict(ids or {}))  # fmt: skip
         for acceptance in self.config.accepted:
             if acceptance.covers(check, [name, shown, *names], kind):
                 finding.action, finding.reason, acceptance.used = ACCEPT, acceptance.reason, True
@@ -924,14 +961,66 @@ class _Audit:
 
     def rule(self, check: str, rule: Rule, message: str, related: Sequence[Rule] = (), level: Optional[Level] = None,
              dead: bool = False) -> None:  # fmt: skip
-        self.add(check, "rule", rule.origin or rule.name, message, rule.name, [r.origin or r.name for r in related], level, dead=dead)
+        self.add(check, "rule", rule.origin or rule.name, message, rule.name, [r.origin or r.name for r in related], level, dead=dead,
+                 ids=rule.source_ids)  # fmt: skip
 
     def run(self) -> List[Finding]:
         self.permissive()
         self.order()
         self.nat_order()
         self.loose_ends()
+        self.usage()
         return self.findings
+
+    # .. use, from hit counters
+
+    def usage(self) -> None:
+        """Allow rules that a hit counter shows unused, and rules about which the counters say nothing.
+
+        A zero proves something only for the time the counter has counted, from its start (the reset, creation or
+        change of the rule; for Check Point no earlier than the counts of the export reach back; or the date the
+        user gives with hits_since) to the moment it was read, for which the latest time its answer shows stands
+        in: never later than that moment, so the period is never taken longer than it was. Shorter than
+        ``usage_days``, not known, or not from every firewall the rule may be on: no evidence. A blocking rule gets
+        no finding: that nothing tried to pass it says nothing about whether it is needed.
+        """
+        if not any(rule.hits is not None for rule in self.p.rules):
+            return
+        days, given = self.config.usage_days, self.config.hits_since
+        for rule in self.p.rules:
+            hits = rule.hits
+            if not rule.enabled:
+                continue
+            if hits is None:
+                if _counted_on_source(rule):
+                    self.rule("NO_USAGE_EVIDENCE", rule, "has no hit counter in the input, while other rules have one: nothing can be "
+                              "said about its use")  # fmt: skip
+                continue
+            if hits.count or _blocks(rule):
+                continue
+            where = f" ({hits.read_from})" if hits.read_from else ""
+            note = f". {hits.note[:1].upper()}{hits.note[1:]}" if hits.note else ""
+            zero = f"has a hit counter of 0{where}"
+            if not hits.complete:
+                self.rule("NO_USAGE_EVIDENCE", rule, f"{zero}, but not from every firewall it may be on{note}")
+                continue
+            if hits.counting_since is None and given is None:
+                self.rule("NO_USAGE_EVIDENCE", rule, f"{zero}, but the input does not tell since when it counts (give the date with "
+                          f"--hits-since, if it is known){note}")  # fmt: skip
+                continue
+            start = max(moment for moment in (hits.counting_since, hits.covers_from, given) if moment is not None)
+            if hits.read_until is None:
+                self.rule("NO_USAGE_EVIDENCE", rule, f"{zero}, but its answer shows no time at all, so how long it counted cannot be "
+                          f"told{note}")  # fmt: skip
+                continue
+            if hits.read_until - start < days * 86400:
+                age = max(hits.read_until - start, 0) // 86400
+                self.rule("NO_USAGE_EVIDENCE", rule, f"{zero}, but it has counted only since {_day(start)}: {age} day(s) before the "
+                          f"latest time its answer shows, fewer than the {days} the audit asks for{note}")  # fmt: skip
+                continue
+            told = " (from --hits-since)" if given is not None and start == given else ""
+            self.rule("UNUSED_RULE", rule, f"allows traffic {_where(rule)}, and its hit counter{where} is 0 from {_day(start)}{told} to "
+                      f"{_day(hits.read_until)} at least{note}. Check that the counters cover every firewall the rule is on")  # fmt: skip
 
     # .. rules that allow a lot
 
@@ -1596,5 +1685,5 @@ def checks_table() -> List[Tuple[str, str, str, str, str]]:
 
 __all__ = [
     "ACCEPT", "CHECKS", "DISABLE", "OFF", "REORDER", "REPORT", "AuditConfig", "AuditResult", "Finding", "Level", "Reading", "Services",
-    "apply", "checks_table", "compare", "effective", "level_of", "load_config", "run",
+    "apply", "checks_table", "compare", "day_of", "effective", "level_of", "load_config", "run",
 ]  # fmt: skip

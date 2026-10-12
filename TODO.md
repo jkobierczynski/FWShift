@@ -57,6 +57,32 @@ other fields; FWShift refuses it with that reason), Huawei USG, Forcepoint, Stor
 MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
 (AWS, Azure NSG).
 
+## Rule usage
+
+Which rules, objects and services of a policy are actually used, from the hit
+counters of the firewalls and then from their logs: what fwanalyser did for
+Check Point, for every platform FWShift reads. The design, the defects of
+fwanalyser it must not repeat, and the open questions with the answers chosen
+are in [docs/RULE_USAGE.md](docs/RULE_USAGE.md). One release per step;
+0.13.0 is done (see the development log), the others follow:
+
+1. **0.13.0, rule identity and hit counters** (done). The platforms' own rule
+   identities on the rules of the model (Check Point rule, layer and parent
+   rule UIDs, also for flattened inline rules; PAN-OS UUID and name; FortiOS
+   `policyid` and UUID); install-on targets on the rule; Access Roles in the
+   model instead of unsupported addresses; the audit checks `UNUSED_RULE`
+   and `NO_USAGE_EVIDENCE` from hit counters (Check Point hits in the
+   rulebase, PAN-OS and FortiOS through `audit --hits FILE`).
+2. **0.14.0, `fwshift usage` for Check Point**: Log Exporter and CSV logs,
+   a SQLite store, attribution by rule identity, usage per object and
+   service (`UNUSED_RULE_OBJECT`, `UNUSED_RULE_SERVICE`), JSON and HTML output.
+3. **0.15.0, simulation** where a log names no rule: first match on the
+   audit's sets, certain and possible kept apart; iptables `LOG` lines.
+4. **0.16.0, PAN-OS and FortiOS traffic logs.** Find out whether the FortiOS
+   monitor counts IPv6 policies without `ip_version`.
+5. **0.17.0, narrowing**: `WIDER_THAN_TRAFFIC`, with a narrower rule
+   written through the emitters; never for deny rules.
+
 ## Audit and matrix
 
 1. **The matrix before and after a conversion**, and of two configurations
@@ -79,7 +105,8 @@ MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
    arithmetic: the difference of two policies is a set of boxes.
 6. **Zone ranks** from a configuration file, so that "any source" from the
    Internet weighs more than from the server network.
-7. **Hit counts** where a source exports them: allowed but never used.
+7. **Hit counts** where a source exports them: allowed but never used. Now
+   part of *Rule usage* above (0.13.0).
 8. **Findings and matrix as SARIF, CSV or HTML**, for ticketing and
    code-scanning tools and for a report someone signs.
 9. **NAT audit beyond shadowing**: overlapping translations, a published

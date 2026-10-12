@@ -1,6 +1,6 @@
 FWShift zone matrix
   source: checkpoint (Network)
-  security rules: 18 (1 disabled, 0 never match)
+  security rules: 22 (1 disabled, 0 never match)
 
 What each zone may reach (rows: from, columns: to)
                  InternalZone      ExternalZone      (other zones)
@@ -14,6 +14,10 @@ In every conduit
   rule 'rule-2': admin-range -> dmz-servers: tcp/22 ~
   rule 'Social': lan-net -> any: service 'Facebook' (not read) ~
   rule 'Admins': netadmins -> plc-net: any ~
+  rule 'PLC access': admin-range -> plc-net: tcp/22, tcp/443
+  rule 'PLC access (plc-operators)': lan-net -> plc-net: tcp/22, tcp/443 (users ad_group_PLC-Operators) ~
+  rule 'PLC access (vendor-support)': any -> plc-net: tcp/22, tcp/443 (users ad_group_Vendor-Support) ~
+  rule 'DMZ users': dmz-net -> any: tcp/443 (users known-user) ~
   rule 'Updates': dmz-servers -> .updates.example.com: tcp/443 (schedule Work-Hours) ~
   rule 'Partners': lan-net -> plc-net: any (only with VPN community match Partner-VPN, which is not in the model) ~
   rule 'IPv6 out': lan6-net -> any: tcp/443
@@ -26,32 +30,32 @@ In every conduit
 Conduits
 InternalZone -> InternalZone (inside the zone)
   allowed: any ~
-  and the 12 listed under 'In every conduit'
+  and the 16 listed under 'In every conduit'
 InternalZone -> ExternalZone
   allowed: any ~
   rule 'Web out': any -> any: tcp/80, tcp/443
-  and the 12 listed under 'In every conduit'
+  and the 16 listed under 'In every conduit'
 InternalZone -> (other zones)
   allowed: any ~
-  and the 12 listed under 'In every conduit'
+  and the 16 listed under 'In every conduit'
 ExternalZone -> InternalZone
   allowed: any ~
-  and the 12 listed under 'In every conduit'
+  and the 16 listed under 'In every conduit'
 ExternalZone -> ExternalZone (inside the zone)
   allowed: any ~
-  and the 12 listed under 'In every conduit'
+  and the 16 listed under 'In every conduit'
 ExternalZone -> (other zones)
   allowed: any ~
-  and the 12 listed under 'In every conduit'
+  and the 16 listed under 'In every conduit'
 (other zones) -> InternalZone
   allowed: any ~
-  and the 12 listed under 'In every conduit'
+  and the 16 listed under 'In every conduit'
 (other zones) -> ExternalZone
   allowed: any ~
-  and the 12 listed under 'In every conduit'
+  and the 16 listed under 'In every conduit'
 (other zones) -> (other zones)
   allowed: any ~
-  and the 12 listed under 'In every conduit'
+  and the 16 listed under 'In every conduit'
 
 From reading the configuration
   IMPLIED_RULES: Check Point implied rules (global properties) and the other ordered layers of the policy package are not part of the export; only the rules of one layer were read ('Network')

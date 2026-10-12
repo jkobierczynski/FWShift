@@ -12,7 +12,7 @@ set address web-1_valid_address description "address automatic NAT gives web-1"
 set address mail-1 ip-netmask 10.20.0.25/32
 set address guest-net ip-netmask 10.10.200.0/24
 set address netadmins ip-netmask 0.0.0.0/32
-set address netadmins description "FWSHIFT PLACEHOLDER, matches nothing: object of type 'access-role'"
+set address netadmins description "FWSHIFT PLACEHOLDER, matches nothing: access role whose networks and users are not in the export (add the output of 'show access-roles details-level full')"
 set address plc-net ip-netmask 10.30.1.0/24
 set address x.updates.example.com fqdn updates.example.com
 set address lan-without-guests ip-netmask 0.0.0.0/32
@@ -114,6 +114,53 @@ set rulebase security rules Admins log-end yes
 set rulebase security rules Admins disabled yes
 set rulebase security rules Admins description "FWSHIFT: disabled by the converter, see the report."
 set rulebase security rules Admins tag Outbound
+set rulebase security rules "PLC access" from any
+set rulebase security rules "PLC access" to any
+set rulebase security rules "PLC access" source admin-range
+set rulebase security rules "PLC access" destination plc-net
+set rulebase security rules "PLC access" source-user any
+set rulebase security rules "PLC access" category any
+set rulebase security rules "PLC access" application any
+set rulebase security rules "PLC access" service [ https ssh ]
+set rulebase security rules "PLC access" action allow
+set rulebase security rules "PLC access" log-end yes
+set rulebase security rules "PLC access" description "Operators from the office, vendor support from anywhere"
+set rulebase security rules "PLC access" tag Outbound
+set rulebase security rules "PLC access _plc-operators_" from any
+set rulebase security rules "PLC access _plc-operators_" to any
+set rulebase security rules "PLC access _plc-operators_" source lan-net
+set rulebase security rules "PLC access _plc-operators_" destination plc-net
+set rulebase security rules "PLC access _plc-operators_" source-user ad_group_PLC-Operators
+set rulebase security rules "PLC access _plc-operators_" category any
+set rulebase security rules "PLC access _plc-operators_" application any
+set rulebase security rules "PLC access _plc-operators_" service [ https ssh ]
+set rulebase security rules "PLC access _plc-operators_" action allow
+set rulebase security rules "PLC access _plc-operators_" log-end yes
+set rulebase security rules "PLC access _plc-operators_" description "Operators from the office, vendor support from anywhere"
+set rulebase security rules "PLC access _plc-operators_" tag Outbound
+set rulebase security rules "PLC access _vendor-support_" from any
+set rulebase security rules "PLC access _vendor-support_" to any
+set rulebase security rules "PLC access _vendor-support_" source any
+set rulebase security rules "PLC access _vendor-support_" destination plc-net
+set rulebase security rules "PLC access _vendor-support_" source-user ad_group_Vendor-Support
+set rulebase security rules "PLC access _vendor-support_" category any
+set rulebase security rules "PLC access _vendor-support_" application any
+set rulebase security rules "PLC access _vendor-support_" service [ https ssh ]
+set rulebase security rules "PLC access _vendor-support_" action allow
+set rulebase security rules "PLC access _vendor-support_" log-end yes
+set rulebase security rules "PLC access _vendor-support_" description "Operators from the office, vendor support from anywhere"
+set rulebase security rules "PLC access _vendor-support_" tag Outbound
+set rulebase security rules "DMZ users" from any
+set rulebase security rules "DMZ users" to any
+set rulebase security rules "DMZ users" source dmz-net
+set rulebase security rules "DMZ users" destination any
+set rulebase security rules "DMZ users" source-user known-user
+set rulebase security rules "DMZ users" category any
+set rulebase security rules "DMZ users" application any
+set rulebase security rules "DMZ users" service https
+set rulebase security rules "DMZ users" action allow
+set rulebase security rules "DMZ users" log-end yes
+set rulebase security rules "DMZ users" tag Outbound
 set rulebase security rules Updates from any
 set rulebase security rules Updates to any
 set rulebase security rules Updates source dmz-servers

@@ -136,6 +136,33 @@ class Zone:
 
 
 @dataclass
+class HitCount:
+    """The hit counter a firewall keeps for a rule: how often it matched, in the period it counted.
+
+    Times are UTC, in seconds since 1970. None: no such time (never hit), or the source does not say.
+    """
+
+    count: int
+    first_hit: Optional[int] = None
+    last_hit: Optional[int] = None
+    # Since when the counter counts: the later of its last reset and the creation of the rule, where the source
+    # tells either. None: not known, and nothing can be said about how long a zero has lasted.
+    counting_since: Optional[int] = None
+    read_from: str = ""  # where it was read: "the rulebase", or the name of a file of counters
+    # What else limits the counter, as the source documents it (gateways that do not count, a retention period).
+    note: str = ""
+    # False when the counter may leave out firewalls the rule is on (one firewall's counters for a policy of
+    # Panorama): then a zero proves nothing.
+    complete: bool = True
+    # The latest time the answer the counter came from shows: it was read no earlier. No export records when it was
+    # read; this stands in for it, and makes a period shorter, never longer, than it was.
+    read_until: Optional[int] = None
+    # For a source that keeps counts for a period only (Check Point): the earliest time its answer is known to reach
+    # back to, the earliest first hit of any rule in it. None where a counter counts from counting_since on.
+    covers_from: Optional[int] = None
+
+
+@dataclass
 class Rule:
     name: str
     src_zones: List[str] = field(default_factory=lambda: [ANY])
@@ -173,6 +200,15 @@ class Rule:
     # named, with the origins of the NAT rules it was added for. A target that looks rules up as
     # the source did takes them away again (transform.rewrite_destinations).
     nat_added: Dict[str, List[str]] = field(default_factory=dict)
+    # The source platform's own identifiers of the rule, which its hit counters and logs name it by:
+    # "checkpoint.rule_uid", "checkpoint.layer_uid", "checkpoint.parent_rule_uid", "panos.name", "panos.uuid",
+    # "fortios.policyid", "fortios.uuid", ... A rule the parser split or combined keeps those of its source rule;
+    # nothing is converted from here.
+    source_ids: Dict[str, str] = field(default_factory=dict)
+    # The devices the source installs the rule on, by the names the source gives them; empty: every device the
+    # policy is installed on. Converted nowhere: a target is one firewall (DEVICE_TARGET says so).
+    targets: List[str] = field(default_factory=list)
+    hits: Optional[HitCount] = None  # the hit counter of the source rule, where the input holds one
 
 
 @dataclass
