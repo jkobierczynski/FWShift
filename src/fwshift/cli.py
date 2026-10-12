@@ -215,6 +215,9 @@ def _audit_options(parser: argparse.ArgumentParser) -> None:
         "FortiOS monitor 'firewall/policy'; repeatable (counters of several firewalls are added up). A Check Point rulebase "
         "exported with show-hits carries its own",
     )  # fmt: skip
+    group.add_argument("--unchanged-since", metavar="YYYY-MM-DD",
+                       help="the rules have been as they are since this day, where the configuration does not say (iptables, a "
+                       "Check Point export without meta-info): your word, for what the logs prove")  # fmt: skip
     group.add_argument("--hits-since", metavar="YYYY-MM-DD",
                        help="the hit counters have counted since this day (UTC), where they do not say so themselves (Check Point, "
                        "FortiOS): your word, for UNUSED_RULE")  # fmt: skip
@@ -228,16 +231,16 @@ def _usage_store_option(parser: argparse.ArgumentParser) -> None:
                         help="with --usage-store: a gateway the policy is installed on, as --gateway of 'fwshift usage'. Repeatable")
 
 
-def _from_store(args: argparse.Namespace, policy: Policy, config: audit.AuditConfig) -> List[str]:
+def _from_store(args: argparse.Namespace, policy: Policy, config: audit.AuditConfig, reading: Optional[audit.Reading] = None) -> List[str]:
     """What a usage store says about the rules (--usage-store); a line saying what was used."""
     if not getattr(args, "usage_store", None):
         return []
-    if policy.vendor != "checkpoint":
-        raise FwshiftError("--usage-store: logs are read for a Check Point policy only, in this version")
+    if policy.vendor not in usage.VENDORS:
+        raise FwshiftError("--usage-store: logs are read for a Check Point or iptables policy only, in this version")
     store = usage.Store(args.usage_store, create=False)
     try:
         span = usage.window(store, days=config.usage_days)
-        evaluation = usage.evaluate(policy, store, span, args.usage_gateway)
+        evaluation = usage.evaluate(policy, store, span, args.usage_gateway, reading, config.unchanged_since)
     finally:
         store.close()
     return [f"{args.usage_store}: {span.first} to {span.last}, {evaluation.attributed} of {evaluation.connections} connection(s) "
@@ -260,6 +263,8 @@ def _audit_config(args: argparse.Namespace) -> audit.AuditConfig:
         config.fail_on = audit.level_of(args.audit_fail_on, "--audit-fail-on")
     if args.hits_since:
         config.hits_since = audit.day_of(args.hits_since, "--hits-since")
+    if args.unchanged_since:
+        config.unchanged_since = audit.day_of(args.unchanged_since, "--unchanged-since")
     return config
 
 
@@ -482,11 +487,11 @@ def build_parser() -> argparse.ArgumentParser:
                      "'elsewhere'), not between the zones of the policy. @ZONE names the zone of the policy the networks lie behind")  # fmt: skip
     mat.add_argument("--audit-config", metavar="FILE", help="JSON file of the audit: its lists of risky and industrial services are used")
 
-    use = commands.add_parser("usage", help="which rules, objects and services the firewall's logs show used (Check Point)")
+    use = commands.add_parser("usage", help="which rules, objects and services the firewall's logs show used (Check Point, iptables)")
     _source_options(use)
     use.add_argument("--logs", action="append", default=[], metavar="FILE",
                      help="a log file: what Check Point's Log Exporter sends (syslog, splunk or cef format), or the JSON answer of "
-                     "show-logs; repeatable")  # fmt: skip
+                     "show-logs; for iptables, the kernel lines of its LOG rules as syslog or journalctl writes them; repeatable")  # fmt: skip
     use.add_argument("--store", metavar="FILE", help="keep the connections in this file (SQLite) and add to it on every run; a log file "
                      "that is in it already is not read again. Without it, nothing is kept")  # fmt: skip
     use.add_argument("--since", default="", metavar="DAYS|YYYY-MM-DD",
@@ -495,8 +500,13 @@ def build_parser() -> argparse.ArgumentParser:
     use.add_argument("--gateway", action="append", default=[], metavar="NAME[=LOGNAME,...]",
                      help="a gateway the policy is installed on; one that sent no logs proves nothing for its rules. NAME=LOGNAME,... "
                      "names the members of a cluster, whose logs carry their own names. Repeatable")  # fmt: skip
+    use.add_argument("--log-year", type=int, metavar="YYYY",
+                     help="iptables: the year of the first line of a log whose times have none (the old syslog form); it goes up "
+                     "where the months run back")  # fmt: skip
+    use.add_argument("--log-offset", metavar="+HH:MM", help="iptables: the offset from UTC of the times of a log that give none (default: UTC)")
     use.add_argument("--roll-up", type=int, default=usage.DEFAULT_CAP, metavar="N",
-                     help=f"addresses kept per rule and side before the rest are kept as their /24 or /64 (default {usage.DEFAULT_CAP})")
+                     help=f"addresses kept per rule and side (per pair of interfaces, for logs that name no rule) before the rest are kept as "
+                     f"their /24 or /64 (default {usage.DEFAULT_CAP})")  # fmt: skip
     use.add_argument("-o", "--output", help="write the report here (default: standard output)")
     use.add_argument("--json", action="store_true", help="write the report as JSON")
     use.add_argument("--html", metavar="FILE", help="also write the report as a page of its own (HTML)")
@@ -549,7 +559,7 @@ def _run_convert(args: argparse.Namespace) -> int:
         transform.harden(policy, report)
         for line in _hit_counters(args, policy):
             report.note(Severity.INFO, "HIT_COUNTERS", line)
-        for line in _from_store(args, policy, config):
+        for line in _from_store(args, policy, config, audit.Reading.of(report)):
             report.note(Severity.INFO, "USAGE_STORE", line)
         audited = report.audit = audit.run(policy, config, report)
         # A rule is only redundant next to rules that are written, and as they are written: the audit
@@ -601,7 +611,7 @@ def _run_audit(args: argparse.Namespace) -> int:
                   args.interface_address)  # fmt: skip
     transform.harden(policy, report)
     counters = _hit_counters(args, policy)
-    stored = _from_store(args, policy, config)
+    stored = _from_store(args, policy, config, audit.Reading.of(report))
     result = audit.run(policy, config, report)
     disabled = sum(1 for rule in policy.rules if not rule.enabled)
     if args.json:
@@ -651,6 +661,20 @@ def _run_matrix(args: argparse.Namespace) -> int:
     return 0
 
 
+def _offset(text: Optional[str]) -> Optional[int]:
+    """+HH:MM (or -HH:MM, or Z) as minutes."""
+    if not text:
+        return None
+    value = text.strip()
+    if value.upper() == "Z":
+        return 0
+    sign = value[:1]
+    hours, colon, minutes = value[1:].partition(":")
+    if sign not in "+-" or not hours.isdigit() or (colon and not minutes.isdigit()) or int(hours) > 14 or int(minutes or 0) > 59:
+        raise FwshiftError(f"--log-offset expects +HH:MM or -HH:MM, got '{text[:20]}'")
+    return (1 if sign == "+" else -1) * (int(hours) * 60 + int(minutes or 0))
+
+
 USAGE_CHECKS = ("UNUSED_RULE", "UNUSED_RULE_OBJECT", "UNUSED_RULE_SERVICE", "NO_USAGE_EVIDENCE")
 
 
@@ -668,17 +692,18 @@ def _run_usage(args: argparse.Namespace) -> int:
     report = Report()
     policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy,
                   args.interface_address)  # fmt: skip
-    if policy.vendor != "checkpoint":
-        raise FwshiftError(f"usage: logs are read for a Check Point policy in this version, not {source} (PAN-OS and FortiOS: 0.16, "
-                           "iptables: 0.15)")  # fmt: skip
+    if policy.vendor not in usage.VENDORS:
+        raise FwshiftError(f"usage: logs are read for a Check Point or an iptables policy in this version, not {source} (PAN-OS and "
+                           "FortiOS: 0.16)")  # fmt: skip
+    reading = audit.Reading.of(report)
     transform.harden(policy, report)
     counters = _hit_counters(args, policy)
     store = usage.Store(args.store or ":memory:", create=True)
     try:
         ingested = usage.ingest(store, [(path, functools.partial(_read, path)) for path in args.logs], policy.scope, usage.digest(data),
-                                args.roll_up)  # fmt: skip
+                                args.roll_up, usage.VENDORS[policy.vendor], args.log_year, _offset(args.log_offset))  # fmt: skip
         span = usage.window(store, args.since, args.until, config.usage_days)
-        evaluation = usage.evaluate(policy, store, span, args.gateway)
+        evaluation = usage.evaluate(policy, store, span, args.gateway, reading, config.unchanged_since)
     finally:
         store.close()
     result = audit.run(policy, config, report)

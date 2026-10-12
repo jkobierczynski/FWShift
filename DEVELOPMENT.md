@@ -8,11 +8,11 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.14.0 (alpha) |
+| Version | 0.15.0 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
-| Tests | 3246, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
+| Tests | 3303, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, a Check Point management server, a Cisco Management Center or a Device Manager |
-| Next | rule usage, 0.15.0 to 0.17.0: simulation, PAN-OS and FortiOS logs, narrowing (see `docs/RULE_USAGE.md`); lab validation of the sample conversions; the brands not planned yet (see `TODO.md`) |
+| Next | rule usage, 0.16.0 and 0.17.0: PAN-OS and FortiOS logs, narrowing (see `docs/RULE_USAGE.md`); lab validation of the sample conversions; the brands not planned yet (see `TODO.md`) |
 
 ## Layout
 
@@ -72,6 +72,10 @@ src/fwshift/
     logreaders/
         checkpoint.py Log Exporter (syslog, splunk, cef) and show-logs -> connections
                       with the match table of the rules the gateway named
+        iptables.py   the kernel lines of LOG rules (syslog, journal) -> connections
+                      with their interfaces, no rule
+    simulate.py       first match on the audit's sets for a connection whose log
+                      names no rule: certain or possible
     usage.py          fwshift usage: the store (SQLite), attribution of connections
                       to rules, objects and services, evidence, the reports
     matrix.py         the zone matrix: what each zone may reach in each other
@@ -91,7 +95,8 @@ src/fwshift/
 tests/
     data/             one synthetic sample per format
     data/expected/    their conversions and reports, byte for byte
-    tools/            the scripts that write the Check Point sample and its logs, the two
+    tools/            the scripts that write the Check Point sample and its logs, the
+                      iptables logs of iptables_logged.rules, the two
                       Cisco Secure Firewall samples and the SonicWall,
                       WatchGuard, Barracuda and Juniper samples,
                       and the kernel check
@@ -128,6 +133,9 @@ tests/
     test_logs.py      the log readers, the store, attribution (the defects of
                       fwanalyser, against a walk through the addresses) and
                       evidence; the usage command
+    test_simulate.py  the simulation, against a walk through the rules in every
+                      world of the rules the model holds approximately; the
+                      iptables LOG reader and the usage of an iptables policy
     test_audit.py     the audit, against a walk through every packet of a
                       small world
     test_matrix.py    the zone matrix, against the same walk: every packet
@@ -1899,6 +1907,127 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-12: version 0.15.0
+
+The third release of *rule usage* (`docs/RULE_USAGE.md`): attribution where
+a log names no rule, by matching the connection against the rules of the
+policy, counted as certain or possible; and the first logs that need it, the
+lines of iptables `LOG` rules.
+
+**Built**
+
+* `simulate.py`: first match over the enabled rules, each read as the audit
+  reads it (`audit._Reader.match`: the sets a rule surely and might match). A
+  connection is certain for the first rule it might meet when that rule surely
+  matches it; possible for every rule from the first it only might match down
+  to the first that surely matches it; the default of the policy when none
+  might. A rule with users, applications, URL categories or a schedule, one
+  the parser read approximately, and a zone, port or address the log does not
+  give are never sure. Where the log has a verdict, rules of the other action
+  are passed over. An address may be a network (what a store keeps beyond its
+  cap). Memoized per point.
+* `logreaders/iptables.py`: the kernel lines of `LOG` rules as syslog (old
+  form, with `--log-year` and `--log-offset`) or the journal (ISO times) keeps
+  them; the interfaces are the zones, the destination port or ICMP type the
+  port. Not counted, each with its reason: the firewall's own packets (`IN=`
+  or `OUT=` empty), TCP packets that open no connection, `TRACE` and
+  `ebtables` lines. Doubts on their gateway and day: lines that say lines were
+  lost, lines of a `LOG` rule that cannot be read, times without a year.
+* `usage.py`: records without a rule are simulated; `LogUsage.simulated`,
+  `possible` and `method`; a connection certainly given to an allow rule is an
+  accepted one for the evidence. Check Point lines whose uids cannot be put on
+  their rows, and access-role parts of which several fit, are possible now.
+  `--gateway` filters the hosts of target-less rules; without it, the
+  simulated connections of a store of several hosts are possible only, as are
+  those of other protocols than TCP when the logs may hold packets of open
+  connections. Reports: possible counts and why.
+* Audit: a rule with possible connections only gets `NO_USAGE_EVIDENCE`,
+  never `UNUSED_RULE`; `--unchanged-since` (and `unchanged_since` in the
+  configuration) for a rule whose export does not say when it changed.
+* iptables parser: a `LOG` rule that matches every packet, or every new
+  connection, logs the rules below it, the latter only where only new
+  connections reach them; a rule logged through `NFLOG` or `ULOG` only says so
+  (`source_ids["iptables.log_target"]`); a note `LOG_EVERY_PACKET` where a
+  `LOG` rule logs packets of open connections.
+* Command options `--log-year`, `--log-offset`, `--unchanged-since`.
+* Sample: `iptables_logged.rules` and `iptables_logged.log` (90 days of one
+  host, written by `tests/tools/make_iptables_logs.py`), its report as a
+  golden file.
+* Also in this release, a patch from a separate session (a review of the
+  conversion of a faulty Check Point configuration): JSON without a
+  `rulebase` (object listings alone, or a hand-written policy with
+  `access-layers`, `sections` and `rules` that name their objects) is refused
+  with `no rulebase found`, its top-level keys and the `mgmt_cli` call for a
+  real export, instead of being read as a policy of no rules; `IMPLIED_RULES`
+  no longer says a layer was read when none was (a NAT-only export). A
+  fixture, `checkpoint_perimeter.json`: 23 rules and 5 NAT rules in the shape
+  of the Management API, with sections, a network feed and updatable objects;
+  its `No NAT for VPN` is shadowed by `Hide NAT Internal`. Three tests in
+  `test_checkpoint.py`. Read in full before it was applied; its addresses are
+  from RFC 1918 and RFC 5737 only.
+
+**What the platform made necessary**
+
+* *No rule in the line.* The policy decides; what it cannot decide (a
+  `-m limit` rule, a negation it could not read) is possible for every rule it
+  may be, and no rule with possible connections only is called unused.
+* *Post-NAT addresses.* `LOG` in `FORWARD` sees the destination after DNAT,
+  which is what the audit's matches use for a platform that looks rules up
+  after NAT; the pre-NAT objects the parser adds are not counted.
+* *No age.* iptables never says when a rule changed: without
+  `--unchanged-since` nothing is called unused.
+* *Packets, not connections.* A `LOG` rule logs packets; which ones reach it
+  depends on the rules above it. That decides both whether a rule's
+  connections were logged and whether a line may be a packet of a connection
+  already open.
+
+**Sources**
+
+The line format as the kernel's `LOG` target writes it (`nf_log_syslog.c`:
+`IN= OUT=`, `MAC=`, `SRC= DST=`, `PROTO=`, the ports or ICMP type, the TCP
+flags ending at `URGP=`, a quoted packet in brackets), the iptables and
+iptables-extensions man pages (`LOG`, `NFLOG`, `conntrack`), and the
+timestamp forms and lost-line messages of rsyslog and systemd-journald, as
+known; no source was fetched for this release, and no line was taken from a
+running kernel (the kernel check of 0.4 forwards packets, it does not log
+them).
+
+**Review**
+
+*Round 23* by the independent reviewer, with repro scripts of its own:
+
+| | Finding | Fix |
+|---|---|---|
+| high | A line without a port reached the simulator as port -1, which no rule might match: it went to the default, and the rules of its protocol could be called unused | -1 is unknown, as None; the oracle now gives both |
+| high | A `LOG` of new connections at the top made every rule below it logged, also rules that only packets of other states reach (`RELATED`, a stateless ruleset): false `UNUSED_RULE` | logged only for a rule of new connections, or any rule once established and related packets are accepted above it |
+| medium | `UDPLITE` lines were read as UDP: certain for a UDP rule, and the udplite rule called unused | protocol 136 kept |
+| medium | `NFLOG` and `ULOG` counted as logging, but only kernel lines are read | the rule says it logs through them; that proves nothing |
+| medium | Lines that say lines were lost (kernel, journald, rsyslog) were no doubt | a doubt on their gateway and day |
+| medium | The pre-NAT address the parser adds was called an unused object | not counted for a platform that looks rules up after NAT |
+| medium | A `LOG` of every packet: replies were simulated as connections, certain for rules that saw none | TCP lines that open no connection are not counted; other protocols are possible only, with the note `LOG_EVERY_PACKET` |
+| medium | The year carried over from one file to the next, and a line out of order around New Year moved the year | per file; such a line is in the year before |
+| low | Lines of every host in a central syslog file were matched against the policy | `--gateway` filters them; without it, several hosts make simulated connections possible only |
+| low | Addresses a store kept as networks could never be certain | a network is placed as a whole |
+| low | A garbled line without `OUT=` was taken for the firewall's own; a prefix with `IN=` won over the fields; `TRACE` and `ebtables` lines were connections | a doubt; the last `IN= OUT=` pair; their own reasons |
+
+The note that the log's verdict is never applied in `fwshift usage` (the
+lines carry none) stands, and is in the limits of the manual. The fixes were
+not reviewed again; they have tests (the last section of `test_simulate.py`).
+
+**Verified, and not**
+
+* The tests: `tests/test_simulate.py` holds 54 tests, the suite 3303. The
+  simulator against a walk through the rules on 30 random rulesets, in six
+  worlds of what the rules the model holds approximately do: the certain rule
+  decides in every world, and where none is certain the possible ones hold the
+  one that decides (also with ports and zones unknown, and addresses as
+  networks). A mutation check with 21 ways to break the simulator, the reader,
+  the parser and the counting: 20 caught, and the one left is equivalent
+  (`not match.loose` beside `match.covers`, which already holds it).
+* **No log of a real host was read.** The line shapes follow the kernel source
+  and the documentation of syslog and the journal; `NFLOG` lines (ulogd) are
+  not read at all.
 
 ### 2026-10-12: version 0.14.0
 

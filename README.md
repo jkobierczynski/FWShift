@@ -31,7 +31,7 @@ on which services, through which rules.
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.14).** The converter is tested against synthetic
+> **Status: alpha (0.15).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** is checked against the real thing: generated rulesets are
@@ -114,8 +114,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.14.0.pyz --version
-python3 fwshift-0.14.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.15.0.pyz --version
+python3 fwshift-0.15.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -289,9 +289,12 @@ proves nothing about another rule: the audit lists it instead.
 ## Rule usage
 
 `fwshift usage` reads the logs of a Check Point firewall (what Log Exporter
-sends, or the answer of `show-logs`) and says which rules, objects and
-services they show used: by the rule the gateway itself named, into a store
-that grows with every run, over a window of days.
+sends, or the answer of `show-logs`) or the lines of the `LOG` rules of an
+iptables firewall, and says which rules, objects and services they show used,
+into a store that grows with every run, over a window of days. A Check Point
+log names the rule the gateway chose; an iptables line names none, and is
+matched against the rules of the policy: certain where the first rule it meets
+surely matches it, possible where it only might.
 
 ```
 $ fwshift usage checkpoint.json --logs gw-edge.log --store usage.db --html usage.html
@@ -302,8 +305,10 @@ $ fwshift usage checkpoint.json --logs gw-edge.log --store usage.db --html usage
 
 A rule is only called unused when the logs can prove it: the rule logs, every
 gateway it is on sent logs on every day of the window, no line of them could
-not be read, and the rule did not change within it. Otherwise it says why
-they prove nothing. See
+not be read, and the rule did not change within it (iptables does not say
+when it changed: `--unchanged-since` is your word for it). A rule with only
+possible connections is never called unused. Otherwise it says why they prove
+nothing. See
 [section 15 of the manual](docs/MANUAL.md#15-rule-usage-from-logs).
 
 Synthetic configurations to try it on, one per format, are in
@@ -470,8 +475,8 @@ and everything else outside the policy.
   0.10, Barracuda 0.11, Juniper SRX 0.12. Next on the list: nftables,
   OPNsense and others (see TODO.md).
 * **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](docs/RULE_USAGE.md)):
-  rule identities and hit counters (0.13), Check Point logs (0.14), then
-  connections without a rule uid (0.15), PAN-OS and FortiOS logs (0.16) and
+  rule identities and hit counters (0.13), Check Point logs (0.14),
+  connections without a rule uid and iptables logs (0.15), then PAN-OS and FortiOS logs (0.16) and
   narrower rules proposed from the use (0.17), as fwanalyser did for Check
   Point.
 * Audit and matrix: the matrix before and after a conversion, a zone and

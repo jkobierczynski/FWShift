@@ -5,7 +5,7 @@ Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
 or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX and Linux iptables, and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; and show what each zone may reach in each
-other zone. This manual covers version 0.14.
+other zone. This manual covers version 0.15.
 
 **Contents**
 
@@ -52,7 +52,7 @@ FWShift converts the **policy**. It does not convert interfaces, routing, VPN,
 users, security profiles, or system settings, and it is not a substitute for
 testing the result.
 
-> **Status.** Version 0.12 is tested against synthetic configurations. iptables
+> **Status.** Version 0.15 is tested against synthetic configurations. iptables
 > output and input are checked against a Linux kernel (filter rules, one
 > kernel and iptables version). Output for PAN-OS, FortiOS, Check Point,
 > Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda and Juniper SRX has
@@ -786,23 +786,27 @@ converted.
 
 ```
 fwshift usage INPUT [--from ...] [--layer ...] [--logs FILE ...] [--store FILE] [--since DAYS|YYYY-MM-DD]
-                    [--until YYYY-MM-DD] [--gateway NAME[=LOGNAME,...] ...] [--roll-up N] [-o FILE] [--json] [--html FILE]
+                    [--until YYYY-MM-DD] [--gateway NAME[=LOGNAME,...] ...] [--log-year YYYY] [--log-offset +HH:MM]
+                    [--roll-up N] [-o FILE] [--json] [--html FILE] [--unchanged-since YYYY-MM-DD]
                     [--audit-config FILE] [--audit-action CHECK=ACTION] [--audit-accept RULE[=CHECK,...]]
                     [--audit-fail-on LEVEL] [--hits FILE] [--hits-since YYYY-MM-DD]
 ```
 
 Reads the logs of the firewall and says which rules, objects and services of
-the policy they show used (section 15). A Check Point policy only, in this
-version. Nothing is converted.
+the policy they show used (section 15). A Check Point or an iptables policy,
+in this version. Nothing is converted.
 
 | Option | Meaning |
 |---|---|
-| `--logs FILE` | A log file: what Log Exporter sends (its syslog, splunk or cef format), or the JSON answer of `show-logs`. Repeatable. A file whose content is in the store already is not read again. |
+| `--logs FILE` | A log file. Check Point: what Log Exporter sends (its syslog, splunk or cef format), or the JSON answer of `show-logs`. iptables: the kernel lines of its `LOG` rules, as syslog or `journalctl` writes them. Repeatable. A file whose content is in the store already is not read again. |
 | `--store FILE` | Keep the connections in this file (SQLite) and add to it on every run. Without it nothing is kept. With it and without `--logs`, the report is made from what the store holds. |
 | `--since DAYS\|YYYY-MM-DD` | The first day of the window: a number of days back from its last day (`30d`), or a day. Default: `usage_days` (90). |
 | `--until YYYY-MM-DD` | The last day of the window. Default: the last day the store has logs of. |
-| `--gateway NAME[=LOGNAME,...]` | A gateway the policy is installed on. A gateway that sent no logs proves nothing for its rules; this is how a gateway that sent none at all becomes known. `NAME=LOGNAME,...` names the members of a cluster: install-on names the cluster, its members log under their own names. Repeatable. |
-| `--roll-up N` | Addresses kept per rule and side as they are; beyond, an address is kept as its /24 (IPv6: /64). Default 256. |
+| `--gateway NAME[=LOGNAME,...]` | A gateway the policy is installed on. A gateway that sent no logs proves nothing for its rules; this is how a gateway that sent none at all becomes known. `NAME=LOGNAME,...` names the members of a cluster: install-on names the cluster, its members log under their own names. Repeatable. For iptables, the hosts that run the ruleset: lines of other hosts are not counted. |
+| `--log-year YYYY` | iptables: the year of the first line of a log whose times have none (the old syslog form, `Oct 12 10:00:00`). The year goes up where the months run back. |
+| `--log-offset +HH:MM` | iptables: the offset from UTC of times that give none (`+02:00`, `-05:00`, `Z`). Without it they are read as UTC, and the report says how many were. |
+| `--unchanged-since YYYY-MM-DD` | The rules have been as they are since this day, where the export does not say when they were changed (iptables never does). Your word: without it, no rule is called unused. Also an option of `fwshift audit` and `fwshift convert`. |
+| `--roll-up N` | Addresses kept per rule and side as they are (per pair of interfaces, for logs that name no rule); beyond, an address is kept as its /24 (IPv6: /64). Default 256. |
 | `-o FILE`, `--json`, `--html FILE` | Where the report goes, as JSON instead of text, and also as a page of its own. |
 
 The audit options choose what is done with the findings of the four checks
@@ -3546,11 +3550,13 @@ level, and so is a check that does not exist.
   },
   "applications": {"risky": ["telnet", "ms-rdp"], "industrial": ["modbus"]},
   "fail_on": "high",
-  "hits_since": "2026-01-01"
+  "hits_since": "2026-01-01",
+  "unchanged_since": "2026-01-01"
 }
 ```
 
-`hits_since` is `--hits-since` (section 13, *Hit counters*).
+`hits_since` is `--hits-since` (section 13, *Hit counters*), `unchanged_since`
+is `--unchanged-since` (section 15).
 `services.risky` and `services.industrial` replace the built-in lists of
 ports; `applications.risky` and `applications.industrial` replace the lists
 of application names (for sources that name applications). Options on the
@@ -3817,7 +3823,8 @@ fwshift matrix running-config.xml \
 The audit knows what a policy allows; the hit counters know which rules were
 hit. The logs know more: which objects and services inside each rule the
 connections used. `fwshift usage` reads them, as fwanalyser did for Check
-Point (`docs/RULE_USAGE.md` has the design and the plan).
+Point, for a Check Point or an iptables policy (`docs/RULE_USAGE.md` has the
+design and the plan).
 
 ```sh
 fwshift usage checkpoint.json --logs gw-edge-2026-09.log --store usage.db
@@ -3869,15 +3876,46 @@ from.)
   is known to be in it), the gateway's own syslog (`Fields@2620`), and the
   Log Exporter formats `json`, `leef`, `generic`. Lines that look like Check
   Point's in such a format are counted as lines that could not be read
-  (below). Attribution without a rule uid, by matching the connection against
-  the rules, comes in 0.15.
+  (below). Reading the CSV export and `fwm logexport`, whose lines would be
+  matched against the rules as iptables lines are, comes later.
 * Relays may put a syslog header of their own in front of a line
   (`... CheckPoint[1234]: [action:"Accept"; ...]`); the line is read from its
   first field.
+* **iptables** writes a line to the kernel log for each packet a `LOG` rule
+  matches; syslog or the journal keeps it with a time and the host name:
+
+  ```
+  Oct 12 10:00:00 fw1 kernel: [12.3] fw-new IN=eth1 OUT=eth0 MAC=... SRC=10.10.4.20 DST=192.0.2.53 ... PROTO=UDP SPT=40000 DPT=53 LEN=40
+  ```
+
+  Give the files syslog writes (`/var/log/kern.log`, `/var/log/messages`), or
+  `journalctl -k -o short-iso` (whose times carry their zone). The old syslog
+  form has no year and no zone: give them with `--log-year` and
+  `--log-offset`. `dmesg` keeps neither time nor host and is not read.
+  Lines of `NFLOG` and `ULOG` rules go to ulogd, not to the kernel log, and
+  are not read; nor are lines of `ebtables` or `TRACE`.
+* For a policy that does not log every rule, the simplest way to the logs is
+  one `LOG` rule for new connections at the top of `FORWARD`, after the rule
+  that accepts established connections:
+
+  ```
+  -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+  -A FORWARD -m conntrack --ctstate NEW -j LOG --log-prefix "fw-new "
+  ```
+
+  Every rule below it then logs its connections (a rule for new connections,
+  or any rule once established and related packets are accepted above it). A
+  `LOG` rule with `-m limit` logs some connections only, and logs nothing for
+  the rules below it. A `LOG` rule without a state, or ahead of the rule that
+  accepts established connections, logs every packet: then only TCP packets
+  that open a connection (SYN alone) are counted, and lines of other
+  protocols count as possible only (the report says so).
 
 ### How a connection is attributed
 
-Nothing is simulated: a connection counts for the rule **the gateway named**.
+A connection counts for the rule **the gateway named** where its log names
+one (Check Point), and otherwise for the rule the policy gives it
+(iptables), certain or possible (below).
 
 1. A log line that names a rule is a connection of that rule, whatever blade
    wrote it (an Application Control log names the Network rule too) and
@@ -3910,6 +3948,36 @@ Connections that name no rule of the policy are listed by reason: another
 layer, the implicit cleanup of the layer, a rule the policy does not have (the
 logs of another revision of it).
 
+Where the uids of a Check Point log cannot be put on their rows, and where a
+rule split by its access roles has more than one part that fits, the
+connection is **possible** for each of those rules, not certain.
+
+**A log that names no rule** (iptables): the rules are taken in their order,
+as the firewall takes them, each read as the audit reads it: what it surely
+matches and what it might match. The connection is **certain** for the first
+rule it might meet when that rule surely matches it. It is **possible** for
+every rule from the first one it might, but not surely, match down to the
+first one that surely matches it: a rule with a criterion the model does not
+hold (`-m limit`, `-m recent`, a negation that cannot be read), with users or
+a schedule, read approximately, or a port or zone the line does not give.
+A connection no rule matches is the default of the policy. With `--json`,
+each rule has `connections` (certain), `by_simulation` (how many of those
+were worked out from the policy) and `possible`.
+
+```
+  connections in the window: 297, attributed to a rule of the policy: 271, possibly to one of several: 13
+    297 named no rule and were matched against the rules of the policy as read (certain where the first rule they meet surely matches them, possible where it only might)
+    13 not attributed: no rule matches it: the default of the policy
+  ...
+  'Rate limited mail' (allow): 0 connection(s), 13 possible
+```
+
+A rule with possible connections only is never called unused: it gets
+`NO_USAGE_EVIDENCE`. Its objects and services count the possible connections
+too. Connections are counted as possible only, for every rule, when the logs
+may hold packets of connections already open (above), and when the logs come
+from more than one host and no `--gateway` says which run the policy.
+
 ### When the logs prove something
 
 A connection shows that a rule was used. No connection proves that it was
@@ -3917,16 +3985,22 @@ not only when:
 
 * the rule logs its connections (Track not None);
 * the export says when the rule was created or last changed (`meta-info`), and
-  that was before the window;
+  that was before the window, or `--unchanged-since` (`unchanged_since` in the
+  configuration file) gives a day before the window where the export does not
+  say (iptables never does);
 * every gateway it is installed on (all gateways that sent logs, for a rule on
   every target; `--gateway` adds those that sent none) logged connections that
   name a rule on **every day** of the window, and at least one accepted
   connection in it (an exporter that sends drops only proves nothing for allow
-  rules). Logs of other blades and updates do not count as a day logged;
-* no line of those gateways in the window could not be read, and no line at
-  all whose gateway and day could not be read;
-* the export gives the uid of the layer, and some connection in the window
-  names a rule of it (otherwise these are not the logs of this policy).
+  rules; a connection the policy certainly allowed counts as accepted). Logs of
+  other blades and updates do not count as a day logged. For iptables, the
+  gateways are the hosts given with `--gateway`, or every host that sent logs;
+* no line of those gateways in the window could not be read (nor said that
+  lines were lost: the kernel, the journal or rsyslog dropping some), and no
+  line at all whose gateway and day could not be read;
+* Check Point: the export gives the uid of the layer, and some connection in
+  the window names a rule of it (otherwise these are not the logs of this
+  policy).
 
 Otherwise the finding is `NO_USAGE_EVIDENCE`, with the reasons. The same
 holds for the objects and services of a used rule. A blocking rule gets no
@@ -3959,9 +4033,15 @@ so a later version can read it.
 
 ### Limits
 
-* Check Point only, by the rule the gateway named. PAN-OS and FortiOS logs come
-  in 0.16, connections without a rule uid (and iptables) in 0.15, narrower
-  rules proposed from the use in 0.17.
+* Check Point and iptables only. PAN-OS and FortiOS logs come in 0.16,
+  narrower rules proposed from the use in 0.17; the Check Point CSV export and
+  `fwm logexport` later.
+* iptables: the lines carry no verdict, so the policy alone decides which rule
+  a connection went through; a line of a packet that the policy as read does
+  not let through (a ruleset changed since) counts for the rule the policy
+  gives it now. The lines of the `nat` table, `INPUT` and `OUTPUT` are not
+  connections of the policy. TCP lines whose flags cannot be read (a fragment)
+  are counted as connections.
 * Users are counted as the logs name them; a rule of user groups is not
   checked against them (the log names a person, the rule a group).
 * The log formats are read as Check Point documents them and as published

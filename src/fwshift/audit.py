@@ -180,6 +180,7 @@ class AuditConfig:
     wide_ports: int = 1024  # a range of at least this many ports is "very wide"
     usage_days: int = 90  # a hit counter that has counted for fewer days than this proves nothing by a zero
     hits_since: Optional[int] = None  # the user's word: the counters have counted since then (UTC seconds)
+    unchanged_since: Optional[int] = None  # the user's word: the rules have been as they are since then, where the source does not say
     risky_services: Dict[str, List[str]] = field(default_factory=lambda: copy.deepcopy(RISKY_SERVICES))
     industrial_services: Dict[str, List[str]] = field(default_factory=lambda: copy.deepcopy(INDUSTRIAL_SERVICES))
     risky_applications: List[str] = field(default_factory=lambda: list(RISKY_APPLICATIONS))
@@ -239,7 +240,8 @@ def load_config(text: str, where: str = "the audit configuration") -> AuditConfi
         raise FwshiftError(f"{where} is not JSON: {str(exc)[:200]}") from None
     if not isinstance(data, dict):
         raise FwshiftError(f"{where}: a JSON object is expected")
-    _only(data, ("checks", "accept", "thresholds", "services", "applications", "fail_on", "hits_since"), where, "the configuration")
+    _only(data, ("checks", "accept", "thresholds", "services", "applications", "fail_on", "hits_since", "unchanged_since"), where,
+          "the configuration")  # fmt: skip
     config = AuditConfig()
     checks = data.get("checks", {})
     if not isinstance(checks, dict):
@@ -309,6 +311,8 @@ def load_config(text: str, where: str = "the audit configuration") -> AuditConfi
         config.fail_on = level_of(str(data["fail_on"]), where)
     if "hits_since" in data:
         config.hits_since = day_of(str(data["hits_since"]), where)
+    if "unchanged_since" in data:
+        config.unchanged_since = day_of(str(data["unchanged_since"]), where)
     return config
 
 
@@ -592,10 +596,12 @@ class Reading:
     open_addresses: Set[str] = field(default_factory=set)
     open_services: Set[str] = field(default_factory=set)
     loose: Dict[str, List[str]] = field(default_factory=dict)  # origin of a rule -> the findings that say so
+    every_packet: bool = False  # the logs of the source may hold packets of connections already open (iptables)
 
     @classmethod
     def of(cls, report: Any) -> "Reading":
         out = cls()
+        out.every_packet = any(f.code == "LOG_EVERY_PACKET" for f in getattr(report, "notes", []))
         for item in report.items.values():
             codes = [f.code for f in item.findings if f.severity >= 1 and f.code not in _ABOUT_NAT]
             if not codes:
@@ -1050,17 +1056,25 @@ class _Audit:
             return None
         if log.connections or (log.shared and not log.no_evidence):
             return "used", ""  # (a part of a rule of the source whose other parts were used: its members say the rest)
+        if log.possible:
+            return "unknown", (f"has {log.possible} connection(s) in the logs from {log.first_day} to {log.last_day} that may have gone "
+                               "through it or through another rule: the policy does not tell which (a host name, a criterion the model "
+                               "does not hold, a rule read approximately, or what the log leaves out)")  # fmt: skip
         if log.no_evidence:
             return "unknown", f"has no connection in the logs from {log.first_day} to {log.last_day}, but they prove nothing: " + "; ".join(log.no_evidence)
         gateways = ", ".join(log.gateways) or "its gateways"
-        return "unused", (f"allows traffic {_where(rule)}, and the logs of {gateways} show no connection that the gateway attributed "
-                          f"to it from {log.first_day} to {log.last_day}, with logs on every day")  # fmt: skip
+        how = {"gateway": "that the gateway attributed to it",
+               "simulation": "that matching them against the rules of the policy, as read, gives it or may give it",
+               }.get(log.method, "that the gateway attributed to it, or that matching them against the rules gives it or may give it")  # fmt: skip
+        return "unused", (f"allows traffic {_where(rule)}, and the logs of {gateways} show no connection {how} from {log.first_day} to "
+                          f"{log.last_day}, with logs on every day")  # fmt: skip
 
     def _unused_members(self, rule: Rule) -> None:
         """The objects and services of a used allow rule that no connection in the window used."""
         log = rule.log_usage
         if log is None or not (log.connections or log.shared) or log.no_evidence:
             return
+        # (members counted from possible connections too: a member that may have been used is never called unused)
         through = (f"{log.connections} connection(s) through the rule" if log.connections else
                    f"{log.shared} connection(s) through the other parts of the same rule of the source")  # fmt: skip
         period = f"from {log.first_day} to {log.last_day}, out of {through}"

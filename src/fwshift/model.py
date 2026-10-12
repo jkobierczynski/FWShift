@@ -174,7 +174,10 @@ class LogUsage:
 
     first_day: str  # YYYY-MM-DD, the window
     last_day: str
-    connections: int = 0
+    connections: int = 0  # connections that certainly went through the rule (the gateway said so, or the policy does)
+    simulated: int = 0  # of those, the ones whose log named no rule: the policy says it was this one
+    possible: int = 0  # connections that may have gone through the rule, or through another one: never certain
+    method: str = "gateway"  # how the connections were attributed: "gateway", "simulation", "gateway and simulation"
     # Connections of the other rules the same source rule became (a cell of access roles split by users): the rule
     # of the source was used, if not this part of it.
     shared: int = 0

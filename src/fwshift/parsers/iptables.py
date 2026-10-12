@@ -609,6 +609,10 @@ class _Builder:
         early_drops: List[str] = []  # deny rules ahead of the rule that accepts established connections
         passive: Dict[str, int] = {}
         logged: Optional[Tuple[object, ...]] = None
+        logged_by = ""
+        # LOG rules with no match (or NEW only) before, with their states and target: they log what reaches a rule below.
+        everything: List[Tuple[Optional[FrozenSet[str]], str]] = []
+        packets = False  # a LOG rule that logs packets of connections already open, not only their first
         accepts = 0
         for spec, where in effective:
             target = "ACCEPT" if spec.target == "RETURN" and self._policy(table) == "ACCEPT" else spec.target
@@ -616,9 +620,16 @@ class _Builder:
             key = self._match_key(spec)
             if target in _PASSIVE:
                 passive[target] = passive.get(target, 0) + 1
-                logged = key if target in ("LOG", "NFLOG", "ULOG") else None
+                logging = target in ("LOG", "NFLOG", "ULOG")
+                logged, logged_by = (key, target) if logging else (None, "")
+                if logging and self._logs_all(spec):
+                    everything.append((spec.states, target))
+                if target == "LOG" and not accepts_established and (spec.states is None or spec.states - {"NEW"}):
+                    packets = True
                 continue
-            log, logged = logged == key, None
+            by = [logged_by] if logged == key else []
+            by += [via for states, via in everything if self._logs_what(states, spec.states, accepts_established)]
+            log, logged = bool(by), None
             states = spec.states
             if states is not None and "NEW" not in states and not spec.unsupported:
                 if target == "ACCEPT" and states <= {"ESTABLISHED", "RELATED"}:
@@ -629,6 +640,8 @@ class _Builder:
                     continue  # likewise built in
             rule = self._rule(spec, where, target)
             rule.log_start = log
+            if log and "LOG" not in by:
+                rule.source_ids["iptables.log_target"] = by[0]  # (its lines go to ulogd, not to the kernel log)
             if states is not None and "NEW" not in states:
                 rule.unsupported.append("match on connection state " + ",".join(sorted(states)) + " without NEW")
             if rule.action == Action.ALLOW:
@@ -643,6 +656,14 @@ class _Builder:
                 f"{count} FORWARD rule{'s' if count != 1 else ''} with target {target} decide{'' if count != 1 else 's'} "
                 "nothing and " + ("were" if count != 1 else "was") + " left out"
                 + ("; a LOG rule directly before a rule with the same match sets its logging" if target == "LOG" else ""),
+            )
+        if packets:
+            self.report.note(
+                Severity.INFO,
+                "LOG_EVERY_PACKET",
+                "a LOG rule ahead of the rule that accepts established connections (or in a ruleset without one) logs "
+                "packets of connections already open, not only the first of each: fwshift usage leaves out the TCP "
+                "packets that open no connection, and counts the lines of other protocols as possible only",
             )
         if not accepts_established and accepts:
             self.report.note(
@@ -667,6 +688,26 @@ class _Builder:
     @staticmethod
     def _policy(table: _Table) -> str:
         return table.policies.get("FORWARD", "ACCEPT")
+
+    @staticmethod
+    def _logs_all(spec: _Spec) -> bool:
+        """A LOG rule that matches every packet, or every new connection: what follows it is logged whatever it matches."""
+        return not (spec.in_if or spec.out_if or spec.src or spec.dst or spec.proto or spec.dports or spec.sports or spec.has_icmp_type
+                    or spec.icmp_type is not None or spec.icmp_code is not None or spec.unsupported) and (
+            spec.states is None or spec.states == {"NEW"})  # fmt: skip
+
+    @staticmethod
+    def _logs_what(log_states: Optional[FrozenSet[str]], states: Optional[FrozenSet[str]], established: bool) -> bool:
+        """Whether a LOG rule that matches everything in its states logs every packet that reaches a rule below it.
+
+        A LOG of every packet does. A LOG of new connections does for a rule of new connections only, or for a rule
+        of any state once established and related packets have been accepted above it (what reaches it is new).
+        """
+        if log_states is None:
+            return True
+        if log_states != frozenset({"NEW"}):
+            return False
+        return states == frozenset({"NEW"}) or (states is None and established)
 
     @staticmethod
     def _match_key(spec: _Spec) -> Tuple[object, ...]:

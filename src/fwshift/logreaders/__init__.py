@@ -44,6 +44,9 @@ class LogRecord:
     users: List[str] = field(default_factory=list)
     count: int = 1  # connections the line stands for (an aggregated log)
     gateway_address: str = ""
+    # The zones the connection came in and went out by, where the log gives them (iptables: the interfaces).
+    in_zone: str = ""
+    out_zone: str = ""
 
 
 @dataclass

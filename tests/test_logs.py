@@ -314,7 +314,9 @@ def test_rules_named_loosely_count_as_used() -> None:
     record = logs.read_line(lines[-1]).record
     assert record is not None and record.loose_uids == ["u1", "u9"]
     _evaluate(policy, lines)
-    assert next(rule for rule in policy.rules if rule.name == "R1").log_usage.connections == 1  # type: ignore[union-attr]
+    r1 = next(rule for rule in policy.rules if rule.name == "R1").log_usage
+    # A uid named loosely (not under its layer) may be a rule of another layer: possible, not certain (0.15).
+    assert r1 is not None and r1.connections == 0 and r1.possible == 1
 
 
 def test_one_file_is_counted_once_and_a_store_keeps_what_it_read(tmp_path: Any) -> None:
@@ -484,7 +486,7 @@ def test_the_command_writes_text_json_and_a_page(tmp_path: Any, capsys: pytest.C
 
 def test_the_command_refuses_what_it_cannot_do(capsys: pytest.CaptureFixture[str]) -> None:
     assert cli.main(["usage", str(DATA / "panos_sample.xml"), "--logs", str(DATA / "checkpoint_sample.log")]) == 1
-    assert "Check Point policy" in capsys.readouterr().err
+    assert "Check Point or an iptables policy" in capsys.readouterr().err
     assert cli.main(["usage", str(DATA / "checkpoint_sample.json")]) == 1
     assert "--logs" in capsys.readouterr().err
 
@@ -502,7 +504,7 @@ def test_a_store_in_the_audit_and_in_a_conversion(tmp_path: Any, capsys: pytest.
     items = {item["name"]: item for item in json.loads(report.read_text(encoding="utf-8"))["items"]}
     assert "AUDIT_DISABLED" in [f["code"] for f in items["DMZ users"]["findings"]]
     assert cli.main(["audit", str(DATA / "panos_sample.xml"), "--usage-store", str(store)]) == 1
-    assert "Check Point policy only" in capsys.readouterr().err
+    assert "Check Point or iptables policy only" in capsys.readouterr().err
     assert ANY == "any"
 
 

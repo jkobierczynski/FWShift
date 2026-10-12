@@ -1,7 +1,8 @@
 # Rule usage: design
 
-**Status:** accepted on 2026-10-12; 0.13.0 (rule identity and hit counters)
-and 0.14.0 (`fwshift usage` for Check Point logs) are done. The releases 0.13.0 to 0.17.0 carry it out (section 7); what each release built is in the development log of
+**Status:** accepted on 2026-10-12; 0.13.0 (rule identity and hit counters),
+0.14.0 (`fwshift usage` for Check Point logs) and 0.15.0 (simulated
+attribution and iptables logs) are done. The releases 0.13.0 to 0.17.0 carry it out (section 7); what each release built is in the development log of
 [DEVELOPMENT.md](../DEVELOPMENT.md).
 
 This document started as a feature brief written in a separate session for
@@ -230,14 +231,15 @@ Formats, in order of priority:
    an ordered multimap, never as a dict, or the inline match is lost.
 2. **Check Point CSV export** from SmartConsole / `fwm logexport`, with a
    header row. Accept both service names and port numbers (fwanalyser D6).
-   *Moved to 0.15.0 (section 11.5):* neither is known to carry the rule uid,
+   *Moved to 0.15.0 (section 11.5), then to a later release (section 11.6):* neither is known to carry the rule uid,
    SmartConsole exports only the rows on the screen, and the columns of both
    depend on what was shown or logged. Without a rule uid only simulation can
    attribute a line. 0.14.0 reads instead the `show-logs` answer of the
    Management API, whose match table names the rule of every layer.
 3. **PAN-OS traffic logs** (CSV and syslog).
 4. **FortiOS traffic logs** (key=value).
-5. **iptables `LOG` lines** (no rule identity: simulation only).
+5. **iptables `LOG` lines** (no rule identity: simulation only). Done in
+   0.15.0 (`logreaders/iptables.py`, section 11.6).
 
 Every line that cannot be read is counted by reason (bad format, unknown
 protocol, no address, IPv6 where not expected, and so on) and reported.
@@ -295,6 +297,16 @@ without simulating any of them, because the gateway already decided.
   they are elsewhere in FWShift.
 
 Simulation runs once per aggregated key, not once per log line.
+
+*As built in 0.15.0 (`simulate.py`):* a record is certain for the first rule
+it might meet when that rule surely matches it, and possible for every rule
+from the first one it only might match down to the first one that surely
+matches it. A rule with users, applications, URL categories or a schedule is
+never sure; nor is a rule the parser read approximately, or a zone, port or
+address the record does not give. Where the record has a verdict, rules of the
+other action are passed over. Filtering by gateway (D3) is `--gateway`: lines
+of hosts not given are not counted, and without it a store of several hosts
+counts simulated connections as possible only.
 
 ### 6.6 Attribution within the rule
 
@@ -406,7 +418,7 @@ come first because they are useful without the usage feature.
 |---|---|---|
 | 0.13.0 | **Rule identity and hit counters.** `source_ids` on rules (Check Point rule, layer and parent rule UIDs, also for flattened inline rules; PAN-OS UUID and name; FortiOS `policyid` and UUID), kept in `--to json` and in the JSON findings of the audit. Install-on targets on the rule (`Rule.targets`). Access Roles in the model instead of unsupported addresses, and conversion keeps or flags them per target. `UNUSED_RULE` and `NO_USAGE_EVIDENCE` from hit counters: Check Point hits inside the rulebase, PAN-OS and FortiOS through `audit --hits FILE`. | Parser tests check the IDs and targets; conversion tests for rules with Access Roles; audit tests for counters, resets and the absence of evidence. |
 | 0.14.0 | **`fwshift usage` for Check Point** (done). Log Exporter (syslog, splunk, cef) and `show-logs` readers, aggregation, SQLite store, attribution by rule identity, attribution to objects and services, `UNUSED_RULE_OBJECT`, `UNUSED_RULE_SERVICE`, JSON, text and HTML output; `--usage-store` for the audit and conversions. Hit counters as a cross-check of the totals. | The regression tests of section 8 pass; manual updated. |
-| 0.15.0 | **Simulation.** A first-match evaluator on the audit's matches; certain against possible; the iptables `LOG` reader; the Check Point CSV export of SmartConsole and `fwm logexport`, which name no rule uid. | Simulated and ID-based attribution agree on the test fixtures. |
+| 0.15.0 | **Simulation** (done). A first-match evaluator on the audit's matches; certain against possible; the iptables `LOG` reader. The Check Point CSV export and `fwm logexport` moved to a later release (section 11.6). | An oracle over random rulesets: the certain rule is the one that decides in every world, the possible ones hold it where none is certain. |
 | 0.16.0 | **PAN-OS and FortiOS logs.** Readers for their traffic logs. | Fixture tests per vendor. |
 | 0.17.0 | **Narrowing.** `WIDER_THAN_TRAFFIC` with a proposed rule written through the emitters. | Proposal tests: never wider than the original, never for deny rules. |
 
@@ -467,7 +479,7 @@ Further cases:
 1. *Which Check Point log sources first?* Log Exporter (its formats syslog,
    splunk and cef) and the `show-logs` answer of the Management API, in
    0.14.0. The SmartConsole CSV export and `fwm logexport` with simulation, in
-   0.15.0 (section 11.5).
+   a later release (sections 11.5 and 11.6).
 2. *Read the rule hit counts of the Management API as a cross-check?* Yes,
    and first: they are the whole of 0.13.0's `UNUSED_RULE`, and a cross-check
    of the log totals from 0.14.0.
@@ -582,4 +594,26 @@ per day and gateway), `unplaced` (lines that could not be read and have no
 day or gateway), `records`, `rolled` and `kept` (the addresses kept per rule and side); `records` keys the rule by the rows
 of the match table as the log gave them, so a store needs no policy to be
 written and is read against any revision.
+
+### 11.6 What 0.15.0 changed in the plan (2026-10-12)
+
+* **The CSV export and `fwm logexport` moved to a later release.** Their
+  columns depend on what was shown or logged, and no sample of either is at
+  hand; the simulation they need is in place, the readers are not.
+* **iptables first** among the logs without a rule. Its `LOG` lines give the
+  interfaces (the zones of an iptables policy), the addresses after
+  destination NAT (which the audit's matches use for a platform that looks
+  rules up after NAT) and the destination port or ICMP type. They carry no
+  verdict and no year or zone in the old syslog form (`--log-year`,
+  `--log-offset`).
+* **A rule's age is the user's word where the export has none**
+  (`--unchanged-since`): iptables never says when a rule changed.
+* **Logged or not is the parser's question.** A `LOG` rule that matches every
+  new connection logs the rules below it only where only new connections reach
+  them; one of every packet logs everything, and then a line may be a packet
+  of a connection already open: TCP lines that open no connection are not
+  counted, and the lines of other protocols are possible only. `NFLOG` and
+  `ULOG` lines are not in the kernel log and prove nothing.
+* **Check Point lines that name rules loosely** (uids not put on their rows,
+  several access-role parts that fit) are possible, not certain, since 0.15.0.
 
