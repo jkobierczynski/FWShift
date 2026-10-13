@@ -1,0 +1,68 @@
+FWShift conversion report
+  source: junos (root)
+  target: azure
+
+Summary
+  Security rules:     14   exact 2, approximated 1, needs review 11 (11 emitted disabled), skipped 0
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_LOAD: the output is an ARM template (section 10): look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode, never complete), then associate each group with the subnets of its zone (its networks are in the template's metadata). Deploying it replaces all rules of groups of the same name
+  [needs-review] AZURE_ONE_GROUP: no zone has networks (--zone-network): one group holds every rule, inbound and outbound; associate it with every subnet the policy is for
+  [info] JUNOS_FORMAT: read 14 security policies and 6 NAT rules of the root system. Policies are looked up after static and destination NAT; they were brought back to the original destination, as the model has it
+  [info] PREDEFINED_APPLICATIONS: predefined applications are not in the configuration; these were taken from FWShift's table of them: junos-dns-udp, junos-http, junos-https, junos-ping, junos-smtp, junos-ssh
+  [info] HOST_POLICIES: policies for the zone junos-host (traffic to and from the firewall itself) are not read: 'to-box'
+  [info] AZURE_DEFAULTS_OVERRIDDEN: each list ends in the default of the source, which comes before the default rules of Azure: they no longer let the virtual network, the load balancer's health probes or the internet through unless a rule does
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security rule does not. Flow logs of the virtual network record the connections instead
+
+Security rules
+  block-bad  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone trust, untrust; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  web-out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone trust, untrust, and a security rule names no zone: give the networks behind it with --zone-network.
+  updates  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates: a security rule names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone trust, untrust, and a security rule names no zone: give the networks behind it with --zone-network.
+  ping-out  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone trust, untrust, and a security rule names no zone: give the networks behind it with --zone-network.
+  web-in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone untrust, dmz, and a security rule names no zone: give the networks behind it with --zone-network.
+  mail-in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone untrust, dmz, and a security rule names no zone: give the networks behind it with --zone-network.
+  admin  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone trust, dmz, and a security rule names no zone: give the networks behind it with --zone-network.
+  not-servers  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone trust, dmz, and a security rule names no zone: give the networks behind it with --zone-network.
+  guest-web  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'work-hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone guest, untrust, and a security rule names no zone: give the networks behind it with --zone-network.
+  guest-ping  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'junos-ping': the predefined application junos-ping: Juniper describes it as ICMP echo, other readers of Junos as every ICMP type.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone guest, untrust, and a security rule names no zone: give the networks behind it with --zone-network.
+  intra  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone trust, and a security rule names no zone: give the networks behind it with --zone-network.
+  global-block  ->  exact  (emitted as security rules of FWShift)
+      [info] RESET_ACTION: action reset-client becomes Deny: a security group has no reject
+  global-ntp  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone trust, untrust, and a security rule names no zone: give the networks behind it with --zone-network.
+
+NAT rules
+  inbound static-mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  from-internet dnat-web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  inbound static-mail (outbound)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  trust-out snat-lan  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  dmz-out snat-dmz  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  vr-out snat-vr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see

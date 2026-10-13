@@ -1,0 +1,52 @@
+FWShift conversion report
+  source: fdm (FTD 7.2.5-208 on Cisco Firepower 1010 Threat Defense)
+  target: azure
+
+Summary
+  Security rules:      8   exact 0, approximated 1, needs review 7 (7 emitted disabled), skipped 0
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_LOAD: the output is an ARM template (section 10): look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode, never complete), then associate each group with the subnets of its zone (its networks are in the template's metadata). Deploying it replaces all rules of groups of the same name
+  [needs-review] AZURE_ONE_GROUP: no zone has networks (--zone-network): one group holds every rule, inbound and outbound; associate it with every subnet the policy is for
+  [info] AZURE_DEFAULTS_OVERRIDDEN: each list ends in the default of the source, which comes before the default rules of Azure: they no longer let the virtual network, the load balancer's health probes or the internet through unless a rule does
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security rule does not. Flow logs of the virtual network record the connections instead
+
+Security rules
+  Block_IoT_to_office  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone inside_zone; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  Inside_Outside_web  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside_zone, outside_zone, and a security rule names no zone: give the networks behind it with --zone-network.
+  IoT_telemetry  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object vendor-cloud: a security rule names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside_zone, outside_zone, and a security rule names no zone: give the networks behind it with --zone-network.
+  NAS_from_Internet  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside_zone, inside_zone, and a security rule names no zone: give the networks behind it with --zone-network.
+  Head_office_v6  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside_zone, and a security rule names no zone: give the networks behind it with --zone-network.
+  DNS_answers  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside_zone, inside_zone, and a security rule names no zone: give the networks behind it with --zone-network.
+  Staff_streaming  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone inside_zone, outside_zone; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests_by_time  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside_zone, outside_zone, and a security rule names no zone: give the networks behind it with --zone-network.
+
+NAT rules
+  NAS_published  ->  skipped
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 192.0.2.2
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  nas_static  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  InsideOutsideNatRule  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  IoT_out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see

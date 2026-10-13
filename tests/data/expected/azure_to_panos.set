@@ -1,0 +1,1938 @@
+set address n-10.30.1.10_31 ip-netmask 10.30.1.10/31
+set address n-2001_db8_30_1__10_127 ip-netmask 2001:db8:30:1::10/127
+set address-group asg-web static [ n-10.30.1.10_31 n-2001_db8_30_1__10_127 ]
+set address-group asg-web description "application security group /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop/providers/Microsoft.Network/applicationSecurityGroups/asg-web"
+set address VirtualNetwork ip-netmask 0.0.0.0/32
+set address VirtualNetwork description "FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically"
+set address h-168.63.129.16 ip-netmask 168.63.129.16
+set address-group AzureLoadBalancer static h-168.63.129.16
+set address-group AzureLoadBalancer description "service tag AzureLoadBalancer"
+set address n-203.0.113.64_26 ip-netmask 203.0.113.64/26
+set address n-2001_db8_ee___48 ip-netmask 2001:db8:ee::/48
+set address-group Storage.WestEurope static [ n-203.0.113.64_26 n-2001_db8_ee___48 ]
+set address-group Storage.WestEurope description "service tag Storage.WestEurope (the addresses of the service tags of change 63)"
+set address Internet ip-netmask 0.0.0.0/32
+set address Internet description "FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically"
+set address h-10.30.3.20 ip-netmask 10.30.3.20
+set address-group asg-db static h-10.30.3.20
+set address-group asg-db description "application security group /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop/providers/Microsoft.Network/applicationSecurityGroups/asg-db"
+set address n-203.0.113.128_27 ip-netmask 203.0.113.128/27
+set address-group Sql.WestEurope static n-203.0.113.128_27
+set address-group Sql.WestEurope description "service tag Sql.WestEurope (the addresses of the service tags of change 63)"
+set service tcp-443_80 protocol tcp port 443,80
+set service tcp-22 protocol tcp port 22
+set service tcp-443 protocol tcp port 443
+set service tcp-udp-icmp-tcp protocol tcp port 1-65535
+set service tcp-udp-icmp-udp protocol udp port 1-65535
+set service-group tcp-udp-icmp members [ tcp-udp-icmp-tcp tcp-udp-icmp-udp ]
+set service tcp-udp-icmp-2-tcp protocol tcp port 1-65535
+set service tcp-udp-icmp-2-udp protocol udp port 1-65535
+set service-group tcp-udp-icmp-2 members [ tcp-udp-icmp-2-tcp tcp-udp-icmp-2-udp ]
+set service tcp-8443 protocol tcp port 8443
+set service tcp-1433 protocol tcp port 1433
+set service udp-53-from-1024-65535 protocol udp port 53
+set service udp-53-from-1024-65535 protocol udp source-port 1024-65535
+set rulebase security rules nsg-web_Allow-HTTPS from outside
+set rulebase security rules nsg-web_Allow-HTTPS to nsg-web
+set rulebase security rules nsg-web_Allow-HTTPS source any
+set rulebase security rules nsg-web_Allow-HTTPS destination asg-web
+set rulebase security rules nsg-web_Allow-HTTPS source-user any
+set rulebase security rules nsg-web_Allow-HTTPS category any
+set rulebase security rules nsg-web_Allow-HTTPS application any
+set rulebase security rules nsg-web_Allow-HTTPS service tcp-443_80
+set rulebase security rules nsg-web_Allow-HTTPS action allow
+set rulebase security rules nsg-web_Allow-HTTPS log-end no
+set rulebase security rules nsg-web_Allow-HTTPS description "Web from anywhere"
+set rulebase security rules nsg-web_Allow-SSH-Admins from outside
+set rulebase security rules nsg-web_Allow-SSH-Admins to nsg-web
+set rulebase security rules nsg-web_Allow-SSH-Admins source [ 198.51.100.0/24 192.0.2.128/25 ]
+set rulebase security rules nsg-web_Allow-SSH-Admins destination 10.30.1.0/24
+set rulebase security rules nsg-web_Allow-SSH-Admins source-user any
+set rulebase security rules nsg-web_Allow-SSH-Admins category any
+set rulebase security rules nsg-web_Allow-SSH-Admins application any
+set rulebase security rules nsg-web_Allow-SSH-Admins service tcp-22
+set rulebase security rules nsg-web_Allow-SSH-Admins action allow
+set rulebase security rules nsg-web_Allow-SSH-Admins log-end no
+set rulebase security rules nsg-web_Allow-HTTPS-v6 from outside
+set rulebase security rules nsg-web_Allow-HTTPS-v6 to nsg-web
+set rulebase security rules nsg-web_Allow-HTTPS-v6 source 2001:db8:ff::/48
+set rulebase security rules nsg-web_Allow-HTTPS-v6 destination any
+set rulebase security rules nsg-web_Allow-HTTPS-v6 source-user any
+set rulebase security rules nsg-web_Allow-HTTPS-v6 category any
+set rulebase security rules nsg-web_Allow-HTTPS-v6 application any
+set rulebase security rules nsg-web_Allow-HTTPS-v6 service tcp-443
+set rulebase security rules nsg-web_Allow-HTTPS-v6 action allow
+set rulebase security rules nsg-web_Allow-HTTPS-v6 log-end no
+set rulebase security rules nsg-web_Deny-Partner from outside
+set rulebase security rules nsg-web_Deny-Partner to nsg-web
+set rulebase security rules nsg-web_Deny-Partner source 203.0.113.0/24
+set rulebase security rules nsg-web_Deny-Partner destination any
+set rulebase security rules nsg-web_Deny-Partner source-user any
+set rulebase security rules nsg-web_Deny-Partner category any
+set rulebase security rules nsg-web_Deny-Partner application any
+set rulebase security rules nsg-web_Deny-Partner service tcp-udp-icmp
+set rulebase security rules nsg-web_Deny-Partner action deny
+set rulebase security rules nsg-web_Deny-Partner log-end no
+set rulebase security rules nsg-web_Deny-Partner description "Old partner range"
+set rulebase security rules nsg-web_Deny-Partner-apps from outside
+set rulebase security rules nsg-web_Deny-Partner-apps to nsg-web
+set rulebase security rules nsg-web_Deny-Partner-apps source 203.0.113.0/24
+set rulebase security rules nsg-web_Deny-Partner-apps destination any
+set rulebase security rules nsg-web_Deny-Partner-apps source-user any
+set rulebase security rules nsg-web_Deny-Partner-apps category any
+set rulebase security rules nsg-web_Deny-Partner-apps application [ icmp ping ]
+set rulebase security rules nsg-web_Deny-Partner-apps service application-default
+set rulebase security rules nsg-web_Deny-Partner-apps action deny
+set rulebase security rules nsg-web_Deny-Partner-apps log-end no
+set rulebase security rules nsg-web_Deny-Partner-apps description "Old partner range"
+set rulebase security rules nsg-web_Allow-Ping-VNet from outside
+set rulebase security rules nsg-web_Allow-Ping-VNet to nsg-web
+set rulebase security rules nsg-web_Allow-Ping-VNet source VirtualNetwork
+set rulebase security rules nsg-web_Allow-Ping-VNet destination any
+set rulebase security rules nsg-web_Allow-Ping-VNet source-user any
+set rulebase security rules nsg-web_Allow-Ping-VNet category any
+set rulebase security rules nsg-web_Allow-Ping-VNet application [ icmp ping ]
+set rulebase security rules nsg-web_Allow-Ping-VNet service application-default
+set rulebase security rules nsg-web_Allow-Ping-VNet action allow
+set rulebase security rules nsg-web_Allow-Ping-VNet log-end no
+set rulebase security rules nsg-web_Allow-Ping-VNet disabled yes
+set rulebase security rules nsg-web_Allow-Ping-VNet description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules nsg-web_AllowVnetInBound from outside
+set rulebase security rules nsg-web_AllowVnetInBound to nsg-web
+set rulebase security rules nsg-web_AllowVnetInBound source VirtualNetwork
+set rulebase security rules nsg-web_AllowVnetInBound destination any
+set rulebase security rules nsg-web_AllowVnetInBound source-user any
+set rulebase security rules nsg-web_AllowVnetInBound category any
+set rulebase security rules nsg-web_AllowVnetInBound application any
+set rulebase security rules nsg-web_AllowVnetInBound service tcp-udp-icmp-2
+set rulebase security rules nsg-web_AllowVnetInBound action allow
+set rulebase security rules nsg-web_AllowVnetInBound log-end no
+set rulebase security rules nsg-web_AllowVnetInBound disabled yes
+set rulebase security rules nsg-web_AllowVnetInBound description "FWSHIFT: disabled by the converter, see the report. Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-web_AllowVnetInBound-apps from outside
+set rulebase security rules nsg-web_AllowVnetInBound-apps to nsg-web
+set rulebase security rules nsg-web_AllowVnetInBound-apps source VirtualNetwork
+set rulebase security rules nsg-web_AllowVnetInBound-apps destination any
+set rulebase security rules nsg-web_AllowVnetInBound-apps source-user any
+set rulebase security rules nsg-web_AllowVnetInBound-apps category any
+set rulebase security rules nsg-web_AllowVnetInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-web_AllowVnetInBound-apps service application-default
+set rulebase security rules nsg-web_AllowVnetInBound-apps action allow
+set rulebase security rules nsg-web_AllowVnetInBound-apps log-end no
+set rulebase security rules nsg-web_AllowVnetInBound-apps disabled yes
+set rulebase security rules nsg-web_AllowVnetInBound-apps description "FWSHIFT: disabled by the converter, see the report. Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound from outside
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound to nsg-web
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound source AzureLoadBalancer
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound destination any
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound source-user any
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound category any
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound application any
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound service tcp-udp-icmp-2
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound action allow
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound log-end no
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound description "Allow inbound traffic from azure load balancer"
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound-apps from outside
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound-apps to nsg-web
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound-apps source AzureLoadBalancer
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound-apps destination any
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound-apps source-user any
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound-apps category any
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound-apps service application-default
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound-apps action allow
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound-apps log-end no
+set rulebase security rules nsg-web_AllowAzureLoadBalancerInBound-apps description "Allow inbound traffic from azure load balancer"
+set rulebase security rules nsg-web_DenyAllInBound from outside
+set rulebase security rules nsg-web_DenyAllInBound to nsg-web
+set rulebase security rules nsg-web_DenyAllInBound source any
+set rulebase security rules nsg-web_DenyAllInBound destination any
+set rulebase security rules nsg-web_DenyAllInBound source-user any
+set rulebase security rules nsg-web_DenyAllInBound category any
+set rulebase security rules nsg-web_DenyAllInBound application any
+set rulebase security rules nsg-web_DenyAllInBound service tcp-udp-icmp
+set rulebase security rules nsg-web_DenyAllInBound action deny
+set rulebase security rules nsg-web_DenyAllInBound log-end no
+set rulebase security rules nsg-web_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-web_DenyAllInBound-apps from outside
+set rulebase security rules nsg-web_DenyAllInBound-apps to nsg-web
+set rulebase security rules nsg-web_DenyAllInBound-apps source any
+set rulebase security rules nsg-web_DenyAllInBound-apps destination any
+set rulebase security rules nsg-web_DenyAllInBound-apps source-user any
+set rulebase security rules nsg-web_DenyAllInBound-apps category any
+set rulebase security rules nsg-web_DenyAllInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-web_DenyAllInBound-apps service application-default
+set rulebase security rules nsg-web_DenyAllInBound-apps action deny
+set rulebase security rules nsg-web_DenyAllInBound-apps log-end no
+set rulebase security rules nsg-web_DenyAllInBound-apps description "Deny all inbound traffic"
+set rulebase security rules nsg-web_Allow-App-Out from nsg-web
+set rulebase security rules nsg-web_Allow-App-Out to outside
+set rulebase security rules nsg-web_Allow-App-Out source any
+set rulebase security rules nsg-web_Allow-App-Out destination 10.30.2.0/24
+set rulebase security rules nsg-web_Allow-App-Out source-user any
+set rulebase security rules nsg-web_Allow-App-Out category any
+set rulebase security rules nsg-web_Allow-App-Out application any
+set rulebase security rules nsg-web_Allow-App-Out service tcp-8443
+set rulebase security rules nsg-web_Allow-App-Out action allow
+set rulebase security rules nsg-web_Allow-App-Out log-end no
+set rulebase security rules nsg-web_Allow-Storage from nsg-web
+set rulebase security rules nsg-web_Allow-Storage to outside
+set rulebase security rules nsg-web_Allow-Storage source any
+set rulebase security rules nsg-web_Allow-Storage destination Storage.WestEurope
+set rulebase security rules nsg-web_Allow-Storage source-user any
+set rulebase security rules nsg-web_Allow-Storage category any
+set rulebase security rules nsg-web_Allow-Storage application any
+set rulebase security rules nsg-web_Allow-Storage service tcp-443
+set rulebase security rules nsg-web_Allow-Storage action allow
+set rulebase security rules nsg-web_Allow-Storage log-end no
+set rulebase security rules nsg-web_Deny-Internet from nsg-web
+set rulebase security rules nsg-web_Deny-Internet to outside
+set rulebase security rules nsg-web_Deny-Internet source any
+set rulebase security rules nsg-web_Deny-Internet destination Internet
+set rulebase security rules nsg-web_Deny-Internet source-user any
+set rulebase security rules nsg-web_Deny-Internet category any
+set rulebase security rules nsg-web_Deny-Internet application any
+set rulebase security rules nsg-web_Deny-Internet service tcp-udp-icmp
+set rulebase security rules nsg-web_Deny-Internet action deny
+set rulebase security rules nsg-web_Deny-Internet log-end no
+set rulebase security rules nsg-web_Deny-Internet disabled yes
+set rulebase security rules nsg-web_Deny-Internet description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules nsg-web_Deny-Internet-apps from nsg-web
+set rulebase security rules nsg-web_Deny-Internet-apps to outside
+set rulebase security rules nsg-web_Deny-Internet-apps source any
+set rulebase security rules nsg-web_Deny-Internet-apps destination Internet
+set rulebase security rules nsg-web_Deny-Internet-apps source-user any
+set rulebase security rules nsg-web_Deny-Internet-apps category any
+set rulebase security rules nsg-web_Deny-Internet-apps application [ icmp ping ]
+set rulebase security rules nsg-web_Deny-Internet-apps service application-default
+set rulebase security rules nsg-web_Deny-Internet-apps action deny
+set rulebase security rules nsg-web_Deny-Internet-apps log-end no
+set rulebase security rules nsg-web_Deny-Internet-apps disabled yes
+set rulebase security rules nsg-web_Deny-Internet-apps description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules nsg-web_AllowVnetOutBound from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound to outside
+set rulebase security rules nsg-web_AllowVnetOutBound source any
+set rulebase security rules nsg-web_AllowVnetOutBound destination VirtualNetwork
+set rulebase security rules nsg-web_AllowVnetOutBound source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound category any
+set rulebase security rules nsg-web_AllowVnetOutBound application any
+set rulebase security rules nsg-web_AllowVnetOutBound service tcp-udp-icmp-2
+set rulebase security rules nsg-web_AllowVnetOutBound action allow
+set rulebase security rules nsg-web_AllowVnetOutBound log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound disabled yes
+set rulebase security rules nsg-web_AllowVnetOutBound description "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to all VMs in VNET"
+set rulebase security rules nsg-web_AllowVnetOutBound-apps from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound-apps to outside
+set rulebase security rules nsg-web_AllowVnetOutBound-apps source any
+set rulebase security rules nsg-web_AllowVnetOutBound-apps destination VirtualNetwork
+set rulebase security rules nsg-web_AllowVnetOutBound-apps source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound-apps category any
+set rulebase security rules nsg-web_AllowVnetOutBound-apps application [ icmp ping ]
+set rulebase security rules nsg-web_AllowVnetOutBound-apps service application-default
+set rulebase security rules nsg-web_AllowVnetOutBound-apps action allow
+set rulebase security rules nsg-web_AllowVnetOutBound-apps log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound-apps disabled yes
+set rulebase security rules nsg-web_AllowVnetOutBound-apps description "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to all VMs in VNET"
+set rulebase security rules nsg-web_AllowInternetOutBound from nsg-web
+set rulebase security rules nsg-web_AllowInternetOutBound to outside
+set rulebase security rules nsg-web_AllowInternetOutBound source any
+set rulebase security rules nsg-web_AllowInternetOutBound destination Internet
+set rulebase security rules nsg-web_AllowInternetOutBound source-user any
+set rulebase security rules nsg-web_AllowInternetOutBound category any
+set rulebase security rules nsg-web_AllowInternetOutBound application any
+set rulebase security rules nsg-web_AllowInternetOutBound service tcp-udp-icmp-2
+set rulebase security rules nsg-web_AllowInternetOutBound action allow
+set rulebase security rules nsg-web_AllowInternetOutBound log-end no
+set rulebase security rules nsg-web_AllowInternetOutBound disabled yes
+set rulebase security rules nsg-web_AllowInternetOutBound description "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to Internet"
+set rulebase security rules nsg-web_AllowInternetOutBound-apps from nsg-web
+set rulebase security rules nsg-web_AllowInternetOutBound-apps to outside
+set rulebase security rules nsg-web_AllowInternetOutBound-apps source any
+set rulebase security rules nsg-web_AllowInternetOutBound-apps destination Internet
+set rulebase security rules nsg-web_AllowInternetOutBound-apps source-user any
+set rulebase security rules nsg-web_AllowInternetOutBound-apps category any
+set rulebase security rules nsg-web_AllowInternetOutBound-apps application [ icmp ping ]
+set rulebase security rules nsg-web_AllowInternetOutBound-apps service application-default
+set rulebase security rules nsg-web_AllowInternetOutBound-apps action allow
+set rulebase security rules nsg-web_AllowInternetOutBound-apps log-end no
+set rulebase security rules nsg-web_AllowInternetOutBound-apps disabled yes
+set rulebase security rules nsg-web_AllowInternetOutBound-apps description "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to Internet"
+set rulebase security rules nsg-web_DenyAllOutBound from nsg-web
+set rulebase security rules nsg-web_DenyAllOutBound to outside
+set rulebase security rules nsg-web_DenyAllOutBound source any
+set rulebase security rules nsg-web_DenyAllOutBound destination any
+set rulebase security rules nsg-web_DenyAllOutBound source-user any
+set rulebase security rules nsg-web_DenyAllOutBound category any
+set rulebase security rules nsg-web_DenyAllOutBound application any
+set rulebase security rules nsg-web_DenyAllOutBound service tcp-udp-icmp
+set rulebase security rules nsg-web_DenyAllOutBound action deny
+set rulebase security rules nsg-web_DenyAllOutBound log-end no
+set rulebase security rules nsg-web_DenyAllOutBound description "Deny all outbound traffic"
+set rulebase security rules nsg-web_DenyAllOutBound-apps from nsg-web
+set rulebase security rules nsg-web_DenyAllOutBound-apps to outside
+set rulebase security rules nsg-web_DenyAllOutBound-apps source any
+set rulebase security rules nsg-web_DenyAllOutBound-apps destination any
+set rulebase security rules nsg-web_DenyAllOutBound-apps source-user any
+set rulebase security rules nsg-web_DenyAllOutBound-apps category any
+set rulebase security rules nsg-web_DenyAllOutBound-apps application [ icmp ping ]
+set rulebase security rules nsg-web_DenyAllOutBound-apps service application-default
+set rulebase security rules nsg-web_DenyAllOutBound-apps action deny
+set rulebase security rules nsg-web_DenyAllOutBound-apps log-end no
+set rulebase security rules nsg-web_DenyAllOutBound-apps description "Deny all outbound traffic"
+set rulebase security rules nsg-app_Allow-From-Web from outside
+set rulebase security rules nsg-app_Allow-From-Web to nsg-app
+set rulebase security rules nsg-app_Allow-From-Web source 10.30.1.0/24
+set rulebase security rules nsg-app_Allow-From-Web destination any
+set rulebase security rules nsg-app_Allow-From-Web source-user any
+set rulebase security rules nsg-app_Allow-From-Web category any
+set rulebase security rules nsg-app_Allow-From-Web application any
+set rulebase security rules nsg-app_Allow-From-Web service tcp-8443
+set rulebase security rules nsg-app_Allow-From-Web action allow
+set rulebase security rules nsg-app_Allow-From-Web log-end no
+set rulebase security rules nsg-app_Allow-Esp-Partner from outside
+set rulebase security rules nsg-app_Allow-Esp-Partner to nsg-app
+set rulebase security rules nsg-app_Allow-Esp-Partner source 198.51.100.40
+set rulebase security rules nsg-app_Allow-Esp-Partner destination 10.30.2.10
+set rulebase security rules nsg-app_Allow-Esp-Partner source-user any
+set rulebase security rules nsg-app_Allow-Esp-Partner category any
+set rulebase security rules nsg-app_Allow-Esp-Partner application ipsec-esp
+set rulebase security rules nsg-app_Allow-Esp-Partner service application-default
+set rulebase security rules nsg-app_Allow-Esp-Partner action allow
+set rulebase security rules nsg-app_Allow-Esp-Partner log-end no
+set rulebase security rules nsg-app_Allow-Probe from outside
+set rulebase security rules nsg-app_Allow-Probe to nsg-app
+set rulebase security rules nsg-app_Allow-Probe source AzureLoadBalancer
+set rulebase security rules nsg-app_Allow-Probe destination any
+set rulebase security rules nsg-app_Allow-Probe source-user any
+set rulebase security rules nsg-app_Allow-Probe category any
+set rulebase security rules nsg-app_Allow-Probe application any
+set rulebase security rules nsg-app_Allow-Probe service tcp-8443
+set rulebase security rules nsg-app_Allow-Probe action allow
+set rulebase security rules nsg-app_Allow-Probe log-end no
+set rulebase security rules nsg-app_Deny-VNet from outside
+set rulebase security rules nsg-app_Deny-VNet to nsg-app
+set rulebase security rules nsg-app_Deny-VNet source VirtualNetwork
+set rulebase security rules nsg-app_Deny-VNet destination any
+set rulebase security rules nsg-app_Deny-VNet source-user any
+set rulebase security rules nsg-app_Deny-VNet category any
+set rulebase security rules nsg-app_Deny-VNet application any
+set rulebase security rules nsg-app_Deny-VNet service tcp-udp-icmp
+set rulebase security rules nsg-app_Deny-VNet action deny
+set rulebase security rules nsg-app_Deny-VNet log-end no
+set rulebase security rules nsg-app_Deny-VNet disabled yes
+set rulebase security rules nsg-app_Deny-VNet description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules nsg-app_Deny-VNet-apps from outside
+set rulebase security rules nsg-app_Deny-VNet-apps to nsg-app
+set rulebase security rules nsg-app_Deny-VNet-apps source VirtualNetwork
+set rulebase security rules nsg-app_Deny-VNet-apps destination any
+set rulebase security rules nsg-app_Deny-VNet-apps source-user any
+set rulebase security rules nsg-app_Deny-VNet-apps category any
+set rulebase security rules nsg-app_Deny-VNet-apps application [ icmp ping ]
+set rulebase security rules nsg-app_Deny-VNet-apps service application-default
+set rulebase security rules nsg-app_Deny-VNet-apps action deny
+set rulebase security rules nsg-app_Deny-VNet-apps log-end no
+set rulebase security rules nsg-app_Deny-VNet-apps disabled yes
+set rulebase security rules nsg-app_Deny-VNet-apps description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules nsg-app_AllowVnetInBound from outside
+set rulebase security rules nsg-app_AllowVnetInBound to nsg-app
+set rulebase security rules nsg-app_AllowVnetInBound source VirtualNetwork
+set rulebase security rules nsg-app_AllowVnetInBound destination any
+set rulebase security rules nsg-app_AllowVnetInBound source-user any
+set rulebase security rules nsg-app_AllowVnetInBound category any
+set rulebase security rules nsg-app_AllowVnetInBound application any
+set rulebase security rules nsg-app_AllowVnetInBound service tcp-udp-icmp-2
+set rulebase security rules nsg-app_AllowVnetInBound action allow
+set rulebase security rules nsg-app_AllowVnetInBound log-end no
+set rulebase security rules nsg-app_AllowVnetInBound disabled yes
+set rulebase security rules nsg-app_AllowVnetInBound description "FWSHIFT: disabled by the converter, see the report. Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-app_AllowVnetInBound-apps from outside
+set rulebase security rules nsg-app_AllowVnetInBound-apps to nsg-app
+set rulebase security rules nsg-app_AllowVnetInBound-apps source VirtualNetwork
+set rulebase security rules nsg-app_AllowVnetInBound-apps destination any
+set rulebase security rules nsg-app_AllowVnetInBound-apps source-user any
+set rulebase security rules nsg-app_AllowVnetInBound-apps category any
+set rulebase security rules nsg-app_AllowVnetInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-app_AllowVnetInBound-apps service application-default
+set rulebase security rules nsg-app_AllowVnetInBound-apps action allow
+set rulebase security rules nsg-app_AllowVnetInBound-apps log-end no
+set rulebase security rules nsg-app_AllowVnetInBound-apps disabled yes
+set rulebase security rules nsg-app_AllowVnetInBound-apps description "FWSHIFT: disabled by the converter, see the report. Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound from outside
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound to nsg-app
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound source AzureLoadBalancer
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound destination any
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound source-user any
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound category any
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound application any
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound service tcp-udp-icmp-2
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound action allow
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound log-end no
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound description "Allow inbound traffic from azure load balancer"
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound-apps from outside
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound-apps to nsg-app
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound-apps source AzureLoadBalancer
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound-apps destination any
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound-apps source-user any
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound-apps category any
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound-apps service application-default
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound-apps action allow
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound-apps log-end no
+set rulebase security rules nsg-app_AllowAzureLoadBalancerInBound-apps description "Allow inbound traffic from azure load balancer"
+set rulebase security rules nsg-app_DenyAllInBound from outside
+set rulebase security rules nsg-app_DenyAllInBound to nsg-app
+set rulebase security rules nsg-app_DenyAllInBound source any
+set rulebase security rules nsg-app_DenyAllInBound destination any
+set rulebase security rules nsg-app_DenyAllInBound source-user any
+set rulebase security rules nsg-app_DenyAllInBound category any
+set rulebase security rules nsg-app_DenyAllInBound application any
+set rulebase security rules nsg-app_DenyAllInBound service tcp-udp-icmp
+set rulebase security rules nsg-app_DenyAllInBound action deny
+set rulebase security rules nsg-app_DenyAllInBound log-end no
+set rulebase security rules nsg-app_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-app_DenyAllInBound-apps from outside
+set rulebase security rules nsg-app_DenyAllInBound-apps to nsg-app
+set rulebase security rules nsg-app_DenyAllInBound-apps source any
+set rulebase security rules nsg-app_DenyAllInBound-apps destination any
+set rulebase security rules nsg-app_DenyAllInBound-apps source-user any
+set rulebase security rules nsg-app_DenyAllInBound-apps category any
+set rulebase security rules nsg-app_DenyAllInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-app_DenyAllInBound-apps service application-default
+set rulebase security rules nsg-app_DenyAllInBound-apps action deny
+set rulebase security rules nsg-app_DenyAllInBound-apps log-end no
+set rulebase security rules nsg-app_DenyAllInBound-apps description "Deny all inbound traffic"
+set rulebase security rules nsg-app_Allow-Db from nsg-app
+set rulebase security rules nsg-app_Allow-Db to outside
+set rulebase security rules nsg-app_Allow-Db source any
+set rulebase security rules nsg-app_Allow-Db destination asg-db
+set rulebase security rules nsg-app_Allow-Db source-user any
+set rulebase security rules nsg-app_Allow-Db category any
+set rulebase security rules nsg-app_Allow-Db application any
+set rulebase security rules nsg-app_Allow-Db service tcp-1433
+set rulebase security rules nsg-app_Allow-Db action allow
+set rulebase security rules nsg-app_Allow-Db log-end no
+set rulebase security rules nsg-app_Allow-Sql from nsg-app
+set rulebase security rules nsg-app_Allow-Sql to outside
+set rulebase security rules nsg-app_Allow-Sql source any
+set rulebase security rules nsg-app_Allow-Sql destination Sql.WestEurope
+set rulebase security rules nsg-app_Allow-Sql source-user any
+set rulebase security rules nsg-app_Allow-Sql category any
+set rulebase security rules nsg-app_Allow-Sql application any
+set rulebase security rules nsg-app_Allow-Sql service tcp-1433
+set rulebase security rules nsg-app_Allow-Sql action allow
+set rulebase security rules nsg-app_Allow-Sql log-end no
+set rulebase security rules nsg-app_Allow-Dns from nsg-app
+set rulebase security rules nsg-app_Allow-Dns to outside
+set rulebase security rules nsg-app_Allow-Dns source any
+set rulebase security rules nsg-app_Allow-Dns destination 10.30.0.4
+set rulebase security rules nsg-app_Allow-Dns source-user any
+set rulebase security rules nsg-app_Allow-Dns category any
+set rulebase security rules nsg-app_Allow-Dns application any
+set rulebase security rules nsg-app_Allow-Dns service udp-53-from-1024-65535
+set rulebase security rules nsg-app_Allow-Dns action allow
+set rulebase security rules nsg-app_Allow-Dns log-end no
+set rulebase security rules nsg-app_Deny-Out from nsg-app
+set rulebase security rules nsg-app_Deny-Out to outside
+set rulebase security rules nsg-app_Deny-Out source any
+set rulebase security rules nsg-app_Deny-Out destination any
+set rulebase security rules nsg-app_Deny-Out source-user any
+set rulebase security rules nsg-app_Deny-Out category any
+set rulebase security rules nsg-app_Deny-Out application any
+set rulebase security rules nsg-app_Deny-Out service tcp-udp-icmp
+set rulebase security rules nsg-app_Deny-Out action deny
+set rulebase security rules nsg-app_Deny-Out log-end no
+set rulebase security rules nsg-app_Deny-Out-apps from nsg-app
+set rulebase security rules nsg-app_Deny-Out-apps to outside
+set rulebase security rules nsg-app_Deny-Out-apps source any
+set rulebase security rules nsg-app_Deny-Out-apps destination any
+set rulebase security rules nsg-app_Deny-Out-apps source-user any
+set rulebase security rules nsg-app_Deny-Out-apps category any
+set rulebase security rules nsg-app_Deny-Out-apps application [ icmp ping ]
+set rulebase security rules nsg-app_Deny-Out-apps service application-default
+set rulebase security rules nsg-app_Deny-Out-apps action deny
+set rulebase security rules nsg-app_Deny-Out-apps log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound to outside
+set rulebase security rules nsg-app_AllowVnetOutBound source any
+set rulebase security rules nsg-app_AllowVnetOutBound destination VirtualNetwork
+set rulebase security rules nsg-app_AllowVnetOutBound source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound category any
+set rulebase security rules nsg-app_AllowVnetOutBound application any
+set rulebase security rules nsg-app_AllowVnetOutBound service tcp-udp-icmp-2
+set rulebase security rules nsg-app_AllowVnetOutBound action allow
+set rulebase security rules nsg-app_AllowVnetOutBound log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound disabled yes
+set rulebase security rules nsg-app_AllowVnetOutBound description "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to all VMs in VNET"
+set rulebase security rules nsg-app_AllowVnetOutBound-apps from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound-apps to outside
+set rulebase security rules nsg-app_AllowVnetOutBound-apps source any
+set rulebase security rules nsg-app_AllowVnetOutBound-apps destination VirtualNetwork
+set rulebase security rules nsg-app_AllowVnetOutBound-apps source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound-apps category any
+set rulebase security rules nsg-app_AllowVnetOutBound-apps application [ icmp ping ]
+set rulebase security rules nsg-app_AllowVnetOutBound-apps service application-default
+set rulebase security rules nsg-app_AllowVnetOutBound-apps action allow
+set rulebase security rules nsg-app_AllowVnetOutBound-apps log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound-apps disabled yes
+set rulebase security rules nsg-app_AllowVnetOutBound-apps description "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to all VMs in VNET"
+set rulebase security rules nsg-app_AllowInternetOutBound from nsg-app
+set rulebase security rules nsg-app_AllowInternetOutBound to outside
+set rulebase security rules nsg-app_AllowInternetOutBound source any
+set rulebase security rules nsg-app_AllowInternetOutBound destination Internet
+set rulebase security rules nsg-app_AllowInternetOutBound source-user any
+set rulebase security rules nsg-app_AllowInternetOutBound category any
+set rulebase security rules nsg-app_AllowInternetOutBound application any
+set rulebase security rules nsg-app_AllowInternetOutBound service tcp-udp-icmp-2
+set rulebase security rules nsg-app_AllowInternetOutBound action allow
+set rulebase security rules nsg-app_AllowInternetOutBound log-end no
+set rulebase security rules nsg-app_AllowInternetOutBound disabled yes
+set rulebase security rules nsg-app_AllowInternetOutBound description "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to Internet"
+set rulebase security rules nsg-app_AllowInternetOutBound-apps from nsg-app
+set rulebase security rules nsg-app_AllowInternetOutBound-apps to outside
+set rulebase security rules nsg-app_AllowInternetOutBound-apps source any
+set rulebase security rules nsg-app_AllowInternetOutBound-apps destination Internet
+set rulebase security rules nsg-app_AllowInternetOutBound-apps source-user any
+set rulebase security rules nsg-app_AllowInternetOutBound-apps category any
+set rulebase security rules nsg-app_AllowInternetOutBound-apps application [ icmp ping ]
+set rulebase security rules nsg-app_AllowInternetOutBound-apps service application-default
+set rulebase security rules nsg-app_AllowInternetOutBound-apps action allow
+set rulebase security rules nsg-app_AllowInternetOutBound-apps log-end no
+set rulebase security rules nsg-app_AllowInternetOutBound-apps disabled yes
+set rulebase security rules nsg-app_AllowInternetOutBound-apps description "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to Internet"
+set rulebase security rules nsg-app_DenyAllOutBound from nsg-app
+set rulebase security rules nsg-app_DenyAllOutBound to outside
+set rulebase security rules nsg-app_DenyAllOutBound source any
+set rulebase security rules nsg-app_DenyAllOutBound destination any
+set rulebase security rules nsg-app_DenyAllOutBound source-user any
+set rulebase security rules nsg-app_DenyAllOutBound category any
+set rulebase security rules nsg-app_DenyAllOutBound application any
+set rulebase security rules nsg-app_DenyAllOutBound service tcp-udp-icmp
+set rulebase security rules nsg-app_DenyAllOutBound action deny
+set rulebase security rules nsg-app_DenyAllOutBound log-end no
+set rulebase security rules nsg-app_DenyAllOutBound description "Deny all outbound traffic"
+set rulebase security rules nsg-app_DenyAllOutBound-apps from nsg-app
+set rulebase security rules nsg-app_DenyAllOutBound-apps to outside
+set rulebase security rules nsg-app_DenyAllOutBound-apps source any
+set rulebase security rules nsg-app_DenyAllOutBound-apps destination any
+set rulebase security rules nsg-app_DenyAllOutBound-apps source-user any
+set rulebase security rules nsg-app_DenyAllOutBound-apps category any
+set rulebase security rules nsg-app_DenyAllOutBound-apps application [ icmp ping ]
+set rulebase security rules nsg-app_DenyAllOutBound-apps service application-default
+set rulebase security rules nsg-app_DenyAllOutBound-apps action deny
+set rulebase security rules nsg-app_DenyAllOutBound-apps log-end no
+set rulebase security rules nsg-app_DenyAllOutBound-apps description "Deny all outbound traffic"
+set rulebase security rules nsg-db_Allow-Sql-From-App from outside
+set rulebase security rules nsg-db_Allow-Sql-From-App to nsg-db
+set rulebase security rules nsg-db_Allow-Sql-From-App source 10.30.2.0/24
+set rulebase security rules nsg-db_Allow-Sql-From-App destination asg-db
+set rulebase security rules nsg-db_Allow-Sql-From-App source-user any
+set rulebase security rules nsg-db_Allow-Sql-From-App category any
+set rulebase security rules nsg-db_Allow-Sql-From-App application any
+set rulebase security rules nsg-db_Allow-Sql-From-App service tcp-1433
+set rulebase security rules nsg-db_Allow-Sql-From-App action allow
+set rulebase security rules nsg-db_Allow-Sql-From-App log-end no
+set rulebase security rules nsg-db_Allow-Old-Gre from outside
+set rulebase security rules nsg-db_Allow-Old-Gre to nsg-db
+set rulebase security rules nsg-db_Allow-Old-Gre source 10.30.9.0/24
+set rulebase security rules nsg-db_Allow-Old-Gre destination any
+set rulebase security rules nsg-db_Allow-Old-Gre source-user any
+set rulebase security rules nsg-db_Allow-Old-Gre category any
+set rulebase security rules nsg-db_Allow-Old-Gre application ipsec-ah
+set rulebase security rules nsg-db_Allow-Old-Gre service application-default
+set rulebase security rules nsg-db_Allow-Old-Gre action allow
+set rulebase security rules nsg-db_Allow-Old-Gre log-end no
+set rulebase security rules nsg-db_Allow-Old-Gre description "AH from the management subnet"
+set rulebase security rules nsg-db_AllowVnetInBound from outside
+set rulebase security rules nsg-db_AllowVnetInBound to nsg-db
+set rulebase security rules nsg-db_AllowVnetInBound source VirtualNetwork
+set rulebase security rules nsg-db_AllowVnetInBound destination any
+set rulebase security rules nsg-db_AllowVnetInBound source-user any
+set rulebase security rules nsg-db_AllowVnetInBound category any
+set rulebase security rules nsg-db_AllowVnetInBound application any
+set rulebase security rules nsg-db_AllowVnetInBound service tcp-udp-icmp-2
+set rulebase security rules nsg-db_AllowVnetInBound action allow
+set rulebase security rules nsg-db_AllowVnetInBound log-end no
+set rulebase security rules nsg-db_AllowVnetInBound disabled yes
+set rulebase security rules nsg-db_AllowVnetInBound description "FWSHIFT: disabled by the converter, see the report. Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-db_AllowVnetInBound-apps from outside
+set rulebase security rules nsg-db_AllowVnetInBound-apps to nsg-db
+set rulebase security rules nsg-db_AllowVnetInBound-apps source VirtualNetwork
+set rulebase security rules nsg-db_AllowVnetInBound-apps destination any
+set rulebase security rules nsg-db_AllowVnetInBound-apps source-user any
+set rulebase security rules nsg-db_AllowVnetInBound-apps category any
+set rulebase security rules nsg-db_AllowVnetInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-db_AllowVnetInBound-apps service application-default
+set rulebase security rules nsg-db_AllowVnetInBound-apps action allow
+set rulebase security rules nsg-db_AllowVnetInBound-apps log-end no
+set rulebase security rules nsg-db_AllowVnetInBound-apps disabled yes
+set rulebase security rules nsg-db_AllowVnetInBound-apps description "FWSHIFT: disabled by the converter, see the report. Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound from outside
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound to nsg-db
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound source AzureLoadBalancer
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound destination any
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound source-user any
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound category any
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound application any
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound service tcp-udp-icmp-2
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound action allow
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound log-end no
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound description "Allow inbound traffic from azure load balancer"
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound-apps from outside
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound-apps to nsg-db
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound-apps source AzureLoadBalancer
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound-apps destination any
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound-apps source-user any
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound-apps category any
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound-apps service application-default
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound-apps action allow
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound-apps log-end no
+set rulebase security rules nsg-db_AllowAzureLoadBalancerInBound-apps description "Allow inbound traffic from azure load balancer"
+set rulebase security rules nsg-db_DenyAllInBound from outside
+set rulebase security rules nsg-db_DenyAllInBound to nsg-db
+set rulebase security rules nsg-db_DenyAllInBound source any
+set rulebase security rules nsg-db_DenyAllInBound destination any
+set rulebase security rules nsg-db_DenyAllInBound source-user any
+set rulebase security rules nsg-db_DenyAllInBound category any
+set rulebase security rules nsg-db_DenyAllInBound application any
+set rulebase security rules nsg-db_DenyAllInBound service tcp-udp-icmp
+set rulebase security rules nsg-db_DenyAllInBound action deny
+set rulebase security rules nsg-db_DenyAllInBound log-end no
+set rulebase security rules nsg-db_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-db_DenyAllInBound-apps from outside
+set rulebase security rules nsg-db_DenyAllInBound-apps to nsg-db
+set rulebase security rules nsg-db_DenyAllInBound-apps source any
+set rulebase security rules nsg-db_DenyAllInBound-apps destination any
+set rulebase security rules nsg-db_DenyAllInBound-apps source-user any
+set rulebase security rules nsg-db_DenyAllInBound-apps category any
+set rulebase security rules nsg-db_DenyAllInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-db_DenyAllInBound-apps service application-default
+set rulebase security rules nsg-db_DenyAllInBound-apps action deny
+set rulebase security rules nsg-db_DenyAllInBound-apps log-end no
+set rulebase security rules nsg-db_DenyAllInBound-apps description "Deny all inbound traffic"
+set rulebase security rules nsg-db_AllowVnetOutBound from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound to outside
+set rulebase security rules nsg-db_AllowVnetOutBound source any
+set rulebase security rules nsg-db_AllowVnetOutBound destination VirtualNetwork
+set rulebase security rules nsg-db_AllowVnetOutBound source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound category any
+set rulebase security rules nsg-db_AllowVnetOutBound application any
+set rulebase security rules nsg-db_AllowVnetOutBound service tcp-udp-icmp-2
+set rulebase security rules nsg-db_AllowVnetOutBound action allow
+set rulebase security rules nsg-db_AllowVnetOutBound log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound disabled yes
+set rulebase security rules nsg-db_AllowVnetOutBound description "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to all VMs in VNET"
+set rulebase security rules nsg-db_AllowVnetOutBound-apps from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound-apps to outside
+set rulebase security rules nsg-db_AllowVnetOutBound-apps source any
+set rulebase security rules nsg-db_AllowVnetOutBound-apps destination VirtualNetwork
+set rulebase security rules nsg-db_AllowVnetOutBound-apps source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound-apps category any
+set rulebase security rules nsg-db_AllowVnetOutBound-apps application [ icmp ping ]
+set rulebase security rules nsg-db_AllowVnetOutBound-apps service application-default
+set rulebase security rules nsg-db_AllowVnetOutBound-apps action allow
+set rulebase security rules nsg-db_AllowVnetOutBound-apps log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound-apps disabled yes
+set rulebase security rules nsg-db_AllowVnetOutBound-apps description "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to all VMs in VNET"
+set rulebase security rules nsg-db_AllowInternetOutBound from nsg-db
+set rulebase security rules nsg-db_AllowInternetOutBound to outside
+set rulebase security rules nsg-db_AllowInternetOutBound source any
+set rulebase security rules nsg-db_AllowInternetOutBound destination Internet
+set rulebase security rules nsg-db_AllowInternetOutBound source-user any
+set rulebase security rules nsg-db_AllowInternetOutBound category any
+set rulebase security rules nsg-db_AllowInternetOutBound application any
+set rulebase security rules nsg-db_AllowInternetOutBound service tcp-udp-icmp-2
+set rulebase security rules nsg-db_AllowInternetOutBound action allow
+set rulebase security rules nsg-db_AllowInternetOutBound log-end no
+set rulebase security rules nsg-db_AllowInternetOutBound disabled yes
+set rulebase security rules nsg-db_AllowInternetOutBound description "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to Internet"
+set rulebase security rules nsg-db_AllowInternetOutBound-apps from nsg-db
+set rulebase security rules nsg-db_AllowInternetOutBound-apps to outside
+set rulebase security rules nsg-db_AllowInternetOutBound-apps source any
+set rulebase security rules nsg-db_AllowInternetOutBound-apps destination Internet
+set rulebase security rules nsg-db_AllowInternetOutBound-apps source-user any
+set rulebase security rules nsg-db_AllowInternetOutBound-apps category any
+set rulebase security rules nsg-db_AllowInternetOutBound-apps application [ icmp ping ]
+set rulebase security rules nsg-db_AllowInternetOutBound-apps service application-default
+set rulebase security rules nsg-db_AllowInternetOutBound-apps action allow
+set rulebase security rules nsg-db_AllowInternetOutBound-apps log-end no
+set rulebase security rules nsg-db_AllowInternetOutBound-apps disabled yes
+set rulebase security rules nsg-db_AllowInternetOutBound-apps description "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to Internet"
+set rulebase security rules nsg-db_DenyAllOutBound from nsg-db
+set rulebase security rules nsg-db_DenyAllOutBound to outside
+set rulebase security rules nsg-db_DenyAllOutBound source any
+set rulebase security rules nsg-db_DenyAllOutBound destination any
+set rulebase security rules nsg-db_DenyAllOutBound source-user any
+set rulebase security rules nsg-db_DenyAllOutBound category any
+set rulebase security rules nsg-db_DenyAllOutBound application any
+set rulebase security rules nsg-db_DenyAllOutBound service tcp-udp-icmp
+set rulebase security rules nsg-db_DenyAllOutBound action deny
+set rulebase security rules nsg-db_DenyAllOutBound log-end no
+set rulebase security rules nsg-db_DenyAllOutBound description "Deny all outbound traffic"
+set rulebase security rules nsg-db_DenyAllOutBound-apps from nsg-db
+set rulebase security rules nsg-db_DenyAllOutBound-apps to outside
+set rulebase security rules nsg-db_DenyAllOutBound-apps source any
+set rulebase security rules nsg-db_DenyAllOutBound-apps destination any
+set rulebase security rules nsg-db_DenyAllOutBound-apps source-user any
+set rulebase security rules nsg-db_DenyAllOutBound-apps category any
+set rulebase security rules nsg-db_DenyAllOutBound-apps application [ icmp ping ]
+set rulebase security rules nsg-db_DenyAllOutBound-apps service application-default
+set rulebase security rules nsg-db_DenyAllOutBound-apps action deny
+set rulebase security rules nsg-db_DenyAllOutBound-apps log-end no
+set rulebase security rules nsg-db_DenyAllOutBound-apps description "Deny all outbound traffic"
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_Deny-Partner from nsg-web
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_Deny-Partner to nsg-web
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_Deny-Partner source 203.0.113.0/24
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_Deny-Partner destination 10.30.2.0/24
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_Deny-Partner source-user any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_Deny-Partner category any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_Deny-Partner application any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_Deny-Partner service tcp-8443
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_Deny-Partner action deny
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_Deny-Partner log-end no
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_Deny-Partner description "Old partner range"
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_AllowVnetInBound from nsg-web
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_AllowVnetInBound to nsg-web
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_AllowVnetInBound source any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_AllowVnetInBound destination 10.30.2.0/24
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_AllowVnetInBound source-user any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_AllowVnetInBound category any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_AllowVnetInBound application any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_AllowVnetInBound service tcp-8443
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_AllowVnetInBound action allow
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_AllowVnetInBound log-end no
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_DenyAllInBound from nsg-web
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_DenyAllInBound to nsg-web
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_DenyAllInBound source any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_DenyAllInBound destination 10.30.2.0/24
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_DenyAllInBound source-user any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_DenyAllInBound category any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_DenyAllInBound application any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_DenyAllInBound service tcp-8443
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_DenyAllInBound action deny
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_DenyAllInBound log-end no
+set rulebase security rules nsg-web_Allow-App-Out_nsg-web_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS to nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS source any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS destination asg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS application any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS service tcp-443_80
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS action allow
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS description "Web from anywhere"
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-SSH-Admins from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-SSH-Admins to nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-SSH-Admins source [ 198.51.100.0/24 192.0.2.128/25 ]
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-SSH-Admins destination 10.30.1.0/24
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-SSH-Admins source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-SSH-Admins category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-SSH-Admins application any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-SSH-Admins service tcp-22
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-SSH-Admins action allow
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-SSH-Admins log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 to nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 source 2001:db8:ff::/48
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 application any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 service tcp-443
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 action allow
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner to nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner source 203.0.113.0/24
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner application any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner service tcp-udp-icmp
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner action deny
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner description "Old partner range"
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner-apps from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner-apps to nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner-apps source 203.0.113.0/24
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner-apps destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner-apps source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner-apps category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner-apps application [ icmp ping ]
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner-apps service application-default
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner-apps action deny
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner-apps log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner-apps description "Old partner range"
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-Ping-VNet from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-Ping-VNet to nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-Ping-VNet source any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-Ping-VNet destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-Ping-VNet source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-Ping-VNet category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-Ping-VNet application [ icmp ping ]
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-Ping-VNet service application-default
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-Ping-VNet action allow
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_Allow-Ping-VNet log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound to nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound source any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound application any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound service tcp-udp-icmp-2
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound action allow
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps to nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps source any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps service application-default
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps action allow
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound to nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound source any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound application any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound service tcp-udp-icmp
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound action deny
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound-apps from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound-apps to nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound-apps source any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound-apps destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound-apps source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound-apps category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound-apps service application-default
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound-apps action deny
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound-apps log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound-apps description "Deny all inbound traffic"
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web" from nsg-web
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web" to nsg-web
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web" source any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web" destination any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web" source-user any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web" category any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web" application any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web" service tcp-udp-icmp
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web" action deny
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web" log-end no
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web" description "Deny all outbound traffic"
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web-apps" from nsg-web
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web-apps" to nsg-web
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web-apps" source any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web-apps" destination any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web-apps" source-user any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web-apps" category any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web-apps" application [ icmp ping ]
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web-apps" service application-default
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web-apps" action deny
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web-apps" log-end no
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-web-apps" description "Deny all outbound traffic"
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Allow-From-Web from nsg-web
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Allow-From-Web to nsg-app
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Allow-From-Web source 10.30.1.0/24
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Allow-From-Web destination 10.30.2.0/24
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Allow-From-Web source-user any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Allow-From-Web category any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Allow-From-Web application any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Allow-From-Web service tcp-8443
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Allow-From-Web action allow
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Allow-From-Web log-end no
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Deny-VNet from nsg-web
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Deny-VNet to nsg-app
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Deny-VNet source any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Deny-VNet destination 10.30.2.0/24
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Deny-VNet source-user any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Deny-VNet category any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Deny-VNet application any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Deny-VNet service tcp-8443
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Deny-VNet action deny
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_Deny-VNet log-end no
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_AllowVnetInBound from nsg-web
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_AllowVnetInBound to nsg-app
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_AllowVnetInBound source any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_AllowVnetInBound destination 10.30.2.0/24
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_AllowVnetInBound source-user any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_AllowVnetInBound category any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_AllowVnetInBound application any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_AllowVnetInBound service tcp-8443
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_AllowVnetInBound action allow
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_AllowVnetInBound log-end no
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_DenyAllInBound from nsg-web
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_DenyAllInBound to nsg-app
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_DenyAllInBound source any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_DenyAllInBound destination 10.30.2.0/24
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_DenyAllInBound source-user any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_DenyAllInBound category any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_DenyAllInBound application any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_DenyAllInBound service tcp-8443
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_DenyAllInBound action deny
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_DenyAllInBound log-end no
+set rulebase security rules nsg-web_Allow-App-Out_nsg-app_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Allow-From-Web from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Allow-From-Web to nsg-app
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Allow-From-Web source 10.30.1.0/24
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Allow-From-Web destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Allow-From-Web source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Allow-From-Web category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Allow-From-Web application any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Allow-From-Web service tcp-8443
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Allow-From-Web action allow
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Allow-From-Web log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet to nsg-app
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet source any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet application any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet service tcp-udp-icmp
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet action deny
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet-apps from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet-apps to nsg-app
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet-apps source any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet-apps destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet-apps source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet-apps category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet-apps application [ icmp ping ]
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet-apps service application-default
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet-apps action deny
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet-apps log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound to nsg-app
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound source any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound application any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound service tcp-udp-icmp-2
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound action allow
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps to nsg-app
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps source any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps service application-default
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps action allow
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound to nsg-app
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound source any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound application any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound service tcp-udp-icmp
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound action deny
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound-apps from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound-apps to nsg-app
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound-apps source any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound-apps destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound-apps source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound-apps category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound-apps service application-default
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound-apps action deny
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound-apps log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound-apps description "Deny all inbound traffic"
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app" from nsg-web
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app" to nsg-app
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app" source any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app" destination any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app" source-user any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app" category any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app" application any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app" service tcp-udp-icmp
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app" action deny
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app" log-end no
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app" description "Deny all outbound traffic"
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app-apps" from nsg-web
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app-apps" to nsg-app
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app-apps" source any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app-apps" destination any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app-apps" source-user any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app-apps" category any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app-apps" application [ icmp ping ]
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app-apps" service application-default
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app-apps" action deny
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app-apps" log-end no
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-app-apps" description "Deny all outbound traffic"
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_AllowVnetInBound from nsg-web
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_AllowVnetInBound to nsg-db
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_AllowVnetInBound source any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_AllowVnetInBound destination 10.30.2.0/24
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_AllowVnetInBound source-user any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_AllowVnetInBound category any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_AllowVnetInBound application any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_AllowVnetInBound service tcp-8443
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_AllowVnetInBound action allow
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_AllowVnetInBound log-end no
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_DenyAllInBound from nsg-web
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_DenyAllInBound to nsg-db
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_DenyAllInBound source any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_DenyAllInBound destination 10.30.2.0/24
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_DenyAllInBound source-user any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_DenyAllInBound category any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_DenyAllInBound application any
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_DenyAllInBound service tcp-8443
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_DenyAllInBound action deny
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_DenyAllInBound log-end no
+set rulebase security rules nsg-web_Allow-App-Out_nsg-db_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_Allow-Sql-From-App from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_Allow-Sql-From-App to nsg-db
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_Allow-Sql-From-App source 10.30.2.0/24
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_Allow-Sql-From-App destination asg-db
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_Allow-Sql-From-App source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_Allow-Sql-From-App category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_Allow-Sql-From-App application any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_Allow-Sql-From-App service tcp-1433
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_Allow-Sql-From-App action allow
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_Allow-Sql-From-App log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound to nsg-db
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound source any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound application any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound service tcp-udp-icmp-2
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound action allow
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps to nsg-db
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps source any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps service application-default
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps action allow
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound to nsg-db
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound source any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound application any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound service tcp-udp-icmp
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound action deny
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound-apps from nsg-web
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound-apps to nsg-db
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound-apps source any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound-apps destination any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound-apps source-user any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound-apps category any
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound-apps service application-default
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound-apps action deny
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound-apps log-end no
+set rulebase security rules nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound-apps description "Deny all inbound traffic"
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db" from nsg-web
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db" to nsg-db
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db" source any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db" destination any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db" source-user any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db" category any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db" application any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db" service tcp-udp-icmp
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db" action deny
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db" log-end no
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db" description "Deny all outbound traffic"
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db-apps" from nsg-web
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db-apps" to nsg-db
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db-apps" source any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db-apps" destination any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db-apps" source-user any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db-apps" category any
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db-apps" application [ icmp ping ]
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db-apps" service application-default
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db-apps" action deny
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db-apps" log-end no
+set rulebase security rules "nsg-web_DenyAllOutBound to nsg-db-apps" description "Deny all outbound traffic"
+set rulebase security rules nsg-app_Allow-Db_nsg-web_Deny-Partner from nsg-app
+set rulebase security rules nsg-app_Allow-Db_nsg-web_Deny-Partner to nsg-web
+set rulebase security rules nsg-app_Allow-Db_nsg-web_Deny-Partner source 203.0.113.0/24
+set rulebase security rules nsg-app_Allow-Db_nsg-web_Deny-Partner destination asg-db
+set rulebase security rules nsg-app_Allow-Db_nsg-web_Deny-Partner source-user any
+set rulebase security rules nsg-app_Allow-Db_nsg-web_Deny-Partner category any
+set rulebase security rules nsg-app_Allow-Db_nsg-web_Deny-Partner application any
+set rulebase security rules nsg-app_Allow-Db_nsg-web_Deny-Partner service tcp-1433
+set rulebase security rules nsg-app_Allow-Db_nsg-web_Deny-Partner action deny
+set rulebase security rules nsg-app_Allow-Db_nsg-web_Deny-Partner log-end no
+set rulebase security rules nsg-app_Allow-Db_nsg-web_Deny-Partner description "Old partner range"
+set rulebase security rules nsg-app_Allow-Db_nsg-web_AllowVnetInBound from nsg-app
+set rulebase security rules nsg-app_Allow-Db_nsg-web_AllowVnetInBound to nsg-web
+set rulebase security rules nsg-app_Allow-Db_nsg-web_AllowVnetInBound source any
+set rulebase security rules nsg-app_Allow-Db_nsg-web_AllowVnetInBound destination asg-db
+set rulebase security rules nsg-app_Allow-Db_nsg-web_AllowVnetInBound source-user any
+set rulebase security rules nsg-app_Allow-Db_nsg-web_AllowVnetInBound category any
+set rulebase security rules nsg-app_Allow-Db_nsg-web_AllowVnetInBound application any
+set rulebase security rules nsg-app_Allow-Db_nsg-web_AllowVnetInBound service tcp-1433
+set rulebase security rules nsg-app_Allow-Db_nsg-web_AllowVnetInBound action allow
+set rulebase security rules nsg-app_Allow-Db_nsg-web_AllowVnetInBound log-end no
+set rulebase security rules nsg-app_Allow-Db_nsg-web_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-app_Allow-Db_nsg-web_DenyAllInBound from nsg-app
+set rulebase security rules nsg-app_Allow-Db_nsg-web_DenyAllInBound to nsg-web
+set rulebase security rules nsg-app_Allow-Db_nsg-web_DenyAllInBound source any
+set rulebase security rules nsg-app_Allow-Db_nsg-web_DenyAllInBound destination asg-db
+set rulebase security rules nsg-app_Allow-Db_nsg-web_DenyAllInBound source-user any
+set rulebase security rules nsg-app_Allow-Db_nsg-web_DenyAllInBound category any
+set rulebase security rules nsg-app_Allow-Db_nsg-web_DenyAllInBound application any
+set rulebase security rules nsg-app_Allow-Db_nsg-web_DenyAllInBound service tcp-1433
+set rulebase security rules nsg-app_Allow-Db_nsg-web_DenyAllInBound action deny
+set rulebase security rules nsg-app_Allow-Db_nsg-web_DenyAllInBound log-end no
+set rulebase security rules nsg-app_Allow-Db_nsg-web_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_Deny-Partner from nsg-app
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_Deny-Partner to nsg-web
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_Deny-Partner source 203.0.113.0/24
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_Deny-Partner destination 10.30.0.4
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_Deny-Partner source-user any
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_Deny-Partner category any
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_Deny-Partner application any
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_Deny-Partner service udp-53-from-1024-65535
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_Deny-Partner action deny
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_Deny-Partner log-end no
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_Deny-Partner description "Old partner range"
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_AllowVnetInBound from nsg-app
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_AllowVnetInBound to nsg-web
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_AllowVnetInBound source any
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_AllowVnetInBound destination 10.30.0.4
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_AllowVnetInBound source-user any
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_AllowVnetInBound category any
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_AllowVnetInBound application any
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_AllowVnetInBound service udp-53-from-1024-65535
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_AllowVnetInBound action allow
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_AllowVnetInBound log-end no
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_DenyAllInBound from nsg-app
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_DenyAllInBound to nsg-web
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_DenyAllInBound source any
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_DenyAllInBound destination 10.30.0.4
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_DenyAllInBound source-user any
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_DenyAllInBound category any
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_DenyAllInBound application any
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_DenyAllInBound service udp-53-from-1024-65535
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_DenyAllInBound action deny
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_DenyAllInBound log-end no
+set rulebase security rules nsg-app_Allow-Dns_nsg-web_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules "nsg-app_Deny-Out to nsg-web" from nsg-app
+set rulebase security rules "nsg-app_Deny-Out to nsg-web" to nsg-web
+set rulebase security rules "nsg-app_Deny-Out to nsg-web" source any
+set rulebase security rules "nsg-app_Deny-Out to nsg-web" destination any
+set rulebase security rules "nsg-app_Deny-Out to nsg-web" source-user any
+set rulebase security rules "nsg-app_Deny-Out to nsg-web" category any
+set rulebase security rules "nsg-app_Deny-Out to nsg-web" application any
+set rulebase security rules "nsg-app_Deny-Out to nsg-web" service tcp-udp-icmp
+set rulebase security rules "nsg-app_Deny-Out to nsg-web" action deny
+set rulebase security rules "nsg-app_Deny-Out to nsg-web" log-end no
+set rulebase security rules "nsg-app_Deny-Out to nsg-web-apps" from nsg-app
+set rulebase security rules "nsg-app_Deny-Out to nsg-web-apps" to nsg-web
+set rulebase security rules "nsg-app_Deny-Out to nsg-web-apps" source any
+set rulebase security rules "nsg-app_Deny-Out to nsg-web-apps" destination any
+set rulebase security rules "nsg-app_Deny-Out to nsg-web-apps" source-user any
+set rulebase security rules "nsg-app_Deny-Out to nsg-web-apps" category any
+set rulebase security rules "nsg-app_Deny-Out to nsg-web-apps" application [ icmp ping ]
+set rulebase security rules "nsg-app_Deny-Out to nsg-web-apps" service application-default
+set rulebase security rules "nsg-app_Deny-Out to nsg-web-apps" action deny
+set rulebase security rules "nsg-app_Deny-Out to nsg-web-apps" log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS to nsg-web
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS source any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS destination asg-web
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS application any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS service tcp-443_80
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS action allow
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS description "Web from anywhere"
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-SSH-Admins from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-SSH-Admins to nsg-web
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-SSH-Admins source [ 198.51.100.0/24 192.0.2.128/25 ]
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-SSH-Admins destination 10.30.1.0/24
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-SSH-Admins source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-SSH-Admins category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-SSH-Admins application any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-SSH-Admins service tcp-22
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-SSH-Admins action allow
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-SSH-Admins log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 to nsg-web
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 source 2001:db8:ff::/48
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 application any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 service tcp-443
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 action allow
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner to nsg-web
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner source 203.0.113.0/24
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner application any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner service tcp-udp-icmp
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner action deny
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner description "Old partner range"
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner-apps from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner-apps to nsg-web
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner-apps source 203.0.113.0/24
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner-apps destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner-apps source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner-apps category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner-apps application [ icmp ping ]
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner-apps service application-default
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner-apps action deny
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner-apps log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner-apps description "Old partner range"
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-Ping-VNet from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-Ping-VNet to nsg-web
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-Ping-VNet source any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-Ping-VNet destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-Ping-VNet source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-Ping-VNet category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-Ping-VNet application [ icmp ping ]
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-Ping-VNet service application-default
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-Ping-VNet action allow
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_Allow-Ping-VNet log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound to nsg-web
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound source any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound application any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound service tcp-udp-icmp-2
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound action allow
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps to nsg-web
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps source any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps service application-default
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps action allow
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound to nsg-web
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound source any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound application any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound service tcp-udp-icmp
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound action deny
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound-apps from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound-apps to nsg-web
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound-apps source any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound-apps destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound-apps source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound-apps category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound-apps service application-default
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound-apps action deny
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound-apps log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound-apps description "Deny all inbound traffic"
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web" from nsg-app
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web" to nsg-web
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web" source any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web" destination any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web" source-user any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web" category any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web" application any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web" service tcp-udp-icmp
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web" action deny
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web" log-end no
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web" description "Deny all outbound traffic"
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web-apps" from nsg-app
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web-apps" to nsg-web
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web-apps" source any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web-apps" destination any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web-apps" source-user any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web-apps" category any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web-apps" application [ icmp ping ]
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web-apps" service application-default
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web-apps" action deny
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web-apps" log-end no
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-web-apps" description "Deny all outbound traffic"
+set rulebase security rules nsg-app_Allow-Db_nsg-app_Deny-VNet from nsg-app
+set rulebase security rules nsg-app_Allow-Db_nsg-app_Deny-VNet to nsg-app
+set rulebase security rules nsg-app_Allow-Db_nsg-app_Deny-VNet source any
+set rulebase security rules nsg-app_Allow-Db_nsg-app_Deny-VNet destination asg-db
+set rulebase security rules nsg-app_Allow-Db_nsg-app_Deny-VNet source-user any
+set rulebase security rules nsg-app_Allow-Db_nsg-app_Deny-VNet category any
+set rulebase security rules nsg-app_Allow-Db_nsg-app_Deny-VNet application any
+set rulebase security rules nsg-app_Allow-Db_nsg-app_Deny-VNet service tcp-1433
+set rulebase security rules nsg-app_Allow-Db_nsg-app_Deny-VNet action deny
+set rulebase security rules nsg-app_Allow-Db_nsg-app_Deny-VNet log-end no
+set rulebase security rules nsg-app_Allow-Db_nsg-app_AllowVnetInBound from nsg-app
+set rulebase security rules nsg-app_Allow-Db_nsg-app_AllowVnetInBound to nsg-app
+set rulebase security rules nsg-app_Allow-Db_nsg-app_AllowVnetInBound source any
+set rulebase security rules nsg-app_Allow-Db_nsg-app_AllowVnetInBound destination asg-db
+set rulebase security rules nsg-app_Allow-Db_nsg-app_AllowVnetInBound source-user any
+set rulebase security rules nsg-app_Allow-Db_nsg-app_AllowVnetInBound category any
+set rulebase security rules nsg-app_Allow-Db_nsg-app_AllowVnetInBound application any
+set rulebase security rules nsg-app_Allow-Db_nsg-app_AllowVnetInBound service tcp-1433
+set rulebase security rules nsg-app_Allow-Db_nsg-app_AllowVnetInBound action allow
+set rulebase security rules nsg-app_Allow-Db_nsg-app_AllowVnetInBound log-end no
+set rulebase security rules nsg-app_Allow-Db_nsg-app_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-app_Allow-Db_nsg-app_DenyAllInBound from nsg-app
+set rulebase security rules nsg-app_Allow-Db_nsg-app_DenyAllInBound to nsg-app
+set rulebase security rules nsg-app_Allow-Db_nsg-app_DenyAllInBound source any
+set rulebase security rules nsg-app_Allow-Db_nsg-app_DenyAllInBound destination asg-db
+set rulebase security rules nsg-app_Allow-Db_nsg-app_DenyAllInBound source-user any
+set rulebase security rules nsg-app_Allow-Db_nsg-app_DenyAllInBound category any
+set rulebase security rules nsg-app_Allow-Db_nsg-app_DenyAllInBound application any
+set rulebase security rules nsg-app_Allow-Db_nsg-app_DenyAllInBound service tcp-1433
+set rulebase security rules nsg-app_Allow-Db_nsg-app_DenyAllInBound action deny
+set rulebase security rules nsg-app_Allow-Db_nsg-app_DenyAllInBound log-end no
+set rulebase security rules nsg-app_Allow-Db_nsg-app_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_Deny-VNet from nsg-app
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_Deny-VNet to nsg-app
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_Deny-VNet source any
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_Deny-VNet destination 10.30.0.4
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_Deny-VNet source-user any
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_Deny-VNet category any
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_Deny-VNet application any
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_Deny-VNet service udp-53-from-1024-65535
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_Deny-VNet action deny
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_Deny-VNet log-end no
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_AllowVnetInBound from nsg-app
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_AllowVnetInBound to nsg-app
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_AllowVnetInBound source any
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_AllowVnetInBound destination 10.30.0.4
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_AllowVnetInBound source-user any
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_AllowVnetInBound category any
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_AllowVnetInBound application any
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_AllowVnetInBound service udp-53-from-1024-65535
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_AllowVnetInBound action allow
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_AllowVnetInBound log-end no
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_DenyAllInBound from nsg-app
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_DenyAllInBound to nsg-app
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_DenyAllInBound source any
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_DenyAllInBound destination 10.30.0.4
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_DenyAllInBound source-user any
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_DenyAllInBound category any
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_DenyAllInBound application any
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_DenyAllInBound service udp-53-from-1024-65535
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_DenyAllInBound action deny
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_DenyAllInBound log-end no
+set rulebase security rules nsg-app_Allow-Dns_nsg-app_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules "nsg-app_Deny-Out to nsg-app" from nsg-app
+set rulebase security rules "nsg-app_Deny-Out to nsg-app" to nsg-app
+set rulebase security rules "nsg-app_Deny-Out to nsg-app" source any
+set rulebase security rules "nsg-app_Deny-Out to nsg-app" destination any
+set rulebase security rules "nsg-app_Deny-Out to nsg-app" source-user any
+set rulebase security rules "nsg-app_Deny-Out to nsg-app" category any
+set rulebase security rules "nsg-app_Deny-Out to nsg-app" application any
+set rulebase security rules "nsg-app_Deny-Out to nsg-app" service tcp-udp-icmp
+set rulebase security rules "nsg-app_Deny-Out to nsg-app" action deny
+set rulebase security rules "nsg-app_Deny-Out to nsg-app" log-end no
+set rulebase security rules "nsg-app_Deny-Out to nsg-app-apps" from nsg-app
+set rulebase security rules "nsg-app_Deny-Out to nsg-app-apps" to nsg-app
+set rulebase security rules "nsg-app_Deny-Out to nsg-app-apps" source any
+set rulebase security rules "nsg-app_Deny-Out to nsg-app-apps" destination any
+set rulebase security rules "nsg-app_Deny-Out to nsg-app-apps" source-user any
+set rulebase security rules "nsg-app_Deny-Out to nsg-app-apps" category any
+set rulebase security rules "nsg-app_Deny-Out to nsg-app-apps" application [ icmp ping ]
+set rulebase security rules "nsg-app_Deny-Out to nsg-app-apps" service application-default
+set rulebase security rules "nsg-app_Deny-Out to nsg-app-apps" action deny
+set rulebase security rules "nsg-app_Deny-Out to nsg-app-apps" log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Allow-From-Web from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Allow-From-Web to nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Allow-From-Web source 10.30.1.0/24
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Allow-From-Web destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Allow-From-Web source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Allow-From-Web category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Allow-From-Web application any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Allow-From-Web service tcp-8443
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Allow-From-Web action allow
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Allow-From-Web log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet to nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet source any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet application any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet service tcp-udp-icmp
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet action deny
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet-apps from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet-apps to nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet-apps source any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet-apps destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet-apps source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet-apps category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet-apps application [ icmp ping ]
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet-apps service application-default
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet-apps action deny
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet-apps log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound to nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound source any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound application any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound service tcp-udp-icmp-2
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound action allow
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps to nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps source any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps service application-default
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps action allow
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound to nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound source any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound application any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound service tcp-udp-icmp
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound action deny
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound-apps from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound-apps to nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound-apps source any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound-apps destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound-apps source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound-apps category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound-apps service application-default
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound-apps action deny
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound-apps log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound-apps description "Deny all inbound traffic"
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app" from nsg-app
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app" to nsg-app
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app" source any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app" destination any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app" source-user any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app" category any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app" application any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app" service tcp-udp-icmp
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app" action deny
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app" log-end no
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app" description "Deny all outbound traffic"
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app-apps" from nsg-app
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app-apps" to nsg-app
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app-apps" source any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app-apps" destination any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app-apps" source-user any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app-apps" category any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app-apps" application [ icmp ping ]
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app-apps" service application-default
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app-apps" action deny
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app-apps" log-end no
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-app-apps" description "Deny all outbound traffic"
+set rulebase security rules nsg-app_Allow-Db_nsg-db_Allow-Sql-From-App from nsg-app
+set rulebase security rules nsg-app_Allow-Db_nsg-db_Allow-Sql-From-App to nsg-db
+set rulebase security rules nsg-app_Allow-Db_nsg-db_Allow-Sql-From-App source 10.30.2.0/24
+set rulebase security rules nsg-app_Allow-Db_nsg-db_Allow-Sql-From-App destination asg-db
+set rulebase security rules nsg-app_Allow-Db_nsg-db_Allow-Sql-From-App source-user any
+set rulebase security rules nsg-app_Allow-Db_nsg-db_Allow-Sql-From-App category any
+set rulebase security rules nsg-app_Allow-Db_nsg-db_Allow-Sql-From-App application any
+set rulebase security rules nsg-app_Allow-Db_nsg-db_Allow-Sql-From-App service tcp-1433
+set rulebase security rules nsg-app_Allow-Db_nsg-db_Allow-Sql-From-App action allow
+set rulebase security rules nsg-app_Allow-Db_nsg-db_Allow-Sql-From-App log-end no
+set rulebase security rules nsg-app_Allow-Db_nsg-db_AllowVnetInBound from nsg-app
+set rulebase security rules nsg-app_Allow-Db_nsg-db_AllowVnetInBound to nsg-db
+set rulebase security rules nsg-app_Allow-Db_nsg-db_AllowVnetInBound source any
+set rulebase security rules nsg-app_Allow-Db_nsg-db_AllowVnetInBound destination asg-db
+set rulebase security rules nsg-app_Allow-Db_nsg-db_AllowVnetInBound source-user any
+set rulebase security rules nsg-app_Allow-Db_nsg-db_AllowVnetInBound category any
+set rulebase security rules nsg-app_Allow-Db_nsg-db_AllowVnetInBound application any
+set rulebase security rules nsg-app_Allow-Db_nsg-db_AllowVnetInBound service tcp-1433
+set rulebase security rules nsg-app_Allow-Db_nsg-db_AllowVnetInBound action allow
+set rulebase security rules nsg-app_Allow-Db_nsg-db_AllowVnetInBound log-end no
+set rulebase security rules nsg-app_Allow-Db_nsg-db_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-app_Allow-Db_nsg-db_DenyAllInBound from nsg-app
+set rulebase security rules nsg-app_Allow-Db_nsg-db_DenyAllInBound to nsg-db
+set rulebase security rules nsg-app_Allow-Db_nsg-db_DenyAllInBound source any
+set rulebase security rules nsg-app_Allow-Db_nsg-db_DenyAllInBound destination asg-db
+set rulebase security rules nsg-app_Allow-Db_nsg-db_DenyAllInBound source-user any
+set rulebase security rules nsg-app_Allow-Db_nsg-db_DenyAllInBound category any
+set rulebase security rules nsg-app_Allow-Db_nsg-db_DenyAllInBound application any
+set rulebase security rules nsg-app_Allow-Db_nsg-db_DenyAllInBound service tcp-1433
+set rulebase security rules nsg-app_Allow-Db_nsg-db_DenyAllInBound action deny
+set rulebase security rules nsg-app_Allow-Db_nsg-db_DenyAllInBound log-end no
+set rulebase security rules nsg-app_Allow-Db_nsg-db_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_AllowVnetInBound from nsg-app
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_AllowVnetInBound to nsg-db
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_AllowVnetInBound source any
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_AllowVnetInBound destination 10.30.0.4
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_AllowVnetInBound source-user any
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_AllowVnetInBound category any
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_AllowVnetInBound application any
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_AllowVnetInBound service udp-53-from-1024-65535
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_AllowVnetInBound action allow
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_AllowVnetInBound log-end no
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_DenyAllInBound from nsg-app
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_DenyAllInBound to nsg-db
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_DenyAllInBound source any
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_DenyAllInBound destination 10.30.0.4
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_DenyAllInBound source-user any
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_DenyAllInBound category any
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_DenyAllInBound application any
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_DenyAllInBound service udp-53-from-1024-65535
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_DenyAllInBound action deny
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_DenyAllInBound log-end no
+set rulebase security rules nsg-app_Allow-Dns_nsg-db_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules "nsg-app_Deny-Out to nsg-db" from nsg-app
+set rulebase security rules "nsg-app_Deny-Out to nsg-db" to nsg-db
+set rulebase security rules "nsg-app_Deny-Out to nsg-db" source any
+set rulebase security rules "nsg-app_Deny-Out to nsg-db" destination any
+set rulebase security rules "nsg-app_Deny-Out to nsg-db" source-user any
+set rulebase security rules "nsg-app_Deny-Out to nsg-db" category any
+set rulebase security rules "nsg-app_Deny-Out to nsg-db" application any
+set rulebase security rules "nsg-app_Deny-Out to nsg-db" service tcp-udp-icmp
+set rulebase security rules "nsg-app_Deny-Out to nsg-db" action deny
+set rulebase security rules "nsg-app_Deny-Out to nsg-db" log-end no
+set rulebase security rules "nsg-app_Deny-Out to nsg-db-apps" from nsg-app
+set rulebase security rules "nsg-app_Deny-Out to nsg-db-apps" to nsg-db
+set rulebase security rules "nsg-app_Deny-Out to nsg-db-apps" source any
+set rulebase security rules "nsg-app_Deny-Out to nsg-db-apps" destination any
+set rulebase security rules "nsg-app_Deny-Out to nsg-db-apps" source-user any
+set rulebase security rules "nsg-app_Deny-Out to nsg-db-apps" category any
+set rulebase security rules "nsg-app_Deny-Out to nsg-db-apps" application [ icmp ping ]
+set rulebase security rules "nsg-app_Deny-Out to nsg-db-apps" service application-default
+set rulebase security rules "nsg-app_Deny-Out to nsg-db-apps" action deny
+set rulebase security rules "nsg-app_Deny-Out to nsg-db-apps" log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_Allow-Sql-From-App from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_Allow-Sql-From-App to nsg-db
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_Allow-Sql-From-App source 10.30.2.0/24
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_Allow-Sql-From-App destination asg-db
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_Allow-Sql-From-App source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_Allow-Sql-From-App category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_Allow-Sql-From-App application any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_Allow-Sql-From-App service tcp-1433
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_Allow-Sql-From-App action allow
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_Allow-Sql-From-App log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound to nsg-db
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound source any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound application any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound service tcp-udp-icmp-2
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound action allow
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps to nsg-db
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps source any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps service application-default
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps action allow
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound to nsg-db
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound source any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound application any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound service tcp-udp-icmp
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound action deny
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound-apps from nsg-app
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound-apps to nsg-db
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound-apps source any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound-apps destination any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound-apps source-user any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound-apps category any
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound-apps service application-default
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound-apps action deny
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound-apps log-end no
+set rulebase security rules nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound-apps description "Deny all inbound traffic"
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db" from nsg-app
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db" to nsg-db
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db" source any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db" destination any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db" source-user any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db" category any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db" application any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db" service tcp-udp-icmp
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db" action deny
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db" log-end no
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db" description "Deny all outbound traffic"
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db-apps" from nsg-app
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db-apps" to nsg-db
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db-apps" source any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db-apps" destination any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db-apps" source-user any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db-apps" category any
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db-apps" application [ icmp ping ]
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db-apps" service application-default
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db-apps" action deny
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db-apps" log-end no
+set rulebase security rules "nsg-app_DenyAllOutBound to nsg-db-apps" description "Deny all outbound traffic"
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS to nsg-web
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS source any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS destination asg-web
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS application any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS service tcp-443_80
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS action allow
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS description "Web from anywhere"
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-SSH-Admins from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-SSH-Admins to nsg-web
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-SSH-Admins source [ 198.51.100.0/24 192.0.2.128/25 ]
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-SSH-Admins destination 10.30.1.0/24
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-SSH-Admins source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-SSH-Admins category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-SSH-Admins application any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-SSH-Admins service tcp-22
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-SSH-Admins action allow
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-SSH-Admins log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 to nsg-web
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 source 2001:db8:ff::/48
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 application any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 service tcp-443
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 action allow
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-HTTPS-v6 log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner to nsg-web
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner source 203.0.113.0/24
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner application any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner service tcp-udp-icmp
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner action deny
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner description "Old partner range"
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner-apps from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner-apps to nsg-web
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner-apps source 203.0.113.0/24
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner-apps destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner-apps source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner-apps category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner-apps application [ icmp ping ]
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner-apps service application-default
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner-apps action deny
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner-apps log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner-apps description "Old partner range"
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-Ping-VNet from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-Ping-VNet to nsg-web
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-Ping-VNet source any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-Ping-VNet destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-Ping-VNet source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-Ping-VNet category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-Ping-VNet application [ icmp ping ]
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-Ping-VNet service application-default
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-Ping-VNet action allow
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_Allow-Ping-VNet log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound to nsg-web
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound source any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound application any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound service tcp-udp-icmp-2
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound action allow
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps to nsg-web
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps source any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps service application-default
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps action allow
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound to nsg-web
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound source any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound application any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound service tcp-udp-icmp
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound action deny
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound-apps from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound-apps to nsg-web
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound-apps source any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound-apps destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound-apps source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound-apps category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound-apps service application-default
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound-apps action deny
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound-apps log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound-apps description "Deny all inbound traffic"
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web" from nsg-db
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web" to nsg-web
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web" source any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web" destination any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web" source-user any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web" category any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web" application any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web" service tcp-udp-icmp
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web" action deny
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web" log-end no
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web" description "Deny all outbound traffic"
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web-apps" from nsg-db
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web-apps" to nsg-web
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web-apps" source any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web-apps" destination any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web-apps" source-user any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web-apps" category any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web-apps" application [ icmp ping ]
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web-apps" service application-default
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web-apps" action deny
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web-apps" log-end no
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-web-apps" description "Deny all outbound traffic"
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Allow-From-Web from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Allow-From-Web to nsg-app
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Allow-From-Web source 10.30.1.0/24
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Allow-From-Web destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Allow-From-Web source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Allow-From-Web category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Allow-From-Web application any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Allow-From-Web service tcp-8443
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Allow-From-Web action allow
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Allow-From-Web log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet to nsg-app
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet source any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet application any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet service tcp-udp-icmp
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet action deny
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet-apps from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet-apps to nsg-app
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet-apps source any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet-apps destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet-apps source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet-apps category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet-apps application [ icmp ping ]
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet-apps service application-default
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet-apps action deny
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet-apps log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound to nsg-app
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound source any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound application any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound service tcp-udp-icmp-2
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound action allow
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps to nsg-app
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps source any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps service application-default
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps action allow
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound to nsg-app
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound source any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound application any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound service tcp-udp-icmp
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound action deny
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound-apps from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound-apps to nsg-app
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound-apps source any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound-apps destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound-apps source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound-apps category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound-apps service application-default
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound-apps action deny
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound-apps log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound-apps description "Deny all inbound traffic"
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app" from nsg-db
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app" to nsg-app
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app" source any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app" destination any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app" source-user any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app" category any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app" application any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app" service tcp-udp-icmp
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app" action deny
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app" log-end no
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app" description "Deny all outbound traffic"
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app-apps" from nsg-db
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app-apps" to nsg-app
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app-apps" source any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app-apps" destination any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app-apps" source-user any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app-apps" category any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app-apps" application [ icmp ping ]
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app-apps" service application-default
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app-apps" action deny
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app-apps" log-end no
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-app-apps" description "Deny all outbound traffic"
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_Allow-Sql-From-App from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_Allow-Sql-From-App to nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_Allow-Sql-From-App source 10.30.2.0/24
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_Allow-Sql-From-App destination asg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_Allow-Sql-From-App source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_Allow-Sql-From-App category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_Allow-Sql-From-App application any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_Allow-Sql-From-App service tcp-1433
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_Allow-Sql-From-App action allow
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_Allow-Sql-From-App log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound to nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound source any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound application any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound service tcp-udp-icmp-2
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound action allow
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps to nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps source any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps service application-default
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps action allow
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps description "Allow inbound traffic from all VMs in VNET"
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound to nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound source any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound application any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound service tcp-udp-icmp
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound action deny
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound description "Deny all inbound traffic"
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound-apps from nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound-apps to nsg-db
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound-apps source any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound-apps destination any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound-apps source-user any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound-apps category any
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound-apps application [ icmp ping ]
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound-apps service application-default
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound-apps action deny
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound-apps log-end no
+set rulebase security rules nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound-apps description "Deny all inbound traffic"
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db" from nsg-db
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db" to nsg-db
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db" source any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db" destination any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db" source-user any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db" category any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db" application any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db" service tcp-udp-icmp
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db" action deny
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db" log-end no
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db" description "Deny all outbound traffic"
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db-apps" from nsg-db
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db-apps" to nsg-db
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db-apps" source any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db-apps" destination any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db-apps" source-user any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db-apps" category any
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db-apps" application [ icmp ping ]
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db-apps" service application-default
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db-apps" action deny
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db-apps" log-end no
+set rulebase security rules "nsg-db_DenyAllOutBound to nsg-db-apps" description "Deny all outbound traffic"
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."

@@ -8,11 +8,11 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.20.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups) |
-| Tests | 3762, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, a Check Point management server, a Cisco Management Center or a Device Manager |
-| Next | brand 0.21.0: Azure NSG; then the zone and conduit model as a gate (0.22.0); lab validation of the sample conversions (see `TODO.md`) |
+| Version | 0.21.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone) |
+| Tests | 3929, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a Check Point management server, a Cisco Management Center or a Device Manager |
+| Next | the zone and conduit model as a gate, with the equivalence check (0.22.0); lab validation of the sample conversions (see `TODO.md`) |
 
 ## Layout
 
@@ -48,6 +48,9 @@ src/fwshift/
         aws.py        AWS CLI JSON -> model (groups as the addresses of their
                       interfaces; outbound rules outside the VPC, pairs of
                       outbound and inbound rules inside; network ACLs)
+        azure.py      Azure JSON (CLI, REST, template, Resource Graph) -> model
+                      (a zone per group; the outbound and inbound lists of
+                      two groups composed; templates worked out)
     emitters/
         panos.py      model -> PAN-OS set commands
         fortios.py    model -> FortiOS CLI configuration
@@ -77,6 +80,8 @@ src/fwshift/
         aws.py        model -> a script of AWS CLI calls (allow rules without
                       the deny rules above them, both ends, groups cut by
                       address)
+        azure.py      model -> an ARM template (a group per zone, each list in
+                      blocks per remote zone, with the default of the source)
     regions.py        sets of connections as boxes (IP version, sources,
                       destinations, services): subtraction, and services back
                       to entries; for AWS, which cannot block
@@ -124,7 +129,7 @@ tests/
                       FortiOS logs (and panos_logged.xml), the two
                       Cisco Secure Firewall samples and the SonicWall,
                       WatchGuard, Barracuda and Juniper samples, the nftables
-                      sample (written by nft itself), the NSX and AWS samples,
+                      sample (written by nft itself), the NSX, AWS and Azure samples,
                       and the kernel checks for iptables and nftables
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
                       Check Point, ASA, Sophos and Cisco Secure Firewall output;
@@ -143,6 +148,9 @@ tests/
                       shares no code with the parser
     test_aws.py       AWS both ways: a judge of a VPC (groups, ACLs, public
                       addresses) and a judge of the emitted script
+    test_azure.py     Azure both ways: a judge of groups as Azure decides
+                      them (two lists in priority order) and a judge of the
+                      emitted template
     test_checkpoint.py Check Point both ways, with simulators for an export
                       and for an emitted script
     test_asa.py       Cisco ASA both ways, with a random ASA that judges
@@ -534,6 +542,10 @@ there for an old tag whose tests no longer run on today's tools.
 | AWS: every piece on both ends, groups cut by address | A group's rule names one side; the other is the interface. Written as an inbound rule at the destination and an outbound rule at the source, each end lets through only what the policy allows between the two, which is exact without knowing which addresses are in the VPC. Every address in one group per IP version keeps the number of groups per interface at one or two. |
 | AWS: new groups, attached to nothing | EC2 has no transaction. Groups without members change no traffic, so a script that stops halfway is harmless; attaching replaces the groups of an interface and is left to a person. |
 | AWS: read without zones | A group is a set of interfaces, not a place; an interface carries up to sixteen. The VPC's addresses are a group of the model, so a target that needs no zones (NSX, AWS) needs no options. |
+| Azure: each group a zone, two groups composed | A connection between resources behind two groups passes the outbound list of the one and the inbound list of the other. As one first-match list of the model: each outbound deny rule, and for each outbound allow rule the inbound rules cut to it. Exact where the cuts can be worked out; where they cannot, an allow rule is not converted and a deny rule blocks all it blocked. |
+| Azure: a group per zone, blocks per remote zone | A security rule names addresses, not zones. Each list is cut into a block per remote zone, kept to its networks and ended by that zone's default, so every address of a zone is decided in its block; the zones of the default route come last, and only for their IP versions. |
+| Azure: templates worked out, or refused | An exported or Bicep-built template is a common way to hold groups. Its expressions are worked out where they can be (parameters with defaults, variables, the common functions, copy loops, conditions); a name that cannot be worked out refuses the template, any other field leaves its rule not converted, so nothing goes missing silently. |
+| Azure: an allow rule never says `*` | Microsoft documents `*` as TCP, UDP and ICMP, but the default DenyAll rules suggest it matches more. An allow rule names the three; a blocking rule may say `*`, which then blocks at least as much. |
 | iptables: lists become chains | iptables has no objects and a rule matches one address per side. A chain per list keeps a rule with long or negated lists to one jump, instead of a product of lines. |
 | Check Point input is API JSON | There is no configuration file. The API export is documented, versioned and what other tools consume. |
 | Check Point output is a `mgmt_cli` script that stops at the first error and never publishes | The session is the unit of change on a management server: a person reviews it in SmartConsole and publishes or discards. A script that carried on after a refused call would leave a policy with rules missing. |
@@ -587,6 +599,7 @@ policy behaves unexpectedly.
 | nftables: every base chain at a hook sees a packet in the order of its priority, whatever table; accept ends one base chain, drop is final; a family without a base chain is not filtered; the forward hook sees addresses after prerouting DNAT. (Checked against the kernel, see Testing.) Printed forms of nft 0.9.3 to 1.1.6 taken from their sources | nftables parser and emitter |
 | NSX: categories run in a fixed order (Ethernet, Emergency, Infrastructure, Environment, Application), policies by sequence number with the default policy last, rules by sequence number; `JUMP_TO_APPLICATION` skips the rest of Environment; the default layer-3 rule decides what no rule matches; a connection is checked at both ends (applied-to); a segment in a group means its workloads. From the Policy API reference, the SDK schema and the Terraform provider, not from a manager | NSX parser and emitter |
 | AWS: a group allows only; the rules of the groups of an interface are one set; a reference to a group means the private addresses of its interfaces; a connection inside the VPC needs the source's outbound and the destination's inbound rules; a network ACL is first match by rule number, ends in `*` deny, is stateless and not applied inside a subnet; the internet gateway translates public addresses for what comes from outside. From the botocore service model and the VPC and EC2 user guides, not from an account | AWS parser and emitter |
+| Azure: a group's two lists are first match by priority (100 to 4096), each ending in three default rules (65000 to 65500); traffic between two groups passes the outbound list of the source's and the inbound list of the destination's; the groups are stateful; `VirtualNetwork` is the virtual network, its peerings and what gateways connect; `AzureLoadBalancer` is 168.63.129.16; `*` is TCP, UDP and ICMP; an interface behind a group of its own and one on its subnet passes both; 2,000 rules and 100 application security groups per group. From the REST API specifications, the Azure CLI and its test recordings, and the documentation, not from a subscription | Azure parser and emitter |
 | Check Point matches the access rulebase on the original packet and takes the destination zone after NAT | model, Check Point parser and emitter |
 | A connection sent into an inline layer never returns to the parent layer; a layer without a matching rule applies its implicit cleanup action | Check Point parser |
 | An object with automatic static NAT matches its translated address in the rulebase; with manual NAT the rules name the original address | `_automatic_nat`, `_also_valid` |
@@ -1965,6 +1978,112 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-13: version 0.21.0
+
+The last of four brands planned one release each (`TODO.md`): **Azure network
+security groups**, read and written.
+
+**Built**
+
+* `parsers/azure.py`: network security groups as the Azure CLI prints them
+  (`az network nsg list` and `show`), as the REST API gives them
+  (`properties`, `{"value": [...]}`), from an exported or Bicep-built ARM
+  template, and from Resource Graph; with the network interfaces, the virtual
+  networks and the service tags, alone or in one array.
+* Each group is a zone, everything else `outside`. Inbound and outbound rules
+  in the order of their priorities, ending in the default rules (added when the
+  export leaves them out). Traffic between two groups as the composition of
+  the outbound list of the one and the inbound list of the other. Service tags
+  as the addresses of the service tag list, application security groups as the
+  addresses of the interfaces that carry them, else dynamic groups.
+  `VirtualNetwork` on a group's own side is any of its resources; groups in
+  virtual networks that are not peered are not composed.
+* Templates: parameters with their default values, variables, `concat`,
+  `format`, `resourceId`, `copyIndex`, `if`, `equals` and a few more, with
+  index and property access; copy loops of resources and of properties;
+  conditions; child rules at the top or nested. What is not worked out
+  refuses the template (in a name) or leaves the rule not converted.
+* `emitters/azure.py`: an ARM template with a group per zone that has
+  networks. Each list in blocks per remote zone, kept to its networks, each
+  ending in that zone's default; the zones of the default route last, for their
+  IP versions; the default of the source at 4096. A rule as one security rule
+  per protocol, IP version and service tag or application security group.
+* `--inside-zone` and `--zone-network` apply to Azure; `--target-prefix` and
+  `--target-policy` name the groups.
+* `tests/test_azure.py` (132 tests), the sample (`azure_sample.json`, written
+  by `tests/tools/make_azure_sample.py`), 33 golden conversions, the matrix
+  and the audit of the sample.
+
+**What the platform made necessary**
+
+* *Two lists per connection.* Between two groups a connection passes the
+  outbound rules of one and the inbound rules of the other. The model has one
+  list per pair of zones, so the two are composed into one; that grows with
+  the square of the rules, and is capped at 5,000 rules a pair.
+* *Rules name addresses, not zones.* Written back, a group's lists are cut
+  into blocks per remote zone, so that each zone's default decides all of its
+  addresses before the next zone is looked at.
+* *Many shapes of one thing.* The CLI, the REST API, templates and Resource
+  Graph each give the same groups differently; templates hold expressions,
+  which are worked out rather than read as text.
+
+**Sources**
+
+The research notes of this release (read as data, never run): the
+`Microsoft.Network` REST API specifications and their examples
+(azure-rest-api-specs), the Markdown sources of the Azure documentation
+(network security groups, service tags, application security groups, limits,
+template functions and export), the network module of the Azure CLI with its
+test recordings of real service answers, the Resource Graph extension of the
+CLI, and the Terraform azurerm provider as corroboration. No subscription was
+used: the sample is written by hand from those.
+
+**Review**
+
+*Round 29* by the independent reviewer, with repro scripts and fuzzers.
+
+| | Finding | Fix |
+|---|---|---|
+| high | Emitter: with a zone of the default route of one IP version only, the block for addresses of no zone was left out for both versions; a deny rule was lost for the other version | that block is kept to the versions no zone of the default route holds; a zone with networks of the other version gets a block for them too |
+| high | Parser: a priority that is not a whole number (an expression, text, NaN, `true`, 100.9) was sorted last without a word | the rule is not converted; one outside 100 to 4096 too |
+| high | Parser: nested child rules, copy loops, rules given by a parameter, Bicep's `format` and conditions in templates were lost or misread | worked out; what is not refuses the template or leaves the rule not converted (`AZURE_TEMPLATE_CONDITION`) |
+| high | Emitter: a rule name cut to 76 characters and numbered looped for ever from the thousandth | the name is cut to leave room for the number; a counter per name |
+| medium | Emitter: a group whose own zone holds a default route of one version ended in the default between zones; `intrazone_allow = False` was read as the policy's default | the default inside the zone for that version; False is deny |
+| medium | `*` may cover more than TCP, UDP and ICMP (the default DenyAll rules use it) | an allow rule names the three; the parser raises `AZURE_ANY_PROTOCOL` to review when an allow rule for ESP or AH follows a deny rule `*` |
+| medium | `VirtualNetwork` between groups in virtual networks that are not peered was read as reaching each other | not composed (`AZURE_NOT_PEERED`); reported when the export does not say (`AZURE_PEERING_UNKNOWN`) |
+| medium | Members of an application security group from part of the interfaces were taken as all of them | `AZURE_ASG_MEMBERS`, review when deny rules name them |
+| medium-low | Resource Graph answers of the REST API: `totalRecords`, `$skipToken`, `resultTruncated` not looked at; the table format ignored | looked at; the table format refused |
+| medium-low | A group named only by its subnet (in the virtual network) or by its interface had no networks and no chain finding | both associations read |
+| low | The emitter refused a group only above 3,990 rules per direction; Azure allows 2,000 in all and 100 application security groups | those limits |
+| low | An application security group from a template was written back as `/Microsoft.Network/...`, not a resource id | written as `resourceId(...)` in the resource group deployed to |
+| low | The composition grows with the square of groups and rules | measured (20 groups of 60 rules: 38,520 rules in 5 s), said in the manual's limits and in `TODO.md` |
+
+The fixes were not reviewed again; they have tests (the last section of
+`test_azure.py`).
+
+**Verified, and not**
+
+* The tests: `tests/test_azure.py` holds 132 tests, the suite 3929. A
+  judge of groups as Azure decides them (the outbound list of the source's
+  group, the inbound list of the destination's, priorities, defaults, service
+  tags, application security groups), sharing no code with the parser: random
+  groups in exact and loose form, more than 10,000 connections each; a judge of
+  the emitted template: 40 random models exactly (but for what the report says
+  is left out), 20 with zones inside, 20 with zones without networks (never
+  more), 24 with zones of the default route of one IP version and random
+  defaults; the sample converted to Azure and judged again.
+* A mutation check with 40 ways to break the parser and the emitter: 37
+  caught at first (one by hanging the test run); tests were added for the
+  other three (the order of the export used for what is said of the rules, a
+  deny rule that cannot be cut kept to the allow rule's side, a blocking rule
+  of a zone without networks kept to that zone).
+* **Not verified**: nothing was read from or deployed to an Azure
+  subscription. Whether `*` matches ESP, AH and other protocols, what
+  `VirtualNetwork` holds across peerings and gateways, whether Azure accepts
+  every rule as written (names, descriptions, address limits), and how the
+  CLI prints protocol names are taken from the specifications, the recordings
+  and the documentation.
 
 ### 2026-10-13: version 0.20.0
 

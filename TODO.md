@@ -51,19 +51,21 @@ for `nft -f`, written; checked against the kernel with real packets),
 **0.19.0, VMware NSX distributed firewall** (the JSON of the Policy API,
 read: categories, jump to Application, the default rule, groups by address,
 path, segment or membership criteria, applied-to and direction as far as they
-decide; the body of one hierarchical `PATCH`, written), and **0.20.0, AWS
+decide; the body of one hierarchical `PATCH`, written), **0.20.0, AWS
 security groups** (the JSON of the AWS CLI for one VPC, read: groups as the
 addresses of their interfaces, inbound and outbound rules, network ACLs,
 public addresses; a script of AWS CLI calls that creates new groups, written:
-each allow rule without the deny rules above it, at both ends).
+each allow rule without the deny rules above it, at both ends), and
+**0.21.0, Azure network security groups** (the JSON of the Azure CLI, the
+REST API, an ARM template or Resource Graph, read: priorities, the default
+rules, service tags, application security groups, the outbound and inbound
+lists of two groups composed; an ARM template with a group per zone,
+written).
 What each rests on and what nobody has checked on a device is in
 the development log.
 
-Planned next, one release each (2026-10-13):
-
-1. **0.21.0, Azure network security groups**: the JSON of an NSG (Azure CLI
-   or Resource Graph), read and written. Priorities, service tags,
-   application security groups, the default rules.
+The brands planned in 2026 are done. Next is the zone and conduit model
+(0.22.0, under Audit and matrix below).
 
 Not planned yet: OPNsense (planned with pfSense, and left out of 0.8.0: its
 configuration keeps aliases, automatic rules and parts of NAT elsewhere, and
@@ -237,6 +239,18 @@ altered, from the audit's set arithmetic.
     interfaces; traffic to the VPC's own public addresses and through NAT
     gateways converted; VPC Flow Logs for `fwshift usage`; several VPCs, with
     peering, at once.
+18. Azure: an interface behind a group of its own and one on its subnet
+    converted as the two lists in turn (now each on its own,
+    `AZURE_NSG_CHAIN`); Azure Virtual Network Manager's security admin rules
+    read; VPN gateways between virtual networks; Bicep files themselves, and
+    the template functions not worked out yet (`uniqueString`, `resourceGroup()`);
+    NSG flow logs and VNet flow logs for `fwshift usage`; a target of Azure
+    Firewall policies, which have zones and order of their own. The
+    composition of two groups grows with the square of their rules: compose
+    only the pairs whose networks are given.
+19. Other emitters read `Zone.intrazone_allow = False` as "the policy's
+    default" where the model means "denied inside the zone" (the Azure emitter
+    was corrected in review round 29): look at each.
 
 ## Validation
 
@@ -316,6 +330,14 @@ altered, from the audit's set arithmetic.
    record what AWS refuses (descriptions, quotas); check which addresses a
    group reference covers (secondary, IPv6, delegated prefixes) and what
    `--dry-run` checks.
+13. Azure, in a lab subscription: export the groups with the calls of the
+   manual, with `az group export` and with `az graph query`, and compare them
+   with `azure_sample.json` (the case of protocol names, the default rules,
+   the ids of application security groups); deploy `panos_to_azure.json` and
+   `azure_to_azure.json` with `what-if` and for real, and record what Azure
+   refuses (names, descriptions, the 2,000 rules and the address limits);
+   check whether `*` matches ESP, AH and other protocols, and what
+   `VirtualNetwork` holds across peerings and gateways.
 
 ## Project
 

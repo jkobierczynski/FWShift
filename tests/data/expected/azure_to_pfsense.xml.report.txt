@@ -1,0 +1,371 @@
+FWShift conversion report
+  source: azure
+  target: pfsense
+
+Summary
+  Security rules:    116   exact 0, approximated 4, needs review 112 (112 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_DYNAMIC: service tags and application security groups whose addresses only Azure knows: Internet, VirtualNetwork. They are dynamic groups, which only an Azure target writes again; add the service tags (az network list-service-tags) and the network interfaces to the export to convert them for other targets
+  [needs-review] PFSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of a pfSense configuration. Under Diagnostics > Backup & Restore, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every rule, every alias, every NAT rule that is there now is gone, with the separators, the rules pfSense linked to port forwards and the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. There is no NAT area in the file: the NAT of the firewall stays as it is. Keep a backup, and look at the rules before anything depends on them: pfSense does not check what it restores, and a rule it cannot resolve is not loaded. Written for pfSense 2.7 and later
+  [needs-review] INTERFACES_REQUIRED: pfSense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: outside
+  [info] AZURE_ANY_PROTOCOL: protocol '*' is read as Microsoft documents it: TCP, UDP and ICMP; with ports, an allow rule allows TCP and UDP on them and a deny rule blocks ICMP as well. If Azure also matches other protocols with it, a deny rule '*' blocks more there than the converted rule
+  [info] AZURE_UNFILTERED: network security groups do not filter the platform's own traffic (168.63.129.16 and 169.254.169.254: DHCP, DNS, the instance metadata service, health probes); and the security admin rules of Azure Virtual Network Manager, which come first, are not in this export
+  [info] AZURE_ZONES: each network security group is a zone, and everything else the zone outside. The networks behind them, for --zone-network: --zone-network nsg-web=10.30.1.0/24,2001:db8:30:1::/64 --zone-network nsg-app=10.30.2.0/24 --zone-network nsg-db=10.30.3.20
+  [info] AZURE_COMPOSED: traffic between resources behind the groups passes the outbound rules of one and the inbound rules of the other: 80 rules say what both allow, in the order of the two
+  [info] AZURE_ASG_MEMBERS: the members of these application security groups are the network interfaces in the export: asg-db, asg-web. A member whose interface is not in it (another resource group, another subscription) is not in the group
+  [info] SELF_EXCLUDED: on pfSense the rules of an interface are also the rules for traffic to the firewall itself. Rules of the source that pass traffic to any destination are written for any destination but the firewall itself ('not This Firewall'). A rule that names addresses of the firewall still reaches them
+
+Security rules
+  nsg-web:Allow-HTTPS  ->  approximated  (emitted as outside)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  nsg-web:Allow-SSH-Admins  ->  approximated  (emitted as outside)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled  (emitted as outside)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network.
+  nsg-web:Deny-Partner  ->  needs-review, emitted disabled  (emitted as outside)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled  (emitted as outside)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network.
+  nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as outside)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network.
+  nsg-web:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled  (emitted as outside)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network.
+  nsg-web:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as outside)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-App-Out  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-web:Allow-Storage  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-web:Deny-Internet  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-web:AllowInternetOutBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-web:DenyAllOutBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, nsg-db, outside with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-From-Web  ->  needs-review, emitted disabled  (emitted as outside)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network.
+  nsg-app:Allow-Esp-Partner  ->  approximated  (emitted as outside)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  nsg-app:Allow-Probe  ->  needs-review, emitted disabled  (emitted as outside)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network.
+  nsg-app:Deny-VNet  ->  needs-review, emitted disabled  (emitted as outside)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as outside)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network.
+  nsg-app:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled  (emitted as outside)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network.
+  nsg-app:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as outside)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Db  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:Allow-Sql  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:Allow-Dns  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:Deny-Out  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, nsg-db, outside with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:AllowInternetOutBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:DenyAllOutBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, nsg-db, outside with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:Allow-Sql-From-App  ->  approximated  (emitted as outside)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  nsg-db:Allow-Old-Gre  ->  needs-review, emitted disabled  (emitted as outside)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside, nsg-db with --zone-network.
+  nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as outside)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside, nsg-db with --zone-network.
+  nsg-db:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled  (emitted as outside)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside, nsg-db with --zone-network.
+  nsg-db:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as outside)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside, nsg-db with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-db:AllowInternetOutBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-db:DenyAllOutBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, nsg-db, outside with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-App-Out+nsg-web:Deny-Partner  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-App-Out+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-web:Allow-App-Out+nsg-web:DenyAllInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-web:AllowVnetOutBound+nsg-web:Deny-Partner  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-web:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:DenyAllOutBound to nsg-web  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-App-Out+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-web:Allow-App-Out+nsg-app:Deny-VNet  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-App-Out+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-web:Allow-App-Out+nsg-app:DenyAllInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-web:AllowVnetOutBound+nsg-app:Deny-VNet  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-web:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:DenyAllOutBound to nsg-app  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-App-Out+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-web:Allow-App-Out+nsg-db:DenyAllInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside, nsg-db with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-web:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside, nsg-db with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:DenyAllOutBound to nsg-db  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside, nsg-db with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-web' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Db+nsg-web:Deny-Partner  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Db+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:Allow-Db+nsg-web:DenyAllInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Dns+nsg-web:Deny-Partner  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Dns+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:Allow-Dns+nsg-web:DenyAllInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Deny-Out to nsg-web  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:AllowVnetOutBound+nsg-web:Deny-Partner  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:DenyAllOutBound to nsg-web  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Db+nsg-app:Deny-VNet  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Db+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:Allow-Db+nsg-app:DenyAllInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Dns+nsg-app:Deny-VNet  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Dns+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:Allow-Dns+nsg-app:DenyAllInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Deny-Out to nsg-app  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:AllowVnetOutBound+nsg-app:Deny-VNet  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:DenyAllOutBound to nsg-app  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Db+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:Allow-Db+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:Allow-Db+nsg-db:DenyAllInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Dns+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:Allow-Dns+nsg-db:DenyAllInBound  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Deny-Out to nsg-db  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside, nsg-db with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside, nsg-db with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-app:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside, nsg-db with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:DenyAllOutBound to nsg-db  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside, nsg-db with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-app' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-db:AllowVnetOutBound+nsg-web:Deny-Partner  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-db:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:DenyAllOutBound to nsg-web  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-db:AllowVnetOutBound+nsg-app:Deny-VNet  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-db:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:DenyAllOutBound to nsg-app  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside, nsg-db with --zone-network.
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map.
+  nsg-db:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside, nsg-db with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:DenyAllOutBound to nsg-db  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside, nsg-db with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'nsg-db' is no interface a rule of pfSense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+Address groups
+  asg-web  ->  exact  (emitted as asg_web)
+      [info] RENAMED: renamed to 'asg_web' to fit the target's naming rules
+  Storage.WestEurope  ->  exact  (emitted as Storage_WestEurope)
+      [info] RENAMED: renamed to 'Storage_WestEurope' to fit the target's naming rules
+  asg-db  ->  exact  (emitted as asg_db)
+      [info] RENAMED: renamed to 'asg_db' to fit the target's naming rules
+  Sql.WestEurope  ->  exact  (emitted as Sql_WestEurope)
+      [info] RENAMED: renamed to 'Sql_WestEurope' to fit the target's naming rules

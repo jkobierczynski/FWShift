@@ -1,0 +1,222 @@
+FWShift conversion report
+  source: azure
+  target: panos
+
+Summary
+  Security rules:    116   exact 52, approximated 52, needs review 12 (12 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_DYNAMIC: service tags and application security groups whose addresses only Azure knows: Internet, VirtualNetwork. They are dynamic groups, which only an Azure target writes again; add the service tags (az network list-service-tags) and the network interfaces to the export to convert them for other targets
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): outside, nsg-web, nsg-app, nsg-db
+  [info] AZURE_ANY_PROTOCOL: protocol '*' is read as Microsoft documents it: TCP, UDP and ICMP; with ports, an allow rule allows TCP and UDP on them and a deny rule blocks ICMP as well. If Azure also matches other protocols with it, a deny rule '*' blocks more there than the converted rule
+  [info] AZURE_UNFILTERED: network security groups do not filter the platform's own traffic (168.63.129.16 and 169.254.169.254: DHCP, DNS, the instance metadata service, health probes); and the security admin rules of Azure Virtual Network Manager, which come first, are not in this export
+  [info] AZURE_ZONES: each network security group is a zone, and everything else the zone outside. The networks behind them, for --zone-network: --zone-network nsg-web=10.30.1.0/24,2001:db8:30:1::/64 --zone-network nsg-app=10.30.2.0/24 --zone-network nsg-db=10.30.3.20
+  [info] AZURE_COMPOSED: traffic between resources behind the groups passes the outbound rules of one and the inbound rules of the other: 80 rules say what both allow, in the order of the two
+  [info] AZURE_ASG_MEMBERS: the members of these application security groups are the network interfaces in the export: asg-db, asg-web. A member whose interface is not in it (another resource group, another subscription) is not in the group
+  [info] INTRAZONE_DENY_ADDED: appended 'fwshift-intrazone-deny': PAN-OS allows traffic inside a zone by default, the source denies it
+
+Security rules
+  nsg-web:Deny-Partner  ->  approximated  (emitted as nsg-web_Deny-Partner, nsg-web_Deny-Partner-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled  (emitted as nsg-web_Allow-Ping-VNet)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+  nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-web_AllowVnetInBound, nsg-web_AllowVnetInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+  nsg-web:AllowAzureLoadBalancerInBound  ->  approximated  (emitted as nsg-web_AllowAzureLoadBalancerInBound, nsg-web_AllowAzureLoadBalancerInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-web:DenyAllInBound  ->  approximated  (emitted as nsg-web_DenyAllInBound, nsg-web_DenyAllInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-web:Deny-Internet  ->  needs-review, emitted disabled  (emitted as nsg-web_Deny-Internet, nsg-web_Deny-Internet-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-web_AllowVnetOutBound, nsg-web_AllowVnetOutBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+  nsg-web:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-web_AllowInternetOutBound, nsg-web_AllowInternetOutBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+  nsg-web:DenyAllOutBound  ->  approximated  (emitted as nsg-web_DenyAllOutBound, nsg-web_DenyAllOutBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:Allow-Esp-Partner  ->  approximated  (emitted as nsg-app_Allow-Esp-Partner)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ipsec-esp. Verify these names against the App-ID release in use
+  nsg-app:Deny-VNet  ->  needs-review, emitted disabled  (emitted as nsg-app_Deny-VNet, nsg-app_Deny-VNet-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-app_AllowVnetInBound, nsg-app_AllowVnetInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+  nsg-app:AllowAzureLoadBalancerInBound  ->  approximated  (emitted as nsg-app_AllowAzureLoadBalancerInBound, nsg-app_AllowAzureLoadBalancerInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:DenyAllInBound  ->  approximated  (emitted as nsg-app_DenyAllInBound, nsg-app_DenyAllInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:Deny-Out  ->  approximated  (emitted as nsg-app_Deny-Out, nsg-app_Deny-Out-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-app_AllowVnetOutBound, nsg-app_AllowVnetOutBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+  nsg-app:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-app_AllowInternetOutBound, nsg-app_AllowInternetOutBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+  nsg-app:DenyAllOutBound  ->  approximated  (emitted as nsg-app_DenyAllOutBound, nsg-app_DenyAllOutBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-db:Allow-Old-Gre  ->  approximated  (emitted as nsg-db_Allow-Old-Gre)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ipsec-ah. Verify these names against the App-ID release in use
+  nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-db_AllowVnetInBound, nsg-db_AllowVnetInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+  nsg-db:AllowAzureLoadBalancerInBound  ->  approximated  (emitted as nsg-db_AllowAzureLoadBalancerInBound, nsg-db_AllowAzureLoadBalancerInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-db:DenyAllInBound  ->  approximated  (emitted as nsg-db_DenyAllInBound, nsg-db_DenyAllInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-db:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-db_AllowVnetOutBound, nsg-db_AllowVnetOutBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+  nsg-db:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-db_AllowInternetOutBound, nsg-db_AllowInternetOutBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+  nsg-db:DenyAllOutBound  ->  approximated  (emitted as nsg-db_DenyAllOutBound, nsg-db_DenyAllOutBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-web:AllowVnetOutBound+nsg-web:Deny-Partner  ->  approximated  (emitted as nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner, nsg-web_AllowVnetOutBound_nsg-web_Deny-Partner-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  approximated  (emitted as nsg-web_AllowVnetOutBound_nsg-web_Allow-Ping-VNet)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+  nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  approximated  (emitted as nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound, nsg-web_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-web:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  approximated  (emitted as nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound, nsg-web_AllowVnetOutBound_nsg-web_DenyAllInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-web:DenyAllOutBound to nsg-web  ->  approximated  (emitted as nsg-web_DenyAllOutBound to nsg-web, nsg-web_DenyAllOutBound to nsg-web-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-web:AllowVnetOutBound+nsg-app:Deny-VNet  ->  approximated  (emitted as nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet, nsg-web_AllowVnetOutBound_nsg-app_Deny-VNet-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-web:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  approximated  (emitted as nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound, nsg-web_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-web:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  approximated  (emitted as nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound, nsg-web_AllowVnetOutBound_nsg-app_DenyAllInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-web:DenyAllOutBound to nsg-app  ->  approximated  (emitted as nsg-web_DenyAllOutBound to nsg-app, nsg-web_DenyAllOutBound to nsg-app-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  approximated  (emitted as nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound, nsg-web_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-web:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  approximated  (emitted as nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound, nsg-web_AllowVnetOutBound_nsg-db_DenyAllInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-web:DenyAllOutBound to nsg-db  ->  approximated  (emitted as nsg-web_DenyAllOutBound to nsg-db, nsg-web_DenyAllOutBound to nsg-db-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:Deny-Out to nsg-web  ->  approximated  (emitted as nsg-app_Deny-Out to nsg-web, nsg-app_Deny-Out to nsg-web-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:AllowVnetOutBound+nsg-web:Deny-Partner  ->  approximated  (emitted as nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner, nsg-app_AllowVnetOutBound_nsg-web_Deny-Partner-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  approximated  (emitted as nsg-app_AllowVnetOutBound_nsg-web_Allow-Ping-VNet)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+  nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  approximated  (emitted as nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound, nsg-app_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  approximated  (emitted as nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound, nsg-app_AllowVnetOutBound_nsg-web_DenyAllInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:DenyAllOutBound to nsg-web  ->  approximated  (emitted as nsg-app_DenyAllOutBound to nsg-web, nsg-app_DenyAllOutBound to nsg-web-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:Deny-Out to nsg-app  ->  approximated  (emitted as nsg-app_Deny-Out to nsg-app, nsg-app_Deny-Out to nsg-app-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:AllowVnetOutBound+nsg-app:Deny-VNet  ->  approximated  (emitted as nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet, nsg-app_AllowVnetOutBound_nsg-app_Deny-VNet-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  approximated  (emitted as nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound, nsg-app_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  approximated  (emitted as nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound, nsg-app_AllowVnetOutBound_nsg-app_DenyAllInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:DenyAllOutBound to nsg-app  ->  approximated  (emitted as nsg-app_DenyAllOutBound to nsg-app, nsg-app_DenyAllOutBound to nsg-app-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:Deny-Out to nsg-db  ->  approximated  (emitted as nsg-app_Deny-Out to nsg-db, nsg-app_Deny-Out to nsg-db-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  approximated  (emitted as nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound, nsg-app_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  approximated  (emitted as nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound, nsg-app_AllowVnetOutBound_nsg-db_DenyAllInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-app:DenyAllOutBound to nsg-db  ->  approximated  (emitted as nsg-app_DenyAllOutBound to nsg-db, nsg-app_DenyAllOutBound to nsg-db-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-db:AllowVnetOutBound+nsg-web:Deny-Partner  ->  approximated  (emitted as nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner, nsg-db_AllowVnetOutBound_nsg-web_Deny-Partner-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  approximated  (emitted as nsg-db_AllowVnetOutBound_nsg-web_Allow-Ping-VNet)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+  nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  approximated  (emitted as nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound, nsg-db_AllowVnetOutBound_nsg-web_AllowVnetInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-db:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  approximated  (emitted as nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound, nsg-db_AllowVnetOutBound_nsg-web_DenyAllInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-db:DenyAllOutBound to nsg-web  ->  approximated  (emitted as nsg-db_DenyAllOutBound to nsg-web, nsg-db_DenyAllOutBound to nsg-web-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-db:AllowVnetOutBound+nsg-app:Deny-VNet  ->  approximated  (emitted as nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet, nsg-db_AllowVnetOutBound_nsg-app_Deny-VNet-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-db:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  approximated  (emitted as nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound, nsg-db_AllowVnetOutBound_nsg-app_AllowVnetInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-db:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  approximated  (emitted as nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound, nsg-db_AllowVnetOutBound_nsg-app_DenyAllInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-db:DenyAllOutBound to nsg-app  ->  approximated  (emitted as nsg-db_DenyAllOutBound to nsg-app, nsg-db_DenyAllOutBound to nsg-app-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  approximated  (emitted as nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound, nsg-db_AllowVnetOutBound_nsg-db_AllowVnetInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-db:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  approximated  (emitted as nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound, nsg-db_AllowVnetOutBound_nsg-db_DenyAllInBound-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+  nsg-db:DenyAllOutBound to nsg-db  ->  approximated  (emitted as nsg-db_DenyAllOutBound to nsg-db, nsg-db_DenyAllOutBound to nsg-db-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+
+Services
+  tcp-443,80  ->  exact  (emitted as tcp-443_80)
+      [info] RENAMED: renamed to 'tcp-443_80' to fit the target's naming rules

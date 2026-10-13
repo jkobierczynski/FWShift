@@ -271,6 +271,39 @@ CASES = [
     ("junos_sample.conf", "aws", "junos_to_aws.sh"),
     ("nftables_sample.nft", "aws", "nftables_to_aws.sh"),
     ("nsx_sample.json", "aws", "nsx_to_aws.sh"),
+    ("azure_sample.json", "azure", "azure_to_azure.json"),
+    ("azure_sample.json", "panos", "azure_to_panos.set"),
+    ("azure_sample.json", "fortios", "azure_to_fortios.conf"),
+    ("azure_sample.json", "checkpoint", "azure_to_checkpoint.sh"),
+    ("azure_sample.json", "asa", "azure_to_asa.cfg"),
+    ("azure_sample.json", "sophos", "azure_to_sophos.xml"),
+    ("azure_sample.json", "fmc", "azure_to_fmc.policy.txt"),
+    ("azure_sample.json", "fdm", "azure_to_fdm.json"),
+    ("azure_sample.json", "pfsense", "azure_to_pfsense.xml"),
+    ("azure_sample.json", "sonicwall", "azure_to_sonicwall.cli"),
+    ("azure_sample.json", "watchguard", "azure_to_watchguard.xml"),
+    ("azure_sample.json", "barracuda", "azure_to_barracuda.sh"),
+    ("azure_sample.json", "iptables", "azure_to_iptables.rules"),
+    ("azure_sample.json", "junos", "azure_to_junos.set.conf"),
+    ("azure_sample.json", "nftables", "azure_to_nftables.nft"),
+    ("azure_sample.json", "nsx", "azure_to_nsx.json"),
+    ("azure_sample.json", "aws", "azure_to_aws.sh"),
+    ("panos_sample.xml", "azure", "panos_to_azure.json"),
+    ("fortios_sample.conf", "azure", "fortios_to_azure.json"),
+    ("checkpoint_sample.json", "azure", "checkpoint_to_azure.json"),
+    ("asa_sample.cfg", "azure", "asa_to_azure.json"),
+    ("sophos_sample.xml", "azure", "sophos_to_azure.json"),
+    ("fmc_sample.json", "azure", "fmc_to_azure.json"),
+    ("fdm_sample.txt", "azure", "fdm_to_azure.json"),
+    ("pfsense_sample.xml", "azure", "pfsense_to_azure.json"),
+    ("sonicwall_sample.exp", "azure", "sonicwall_to_azure.json"),
+    ("watchguard_sample.xml", "azure", "watchguard_to_azure.json"),
+    ("barracuda_sample.json", "azure", "barracuda_to_azure.json"),
+    ("iptables_sample.rules", "azure", "iptables_to_azure.json"),
+    ("junos_sample.conf", "azure", "junos_to_azure.json"),
+    ("nftables_sample.nft", "azure", "nftables_to_azure.json"),
+    ("nsx_sample.json", "azure", "nsx_to_azure.json"),
+    ("aws_sample.json", "azure", "aws_to_azure.json"),
 ]
 
 
@@ -283,6 +316,7 @@ def test_detect_format() -> None:
     assert detect_format((DATA / "nftables_sample.json").read_bytes()) == "nftables"
     assert detect_format((DATA / "nsx_sample.json").read_bytes()) == "nsx"
     assert detect_format((DATA / "aws_sample.json").read_bytes()) == "aws"
+    assert detect_format((DATA / "azure_sample.json").read_bytes()) == "azure"
     assert detect_format(b'\n[\n {"uid": "x", "rulebase": []}]') == "checkpoint"
     assert detect_format(b": Saved\n:\nASA Version 9.12(4)\n!\nhostname fw\n") == "asa"
     assert detect_format(b'<?xml version="1.0" encoding="UTF-8"?>\n<Configuration APIVersion="2000.1">') == "sophos"

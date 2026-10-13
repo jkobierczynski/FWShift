@@ -18,6 +18,7 @@ from . import __version__, audit, hits, matrix, narrow, transform, usage
 from .appmap import load_app_map
 from .emitters import asa as emit_asa
 from .emitters import aws as emit_aws
+from .emitters import azure as emit_azure
 from .emitters import checkpoint as emit_checkpoint
 from .emitters import cisco as emit_cisco
 from .emitters import fortios as emit_fortios
@@ -37,6 +38,7 @@ from .netutil import parse_literal
 from .options import Options
 from .parsers import asa as parse_asa
 from .parsers import aws as parse_aws
+from .parsers import azure as parse_azure
 from .parsers import checkpoint as parse_checkpoint
 from .parsers import cisco as parse_cisco
 from .parsers import fortios as parse_fortios
@@ -60,6 +62,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "nftables": emit_nftables.emit,
     "nsx": emit_nsx.emit,
     "aws": emit_aws.emit,
+    "azure": emit_azure.emit,
     "checkpoint": emit_checkpoint.emit,
     "asa": emit_asa.emit,
     "sophos": emit_sophos.emit,
@@ -72,7 +75,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "fdm": emit_cisco.emit_fdm,
 }
 VENDORS = ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "pfsense", "sonicwall", "watchguard", "barracuda", "junos",
-           "iptables", "ip6tables", "nftables", "nsx", "aws")  # fmt: skip
+           "iptables", "ip6tables", "nftables", "nsx", "aws", "azure")  # fmt: skip
 
 
 def detect_format(data: bytes) -> str:
@@ -112,6 +115,8 @@ def detect_format(data: bytes) -> str:
         return "nsx"
     if parse_aws.looks_like_aws(data):
         return "aws"
+    if parse_azure.looks_like_azure(data):
+        return "azure"
     head = data.lstrip(b"\xef\xbb\xbf \t\r\n")
     if head.startswith(b"<"):
         return "panos"
@@ -166,6 +171,8 @@ def load(
         return parse_nsx.parse(data, report)
     if source == "aws":
         return parse_aws.parse(data, report)
+    if source == "azure":
+        return parse_azure.parse(data, report)
     raise FwshiftError(f"unknown source format '{source}'")
 
 
@@ -426,7 +433,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="fwshift",
         description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall "
         "(Management Center and Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX, iptables, "
-        "nftables, VMware NSX and AWS security groups, with a lossiness report.",
+        "nftables, VMware NSX, AWS security groups and Azure network security groups, with a lossiness report.",
     )
     parser.add_argument("--version", action="version", version=f"fwshift {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -444,13 +451,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conv.add_argument(
         "--zone-network", action="append", default=[], metavar="ZONE=NET[,NET]",
-        help="ASA, pfSense, Barracuda, NSX and AWS targets: the networks behind a zone, so that rules for other zones can leave them out. Give "
+        help="ASA, pfSense, Barracuda, NSX, AWS and Azure targets: the networks behind a zone, so that rules for other zones can leave them out. Give "
         "them for every zone; 0.0.0.0/0,::/0 for the zone with the default route",
     )  # fmt: skip
     conv.add_argument(
         "--inside-zone", action="append", default=[], metavar="ZONE",
-        help="AWS target: a zone whose networks (--zone-network) are inside the VPC; only its addresses get security groups. "
-        "Repeatable",
+        help="AWS and Azure targets: a zone whose networks (--zone-network) are inside the VPC or virtual network; only its "
+        "addresses get security groups (Azure: only it gets a network security group). Repeatable",
     )  # fmt: skip
     conv.add_argument("--app-map", metavar="FILE", help="JSON file: application name -> list of port specs")
     conv.add_argument("--prune-unused", action="store_true", help="leave out objects no rule uses")
@@ -480,11 +487,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conv.add_argument(
         "--target-prefix", default="", metavar="TEXT",
-        help="Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard, Barracuda, Juniper and Cisco Secure Firewall targets: prefix for the names of created objects",
+        help="Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard, Barracuda, Juniper, Cisco Secure Firewall, NSX, AWS and Azure "
+             "targets: prefix for the names of created objects",
     )  # fmt: skip
     conv.add_argument(
         "--target-policy", default="FWShift", metavar="NAME",
-        help="Management Center target (fmc): name of the access control policy and the NAT policy the script creates (default: FWShift)",
+        help="Management Center target (fmc): name of the access control policy and the NAT policy the script creates; NSX: of "
+             "the security policy; Azure: of the one group when no zone has networks (default: FWShift)",
     )  # fmt: skip
     conv.add_argument("--strict", action="store_true", help="exit with status 2 when anything needs review")
     conv.add_argument("-q", "--quiet", action="store_true", help="do not print the report or the summary")

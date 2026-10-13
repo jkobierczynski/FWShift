@@ -1,0 +1,53 @@
+FWShift conversion report
+  source: azure
+  target: fmc
+
+Summary
+  Security rules:    116   exact 104, approximated 0, needs review 12 (12 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_DYNAMIC: service tags and application security groups whose addresses only Azure knows: Internet, VirtualNetwork. They are dynamic groups, which only an Azure target writes again; add the service tags (az network list-service-tags) and the network interfaces to the export to convert them for other targets
+  [needs-review] FMC_LOAD: the output is a Python script that loads the policy into a Management Center through its REST API. It creates the objects, a new access control policy 'FWShift' and, when there are NAT rules, a NAT policy of the same name, and assigns them to no device: nothing is in force until the policies are assigned and deployed. It changes nothing that exists, and stops before it creates anything when a name is taken. Run it with --show and with --dry-run first. The new access control policy uses the default prefilter policy and no intrusion or file policies. The script was written from Cisco's API documentation and has not been run against a Management Center: use it first where a mistake costs nothing
+  [needs-review] ZONES_REQUIRED: the rules name these security zones (rename them with --zone-map): outside, nsg-web, nsg-app, nsg-db. A zone that exists on the Management Center is used as it is; one that does not is created empty, and matches no traffic until the interfaces of the devices are put in it
+  [info] AZURE_ANY_PROTOCOL: protocol '*' is read as Microsoft documents it: TCP, UDP and ICMP; with ports, an allow rule allows TCP and UDP on them and a deny rule blocks ICMP as well. If Azure also matches other protocols with it, a deny rule '*' blocks more there than the converted rule
+  [info] AZURE_UNFILTERED: network security groups do not filter the platform's own traffic (168.63.129.16 and 169.254.169.254: DHCP, DNS, the instance metadata service, health probes); and the security admin rules of Azure Virtual Network Manager, which come first, are not in this export
+  [info] AZURE_ZONES: each network security group is a zone, and everything else the zone outside. The networks behind them, for --zone-network: --zone-network nsg-web=10.30.1.0/24,2001:db8:30:1::/64 --zone-network nsg-app=10.30.2.0/24 --zone-network nsg-db=10.30.3.20
+  [info] AZURE_COMPOSED: traffic between resources behind the groups passes the outbound rules of one and the inbound rules of the other: 80 rules say what both allow, in the order of the two
+  [info] AZURE_ASG_MEMBERS: the members of these application security groups are the network interfaces in the export: asg-db, asg-web. A member whose interface is not in it (another resource group, another subscription) is not in the group
+
+Security rules
+  nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled  (emitted as nsg-web_Allow-Ping-VNet)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+  nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-web_AllowVnetInBound)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+  nsg-web:Deny-Internet  ->  needs-review, emitted disabled  (emitted as nsg-web_Deny-Internet)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-web_AllowVnetOutBound)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+  nsg-web:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-web_AllowInternetOutBound)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+  nsg-app:Deny-VNet  ->  needs-review, emitted disabled  (emitted as nsg-app_Deny-VNet)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-app_AllowVnetInBound)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+  nsg-app:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-app_AllowVnetOutBound)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+  nsg-app:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-app_AllowInternetOutBound)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+  nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-db_AllowVnetInBound)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+  nsg-db:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-db_AllowVnetOutBound)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+  nsg-db:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-db_AllowInternetOutBound)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+
+Services
+  tcp-443,80  ->  exact  (emitted as tcp-443_80, tcp-443, tcp-80)
+      [info] RENAMED: renamed to 'tcp-443_80' to fit the target's naming rules
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-443_80' of 'tcp-443', 'tcp-80'
+  tcp-udp-icmp  ->  exact  (emitted as tcp-udp-icmp, tcp-all, udp-all, icmp)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-udp-icmp' of 'tcp-all', 'udp-all', 'icmp'
+  tcp-udp-icmp-2  ->  exact  (emitted as tcp-udp-icmp-2, tcp-all, udp-all, icmp)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-udp-icmp-2' of 'tcp-all', 'udp-all', 'icmp'

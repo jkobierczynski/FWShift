@@ -1,0 +1,77 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: azure
+
+Summary
+  Security rules:     18   exact 1, approximated 2, needs review 15 (15 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_LOAD: the output is an ARM template (section 10): look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode, never complete), then associate each group with the subnets of its zone (its networks are in the template's metadata). Deploying it replaces all rules of groups of the same name
+  [needs-review] AZURE_ONE_GROUP: no zone has networks (--zone-network): one group holds every rule, inbound and outbound; associate it with every subnet the policy is for
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] AZURE_DEFAULTS_OVERRIDDEN: each list ends in the default of the source, which comes before the default rules of Azure: they no longer let the virtual network, the load balancer's health probes or the internet through unless a rule does
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security rule does not. Flow logs of the virtual network record the connections instead
+
+Security rules
+  outside_access_in-1  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, and a security rule names no zone: give the networks behind it with --zone-network.
+  outside_access_in-2  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, and a security rule names no zone: give the networks behind it with --zone-network.
+  outside_access_in-3  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, and a security rule names no zone: give the networks behind it with --zone-network.
+  outside_access_in-4  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone outside; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  inside_access_in-1  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network.
+  inside_access_in-2  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network.
+  inside_access_in-3  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network.
+  inside_access_in-4  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates: a security rule names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network.
+  inside_access_in-5  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network.
+  inside_access_in-6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network.
+  inside_access_in-7  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match LOCAL\alice is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network.
+  inside_access_in-9  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network.
+  dmz_access_in-1  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone dmz, and a security rule names no zone: give the networks behind it with --zone-network.
+  dmz_access_in-2  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone dmz, and a security rule names no zone: give the networks behind it with --zone-network.
+  dmz_access_in-3  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone dmz; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  dmz_access_in-4  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone dmz, and a security rule names no zone: give the networks behind it with --zone-network.
+  implicit-guest  ->  needs-review, emitted disabled
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone guest, outside, and a security rule names no zone: give the networks behind it with --zone-network.
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  nat-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  nat-mail-srv  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  nat-inside-net  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  nat-after-auto-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see

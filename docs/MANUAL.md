@@ -3,10 +3,10 @@
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
 Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
 or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX, Linux iptables, Linux nftables, the VMware NSX
-distributed firewall and AWS security groups, and tells you,
+distributed firewall, AWS security groups and Azure network security groups, and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; and show what each zone may reach in each
-other zone. This manual covers version 0.20.
+other zone. This manual covers version 0.21.
 
 **Contents**
 
@@ -53,10 +53,10 @@ FWShift converts the **policy**. It does not convert interfaces, routing, VPN,
 users, security profiles, or system settings, and it is not a substitute for
 testing the result.
 
-> **Status.** Version 0.20 is tested against synthetic configurations. iptables
+> **Status.** Version 0.21 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). Output for PAN-OS, FortiOS, Check Point,
-> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX and AWS has
+> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS and Azure has
 > not been loaded on a device or management server yet; the Check Point input format follows the
 > API documentation, the ASA and FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
@@ -89,8 +89,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.20.0.pyz --version
-python3 fwshift-0.20.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.21.0.pyz --version
+python3 fwshift-0.21.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -217,6 +217,35 @@ without them a rule that names the list is not converted. Let the CLI page
 through everything (no `--max-items`): an answer with a `NextToken` is
 incomplete (`AWS_INCOMPLETE_EXPORT`). The answer of
 `describe-security-group-rules` is read too, and gives each rule its id.
+
+**Azure network security groups.** FWShift reads the groups as the Azure CLI
+prints them, and with them the network interfaces (the members of
+application security groups), the virtual networks (the subnets behind each
+group) and the service tags of the region. Put the answers in one JSON array:
+
+```sh
+az network nsg list -g rg-shop -o json > nsgs.json
+az network nic list -g rg-shop -o json > nics.json
+az network vnet list -g rg-shop -o json > vnets.json
+az network list-service-tags --location westeurope -o json > tags.json
+jq -s . nsgs.json nics.json vnets.json tags.json > azure.json
+```
+
+Only the groups are required. The same groups are read from the REST API
+(`properties`, `{"value": [...]}`), from an exported or Bicep-built template
+(`az group export`, `az bicep build`: rules inline, as child resources or in
+copy loops; names and values as parameters, variables and the common
+functions) and from `az graph query` answers. Without the interfaces an
+application security group's members are not known, and without the service
+tags a tag's addresses; such groups are dynamic, and only an Azure target
+writes them again (`AZURE_DYNAMIC`). With the interfaces, export those of every
+resource group whose interfaces carry the application security groups: a
+member left out is not in its group (`AZURE_ASG_MEMBERS`). The virtual networks
+also say which are peered (`AZURE_NOT_PEERED`). A template holds no default
+rules: the six every group has are added (`AZURE_DEFAULT_RULES_ADDED`). Let the
+CLI page through everything: an answer with a `nextLink` or a skip token is
+incomplete (`AZURE_INCOMPLETE_EXPORT`). The report says which networks lie
+behind each group, for `--zone-network` (`AZURE_ZONES`).
 
 **Cisco ASA.** FWShift reads the running configuration as the ASA prints it:
 
@@ -727,7 +756,7 @@ fwshift convert INPUT --to FORMAT [options]
 
 `FORMAT` is one of `panos`, `fortios`, `checkpoint`, `asa`, `fmc`, `fdm`,
 `sophos`, `pfsense`, `sonicwall`, `watchguard`, `barracuda`, `junos`,
-`iptables`, `ip6tables`, `nftables`, `nsx`, `aws` and `json` (the neutral model; see `--to json` below).
+`iptables`, `ip6tables`, `nftables`, `nsx`, `aws`, `azure` and `json` (the neutral model; see `--to json` below).
 
 `INPUT` is a file, or `-` for standard input.
 
@@ -735,7 +764,7 @@ fwshift convert INPUT --to FORMAT [options]
 
 | Option | Meaning |
 |---|---|
-| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; JSON with network security groups of Azure (`Microsoft.Network/networkSecurityGroups`, or `securityRules` with priorities) is Azure; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
@@ -768,6 +797,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to ip6tables` | A file for `ip6tables-restore`: the IPv6 half. |
 | `--to nsx` | The body of one `PATCH /policy/api/v1/infra` of the VMware NSX Policy API: services, groups and one security policy with the rules (section 10). |
 | `--to aws` | A shell script of AWS CLI calls that creates security groups for one VPC, without members, and says which addresses each is for (section 10). |
+| `--to azure` | An ARM template with one network security group per zone (section 10). |
 | `--to nftables` | A ruleset for `nft -f`: one table, `inet fwshift`, with the forward hook for both IP versions and the IPv4 NAT chains. Loading it replaces that table and nothing else (section 10). |
 | `--to json` | The neutral model as JSON, for inspection or other tools. It is the model as it was read: the audit options cannot be combined with it. Each rule carries what the source calls it (`source_ids`: the uid of a Check Point rule, the name and uuid of a PAN-OS rule, the policy ID and uuid of a FortiOS policy), the devices it is installed on where the source limits that (`targets`), and its hit count where the input has one (`hits`). |
 | `--target-vsys NAME` | PAN-OS: prefix commands with `vsys NAME`. Default: a single-vsys firewall, no prefix. |
@@ -779,16 +809,16 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--target-layer NAME` | Check Point: the access layer the rules are written to. Default `Network`. It must exist. |
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
-| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center and Device Manager: put `TEXT` in front of the name of every object (on an ASA also every access list) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
-| `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates. Default `FWShift`. The script can be given another name when it is run (`--name`). |
+| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS and Azure: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on Azure every network security group) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
+| `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates; the script can be given another name when it is run (`--name`). NSX: the name of the security policy. Azure: the name of the one network security group written when no zone has networks. Default `FWShift`. |
 
 **Adapting the policy**
 
 | Option | Meaning |
 |---|---|
 | `--zone-map SRC=DST` | Use `DST` wherever the source names zone or interface `SRC`. Repeatable. For iptables and ASA this is how a zone becomes an interface name, and the other way round; for pfSense how it becomes an interface (`lan`, `opt1`) or an interface group. |
-| `--zone-network ZONE=NET[,NET...]` | ASA, pfSense, Barracuda, NSX and AWS targets: the networks that lie behind a zone (SonicWall: the zone an address object is created in; Barracuda, NSX and AWS: both sides of a rule, which names no zone) (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
-| `--inside-zone ZONE` | AWS target: a zone whose networks (`--zone-network`) are inside the VPC. Repeatable. Only addresses inside get security groups, and their outbound rules leave the addresses inside to the inbound rules of the destination's group, which keeps them short. Without it every address gets a group (those outside are never attached), and each end says everything. From an AWS source the VPC it was read from is the inside. |
+| `--zone-network ZONE=NET[,NET...]` | ASA, pfSense, Barracuda, NSX, AWS and Azure targets: the networks that lie behind a zone (SonicWall: the zone an address object is created in; Barracuda, NSX and AWS: both sides of a rule, which names no zone) (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
+| `--inside-zone ZONE` | AWS and Azure targets: a zone whose networks (`--zone-network`) are inside the VPC or the virtual network. Repeatable. For Azure only those zones get a network security group. Only addresses inside get security groups, and their outbound rules leave the addresses inside to the inbound rules of the destination's group, which keeps them short. Without it every address gets a group (those outside are never attached), and each end says everything. From an AWS source the VPC it was read from is the inside. |
 | `--interface-map SRC=DST` | Map a source interface to a target interface: zone members written for FortiOS, source NAT to an interface address on PAN-OS, and the interfaces of a NAT rule on Sophos Firewall, SonicWall and a Device Manager, which match interfaces and not zones (SonicWall: `X1`, `X3:V10`); for a Barracuda target, the interface of the entries of the source of a rule in that zone (`port2`). For those two, map every interface of a zone the NAT rules name (for an iptables or ASA source, whose zones are interfaces, that is the zone name itself); for a Device Manager `DST` is the logical name of the interface (`inside`, `outside`). Repeatable. |
 | `--app-map FILE` | JSON file that adds or overrides application port definitions (section 9). |
 | `--prune-unused` | Leave out objects that no rule or NAT rule uses, directly or through a group. |
@@ -1264,6 +1294,33 @@ Findings and notes that only an AWS source or target raises (an AWS target also 
 | `SOURCE_PORTS` | R, disabled | Target (on an allow rule): source ports; a security group rule matches destination ports only. |
 | `SOURCE_PORTS_WIDENED` | A | Target (on a blocking rule): it blocks certain source ports only, and is written for every source port, which blocks more. |
 | `ADDRESS_UNKNOWN`, `SERVICE_UNKNOWN`, `NOT_WRITTEN` | R, disabled | Target (on the rule): addresses (a dynamic group) or a service that cannot be read; a security group rule names addresses and ports. |
+
+Findings and notes that only an Azure source or target raises (an Azure target also raises `ZONE_NETWORK_MISSING`,
+`ZONE_WIDENED`, `ZONE_DYNAMIC` and `RESET_ACTION`):
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `AZURE_ZONES` | I | Source: each network security group is a zone, everything else the zone `outside`; with the virtual networks and the interfaces in the export, the networks behind each group, ready for `--zone-network`. |
+| `AZURE_COMPOSED` | I | Source: traffic between resources behind the groups passes the outbound rules of one and the inbound rules of the other; the rules that say what both allow, in the order of the two. |
+| `AZURE_COMPOSED_LEFT_OUT` | R | Source: for a pair of groups more combinations than are converted; the rest is blocked. |
+| `AZURE_COMPOSED_WIDER` | A | Source (on the rule): a deny rule cut to an allow rule of the other group, where the cut cannot be worked out (service tags or application security groups on both); it blocks all the deny rule blocks, which is more. |
+| `AZURE_DYNAMIC` | R | Source: service tags and application security groups whose addresses only Azure knows. They are dynamic groups, which only an Azure target writes again; add the service tags (`az network list-service-tags`) and the network interfaces to the export. |
+| `AZURE_DEFAULT_RULES_ADDED` | I | Source: the export lists no default rules (a template never does); the six every group has were added. |
+| `AZURE_EQUAL_PRIORITY` | R | Source: rules of one direction with the same priority, which Azure does not allow; read in the order of the export. |
+| `AZURE_ANY_PROTOCOL` | I, R | Source: protocol `*` is read as Microsoft documents it: TCP, UDP and ICMP; with ports, an allow rule allows TCP and UDP on them and a deny rule blocks ICMP too. Review when an allow rule for ESP or AH follows a deny rule `*`: if `*` also matches them in Azure, the converted policy lets through what that rule blocked. |
+| `AZURE_UNFILTERED` | I | Source: the platform's own traffic (168.63.129.16, 169.254.169.254) is not filtered by groups, and the security admin rules of Virtual Network Manager are not in the export. |
+| `AZURE_NSG_CHAIN` | R | Source: interfaces with a group of their own and one on their subnet. Azure checks both; the converted policy each on its own. |
+| `AZURE_INCOMPLETE_EXPORT` | R | Source: an answer says there is more (`nextLink`, a skip token, `resultTruncated`, more records than it holds). |
+| `AZURE_ASG_MEMBERS` | I, R | Source: the members of application security groups are the network interfaces in the export; a member whose interface is not in it is not in the group. Review when deny rules name them: they block less. Export the interfaces of every resource group the groups are used in. |
+| `AZURE_NOT_PEERED` | I | Source: groups whose resources are in virtual networks that are not peered; they do not reach each other on private addresses, and nothing is converted for them. |
+| `AZURE_PEERING_UNKNOWN` | R | Source: groups in different virtual networks of which the export does not say whether they are peered; `VirtualNetwork` was read as reaching each other. Add the virtual networks. |
+| `AZURE_TEMPLATE_CONDITION` | R | Source: a template deploys these groups only under a condition FWShift does not work out; they were read as deployed. (A rule under such a condition is not converted.) |
+| `AZURE_LOAD` | R | Target: how the template is deployed (section 10): `what-if` first, incremental mode, then each group associated with the subnets of its zone. Deploying it replaces the rules of groups of the same name. |
+| `AZURE_DEFAULTS_OVERRIDDEN` | I | Target: each list ends in the default of the source, before Azure's own default rules, which no longer let the virtual network, the load balancer's probes or the internet through unless a rule does. |
+| `AZURE_ONE_GROUP` | R | Target: no zone has networks; one group holds every rule in both directions. |
+| `AZURE_TOO_MANY_RULES` | R | Target: a group would have more than 2,000 security rules, or name more than 100 application security groups, which Azure does not allow; it is not written. |
+| `AZURE_PART_NOT_WRITTEN` | A | Target (on the rule): part of what it allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH): the converted rule allows less. |
+| `ICMP_TYPE_WIDENED` | A | Target (on a blocking rule): it blocks certain ICMP types; a security rule matches all of ICMP, which blocks more. |
 
 Notes that only a Cisco ASA source or target raises:
 
@@ -1984,6 +2041,89 @@ The second column matters too:
 * NAT is not written: the internet gateway and the NAT gateways do it. The
   rules are written for the private addresses.
 * Logging is not written: VPC Flow Logs record the connections of interfaces.
+
+### Azure network security groups
+
+**What is read**
+
+* Network security groups as the Azure CLI, the REST API, an exported or
+  Bicep-built ARM template, or Resource Graph give them, alone or in one JSON
+  array with the network interfaces, the virtual networks and the service
+  tags. Each group is a zone; everything else is the zone `outside`
+  (`AZURE_ZONES` lists the networks behind each group, for `--zone-network`).
+* An inbound rule is a rule from `outside` into the group's zone, an outbound
+  rule one from the zone to `outside`, each list in the order of its
+  priorities and ending in the six default rules (added when the export
+  leaves them out, as a template always does: `AZURE_DEFAULT_RULES_ADDED`). A
+  priority that is not a whole number from 100 to 4096 makes its rule not
+  converted; two rules of one direction with one priority are reported
+  (`AZURE_EQUAL_PRIORITY`).
+* A connection between resources behind two groups (or one) passes the
+  outbound rules of the one and the inbound rules of the other. That is one
+  list too: each outbound rule that denies, and for each that allows, the
+  inbound rules cut to it (`AZURE_COMPOSED`). Where the cut cannot be worked
+  out (a service tag or an application security group on both rules) an
+  allow rule is not converted and a deny rule blocks all it blocked
+  (`AZURE_COMPOSED_WIDER`). Groups in virtual networks that are not peered do
+  not reach each other on private addresses, and nothing is composed for them
+  (`AZURE_NOT_PEERED`); when the export does not say, they are composed and it
+  is reported (`AZURE_PEERING_UNKNOWN`).
+* `VirtualNetwork` on the side of the group's own resources is any of them;
+  `Internet` and the other service tags there are none. On the other side the
+  service tags are the addresses of `az network list-service-tags` when they
+  are in the export, else dynamic groups (`AZURE_DYNAMIC`); `AzureLoadBalancer`
+  is 168.63.129.16. An application security group is the addresses of the
+  network interfaces in the export that carry it (`AZURE_ASG_MEMBERS`: a
+  member whose interface is not in the export is not in the group), a dynamic
+  group without interfaces, and not converted when interfaces are given but
+  none carries it.
+* Protocol `*` is TCP, UDP and ICMP, as Microsoft documents it; with ports, an
+  allow rule allows TCP and UDP on them and a deny rule blocks ICMP as well.
+  `Esp` and `Ah` are IP protocols 50 and 51 (`AZURE_ANY_PROTOCOL`, raised to
+  review when an allow rule for ESP or AH follows a deny rule `*`).
+* In a template, parameters with their default values, variables, `concat`,
+  `format`, `resourceId`, `copyIndex`, conditions and copy loops are worked
+  out; child rules may be top-level or nested resources. A name that cannot be
+  worked out makes the template unreadable; another field that cannot is left
+  as written, and its rule is not converted. A condition that cannot be worked
+  out is reported (`AZURE_TEMPLATE_CONDITION`).
+* What a group never filters (the platform's own addresses) and the security
+  admin rules of Azure Virtual Network Manager, which are not in the export,
+  are said (`AZURE_UNFILTERED`). An interface behind a group of its own and one
+  on its subnet passes both; the conversion has each on its own
+  (`AZURE_NSG_CHAIN`).
+
+**What is written**
+
+* An ARM template (section 10) with one network security group per zone that
+  has networks (`--zone-network`; with `--inside-zone` only those zones), to be
+  associated with the subnets of that zone. The template's metadata lists the
+  networks of each group and the rules that were not written. Without any
+  networks, one group holds every rule (`AZURE_ONE_GROUP`).
+* A group checks traffic where it leaves (outbound) and where it arrives
+  (inbound). Its outbound list holds the rules for traffic from its zone, kept
+  to the networks of each destination zone in turn, each followed by the
+  default for that zone; its inbound list likewise for traffic into its zone.
+  A zone of the default route (`0.0.0.0/0`, `::/0`) comes last, and addresses
+  of no zone after it. Both ends then give the model's verdict.
+* A rule becomes one security rule per protocol, IP version and service tag
+  or application security group, at priorities from 100 up; the model's
+  default ends each list at 4096, above Azure's own default rules
+  (`AZURE_DEFAULTS_OVERRIDDEN`). An allow rule names TCP, UDP and ICMP rather
+  than `*`, which may match more.
+* What a security rule cannot say (ICMP types, ICMPv6, protocols other than
+  TCP, UDP, ICMP, ESP and AH) is left out of an allow rule
+  (`AZURE_PART_NOT_WRITTEN`); a blocking rule blocks all of ICMP
+  (`ICMP_TYPE_WIDENED`). Host names and users make a rule not written.
+* From an Azure source, service tags and application security groups are
+  written again where no zone has to cut them (`ZONE_DYNAMIC` elsewhere). An
+  application security group from a template is named with `resourceId` in
+  the resource group deployed to.
+* A group of more than 2,000 security rules, or one that names more than 100
+  application security groups, is not written (`AZURE_TOO_MANY_RULES`).
+* NAT is not written: the rules are for what a group sees, the translated
+  destination of what comes in and the untranslated source of what goes out.
+  Logging is not written: flow logs record the connections.
 
 ### Check Point
 
@@ -3152,6 +3292,46 @@ the groups to nothing.
    IP version (`AWS_RULE_QUOTA`): raise the quota, or leave out the groups of
    addresses outside the VPC, which are never attached.
 
+### Azure network security groups
+
+The output is an ARM template that creates one network security group per
+zone, or replaces the rules of groups of the same name in the resource group.
+It associates the groups with nothing.
+
+1. Convert with `--zone-network` for every zone the rules name, and
+   `--inside-zone` for the zones that are in Azure:
+
+   ```sh
+   fwshift convert policy.xml --to azure -o nsgs.json --report report.txt \
+       --zone-network trust=10.10.0.0/16 --zone-network dmz=10.20.0.0/24 --zone-network untrust=0.0.0.0/0,::/0 \
+       --inside-zone dmz --target-prefix nsg-
+   ```
+
+2. Look at what it changes, then deploy it, always in incremental mode (the
+   default); complete mode deletes every resource of the group the template
+   does not name:
+
+   ```sh
+   az deployment group what-if -g rg-net --template-file nsgs.json
+   az deployment group create -g rg-net --template-file nsgs.json --confirm-with-what-if
+   ```
+
+   A group of the same name keeps its associations and gets the rules of the
+   template; its other rules are gone.
+3. Associate each group with the subnets of its zone (the template's metadata
+   lists its networks), and with no other:
+
+   ```sh
+   az network vnet subnet update -g rg-net --vnet-name vnet-hub -n snet-dmz --network-security-group nsg-dmz
+   ```
+
+   An interface that has a group of its own passes both; take the one off
+   (`az network nic update -g rg-net -n NIC --remove networkSecurityGroup`) unless both are
+   wanted.
+4. The groups end in the default of the source, which comes before Azure's
+   default rules: the load balancer's health probes and the virtual network
+   pass only where a rule lets them (`AZURE_DEFAULTS_OVERRIDDEN`).
+
 ### Check Point
 
 The output is a shell script. It needs `mgmt_cli`, which is on every
@@ -3558,7 +3738,12 @@ the report is the list.)
 | `no security groups found; expected the answer of 'aws ec2 describe-security-groups --output json'` | AWS: the JSON holds no security groups (or the CLI printed text or a table: give `--output json`). |
 | `the export holds security groups of several VPCs (...)` | AWS: convert one VPC at a time; filter the answers with `--filters Name=vpc-id,Values=vpc-...`. |
 | `network interface ...: '...' is not an address` | AWS: an address of an interface that cannot be read. |
-| `--inside-zone ZONE: give the networks behind it with --zone-network` | AWS target: a zone named by `--inside-zone` needs its networks. |
+| `--inside-zone ZONE: give the networks behind it with --zone-network` | AWS and Azure targets: a zone named by `--inside-zone` needs its networks. |
+| `no network security groups found; expected the JSON of 'az network nsg list' ...` | Azure: the JSON holds no network security group (or the CLI printed a table: give `-o json`). |
+| `the name of a network security group is a template expression that is not worked out` / `the name of a rule ...` / `the rules of group ... are a template expression ...` | Azure template: an expression FWShift does not work out (`uniqueString`, `resourceGroup()`, a parameter without a default value). Export the deployed groups with `az network nsg list -o json` instead, or give the parameter a default. |
+| `the count of a template copy loop is not worked out` | Azure template: the same remedy. |
+| `a template with symbolic resource names (languageVersion 2.0) is not read` / `a nested deployment with network security groups in it is not read` | Azure template forms that are not read: the same remedy. |
+| `a Resource Graph answer in the table format` | Azure: ask Resource Graph for objects (`az graph query` gives them; the REST API with `resultFormat` `objectArray`). |
 | `the base chains combine to more than 50000 rules` | nftables: several base chains at the forward hook whose rules multiply when they are combined. Not converted. |
 | `not valid JSON` / `no Management API response found` | The file is not the JSON output of `show access-rulebase`. Use `--format json`. |
 | `the export holds several access layers; choose one with --layer: ...` | Name one of the listed layers. Inline layers are found by themselves. |
@@ -3709,6 +3894,19 @@ deliberate: see *IPv4 and IPv6* in section 8.
   group; a group cannot say "every protocol but some". The formats follow the
   AWS CLI's service model (botocore) and the EC2 documentation; nothing was
   read from or sent to a real account.
+* Azure: network security groups, from the Azure CLI, the REST API, an ARM
+  template or Resource Graph. Members of application security groups are the
+  interfaces in the export; service tags are the addresses of the export, else
+  dynamic. A connection between resources behind two groups is composed from
+  the rules of both: the number of rules grows with the square of the number of
+  groups and of their rules (5,000 rules at most for one pair; the rest is
+  blocked, `AZURE_COMPOSED_LEFT_OUT`). Azure Virtual Network Manager's admin
+  rules, interfaces behind two groups, VPN gateways between virtual networks
+  and template expressions beyond those of section 8 are not converted. To
+  Azure: 2,000 security rules and 100 application security groups per group;
+  a service tag or an application security group cannot be cut to a zone. The
+  formats follow Microsoft's REST API specifications, the Azure CLI and the
+  documentation; nothing was read from or deployed to a real subscription.
 * nftables: forwarded traffic only (the forward hook), and IPv4 NAT. Rate
   limits, quotas, meters, sets filled at run time, `fib`, `socket`, marks,
   options and anything else beyond interfaces, addresses, protocols, ports,

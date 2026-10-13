@@ -1,0 +1,269 @@
+FWShift conversion report
+  source: azure
+  target: asa
+
+Summary
+  Security rules:    116   exact 0, approximated 44, needs review 72 (72 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_DYNAMIC: service tags and application security groups whose addresses only Azure knows: Internet, VirtualNetwork. They are dynamic groups, which only an Azure target writes again; add the service tags (az network list-service-tags) and the network interfaces to the export to convert them for other targets
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: nsg-web, nsg-app, nsg-db, outside. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [info] AZURE_ANY_PROTOCOL: protocol '*' is read as Microsoft documents it: TCP, UDP and ICMP; with ports, an allow rule allows TCP and UDP on them and a deny rule blocks ICMP as well. If Azure also matches other protocols with it, a deny rule '*' blocks more there than the converted rule
+  [info] AZURE_UNFILTERED: network security groups do not filter the platform's own traffic (168.63.129.16 and 169.254.169.254: DHCP, DNS, the instance metadata service, health probes); and the security admin rules of Azure Virtual Network Manager, which come first, are not in this export
+  [info] AZURE_ZONES: each network security group is a zone, and everything else the zone outside. The networks behind them, for --zone-network: --zone-network nsg-web=10.30.1.0/24,2001:db8:30:1::/64 --zone-network nsg-app=10.30.2.0/24 --zone-network nsg-db=10.30.3.20
+  [info] AZURE_COMPOSED: traffic between resources behind the groups passes the outbound rules of one and the inbound rules of the other: 80 rules say what both allow, in the order of the two
+  [info] AZURE_ASG_MEMBERS: the members of these application security groups are the network interfaces in the export: asg-db, asg-web. A member whose interface is not in it (another resource group, another subscription) is not in the group
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+
+Security rules
+  nsg-web:Allow-HTTPS  ->  approximated  (emitted as outside_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-web:Allow-SSH-Admins  ->  approximated  (emitted as outside_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled  (emitted as outside_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, nsg-web with --zone-network.
+  nsg-web:Deny-Partner  ->  needs-review, emitted disabled  (emitted as outside_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled  (emitted as outside_access_in)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, nsg-web with --zone-network.
+  nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as outside_access_in)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, nsg-web with --zone-network.
+  nsg-web:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled  (emitted as outside_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, nsg-web with --zone-network.
+  nsg-web:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as outside_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-App-Out  ->  approximated  (emitted as nsg-web_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-web:Allow-Storage  ->  approximated  (emitted as nsg-web_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-web:Deny-Internet  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+  nsg-web:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+  nsg-web:DenyAllOutBound  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-From-Web  ->  needs-review, emitted disabled  (emitted as outside_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, nsg-app with --zone-network.
+  nsg-app:Allow-Esp-Partner  ->  approximated  (emitted as outside_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Allow-Probe  ->  needs-review, emitted disabled  (emitted as outside_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, nsg-app with --zone-network.
+  nsg-app:Deny-VNet  ->  needs-review, emitted disabled  (emitted as outside_access_in)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as outside_access_in)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, nsg-app with --zone-network.
+  nsg-app:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled  (emitted as outside_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, nsg-app with --zone-network.
+  nsg-app:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as outside_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Db  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Allow-Sql  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Allow-Dns  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Deny-Out  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+  nsg-app:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+  nsg-app:DenyAllOutBound  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:Allow-Sql-From-App  ->  approximated  (emitted as outside_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-db:Allow-Old-Gre  ->  needs-review, emitted disabled  (emitted as outside_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, nsg-db with --zone-network.
+  nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as outside_access_in)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, nsg-db with --zone-network.
+  nsg-db:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled  (emitted as outside_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, nsg-db with --zone-network.
+  nsg-db:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as outside_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, nsg-db with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-db_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+  nsg-db:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as nsg-db_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by outside. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+  nsg-db:DenyAllOutBound  ->  needs-review, emitted disabled  (emitted as nsg-db_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-App-Out+nsg-web:Deny-Partner  ->  approximated  (emitted as nsg-web_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-web:Allow-App-Out+nsg-web:AllowVnetInBound  ->  approximated  (emitted as nsg-web_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-web:Allow-App-Out+nsg-web:DenyAllInBound  ->  approximated  (emitted as nsg-web_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  approximated  (emitted as nsg-web_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  approximated  (emitted as nsg-web_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:Deny-Partner  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:DenyAllOutBound to nsg-web  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-App-Out+nsg-app:Allow-From-Web  ->  approximated  (emitted as nsg-web_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-web:Allow-App-Out+nsg-app:Deny-VNet  ->  approximated  (emitted as nsg-web_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-web:Allow-App-Out+nsg-app:AllowVnetInBound  ->  approximated  (emitted as nsg-web_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-web:Allow-App-Out+nsg-app:DenyAllInBound  ->  approximated  (emitted as nsg-web_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-web:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-db, outside, nsg-app with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-app:Deny-VNet  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-db, outside, nsg-app with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:DenyAllOutBound to nsg-app  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:Allow-App-Out+nsg-db:AllowVnetInBound  ->  approximated  (emitted as nsg-web_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-web:Allow-App-Out+nsg-db:DenyAllInBound  ->  approximated  (emitted as nsg-web_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-web:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  approximated  (emitted as nsg-web_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, outside, nsg-db with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, outside, nsg-db with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:DenyAllOutBound to nsg-db  ->  needs-review, emitted disabled  (emitted as nsg-web_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, outside, nsg-db with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Db+nsg-web:Deny-Partner  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Allow-Db+nsg-web:AllowVnetInBound  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Allow-Db+nsg-web:DenyAllInBound  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Allow-Dns+nsg-web:Deny-Partner  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Allow-Dns+nsg-web:AllowVnetInBound  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Allow-Dns+nsg-web:DenyAllInBound  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Deny-Out to nsg-web  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-db, outside, nsg-web with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:Deny-Partner  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-db, outside, nsg-web with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-db, outside, nsg-web with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:DenyAllOutBound to nsg-web  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-db, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Db+nsg-app:Deny-VNet  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Allow-Db+nsg-app:AllowVnetInBound  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Allow-Db+nsg-app:DenyAllInBound  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Allow-Dns+nsg-app:Deny-VNet  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Allow-Dns+nsg-app:AllowVnetInBound  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Allow-Dns+nsg-app:DenyAllInBound  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Deny-Out to nsg-app  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-app:Deny-VNet  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:DenyAllOutBound to nsg-app  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-db, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:Allow-Db+nsg-db:Allow-Sql-From-App  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Allow-Db+nsg-db:AllowVnetInBound  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Allow-Db+nsg-db:DenyAllInBound  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Allow-Dns+nsg-db:AllowVnetInBound  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Allow-Dns+nsg-db:DenyAllInBound  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:Deny-Out to nsg-db  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, outside, nsg-db with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  approximated  (emitted as nsg-app_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, outside, nsg-db with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, outside, nsg-db with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:DenyAllOutBound to nsg-db  ->  needs-review, emitted disabled  (emitted as nsg-app_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, outside, nsg-db with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  approximated  (emitted as nsg-db_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  approximated  (emitted as nsg-db_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled  (emitted as nsg-db_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, outside, nsg-web with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:Deny-Partner  ->  needs-review, emitted disabled  (emitted as nsg-db_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled  (emitted as nsg-db_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, outside, nsg-web with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-db_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, outside, nsg-web with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as nsg-db_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:DenyAllOutBound to nsg-web  ->  needs-review, emitted disabled  (emitted as nsg-db_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-web, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-app, outside, nsg-web with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled  (emitted as nsg-db_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, outside, nsg-app with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-app:Deny-VNet  ->  needs-review, emitted disabled  (emitted as nsg-db_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-db_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, outside, nsg-app with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as nsg-db_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:DenyAllOutBound to nsg-app  ->  needs-review, emitted disabled  (emitted as nsg-db_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-app, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, outside, nsg-app with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  approximated  (emitted as nsg-db_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as nsg-db_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside, nsg-db with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  needs-review, emitted disabled  (emitted as nsg-db_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside, nsg-db with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-db:DenyAllOutBound to nsg-db  ->  needs-review, emitted disabled  (emitted as nsg-db_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by nsg-db, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind nsg-web, nsg-app, outside, nsg-db with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+Services
+  tcp-443,80  ->  exact  (emitted as tcp-443_80)
+      [info] RENAMED: renamed to 'tcp-443_80' to fit the target's naming rules

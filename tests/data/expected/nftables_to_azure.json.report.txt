@@ -1,0 +1,70 @@
+FWShift conversion report
+  source: nftables
+  target: azure
+
+Summary
+  Security rules:     16   exact 0, approximated 2, needs review 13 (12 emitted disabled), skipped 1
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CHAIN_NOT_CONVERTED: chain prerouting of table inet raw at the prerouting hook (priority -300, policy accept) can drop forwarded traffic as well and is not converted
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of table inet filter (3 rules, policy drop) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] DYNAMIC_SET: sets filled at run time decide what their rules match; those rules are not converted: @banned (flags timeout)
+  [needs-review] AZURE_LOAD: the output is an ARM template (section 10): look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode, never complete), then associate each group with the subnets of its zone (its networks are in the template's metadata). Deploying it replaces all rules of groups of the same name
+  [needs-review] AZURE_ONE_GROUP: no zone has networks (--zone-network): one group holds every rule, inbound and outbound; associate it with every subnet the policy is for
+  [info] SEVERAL_BASE_CHAINS: IPv4 traffic passes 2 base chains at the forward hook: inet f2b forward (-5), inet filter forward (0). It is forwarded only if each of them accepts it; they were combined into one list of rules
+  [info] AZURE_DEFAULTS_OVERRIDDEN: each list ends in the default of the source, which comes before the default rules of Azure: they no longer let the virtual network, the load balancer's health probes or the internet through unless a rule does
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security rule does not. Flow logs of the virtual network record the connections instead
+
+Security rules
+  Banned by fail2ban  ->  needs-review, emitted disabled
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [needs-review] UNSUPPORTED_MATCH: not converted: set @banned, which is filled at run time (flags timeout). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad hosts  ->  needs-review  (emitted as security rules of FWShift)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  Guests stay in  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone eth1, eth0; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  LAN web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone eth1, eth0, and a security rule names no zone: give the networks behind it with --zone-network.
+  LAN DNS  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone eth1, eth0, and a security rule names no zone: give the networks behind it with --zone-network.
+  Rate limited mail  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: rate limit 10/minute.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone eth1, eth0, and a security rule names no zone: give the networks behind it with --zone-network.
+  Partner tunnel  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone eth1, eth0, and a security rule names no zone: give the networks behind it with --zone-network.
+  Admins  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone eth1, eth2, and a security rule names no zone: give the networks behind it with --zone-network.
+  Ping the DMZ  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone eth1, eth2, and a security rule names no zone: give the networks behind it with --zone-network.
+  SCADA to PLCs  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone eth1, eth3, and a security rule names no zone: give the networks behind it with --zone-network.
+  OT no internet  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone eth3, eth0; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  Inbound web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone eth0, eth2, and a security rule names no zone: give the networks behind it with --zone-network.
+  Inbound mail  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone eth0, eth2, and a security rule names no zone: give the networks behind it with --zone-network.
+  Inbound IPv6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone eth0, eth2, and a security rule names no zone: give the networks behind it with --zone-network.
+  DMZ updates  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone eth2, eth0, and a security rule names no zone: give the networks behind it with --zone-network.
+  ICMPv6 basics  ->  skipped
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+
+NAT rules
+  Web DNAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  Mail DNAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  No NAT to partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  DMZ out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  LAN out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
