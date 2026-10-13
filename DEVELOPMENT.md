@@ -8,11 +8,11 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.16.0 (alpha) |
+| Version | 0.17.0 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
-| Tests | 3345, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
+| Tests | 3426, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, a Check Point management server, a Cisco Management Center or a Device Manager |
-| Next | rule usage, 0.17.0: narrowing (see `docs/RULE_USAGE.md`); lab validation of the sample conversions; the brands not planned yet (see `TODO.md`) |
+| Next | lab validation of the sample conversions; rule usage beyond the plan (see `TODO.md`); lab validation of the sample conversions; the brands not planned yet (see `TODO.md`) |
 
 ## Layout
 
@@ -80,6 +80,7 @@ src/fwshift/
                       policy's UUID and ID
     simulate.py       first match on the audit's sets for a connection whose log
                       names no rule: certain or possible
+    narrow.py         narrower rules from what the logs show (WIDER_THAN_TRAFFIC)
     usage.py          fwshift usage: the store (SQLite), attribution of connections
                       to rules, objects and services, evidence, the reports
     matrix.py         the zone matrix: what each zone may reach in each other
@@ -143,6 +144,8 @@ tests/
                       iptables LOG reader and the usage of an iptables policy
     test_traffic_logs.py the PAN-OS and FortiOS readers, attribution by the
                       rule's identifiers (against a reference), their usage
+    test_narrow.py    narrower rules: never wider than the cell, holding what
+                      was seen; proposals read back
     test_audit.py     the audit, against a walk through every packet of a
                       small world
     test_matrix.py    the zone matrix, against the same walk: every packet
@@ -1914,6 +1917,91 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-13: version 0.17.0
+
+The fifth and last planned release of *rule usage* (`docs/RULE_USAGE.md`):
+narrower rules proposed from what the logs show went through a rule.
+
+**Built**
+
+* `narrow.py`: the narrower cells of an allow rule. Addresses as the logs give
+  them (or the networks a store keeps beyond its limit), grouped into /24 and
+  /16 (IPv6 /64 and /48) while there are more than 16, and cut back to the
+  cell; services as the protocols, ports and ICMP types used, at most 16. A
+  cell is narrowed only where the audit knows all it holds (`_Match` over and
+  under sets equal, not negated), every connection said what it used there,
+  and what they used lies inside it. `build()` makes a policy of the proposed
+  rules alone (`<rule>-narrowed`), with objects named by what they hold, or
+  the policy's own object that holds just that.
+* `usage.py`: what the connections of each rule used, per cell
+  (`LogUsage.seen`, certain and possible connections, at most 4096 values),
+  and the cells a connection left unknown (`LogUsage.blind`: no address or
+  port, a FortiOS destination NAT).
+* Audit: `WIDER_THAN_TRAFFIC` (low; off, accept, report) for a used allow rule
+  whose logs prove its use, when a cell keeps at most `wider_than_traffic`
+  percent (a new threshold, 10) of what it holds; the finding carries the
+  proposal (`proposal` in the JSON). No proposal for a blocking rule, a rule
+  read approximately, a part of a split rule, or the destinations of a rule
+  with a destination NAT.
+* `fwshift usage --propose FILE [--propose-to FORMAT]`: the proposed rules as
+  the neutral model (JSON, the default), or through an emitter, with its
+  conversion report next to it and the rules where the policy's are (vsys or
+  device group, VDOM, layer). The report lists the narrower rules.
+* The PAN-OS emitter keeps a PAN-OS rule's log forwarding profile.
+* Manual: section 15, *Narrower rules*; the check and the threshold in
+  section 13; the options in section 5.
+
+**What the platform made necessary**
+
+* *Never wider.* Every network of a proposal is cut back to the rule's own
+  set; where the logs show what the model cannot place, nothing is proposed.
+* *A proposal is a review, not a change.* The emitters write whole
+  policies: a table to restore, a layer with a cleanup rule, access groups.
+  A conversion of the narrowed rules alone still carries that around them,
+  so it is written for its rules to be taken from, with its report, and the
+  default is the neutral model.
+* *New rules, not edits.* `set` commands add members to a rule of the same
+  name (PAN-OS, Juniper): a narrower rule has a name of its own.
+
+**Sources**
+
+None outside the project: the audit's sets (`_Reader`) and the emitters.
+
+**Review**
+
+*Round 25* by the independent reviewer, with repro scripts of its own. The
+narrowing itself held (20,000 fuzzed cells never wider, never short); what it
+found was in what `--propose` wrote:
+
+| | Finding | Fix |
+|---|---|---|
+| critical | A Check Point proposal script puts its rules at the top of the layer with a cleanup Drop below them: installed, it shuts off the rulebase | JSON by default; a vendor format is written as a conversion to take the rules from, never to load, said in the report and the manual, with its conversion report |
+| high | FortiOS: a narrowed policy loses its NAT and profiles; a virtual IP is written as an address | in the conversion report now written next to it; the manual no longer says everything is kept |
+| high | iptables: an unnarrowed destination kept the pre-NAT address of a NAT rule the proposal does not hold: wider than the rule | dropped |
+| medium-high | The conversion report of the proposal was thrown away (rules written disabled, approximated) | written next to it |
+| medium | Proposal files carry whole-policy scaffolding (tables, access groups, deny rules) | as the first finding |
+| medium | PAN-OS: the log forwarding profile of a narrowed rule was dropped | the emitter writes it |
+| medium | No target scope for the proposal | the policy's vsys or device group, VDOM, layer |
+| low | Objects that hold the same address under another name were created again; FortiOS destinations were never narrowed; the message counted possible connections as carried | reused; narrowed unless they name a virtual IP; worded apart |
+
+The fixes were not reviewed again; they have tests (the last section of
+`test_narrow.py`).
+
+**Verified, and not**
+
+* The tests: `tests/test_narrow.py` holds 81 tests, the suite 3426.
+  Narrowed addresses against random cells (40 seeds): never outside the cell,
+  holding every address seen, at most 16 networks; narrowed services against
+  random service sets: inside the set, or nothing; the iptables proposals of
+  the sample written as iptables rules and read back: each inside its rule.
+  A mutation check with 16 ways to break the narrowing, the check, the
+  collection of what was used and the writing: 13 caught at first; the
+  tests for the other three (more services than a proposal holds, a negated
+  source, a connection without its address) were added, and catch them.
+* **No proposal was loaded on a device.** A proposal written for a target
+  other than iptables was not read back; what the logs did not see in the
+  window (a quarterly job) is not in a proposal.
 
 ### 2026-10-13: version 0.16.0
 

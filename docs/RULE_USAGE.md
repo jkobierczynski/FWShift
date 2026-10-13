@@ -2,7 +2,8 @@
 
 **Status:** accepted on 2026-10-12; 0.13.0 (rule identity and hit counters),
 0.14.0 (`fwshift usage` for Check Point logs), 0.15.0 (simulated
-attribution and iptables logs) and 0.16.0 (PAN-OS and FortiOS logs) are done. The releases 0.13.0 to 0.17.0 carry it out (section 7); what each release built is in the development log of
+attribution and iptables logs), 0.16.0 (PAN-OS and FortiOS logs) and 0.17.0
+(narrowing) are done. The releases 0.13.0 to 0.17.0 carry it out (section 7); what each release built is in the development log of
 [DEVELOPMENT.md](../DEVELOPMENT.md).
 
 This document started as a feature brief written in a separate session for
@@ -422,7 +423,7 @@ come first because they are useful without the usage feature.
 | 0.14.0 | **`fwshift usage` for Check Point** (done). Log Exporter (syslog, splunk, cef) and `show-logs` readers, aggregation, SQLite store, attribution by rule identity, attribution to objects and services, `UNUSED_RULE_OBJECT`, `UNUSED_RULE_SERVICE`, JSON, text and HTML output; `--usage-store` for the audit and conversions. Hit counters as a cross-check of the totals. | The regression tests of section 8 pass; manual updated. |
 | 0.15.0 | **Simulation** (done). A first-match evaluator on the audit's matches; certain against possible; the iptables `LOG` reader. The Check Point CSV export and `fwm logexport` moved to a later release (section 11.6). | An oracle over random rulesets: the certain rule is the one that decides in every world, the possible ones hold it where none is certain. |
 | 0.16.0 | **PAN-OS and FortiOS logs** (done). Readers for their traffic logs; attribution by rule UUID, name and policy ID. | Fixture tests per vendor; attribution against a reference on random policies. |
-| 0.17.0 | **Narrowing.** `WIDER_THAN_TRAFFIC` with a proposed rule written through the emitters. | Proposal tests: never wider than the original, never for deny rules. |
+| 0.17.0 | **Narrowing** (done). `WIDER_THAN_TRAFFIC` with a proposed rule, as the neutral model or written through the emitters. | Proposal tests: never wider than the original, never for deny rules. |
 
 ## 8. Tests
 
@@ -643,4 +644,20 @@ settled these:
   after the translation; the log gives both (`tranip`, `tranport`).
 * The PAN-OS hit counters give the rules' creation and change times, which
   proving them unused needs (`Rule.changed`).
+
+### 11.8 What 0.17.0 changed in the plan (2026-10-13)
+
+* **A proposal holds every connection, possible ones too.** Principle 4 reads
+  "narrower beats wider when unsure"; for a proposal that someone will load,
+  leaving out a connection that may have used the rule breaks traffic, so
+  possible connections are in it, and a cell where a connection left its
+  address or port unknown is not narrowed.
+* **Written through the emitters, not for loading.** The emitters write whole
+  policies (a table to restore, a layer with a cleanup rule, access groups,
+  deny rules per zone pair). A proposal is therefore the neutral model by
+  default; a vendor format is a conversion of the narrowed rules alone, to
+  take the rules from, with its conversion report. Writing only rules into a
+  running configuration, per vendor, is left for later (TODO).
+* **Zones, applications and users are not narrowed**; addresses and services
+  are. A rule of users narrowed by addresses ties it to the addresses seen.
 

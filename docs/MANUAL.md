@@ -5,7 +5,7 @@ Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
 or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX and Linux iptables, and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; and show what each zone may reach in each
-other zone. This manual covers version 0.16.
+other zone. This manual covers version 0.17.
 
 **Contents**
 
@@ -52,7 +52,7 @@ FWShift converts the **policy**. It does not convert interfaces, routing, VPN,
 users, security profiles, or system settings, and it is not a substitute for
 testing the result.
 
-> **Status.** Version 0.16 is tested against synthetic configurations. iptables
+> **Status.** Version 0.17 is tested against synthetic configurations. iptables
 > output and input are checked against a Linux kernel (filter rules, one
 > kernel and iptables version). Output for PAN-OS, FortiOS, Check Point,
 > Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda and Juniper SRX has
@@ -787,7 +787,8 @@ converted.
 ```
 fwshift usage INPUT [--from ...] [--layer ...] [--logs FILE ...] [--store FILE] [--since DAYS|YYYY-MM-DD]
                     [--until YYYY-MM-DD] [--gateway NAME[=LOGNAME,...] ...] [--log-year YYYY] [--log-offset +HH:MM]
-                    [--roll-up N] [-o FILE] [--json] [--html FILE] [--unchanged-since YYYY-MM-DD]
+                    [--roll-up N] [--propose FILE [--propose-to FORMAT]] [-o FILE] [--json] [--html FILE]
+                    [--unchanged-since YYYY-MM-DD]
                     [--audit-config FILE] [--audit-action CHECK=ACTION] [--audit-accept RULE[=CHECK,...]]
                     [--audit-fail-on LEVEL] [--hits FILE] [--hits-since YYYY-MM-DD]
 ```
@@ -807,6 +808,8 @@ iptables policy, in this version. Nothing is converted.
 | `--log-offset +HH:MM` | iptables, PAN-OS, FortiOS: the offset from UTC of times that give none (`+02:00`, `-05:00`, `Z`). PAN-OS and FortiOS write the firewall's local time; a PAN-OS line of 10.0 or later and a FortiOS line with `eventtime` or `tz` carry their zone. Without it, times without a zone are read as UTC, and the report says how many were. |
 | `--unchanged-since YYYY-MM-DD` | The rules have been as they are since this day, where the export does not say when they were changed (iptables, PAN-OS and FortiOS configurations never do; for PAN-OS the answer of `show rule-hit-count`, given with `--hits`, does). Your word: without it, no rule is called unused. Also an option of `fwshift audit` and `fwshift convert`. |
 | `--roll-up N` | Addresses kept per rule and side as they are (per pair of interfaces, for logs that name no rule); beyond, an address is kept as its /24 (IPv6: /64). Default 256. |
+| `--propose FILE` | Write the narrower rules of `WIDER_THAN_TRAFFIC` (not those accepted) to this file, as new rules named `<rule>-narrowed` with the objects they need, for review (section 15). |
+| `--propose-to FORMAT` | The format of `--propose`: `json` (the neutral model, the default) or a target of `fwshift convert`. A target format is a conversion of the narrowed rules alone, with what the target needs around them: take the rules from it, do not load it as it is. Its conversion report goes to `FILE.report.txt`. |
 | `-o FILE`, `--json`, `--html FILE` | Where the report goes, as JSON instead of text, and also as a page of its own. |
 
 The audit options choose what is done with the findings of the four checks
@@ -3327,6 +3330,7 @@ Findings in the policy as it was read
 | `UNUSED_RULE_OBJECT` | low | Objects in the cells of a used allow rule that no logged connection used (section 15). | off, accept, report |
 | `UNUSED_RULE_SERVICE` | low | Services of a used allow rule that no logged connection used (section 15). | off, accept, report |
 | `NO_USAGE_EVIDENCE` | info | A rule whose use cannot be told: it has no counter while other rules have one, its counter of 0 has counted for fewer than 90 days or for a time that is not known, or it does not come from every firewall the rule may be on; or the logs of the window prove nothing about it (section 15). | off, accept, report |
+| `WIDER_THAN_TRAFFIC` | low | A used allow rule whose logged connections used at most 10% (the threshold `wider_than_traffic`) of its sources, destinations or services, with a narrower rule (section 15). | off, accept, report |
 
 The level of `ANY_ANY_ANY`, `ANY_SERVICE` and `ANY_TO_ANY` is one lower for
 a rule whose zones keep it to a part of the firewall: there is a zone it
@@ -3544,7 +3548,7 @@ level, and so is a check that does not exist.
     "Legacy-*",
     {"rule": "Inbound-Web", "checks": ["ANY_SOURCE"], "reason": "the public web server"}
   ],
-  "thresholds": {"wide_network_v4": 8, "wide_network_v6": 32, "wide_ports": 1024, "usage_days": 90},
+  "thresholds": {"wide_network_v4": 8, "wide_network_v6": 32, "wide_ports": 1024, "usage_days": 90, "wider_than_traffic": 10},
   "services": {
     "risky": {"telnet": ["tcp/23"], "rdp": ["tcp/3389", "udp/3389"]},
     "industrial": {"modbus": ["tcp/502"]}
@@ -3557,7 +3561,9 @@ level, and so is a check that does not exist.
 ```
 
 `hits_since` is `--hits-since` (section 13, *Hit counters*), `unchanged_since`
-is `--unchanged-since` (section 15).
+is `--unchanged-since` (section 15). `wider_than_traffic` is the share, in
+percent (1 to 99), of a cell's addresses or services at or below which a rule
+is wider than its traffic (section 15).
 `services.risky` and `services.industrial` replace the built-in lists of
 ports; `applications.risky` and `applications.industrial` replace the lists
 of application names (for sources that name applications). Options on the
@@ -4056,6 +4062,63 @@ With hit counters as well (`--hits`, or a rulebase exported with hits), a rule
 that either shows used is used, a proof from either is enough for
 `UNUSED_RULE`, and where the two disagree the report lists it (they rarely
 cover the same period).
+
+### Narrower rules
+
+A used allow rule whose connections used a small part of what it allows gets
+`WIDER_THAN_TRAFFIC`, with a narrower rule: the same rule, with its sources,
+destinations and services narrowed to what its connections used. It is
+proposed only where the logs prove the rule's use (the same conditions as an
+unused rule, above), and never for a blocking rule. A cell is narrowed only:
+
+* where the audit knows all it holds: no host name, no object FWShift cannot
+  read, not negated; and the destinations of a rule with a destination NAT
+  (which name the translation) are left as they are;
+* where every connection said what it used there (an address, a port; for
+  FortiOS no destination NAT), possible connections included;
+* where what they used lies inside it (otherwise the model and the logs
+  disagree, and nothing is proposed).
+
+Addresses are taken as the logs give them, and grouped into /24 and then /16
+networks (IPv6: /64 and /48) while there are more than 16; whatever the
+grouping, the result is cut back to the cell, so a narrower rule is never
+wider than its rule. Services become the protocols and ports (ICMP types)
+used, at most 16. A rule is reported when a cell keeps at most 10% of what it
+holds (the threshold `wider_than_traffic`; for addresses, of the IP version
+that keeps most). A rule read approximately (a criterion the model does not
+hold), and a part of a rule the source split, get no proposal.
+
+```
+  [low] WIDER_THAN_TRAFFIC: rule 'LAN web' carried 90 connection(s) from 2026-07-03 to 2026-09-30 that used of its sources less than 0.01% of what they hold ('10.10.4.20/32'); ...
+
+Narrower rules
+  'LAN web-narrowed' for 'LAN web': sources 10.10.4.20/32; destinations 203.0.113.200/32; services tcp/443
+```
+
+`--propose FILE` writes them for review, as new rules named `<rule>-narrowed`
+(a narrower rule is never an edit of its rule: `set` commands of PAN-OS and
+Juniper add members to a rule of the same name). By default the file is the
+neutral model (JSON, as `fwshift convert --to json` writes it) of a policy that
+holds the narrowed rules and the objects they need: objects of the policy where
+one holds just that address or service, new ones named by what they hold
+(`10.1.2.0/24`, `tcp-443`) otherwise. Nothing is changed in the policy.
+
+`--propose-to FORMAT` writes them in a target format instead, through its
+emitter, into the policy's own virtual system or device group, VDOM or layer.
+That is a conversion of a policy that holds the narrowed rules only, and an
+emitter writes what its target needs around a policy: a whole table for
+`iptables-restore`, a layer that ends in a cleanup rule (Check Point), access
+groups (ASA), deny rules per zone pair. **Take the narrowed rules from it; do
+not load it as it is.** Its conversion report is written next to it
+(`FILE.report.txt`): what the target could not write (a FortiOS policy's NAT
+and profiles, say) and rules it wrote disabled are in it.
+
+A narrowed rule keeps what the model holds of its rule (zones, applications,
+users, profiles, logging, as far as the target writes them). Put it where its
+rule is, and disable or delete the rule once you have checked it. A rule of
+users narrowed by addresses ties it to the addresses seen. What the logs did
+not see in the window, such as a quarterly job, is not in a proposal: the
+window should cover the rule's whole cycle.
 
 ### The store
 

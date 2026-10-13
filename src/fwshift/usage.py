@@ -58,6 +58,7 @@ _ID_ORDER = {"panos": ("panos.uuid", "panos.name"), "fortios": ("fortios.uuid", 
 DEFAULT_CAP = 256
 OUTSIDE = "(outside the listed)"
 _FLUSH = 100_000
+_SEEN = 4096  # what a cell keeps of the connections through a rule, for a narrower one; beyond, the cell is not narrowed
 _PROTOCOL_NUMBERS = {Protocol.TCP: 6, Protocol.UDP: 17, Protocol.SCTP: 132, Protocol.ICMP: 1, Protocol.ICMP6: 58}
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -636,6 +637,8 @@ def _evaluate(p: Policy, store: Store, span: Window, gateways: Sequence[str], re
     simulator: Optional[Simulator] = None
     rolled = {row[0] for row in db.execute("SELECT DISTINCT rule_key FROM rolled")}
     rolled_rules: Set[int] = set()
+    seen: Dict[Tuple[int, str], Set[str]] = {}  # (rule, cell) -> what its connections were
+    blind: Set[Tuple[int, str]] = set()
     declared_lower = {name.lower() for name in declared}
     everywhere = sorted(declared_lower) if declared and p.vendor in _BY_HOST else sorted(names)  # (a rule with no targets is on these)
     weak = 0  # connections named by an identifier another firewall may give a rule of its own, among the lines of several hosts
@@ -760,6 +763,14 @@ def _evaluate(p: Policy, store: Store, span: Window, gateways: Sequence[str], re
                     served = list(dict.fromkeys(served + what.service_hits(protocol, nat[1])))
                 for name in served:
                     bucket[name] = bucket.get(name, 0) + count
+            for cell, value, unknown in (("source", src, not src), ("destination", dst, not dst or bool(nat[0])),
+                                         ("service", f"{protocol}/{-1 if port is None else port}", protocol < 0 or nat[1] is not None
+                                          or (protocol in (6, 17, 132, 1, 58) and (port is None or port < 0)))):  # fmt: skip
+                bag = seen.setdefault((id(rule), cell), set())
+                if unknown or len(bag) >= _SEEN:
+                    blind.add((id(rule), cell))
+                else:
+                    bag.add(value)
             for person in [name for name in user.split(_USERS) if name]:
                 bucket = log.members.setdefault("user", {})
                 bucket[person] = bucket.get(person, 0) + count
@@ -788,6 +799,8 @@ def _evaluate(p: Policy, store: Store, span: Window, gateways: Sequence[str], re
         what = cells.get(id(rule)) or _Cells(p, rule)
         _complete(log, what)
         log.rolled_up = id(rule) in rolled_rules
+        log.seen = {cell: sorted(seen[(id(rule), cell)]) for cell in ("source", "destination", "service") if seen.get((id(rule), cell))}
+        log.blind = [cell for cell in ("source", "destination", "service") if (id(rule), cell) in blind]
         log.no_evidence = _evidence(rule, span, result, coverage, doubts, names, unchanged_since, everywhere, aliases)
         if p.vendor == "panos" and (rule.log_end or rule.log_start) and not rule.handling.get("log-setting"):
             log.no_evidence.insert(0, "it has no log forwarding profile: its logs reach syslog and Panorama only through one")
@@ -986,6 +999,15 @@ def to_text(data: Dict[str, Any]) -> str:
     accepted = [f for f in data["findings"] if f["action"] == "accept"]
     if accepted:
         lines += ["", "Accepted"] + [f"  {f['check']}: {f['kind']} '{f['name']}'" + (f" ({f['reason']})" if f.get("reason") else "") for f in accepted]
+    proposals = [f for f in data["findings"] if f.get("proposal") and f["action"] != "accept"]
+    if proposals:
+        lines += ["", "Narrower rules"]
+        for f in proposals:
+            narrowed = f["proposal"].get("narrowed", [])
+            cells = "; ".join(f"{cell} {', '.join(f['proposal'][cell])}" for cell in narrowed)
+            lines.append(f"  '{f['name']}-narrowed' for '{f['name']}': {cells} (the rest as it is)")
+        for line in data.get("proposals_written", []):
+            lines.append(f"  {line}")
     lines += ["", "Rules"]
     for rule in data["rules"]:
         state = f"{rule['connections']} connection(s)"
@@ -1060,6 +1082,14 @@ def to_html(data: Dict[str, Any]) -> str:
         out.append("</table>")
     else:
         out.append("<p>None.</p>")
+    proposals = [f for f in findings if f.get("proposal") and f["action"] != "accept"]
+    if proposals:
+        out.append("<h2>Narrower rules</h2><table><tr><th>Rule</th><th>Sources</th><th>Destinations</th><th>Services</th></tr>")
+        for f in proposals:
+            cells = [", ".join(f["proposal"].get(cell, [])) if cell in f["proposal"].get("narrowed", []) else "(as it is)"
+                     for cell in ("sources", "destinations", "services")]  # fmt: skip
+            out.append(f"<tr><td>{e(f['name'])}-narrowed</td>" + "".join(f"<td>{e(cell)}</td>" for cell in cells) + "</tr>")
+        out.append("</table>")
     out.append("<h2>Rules</h2>")
     for rule in data["rules"]:
         extra = (f", {rule['by_simulation']} by simulation" if rule.get("by_simulation") else "") + (

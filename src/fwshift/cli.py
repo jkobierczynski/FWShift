@@ -14,7 +14,7 @@ import json
 import sys
 from typing import Callable, Dict, List, Optional, Sequence, Set, TextIO, Tuple
 
-from . import __version__, audit, hits, matrix, transform, usage
+from . import __version__, audit, hits, matrix, narrow, transform, usage
 from .appmap import load_app_map
 from .emitters import asa as emit_asa
 from .emitters import checkpoint as emit_checkpoint
@@ -509,6 +509,12 @@ def build_parser() -> argparse.ArgumentParser:
     use.add_argument("--roll-up", type=int, default=usage.DEFAULT_CAP, metavar="N",
                      help=f"addresses kept per rule and side (per pair of interfaces, for logs that name no rule) before the rest are kept as "
                      f"their /24 or /64 (default {usage.DEFAULT_CAP})")  # fmt: skip
+    use.add_argument("--propose", metavar="FILE", help="write the narrower rules of WIDER_THAN_TRAFFIC here, as new rules named "
+                     "<rule>-narrowed, for review: the neutral model (JSON), or --propose-to")  # fmt: skip
+    use.add_argument("--propose-to", choices=VENDORS + ("json",), metavar="FORMAT", default="json",
+                     help="the format of --propose: json (default), or a target of fwshift convert. That is a conversion of a policy "
+                     "that holds the narrowed rules only, with what the target needs around them: take the rules from it, do not "
+                     "load it as it is. Its conversion report is written next to it (FILE.report.txt)")  # fmt: skip
     use.add_argument("-o", "--output", help="write the report here (default: standard output)")
     use.add_argument("--json", action="store_true", help="write the report as JSON")
     use.add_argument("--html", metavar="FILE", help="also write the report as a page of its own (HTML)")
@@ -677,7 +683,7 @@ def _offset(text: Optional[str]) -> Optional[int]:
     return (1 if sign == "+" else -1) * (int(hours) * 60 + int(minutes or 0))
 
 
-USAGE_CHECKS = ("UNUSED_RULE", "UNUSED_RULE_OBJECT", "UNUSED_RULE_SERVICE", "NO_USAGE_EVIDENCE")
+USAGE_CHECKS = ("UNUSED_RULE", "UNUSED_RULE_OBJECT", "UNUSED_RULE_SERVICE", "NO_USAGE_EVIDENCE", "WIDER_THAN_TRAFFIC")
 
 
 def _run_usage(args: argparse.Namespace) -> int:
@@ -710,6 +716,28 @@ def _run_usage(args: argparse.Namespace) -> int:
     result = audit.run(policy, config, report)
     document = usage.to_dict(policy, source, args.store or "(none: nothing is kept)", evaluation, ingested if args.logs else None,
                              result.before, counters)  # fmt: skip
+    if args.propose:
+        chosen = [(rule, finding.proposal) for finding in result.before if finding.check == "WIDER_THAN_TRAFFIC" and finding.proposal
+                  and finding.action != audit.ACCEPT for rule in policy.rules if (rule.origin or rule.name) == finding.name]  # fmt: skip
+        target = args.propose_to
+        proposed = narrow.build(policy, chosen, f"{span.first} to {span.last}")
+        written = [f"written to {args.propose} ({len(proposed.rules)} rule(s), {target})"]
+        if target == "json" or not proposed.rules:
+            _write(args.propose, convert(proposed, "json", Report()) if proposed.rules else "")
+        else:
+            # The rules of the policy where they are: its virtual system or device group, its VDOM, its layer.
+            options = Options(target_scope=("device-group:" + policy.scope.split(" ", 1)[1] if policy.scope.startswith("device-group ")
+                                            else f"vsys:{policy.scope}" if policy.scope.startswith("vsys") and policy.scope != "vsys1" else "")
+                              if target == "panos" and policy.vendor == "panos" else "",
+                              target_vdom=policy.scope if target == "fortios" and policy.vendor == "fortios" else "",
+                              target_layer=policy.scope if target == "checkpoint" and policy.vendor == "checkpoint" and policy.scope else "Network")  # fmt: skip
+            converted = Report()
+            _write(args.propose, convert(proposed, target, converted, options))
+            _write(args.propose + ".report.txt", converted.to_text())
+            written += [f"its conversion report: {args.propose}.report.txt (read it: what the target could not write, rules it wrote "
+                        "disabled)", "this is a conversion of a policy that holds the narrowed rules only, with what the target needs "
+                        "around them (a whole table, a cleanup rule, access-groups): take the narrowed rules from it, do not load it as it is"]  # fmt: skip
+        document["proposals_written"] = written
     text = json.dumps(document, indent=2, ensure_ascii=False) + "\n" if args.json else usage.to_text(document)
     if args.output:
         _write(args.output, text)

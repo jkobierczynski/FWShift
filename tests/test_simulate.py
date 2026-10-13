@@ -198,7 +198,7 @@ def test_certain_possible_and_what_the_policy_cannot_place(capsys: pytest.Captur
     assert data["connections"]["not_attributed"] == {"no rule matches it: the default of the policy": 13}
     found = {(f["check"], f["name"]) for f in data["findings"]}
     assert ("UNUSED_RULE", "Admins RDP") in found and ("NO_USAGE_EVIDENCE", "Rate limited mail") in found
-    assert not any(name == "LAN web" for _, name in found)
+    assert not any(name == "LAN web" and check != "WIDER_THAN_TRAFFIC" for check, name in found)
 
 
 def test_without_the_age_of_the_rules_iptables_proves_nothing(capsys: pytest.CaptureFixture[str]) -> None:

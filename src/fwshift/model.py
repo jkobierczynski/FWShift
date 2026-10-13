@@ -193,6 +193,12 @@ class LogUsage:
     rolled_up: bool = False  # addresses beyond the limit per rule were kept as networks
     gateways: List[str] = field(default_factory=list)  # the gateways whose logs the rule depends on
     elsewhere: List[str] = field(default_factory=list)  # gateways that logged it although it is not installed there
+    # What the connections through the rule (certain and possible) were, for a narrower rule (narrow.py): "source"
+    # and "destination" addresses (or the networks a store kept beyond its limit), "service" as "protocol/port"
+    # ("6/443", "1/8" for an ICMP type, "47/-1" where there is no port). A cell in ``blind`` had a connection that
+    # did not say (no address, no port, a destination NAT), or more than can be kept: it is not narrowed.
+    seen: Dict[str, List[str]] = field(default_factory=dict)
+    blind: List[str] = field(default_factory=list)
 
 
 @dataclass

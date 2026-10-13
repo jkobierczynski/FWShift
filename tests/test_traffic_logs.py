@@ -284,7 +284,8 @@ def test_what_the_pan_os_sample_shows(capsys: pytest.CaptureFixture[str]) -> Non
     found = {(f["check"], f["name"]) for f in data["findings"]}
     assert ("UNUSED_RULE", "Engineering to PLCs") in found and ("NO_USAGE_EVIDENCE", "Not-From-Guests") in found
     assert "no log forwarding profile" in {f["name"]: f["message"] for f in data["findings"]}["Not-From-Guests"]
-    assert ("NO_USAGE_EVIDENCE", "Tagged-Servers-Updates") in found and not any(name == "Inbound-Mail" for _, name in found)
+    assert ("NO_USAGE_EVIDENCE", "Tagged-Servers-Updates") in found
+    assert not any(name == "Inbound-Mail" and check != "WIDER_THAN_TRAFFIC" for check, name in found)
     assert data["connections"]["not_attributed"]["a line of another virtual system (vsys2)"] == 90
     # Without the age of the rules nothing is called unused; the hit counters of the firewall give it.
     text = _usage("panos", [], capsys)
@@ -402,7 +403,7 @@ def test_r24_a_virtual_ip_on_either_side(tmp_path: Any, capsys: pytest.CaptureFi
     data = json.loads(_usage("fortios", ["--unchanged-since", "2026-01-01", "--json"], capsys, str(log)))
     rules = {rule["name"]: rule for rule in data["rules"]}
     assert rules["Inbound web"]["members"]["service"] == {"app-ports": 30}
-    assert not [f for f in data["findings"] if f["name"] == "Inbound web"]
+    assert not [f for f in data["findings"] if f["name"] == "Inbound web" and f["check"] != "WIDER_THAN_TRAFFIC"]
     # Central NAT: the policy names the mapped address, the log has the external one first.
     from fwshift.model import Address, AddressKind
 

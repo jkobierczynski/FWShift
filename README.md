@@ -31,7 +31,7 @@ on which services, through which rules.
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.16).** The converter is tested against synthetic
+> **Status: alpha (0.17).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** is checked against the real thing: generated rulesets are
@@ -114,8 +114,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.16.0.pyz --version
-python3 fwshift-0.16.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.17.0.pyz --version
+python3 fwshift-0.17.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -304,6 +304,11 @@ $ fwshift usage checkpoint.json --logs gw-edge.log --store usage.db --html usage
   [low] UNUSED_RULE_OBJECT: rule 'DNS' of its sources 'dmz-net' had no connection from 2026-07-03 to 2026-09-30, out of 96 connection(s) through the rule
 ```
 
+An allow rule whose connections used a small part of what it allows gets
+`WIDER_THAN_TRAFFIC` with a narrower rule: its addresses and services cut down
+to what was used, never wider than the rule (`--propose FILE` writes them for
+review).
+
 A rule is only called unused when the logs can prove it: the rule logs, every
 gateway it is on sent logs on every day of the window, no line of them could
 not be read, and the rule did not change within it (iptables, PAN-OS and
@@ -478,8 +483,8 @@ and everything else outside the policy.
   OPNsense and others (see TODO.md).
 * **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](docs/RULE_USAGE.md)):
   rule identities and hit counters (0.13), Check Point logs (0.14),
-  connections without a rule uid and iptables logs (0.15), PAN-OS and FortiOS logs (0.16), then
-  narrower rules proposed from the use (0.17), as fwanalyser did for Check
+  connections without a rule uid and iptables logs (0.15), PAN-OS and FortiOS logs (0.16) and
+  narrower rules proposed from the use (0.17), all done, as fwanalyser did for Check
   Point.
 * Audit and matrix: the matrix before and after a conversion, a zone and
   conduit model as a file to check a policy against, an equivalence check as

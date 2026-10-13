@@ -394,6 +394,8 @@ class _Emitter:
         if rule.log_start:
             self.cmd(f"{base} log-start yes")
         self.cmd(f"{base} log-end {'yes' if rule.log_end else 'no'}")
+        if self.p.vendor == "panos" and rule.handling.get("log-setting"):
+            self.cmd(f"{base} log-setting {q(rule.handling['log-setting'])}")  # (the profile that sends its logs to syslog)
         if disabled:
             self.cmd(f"{base} disabled yes")
         if self.p.vendor == "panos":

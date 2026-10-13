@@ -1018,8 +1018,9 @@ def test_manual_lists_the_checks_as_the_code_has_them() -> None:
     assert off == {"OVERLAPPING_RULES", "NO_DESCRIPTION"} and all(f"`{code}`" in section for code in off)
     # The thresholds and lists the manual names are the ones the code starts with.
     config = AuditConfig()
-    assert (config.wide_network_v4, config.wide_network_v6, config.wide_ports, config.usage_days) == (8, 32, 1024, 90)
-    assert '"thresholds": {"wide_network_v4": 8, "wide_network_v6": 32, "wide_ports": 1024, "usage_days": 90}' in section
+    assert (config.wide_network_v4, config.wide_network_v6, config.wide_ports, config.usage_days, config.wider_than_traffic) == (8, 32, 1024, 90, 10)
+    assert ('"thresholds": {"wide_network_v4": 8, "wide_network_v6": 32, "wide_ports": 1024, "usage_days": 90, "wider_than_traffic": 10}'
+            in section)  # fmt: skip
     assert str(audit._MAX_BOXES) in section
     example = section.split("```json")[1].split("```")[0]
     assert audit.load_config(example).action("SHADOWED_RULE") == "reorder"

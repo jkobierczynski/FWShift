@@ -64,7 +64,7 @@ counters of the firewalls and then from their logs: what fwanalyser did for
 Check Point, for every platform FWShift reads. The design, the defects of
 fwanalyser it must not repeat, and the open questions with the answers chosen
 are in [docs/RULE_USAGE.md](docs/RULE_USAGE.md). One release per step;
-0.13.0 to 0.16.0 are done (see the development log), the others follow:
+0.13.0 to 0.17.0 are done (see the development log); what is left:
 
 1. **0.13.0, rule identity and hit counters** (done). The platforms' own rule
    identities on the rules of the model (Check Point rule, layer and parent
@@ -83,8 +83,11 @@ are in [docs/RULE_USAGE.md](docs/RULE_USAGE.md). One release per step;
    the FortiOS monitor counts IPv6 policies without `ip_version`; PAN-OS CEF
    and LEEF, and the FortiOS `csv`, `cef` and `json` formats, once examples
    are at hand; the IPv6 policies of FortiOS before 6.4 (`policy6`).
-5. **0.17.0, narrowing**: `WIDER_THAN_TRAFFIC`, with a narrower rule
-   written through the emitters; never for deny rules.
+5. **0.17.0, narrowing** (done): `WIDER_THAN_TRAFFIC`, with a narrower rule.
+   Still open: writing a proposal as only the rule and its new objects into
+   a running configuration, per vendor (position above the rule, the scope,
+   no scaffolding), and reading proposals of other targets back in the tests;
+   narrowing zones from the interfaces the logs give.
 6. **Later, more Check Point logs**: the CSV export of SmartConsole and
    `fwm logexport` (no rule uid in them: through the simulation), the
    gateway's own syslog format (`Fields@2620`) and the Log Exporter formats

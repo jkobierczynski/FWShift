@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
-from . import transform
+from . import narrow, transform
 from .errors import FwshiftError
 from .model import ANY, APP_DEFAULT, L4_PROTOCOLS, Action, AddressKind, NatRule, Policy, Protocol, Rule, RuleScope, ServiceEntry
 from .netutil import FULL_V4, FULL_V6, Interval, intersect, interval_text, normalize, overlaps, size, subtract
@@ -88,6 +88,8 @@ CHECKS: Dict[str, Check] = {
     "UNUSED_RULE_OBJECT": Check(Level.LOW, "objects of a used allow rule that no logged connection used", _FOR_OTHERS),
     "UNUSED_RULE_SERVICE": Check(Level.LOW, "services of a used allow rule that no logged connection used", _FOR_OTHERS),
     "NO_USAGE_EVIDENCE": Check(Level.INFO, "rule whose use the hit counters or the logs cannot prove", _FOR_OTHERS),
+    "WIDER_THAN_TRAFFIC": Check(Level.LOW, "allow rule whose logged connections used a small part of what it allows; with a "
+                                "narrower rule", _FOR_OTHERS),  # fmt: skip
     # Only after a conversion.
     "EXPOSED_BY_CONVERSION": Check(Level.HIGH, "blocking rule the conversion could not write, with allow rules below it", _FOR_OTHERS),
 }
@@ -179,6 +181,7 @@ class AuditConfig:
     wide_network_v6: int = 32
     wide_ports: int = 1024  # a range of at least this many ports is "very wide"
     usage_days: int = 90  # a hit counter that has counted for fewer days than this proves nothing by a zero
+    wider_than_traffic: int = 10  # percent: a cell whose connections used at most this share of it is wider than its traffic
     hits_since: Optional[int] = None  # the user's word: the counters have counted since then (UTC seconds)
     unchanged_since: Optional[int] = None  # the user's word: the rules have been as they are since then, where the source does not say
     risky_services: Dict[str, List[str]] = field(default_factory=lambda: copy.deepcopy(RISKY_SERVICES))
@@ -276,7 +279,8 @@ def load_config(text: str, where: str = "the audit configuration") -> AuditConfi
     thresholds = data.get("thresholds", {})
     if not isinstance(thresholds, dict):
         raise FwshiftError(f"{where}: 'thresholds' is an object")
-    limits = {"wide_network_v4": (0, 32), "wide_network_v6": (0, 128), "wide_ports": (2, 65536), "usage_days": (1, 3650)}
+    limits = {"wide_network_v4": (0, 32), "wide_network_v6": (0, 128), "wide_ports": (2, 65536), "usage_days": (1, 3650),
+              "wider_than_traffic": (1, 99)}  # fmt: skip
     for key, value in thresholds.items():
         if key not in limits or not isinstance(value, int) or isinstance(value, bool):
             raise FwshiftError(f"{where}: threshold '{str(key)[:40]}' is not known, or not a whole number")
@@ -339,6 +343,7 @@ class Finding:
     reason: str = ""  # why it was accepted
     dead: bool = False  # the rule never matches (and not: matches, but adds nothing)
     ids: Dict[str, str] = field(default_factory=dict)  # the source platform's own identifiers of the rule (Rule.source_ids)
+    proposal: Dict[str, List[str]] = field(default_factory=dict)  # WIDER_THAN_TRAFFIC: the cells of the narrower rule
 
     def to_dict(self) -> Dict[str, Any]:
         out: Dict[str, Any] = {
@@ -353,6 +358,8 @@ class Finding:
             out["done"] = self.done
         if self.reason:
             out["reason"] = self.reason
+        if self.proposal:
+            out["proposal"] = {cell: list(values) for cell, values in self.proposal.items()}
         return out
 
 
@@ -1003,6 +1010,7 @@ class _Audit:
             verdicts = [verdict for verdict in (self._log_verdict(rule), self._counter_verdict(rule)) if verdict is not None]
             if any(kind == "used" for kind, _ in verdicts):
                 self._unused_members(rule)
+                self._wider(rule)
                 continue
             unused = [message for kind, message in verdicts if kind == "unused"]
             if unused:
@@ -1103,6 +1111,34 @@ class _Audit:
                 and m not in log.unjudged.get("service", [])]  # fmt: skip
         if idle:
             self.rule("UNUSED_RULE_SERVICE", rule, f"of its services {_quoted(idle, 12)} had no connection {period}")
+
+    def _wider(self, rule: Rule) -> None:
+        """A used allow rule whose connections, as far as the logs prove, used a small part of what it allows."""
+        log = rule.log_usage
+        if log is None or not log.connections or log.no_evidence or log.shared or not self.on("WIDER_THAN_TRAFFIC"):
+            return
+        match = self.reader.match(rule, self.p.rules.index(rule))
+        if match.loose or not match.covers:
+            return  # (a rule the model does not hold exactly: a narrower one written from the model would lose what it holds)
+        src_whole = not rule.negate_source and match.src_over == match.src_under
+        # The destinations of a rule with a destination NAT name the translation: they stay as they are.
+        translated = {member for nat in self.p.nat_rules if nat.destination_translation is not None for member in nat.destinations}
+        named = self.p.named_translations and bool(translated & set(rule.destinations))
+        dst_whole = not rule.negate_destination and not rule.nat_added and not named and match.dst_over == match.dst_under
+        svc_whole = not rule.negate_service and match.svc_over == match.svc_under
+        proposal = narrow.propose(rule, log.seen, log.blind, match.src_under, src_whole, match.dst_under, dst_whole, match.svc_under, svc_whole)
+        if not proposal.cells or proposal.narrowest() * 100 > self.config.wider_than_traffic:
+            return
+        parts = []
+        for cell in proposal.cells:
+            share = f"{cell.share * 100:.2g}%" if cell.share >= 0.0001 else "less than 0.01%"
+            parts.append(f"its {cell.name} {share} of what they hold ({_quoted(cell.proposed, 6)})")
+        possible = f" (and {log.possible} that may have)" if log.possible else ""
+        self.add("WIDER_THAN_TRAFFIC", "rule", rule.origin or rule.name,
+                 f"had {log.connections} connection(s){possible} from {log.first_day} to {log.last_day}, which used of " + "; of ".join(parts)
+                 + ". A narrower rule is proposed (fwshift usage --propose)", rule.name, ids=rule.source_ids)  # fmt: skip
+        if self.findings and self.findings[-1].check == "WIDER_THAN_TRAFFIC" and self.findings[-1].name == (rule.origin or rule.name):
+            self.findings[-1].proposal = dict(narrow.narrowed(rule, proposal), narrowed=[cell.name for cell in proposal.cells])
 
     # .. rules that allow a lot
 
