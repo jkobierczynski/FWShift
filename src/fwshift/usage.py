@@ -2,7 +2,8 @@
 # Copyright (C) 2026 Jurgen Kobierczynski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Rule usage from firewall logs (docs/RULE_USAGE.md): Check Point (0.14.0), iptables by simulation (0.15.0), PAN-OS and FortiOS (0.16.0).
+"""Rule usage from firewall logs (docs/RULE_USAGE.md): Check Point (0.14.0), iptables by simulation (0.15.0), PAN-OS and FortiOS (0.16.0),
+nftables by simulation (0.18.0).
 
 Three steps:
 
@@ -15,7 +16,7 @@ Three steps:
 * **Attribution** (``evaluate``): over a window of whole days, each connection goes to the rule of the policy the
   gateway named: the uid of the rule, and for a rule of an inline layer the uids of every rule on the way. Then,
   inside the rule, to every object of its source and destination that holds the address (through groups, each
-  once), and to every service that holds the protocol and port. A connection whose log names no rule (iptables)
+  once), and to every service that holds the protocol and port. A connection whose log names no rule (iptables, nftables)
   is matched against the rules of the policy (simulate.py): certain where the first rule it meets surely matches
   it, possible for every rule it may have gone through where not.
 * **Evidence**: whether the logs can prove anything about a rule: it logs its connections, every gateway it is on
@@ -50,8 +51,10 @@ from .simulate import Simulator
 from .netutil import Interval, overlaps, parse_literal
 
 FORMAT = "1"
-VENDORS = {"checkpoint": "checkpoint", "iptables": "iptables", "panos": "panos", "fortios": "fortios"}  # policy -> reader of its logs
-_BY_HOST = ("iptables", "panos", "fortios")  # policies whose logs name no rule, or name it by what another firewall may call its own
+VENDORS = {"checkpoint": "checkpoint", "iptables": "iptables", "panos": "panos", "fortios": "fortios",
+           "nftables": "iptables"}  # policy -> reader of its logs (an nft log statement writes the lines a LOG rule does)
+_BY_HOST = ("iptables", "panos", "fortios", "nftables")  # policies whose logs name no rule, or name it by what another firewall may call its own
+_KERNEL = ("iptables", "nftables")  # policies whose logs are the kernel lines of their log rules: they name no rule
 _PANOS_DEFAULTS = ("intrazone-default", "interzone-default")
 _OURS = ("a rule that is disabled", "the default rule", "the implicit deny")  # lines that name the policy, and no rule of it
 _ID_ORDER = {"panos": ("panos.uuid", "panos.name"), "fortios": ("fortios.uuid", "fortios.policyid")}  # strongest first
@@ -496,7 +499,7 @@ class _Cells:
         self.rule = rule
         self.addresses: Dict[str, List[Tuple[str, List[Interval], bool]]] = {}
         destinations = rule.destinations
-        if p.vendor == "iptables" and rule.nat_added:
+        if p.vendor in _KERNEL and rule.nat_added:
             # The pre-NAT addresses a parser added: the log has the address after NAT, and holds them under that one.
             destinations = [member for member in rule.destinations if member not in rule.nat_added] or rule.destinations
         for cell, members, negated in (("source", rule.sources, rule.negate_source), ("destination", destinations, rule.negate_destination)):
@@ -648,7 +651,7 @@ def _evaluate(p: Policy, store: Store, span: Window, gateways: Sequence[str], re
         result.only_possible.append("the logs may hold packets of connections already open (a LOG rule ahead of the rule that accepts "
                                     "established connections): a line of a protocol other than TCP may be one of those")  # fmt: skip
     many_hosts = not declared and len(names) > 1
-    if many_hosts and p.vendor == "iptables":
+    if many_hosts and p.vendor in _KERNEL:
         result.only_possible.append(f"the logs come from {len(names)} hosts and no --gateway says which of them run this policy")
     ours = 0  # connections that name a row of the layer of the policy at all, or are simulated against it
     query = ("SELECT rule_key, gateway, src, dst, protocol, port, user, SUM(count) FROM records WHERE day BETWEEN ? AND ? "
@@ -699,7 +702,7 @@ def _evaluate(p: Policy, store: Store, span: Window, gateways: Sequence[str], re
             if simulator is None:
                 simulator = Simulator(p, reading)
             answer = simulator.attribute((zones[0], zones[1], src, dst, protocol, None if port is None or port < 0 else port))  # type: ignore[index]
-            if answer.certain is not None and not ((tcp_only and protocol != 6) or (many_hosts and p.vendor == "iptables")):
+            if answer.certain is not None and not ((tcp_only and protocol != 6) or (many_hosts and p.vendor in _KERNEL)):
                 found, certain, reason = [answer.certain], True, ""
             elif answer.certain is not None:
                 found, certain, reason = [answer.certain], False, ""
@@ -873,6 +876,8 @@ def _evidence(rule: Rule, span: Window, result: Evaluation, coverage: Dict[str, 
         out.append("it does not log its connections")
     elif rule.source_ids.get("iptables.log_target"):
         out.append(f"it logs through {rule.source_ids['iptables.log_target']}, whose lines go to ulogd, not to the kernel log that is read")
+    elif rule.source_ids.get("nftables.log_group"):
+        out.append(f"it logs to nflog group {rule.source_ids['nftables.log_group']}, whose lines go to ulogd, not to the kernel log that is read")
     first = int(datetime.datetime.combine(_date(span.first), datetime.time(), datetime.timezone.utc).timestamp())
     changed = rule.changed if rule.changed is not None else unchanged_since
     if changed is None:

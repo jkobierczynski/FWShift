@@ -486,7 +486,7 @@ def test_the_command_writes_text_json_and_a_page(tmp_path: Any, capsys: pytest.C
 
 def test_the_command_refuses_what_it_cannot_do(capsys: pytest.CaptureFixture[str]) -> None:
     assert cli.main(["usage", str(DATA / "asa_sample.cfg"), "--logs", str(DATA / "checkpoint_sample.log")]) == 1
-    assert "Check Point, PAN-OS, FortiOS or iptables policy" in capsys.readouterr().err
+    assert "Check Point, PAN-OS, FortiOS, iptables or nftables policy" in capsys.readouterr().err
     assert cli.main(["usage", str(DATA / "checkpoint_sample.json")]) == 1
     assert "--logs" in capsys.readouterr().err
 
@@ -504,7 +504,7 @@ def test_a_store_in_the_audit_and_in_a_conversion(tmp_path: Any, capsys: pytest.
     items = {item["name"]: item for item in json.loads(report.read_text(encoding="utf-8"))["items"]}
     assert "AUDIT_DISABLED" in [f["code"] for f in items["DMZ users"]["findings"]]
     assert cli.main(["audit", str(DATA / "asa_sample.cfg"), "--usage-store", str(store)]) == 1
-    assert "Check Point, PAN-OS, FortiOS or iptables policy only" in capsys.readouterr().err
+    assert "Check Point, PAN-OS, FortiOS, iptables or nftables policy only" in capsys.readouterr().err
     assert ANY == "any"
 
 

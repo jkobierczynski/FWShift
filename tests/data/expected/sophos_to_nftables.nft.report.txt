@@ -1,0 +1,63 @@
+FWShift conversion report
+  source: sophos (API version 2000.1)
+  target: nftables
+
+Summary
+  Security rules:     17   exact 4, approximated 7, needs review 5 (4 emitted disabled), skipped 1
+  NAT rules:           6   exact 5, approximated 1, needs review 0, skipped 0
+  Addresses:          14   exact 12, approximated 0, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NFT_LOAD: the output is one table, inet fwshift, which replaces itself when loaded: check it with 'nft -c -f FILE', load it with 'nft -f FILE'. Other tables stay as they are, but every base chain at the forward hook sees each packet: the drop policy here drops what this table does not accept even where another table (firewalld, Docker, libvirt, iptables-nft) accepts it, and a drop in another table still wins over an accept here
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names; map each zone to its interface with --zone-map: WAN, LAN, DMZ, OT
+  [info] LOGGING_AT_END: 9 rules log the end of a connection on the source; an nftables rule logs the packet it matches, so only rules that log the start of a connection got a log statement. Connection ends are in the conntrack events (conntrack -E, ulogd)
+
+Security rules
+  Block countries  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocked countries': country group. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to Internet web  ->  approximated  (emitted as 2 forward rules)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy, ScanVirus=Enable, WebFilter=Default Policy); attach equivalent inspection on the target
+  Admins to DMZ  ->  approximated  (emitted as 2 forward rules)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN to DMZ web not mail  ->  approximated  (emitted as 1 forward rule)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN SSH out  ->  approximated  (emitted as 1 forward rule)
+      [info] RULE_SPLIT: the rule has exclusions of 2 kinds, which Sophos Firewall applies together (the rule is skipped only for traffic that matches all of them): written as 2 rule(s), one per kind, that match the same traffic between them: 'LAN SSH out-2'
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN SSH out-2  ->  approximated  (emitted as 1 forward rule)
+      [info] EXCLUSION_AS_ADDRESSES: source lan-net without the excluded admin-range: written as the addresses that are left (10.10.0.0-10.10.5.9, 10.10.5.21-10.11.255.255)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  Internet to web  ->  approximated  (emitted as 1 forward rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web-public' with post-NAT 'web-1' because of NAT rule 'Publish web'; check that this rule is meant to cover the translated traffic
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ); attach equivalent inspection on the target
+  Internet to mail  ->  needs-review  (emitted as 1 forward rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'mail-public' with post-NAT 'mail-1' because of NAT rule 'Publish mail'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Publish mail' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ, ScanSMTP=Enable); attach equivalent inspection on the target
+  DMZ updates  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (WebFilter=Default Policy); attach equivalent inspection on the target
+      [needs-review] FQDN_NOT_SUPPORTED: host name object mirror.example.net, updates.example.com: an nftables rule matches addresses only; resolve it into an address object or a set kept up to date by a script.
+  Finance to app  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match Finance is not converted.
+  DNS in office hours  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Work hours (5 Day week)' is not converted; the rule would apply at all times.
+  Reject the rest from LAN  ->  exact  (emitted as 1 forward rule)
+      [info] RESET_ACTION: action reset-client becomes a plain reject: a TCP reset can only answer TCP
+  LAN6 to Internet  ->  approximated  (emitted as 2 forward rules)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  Web shop  ->  skipped
+      [needs-review] WAF_RULE: web server protection rule: the firewall answers for the web server itself (a reverse proxy), which is not a forwarding rule and is not converted. Publish the server on the target in its own way
+
+NAT rules
+  NAT of LAN to Internet web  ->  approximated  (emitted as 2 postrouting)
+      [info] NAT_LINKED: linked NAT rule of firewall rule 'LAN to Internet web': it has no match of its own and is written with the zones, addresses and services of that rule
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from LAN only; postrouting cannot match the input interface, so it applies to traffic from every interface
+
+Addresses
+  any-example-org  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard host name '*.example.org' cannot be converted
+  Blocked countries  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: country group cannot be converted

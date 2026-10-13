@@ -497,9 +497,9 @@ class _Builder:
         self.other = OTHER
         while self.other in known:
             self.other += "*"  # a zone of the policy has that very name
-        # An iptables ruleset is for one IP version: what it does not decide in the other is not its default.
+        # An iptables ruleset is for one IP version (an nftables one, where only one version has a forward chain): what it does not decide in the other is not its default.
         self.families = [FULL_V4, FULL_V6]
-        if p.vendor == "iptables" and p.scope in ("IPv4", "IPv6"):
+        if p.vendor in ("iptables", "nftables") and p.scope in ("IPv4", "IPv6"):
             self.families = [FULL_V4 if p.scope == "IPv4" else FULL_V6]
         self.by_network = networks is not None
         self.spaces: Dict[str, List[Interval]] = {}
@@ -885,7 +885,7 @@ class _Builder:
         elif self.other in names:
             notes.append(f"{self.other}: zones the policy does not name. A rule for 'any' zone applies to them as well.")
         if len(self.families) == 1:
-            notes.append(f"An iptables ruleset is for one IP version, here {p.scope}: the matrix says nothing about the other.")
+            notes.append(f"An {p.vendor} ruleset is for one IP version, here {p.scope}: the matrix says nothing about the other.")
         if self.dead:
             notes.append(f"{len(self.dead)} rule(s) never match and are left out; 'fwshift audit' names them.")
         if any(cell.approximate for cell in matrix.cells.values()):

@@ -1,0 +1,62 @@
+FWShift conversion report
+  source: nftables
+  target: checkpoint
+
+Summary
+  Security rules:     16   exact 11, approximated 1, needs review 4 (2 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 3, needs review 0, skipped 2
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CHAIN_NOT_CONVERTED: chain prerouting of table inet raw at the prerouting hook (priority -300, policy accept) can drop forwarded traffic as well and is not converted
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of table inet filter (3 rules, policy drop) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] DYNAMIC_SET: sets filled at run time decide what their rules match; those rules are not converted: @banned (flags timeout)
+  [needs-review] CHECKPOINT_SCRIPT: the output is a shell script of mgmt_cli calls. It changes one session and publishes nothing: log in, run it, review the session in SmartConsole, then publish and install the policy yourself. It stops at the first call the server refuses; discard the session before running it again
+  [needs-review] IMPLIED_RULES: Check Point applies implied rules (Global Properties) next to the rulebase, and every ordered layer of the policy package must accept a connection. Neither is part of the conversion: check that they allow no more and no less than intended
+  [needs-review] ZONES_REQUIRED: the rules use these security zones, which must be assigned to the interfaces of the gateway (or renamed with --zone-map): eth1, eth0, eth2, eth3. Rules that name a zone and addresses on the same side are sorted into 5 inline layers, one per pair of zones. An interface without a zone only reaches the rules that name no zone
+  [needs-review] NAT_MANUAL_RULES: 3 NAT rules are written as manual rules at the bottom of the NAT rulebase, below the automatic ones. Manual NAT does not answer ARP for translated addresses: add proxy ARP on the gateway for every translated address that is not routed to it
+  [info] SEVERAL_BASE_CHAINS: IPv4 traffic passes 2 base chains at the forward hook: inet f2b forward (-5), inet filter forward (0). It is forwarded only if each of them accepts it; they were combined into one list of rules
+  [info] LAYER_PLACEMENT: the rules are written to the top of access layer 'Network', in order, and end in a cleanup rule; rules the layer held before stay below it and are no longer reached. Choose another layer with --target-layer
+  [info] NAME_COLLISIONS: Check Point predefines several hundred objects (http, https, ssh, ...). If the script stops because a name exists already, convert again with --target-prefix to give every created object a prefix
+  [info] ANY_ONE_IP_VERSION: 'any address of one IP version' is written as a range object covering that version (All-IPv4, All-IPv6)
+
+Security rules
+  Banned by fail2ban  ->  needs-review, emitted disabled  (emitted as layer Network_eth1_to_eth0, layer Network_eth1_to_eth2, layer Network_eth1_to_eth3, layer Network_eth0_to_eth2, layer Network_eth2_to_eth0, layer Network)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [needs-review] UNSUPPORTED_MATCH: not converted: set @banned, which is filled at run time (flags timeout). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad hosts  ->  needs-review  (emitted as layer Network_eth1_to_eth0, layer Network_eth1_to_eth2, layer Network_eth1_to_eth3, layer Network_eth0_to_eth2, layer Network_eth2_to_eth0, layer Network)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  Rate limited mail  ->  needs-review, emitted disabled  (emitted as layer Network_eth1_to_eth0, layer Network)
+      [needs-review] UNSUPPORTED_MATCH: not converted: rate limit 10/minute.
+  Inbound web  ->  needs-review  (emitted as layer Network_eth0_to_eth2)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '10.20.0.10' because of NAT rule 'Web DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Web DNAT' also translates the port to 8443; the service of this rule still names the post-NAT port and must be adjusted
+  Inbound mail  ->  approximated  (emitted as layer Network_eth0_to_eth2)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to '10.20.0.25' because of NAT rule 'Mail DNAT'; check that this rule is meant to cover the translated traffic
+
+NAT rules
+  Web DNAT  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from eth0 only; it is written without zones and applies whatever the zone the traffic comes from
+      [approximated] NAT_ZONES: the rule applied to traffic to eth0 only; it is written without zones
+  Mail DNAT  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from eth0 only; it is written without zones and applies whatever the zone the traffic comes from
+      [approximated] NAT_ZONES: the rule applied to traffic to eth0 only; it is written without zones
+  No NAT to partner  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic to eth0 only; it is written without zones
+  DMZ out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: hide NAT is written behind one address; this rule translates to several
+  LAN out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface; name the gateway object to hide behind with --target-gateway
+
+Services
+  tcp-80,443  ->  exact  (emitted as tcp-80_443)
+      [info] RENAMED: renamed to 'tcp-80_443' to fit the target's naming rules
+  tcp-53+udp-53  ->  exact  (emitted as tcp-53_udp-53)
+      [info] RENAMED: renamed to 'tcp-53_udp-53' to fit the target's naming rules
+  tcp-22,3389  ->  exact  (emitted as tcp-22_3389)
+      [info] RENAMED: renamed to 'tcp-22_3389' to fit the target's naming rules
+  tcp-25,443  ->  exact  (emitted as tcp-25_443)
+      [info] RENAMED: renamed to 'tcp-25_443' to fit the target's naming rules
+  icmp6-128+icmp6-135+icmp6-136  ->  exact  (emitted as icmp6-128_icmp6-135_icmp6-136)
+      [info] RENAMED: renamed to 'icmp6-128_icmp6-135_icmp6-136' to fit the target's naming rules

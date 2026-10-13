@@ -243,6 +243,9 @@ Formats, in order of priority:
    (`logreaders/fortios.py`, section 11.7).
 5. **iptables `LOG` lines** (no rule identity: simulation only). Done in
    0.15.0 (`logreaders/iptables.py`, section 11.6).
+6. **nftables `log` statements**: the kernel writes the same lines, so the
+   iptables reader reads them for an nftables policy (0.18.0); `log group`
+   writes to nflog, as `NFLOG` does, and is not read.
 
 Every line that cannot be read is counted by reason (bad format, unknown
 protocol, no address, IPv6 where not expected, and so on) and reported.

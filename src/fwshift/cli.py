@@ -25,6 +25,7 @@ from .emitters import panos as emit_panos
 from .emitters import pfsense as emit_pfsense
 from .emitters import barracuda as emit_barracuda
 from .emitters import junos as emit_junos
+from .emitters import nftables as emit_nftables
 from .emitters import sonicwall as emit_sonicwall
 from .emitters import sophos as emit_sophos
 from .emitters import watchguard as emit_watchguard
@@ -41,6 +42,7 @@ from .parsers import panos as parse_panos
 from .parsers import pfsense as parse_pfsense
 from .parsers import barracuda as parse_barracuda
 from .parsers import junos as parse_junos
+from .parsers import nftables as parse_nftables
 from .parsers import sonicwall as parse_sonicwall
 from .parsers import sophos as parse_sophos
 from .parsers import watchguard as parse_watchguard
@@ -51,6 +53,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "fortios": emit_fortios.emit,
     "iptables": emit_iptables.emit,
     "ip6tables": emit_iptables.emit_v6,
+    "nftables": emit_nftables.emit,
     "checkpoint": emit_checkpoint.emit,
     "asa": emit_asa.emit,
     "sophos": emit_sophos.emit,
@@ -63,13 +66,14 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "fdm": emit_cisco.emit_fdm,
 }
 VENDORS = ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "pfsense", "sonicwall", "watchguard", "barracuda", "junos",
-           "iptables", "ip6tables")  # fmt: skip
+           "iptables", "ip6tables", "nftables")  # fmt: skip
 
 
 def detect_format(data: bytes) -> str:
     """A Sophos export is a tar archive or XML that starts with <Configuration>, other XML is PAN-OS; JSON is what a
     Cisco manager or the Check Point API returns, told apart by the types of the objects in it; a zip is the export
-    of a Cisco Firewall Device Manager; iptables-save output starts with a table, an ASA configuration has lines
+    of a Cisco Firewall Device Manager; nft list ruleset output starts with "table" (its JSON with "nftables"),
+    iptables-save output starts with a table, an ASA configuration has lines
     only an ASA writes; anything else is taken as FortiOS."""
     if parse_cisco.is_zip(data):
         # The one zip that is read as it is: the configuration export of a Cisco Firewall Device Manager.
@@ -95,6 +99,8 @@ def detect_format(data: bytes) -> str:
         return "watchguard"
     if parse_barracuda.looks_like_barracuda(data):
         return "barracuda"
+    if parse_nftables.looks_like_nftables(data):
+        return "nftables"
     head = data.lstrip(b"\xef\xbb\xbf \t\r\n")
     if head.startswith(b"<"):
         return "panos"
@@ -143,6 +149,8 @@ def load(
         return parse_cisco.parse(data, report, source, policy=policy, nat_policy=nat_policy)
     if source in ("iptables", "ip6tables"):
         return parse_iptables.parse(data, report, family=6 if source == "ip6tables" else 0)
+    if source == "nftables":
+        return parse_nftables.parse(data, report)
     raise FwshiftError(f"unknown source format '{source}'")
 
 
@@ -236,7 +244,7 @@ def _from_store(args: argparse.Namespace, policy: Policy, config: audit.AuditCon
     if not getattr(args, "usage_store", None):
         return []
     if policy.vendor not in usage.VENDORS:
-        raise FwshiftError("--usage-store: logs are read for a Check Point, PAN-OS, FortiOS or iptables policy only, in this version")
+        raise FwshiftError("--usage-store: logs are read for a Check Point, PAN-OS, FortiOS, iptables or nftables policy only, in this version")
     store = usage.Store(args.usage_store, create=False)
     try:
         span = usage.window(store, days=config.usage_days)
@@ -402,8 +410,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="fwshift",
         description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall "
-        "(Management Center and Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX and iptables, with a lossiness "
-        "report.",
+        "(Management Center and Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX, iptables "
+        "and nftables, with a lossiness report.",
     )
     parser.add_argument("--version", action="version", version=f"fwshift {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -487,12 +495,12 @@ def build_parser() -> argparse.ArgumentParser:
                      "'elsewhere'), not between the zones of the policy. @ZONE names the zone of the policy the networks lie behind")  # fmt: skip
     mat.add_argument("--audit-config", metavar="FILE", help="JSON file of the audit: its lists of risky and industrial services are used")
 
-    use = commands.add_parser("usage", help="which rules, objects and services the firewall's logs show used (Check Point, PAN-OS, FortiOS, iptables)")
+    use = commands.add_parser("usage", help="which rules, objects and services the firewall's logs show used (Check Point, PAN-OS, FortiOS, iptables, nftables)")
     _source_options(use)
     use.add_argument("--logs", action="append", default=[], metavar="FILE",
                      help="a log file: what Check Point's Log Exporter sends (syslog, splunk or cef format), or the JSON answer of "
                      "show-logs; PAN-OS and FortiOS: the traffic logs they send to syslog (their default formats), or a PAN-OS CSV export; "
-                     "iptables: the kernel lines of its LOG rules as syslog or journalctl writes them; repeatable")  # fmt: skip
+                     "iptables and nftables: the kernel lines of its LOG rules (log statements) as syslog or journalctl writes them; repeatable")  # fmt: skip
     use.add_argument("--store", metavar="FILE", help="keep the connections in this file (SQLite) and add to it on every run; a log file "
                      "that is in it already is not read again. Without it, nothing is kept")  # fmt: skip
     use.add_argument("--since", default="", metavar="DAYS|YYYY-MM-DD",
@@ -502,10 +510,10 @@ def build_parser() -> argparse.ArgumentParser:
                      help="a gateway the policy is installed on; one that sent no logs proves nothing for its rules. NAME=LOGNAME,... "
                      "names the members of a cluster, whose logs carry their own names. Repeatable")  # fmt: skip
     use.add_argument("--log-year", type=int, metavar="YYYY",
-                     help="iptables: the year of the first line of a log whose times have none (the old syslog form); it goes up "
+                     help="iptables, nftables: the year of the first line of a log whose times have none (the old syslog form); it goes up "
                      "where the months run back")  # fmt: skip
     use.add_argument("--log-offset", metavar="+HH:MM",
-                     help="iptables, PAN-OS, FortiOS: the offset from UTC of the times of a log that give none (default: UTC)")
+                     help="iptables, nftables, PAN-OS, FortiOS: the offset from UTC of the times of a log that give none (default: UTC)")
     use.add_argument("--roll-up", type=int, default=usage.DEFAULT_CAP, metavar="N",
                      help=f"addresses kept per rule and side (per pair of interfaces, for logs that name no rule) before the rest are kept as "
                      f"their /24 or /64 (default {usage.DEFAULT_CAP})")  # fmt: skip
@@ -701,7 +709,7 @@ def _run_usage(args: argparse.Namespace) -> int:
     policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy,
                   args.interface_address)  # fmt: skip
     if policy.vendor not in usage.VENDORS:
-        raise FwshiftError(f"usage: logs are read for a Check Point, PAN-OS, FortiOS or iptables policy in this version, not {source}")
+        raise FwshiftError(f"usage: logs are read for a Check Point, PAN-OS, FortiOS, iptables or nftables policy in this version, not {source}")
     reading = audit.Reading.of(report)
     transform.harden(policy, report)
     counters = _hit_counters(args, policy)

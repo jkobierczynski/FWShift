@@ -209,6 +209,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <li><a href="#barracuda">Barracuda CloudGen</a></li>
       <li><a href="#junos">Juniper SRX</a></li>
       <li><a href="#iptables">iptables</a></li>
+      <li><a href="#nftables">nftables</a></li>
     </ul>
     <h4>Analysis</h4>
     <ul>
@@ -223,7 +224,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
 
 <main id="top">
 <header class="mast">
-  <div class="eyebrow">Field guide · version 0.17</div>
+  <div class="eyebrow">Field guide · version 0.18</div>
   <h1>FWShift, feature by feature</h1>
   <p class="lead">FWShift converts firewall policies between thirteen platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
   <div class="facts">
@@ -245,7 +246,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <rect class="box" x="10" y="84" width="150" height="76" rx="6"/>
       <text class="lbl" x="85" y="114" text-anchor="middle">Source config</text>
       <text class="small" x="85" y="134" text-anchor="middle">XML, CLI, JSON, API</text>
-      <text class="small" x="85" y="149" text-anchor="middle">answers, iptables-save</text>
+      <text class="small" x="85" y="149" text-anchor="middle">answers, nft, iptables-save</text>
       <path class="wire" d="M160,122 L222,122" marker-end="url(#ah)"/>
       <text class="small" x="191" y="112" text-anchor="middle">parser</text>
       <rect class="core" x="226" y="78" width="168" height="88" rx="6"/>
@@ -280,7 +281,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
     <li>Nothing that is missing is ever read as "any".</li>
   </ul>
   <p>FWShift converts the <strong>policy</strong>. It does not convert interfaces, routing, VPN, users, security profiles or system settings, and it is not a substitute for testing.</p>
-  <div class="callout"><b>Status.</b> Tested against synthetic configurations. Only iptables output has been loaded on a real system (a Linux kernel, IPv4 filter rules, iptables 1.8.10 with the nf_tables backend). Treat every other output as a draft for a lab device.</div>
+  <div class="callout"><b>Status.</b> Tested against synthetic configurations. Only iptables and nftables output has been loaded on a real system (a Linux kernel, IPv4 filter rules, iptables 1.8.10 with the nf_tables backend, nft 1.0.9). Treat every other output as a draft for a lab device.</div>
 
   <h3>Platforms</h3>
   <div class="tablewrap"><table>
@@ -299,6 +300,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <tr><td>Barracuda CloudGen 8.0+</td><td><code>barracuda</code></td><td>REST API answers</td><td>curl shell script</td></tr>
       <tr><td>Juniper SRX</td><td><code>junos</code></td><td><code>display set</code> or braces</td><td><code>set</code> commands</td></tr>
       <tr><td>iptables / ip6tables</td><td><code>iptables</code>, <code>ip6tables</code></td><td><code>iptables-save</code></td><td><code>iptables-restore</code> file</td></tr>
+      <tr><td>nftables</td><td><code>nftables</code></td><td><code>nft list ruleset</code>, text or JSON</td><td>one table for <code>nft -f</code></td></tr>
       <tr><td>Neutral model</td><td><code>json</code> (target only)</td><td>—</td><td>the model, with source IDs, targets, hits</td></tr>
     </tbody>
   </table></div>
@@ -309,11 +311,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
   <h2><span class="num">2</span>Install and run</h2>
   <p>Each release has three packages: the project as a zip, a single file that runs with any Python 3.9 or newer, and a wheel for <code>pip</code>. Nothing else needs installing.</p>
   <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># one file, nothing to install</span>
-python3 fwshift-0.17.0.pyz --version
-python3 fwshift-0.17.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.18.0.pyz --version
+python3 fwshift-0.18.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 
 <span class="c"># or with pip</span>
-pip install fwshift-0.17.0-py3-none-any.whl
+pip install fwshift-0.18.0-py3-none-any.whl
 fwshift convert running-config.xml --to fortios -o fortigate.conf</pre></div>
   <p>The input may be <code>-</code> for standard input. The source format is detected (XML root elements, JSON keys, CLI keywords); give <code>--from</code> when detection could be ambiguous, for example <code>--from ip6tables</code>.</p>
 </section>
@@ -375,8 +377,8 @@ findings while reading:
   <div class="tablewrap"><table>
     <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense sonicwall watchguard barracuda junos iptables ip6tables json</code>.</td></tr>
-      <tr><td><code>--zone-map SRC=DST</code></td><td>Rename a zone or interface. For iptables and ASA, this is how a zone becomes an interface.</td></tr>
+      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense sonicwall watchguard barracuda junos iptables ip6tables nftables json</code>.</td></tr>
+      <tr><td><code>--zone-map SRC=DST</code></td><td>Rename a zone or interface. For iptables, nftables and ASA, this is how a zone becomes an interface.</td></tr>
       <tr><td><code>--interface-map SRC=DST</code></td><td>Map a source interface to a target interface: FortiOS zone members, interface NAT, Sophos/SonicWall/FDM NAT interfaces, Barracuda source interfaces.</td></tr>
       <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, Barracuda; SonicWall object zones).</td></tr>
       <tr><td><code>--app-map FILE</code></td><td>JSON of extra application-to-port mappings.</td></tr>
@@ -549,6 +551,7 @@ m add nat-rule package Standard position bottom original-destination web-public 
     <a href="#barracuda"><b>Barracuda CloudGen</b><span>REST → curl script</span></a>
     <a href="#junos"><b>Juniper SRX</b><span>display set</span></a>
     <a href="#iptables"><b>iptables</b><span>iptables-save</span></a>
+    <a href="#nftables"><b>nftables</b><span>nft list ruleset</span></a>
   </div>
 
   <div class="filterbar">
@@ -896,7 +899,7 @@ commit</pre></div>
     <h3>iptables and ip6tables</h3>
     <div class="ports"><span class="port"><i>IN</i><span>iptables-save</span></span><span class="port"><i>OUT</i><span>iptables-restore file</span></span><span class="port"><i>ID</i><span>iptables, ip6tables</span></span></div>
     <h4 class="sub">Export</h4>
-    <p><code>iptables-save &gt; rules.v4</code> and <code>ip6tables-save &gt; rules.v6</code>, one file per IP version. Files from <code>iptables-nft-save</code> and the persistent packages are fine; rulesets in the <code>nft</code> language are not read.</p>
+    <p><code>iptables-save &gt; rules.v4</code> and <code>ip6tables-save &gt; rules.v6</code>, one file per IP version. Files from <code>iptables-nft-save</code> and the persistent packages are fine; a ruleset in the <code>nft</code> language is read as nftables (below).</p>
     <h4 class="sub">Options</h4>
     <p><code>--zone-map</code> (required: zones become interfaces), <code>--from ip6tables</code> for an ambiguous file.</p>
     <h4 class="sub">Output and loading</h4>
@@ -918,6 +921,41 @@ iptables-restore --noflush rules.v4       <span class="c"># once, on a host whos
 -A FORWARD -m conntrack --ctstate INVALID -j DROP
 -A FORWARD -i eth0 -o eth2 -d 10.20.0.10/32 -p tcp -m tcp --dport 443 -m conntrack --ctstate NEW -m comment --comment "Inbound-Web" -j ACCEPT
 COMMIT</pre></div>
+  </article>
+  <!-- nftables -->
+  <article class="brand" id="nftables">
+    <h3>nftables</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>nft list ruleset (text or JSON)</span></span><span class="port"><i>OUT</i><span>one table for nft -f</span></span><span class="port"><i>ID</i><span>nftables</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p><code>nft list ruleset &gt; ruleset.nft</code> or <code>nft -j list ruleset &gt; ruleset.json</code>: both give the same policy. Take the <em>whole</em> ruleset: every base chain at the forward hook decides, whatever table it is in. An input file with tables in braces is read too; a script of <code>add rule</code> commands is not.</p>
+    <h4 class="sub">Options</h4>
+    <p><code>--zone-map</code> (zones become interfaces). Both IP versions go into one table: there is no second run.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to nftables -o fwshift.nft --zone-map trust=eth1 --zone-map untrust=eth0
+nft -c -f fwshift.nft
+nft -f fwshift.nft                        <span class="c"># replaces table inet fwshift, and nothing else</span></pre></div>
+    <div class="callout"><b>Other tables still apply.</b> The file creates, deletes and rewrites <code>table inet fwshift</code> in one transaction. But every base chain at the forward hook sees every packet: the <code>drop</code> policy here drops what this table does not accept even if firewalld, Docker or libvirt accept it, and their drops still win over an accept here (<code>NFT_LOAD</code>).</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Several base chains at the forward hook are combined into one list, in priority order: an accept goes on to the next chain, a drop is final (<code>SEVERAL_BASE_CHAINS</code>). A version with no forward chain is not filtered at all (<code>NO_IPV6_CHAIN</code>, <code>NO_IPV4_CHAIN</code>).</li>
+      <li>Chains at input and output are not converted (<code>HOST_CHAIN_NOT_CONVERTED</code>); filter chains at prerouting and postrouting can drop forwarded traffic too (<code>CHAIN_NOT_CONVERTED</code>, often a <code>fib</code> reverse path filter); bridge, arp and netdev tables and dormant tables are not converted.</li>
+      <li>Sets filled at run time (<code>flags dynamic</code>, <code>timeout</code>, fail2ban) disable their rules (<code>DYNAMIC_SET</code>); an empty set matches nothing now (<code>EMPTY_SET</code>).</li>
+      <li>Rate limits, quotas, meters, <code>fib</code>, marks, <code>tcp flags</code>, options and iptables-nft <code>xt</code> statements disable the rule (<code>IPTABLES_NFT</code>: convert <code>iptables-nft-save</code> output instead for those tables). An established accept restricted to an interface is a rule of its own; without a plain one the ruleset is stateless (<code>STATELESS_RULESET</code>).</li>
+      <li>NAT: <code>dnat</code>, <code>snat</code>, <code>masquerade</code>, NAT maps, IPv4. <code>redirect</code>, netmap prefixes and IPv6 NAT are not converted; a masquerade in an inet table also translated IPv6 (<code>NAT_IPV6_NOT_CONVERTED</code>).</li>
+      <li>To nftables: rules that log the start of a connection get a <code>log</code> statement (<code>LOG_STATEMENTS</code>), logging at the end does not (<code>LOGGING_AT_END</code>); host name objects disable the rule (<code>FQDN_NOT_SUPPORTED</code>); a source for one IP version gets a table that sees both (<code>ONE_IP_VERSION</code>).</li>
+    </ul>
+    <div class="codebox"><span class="label">output · nftables</span><button class="copy" type="button">Copy</button><pre>table inet fwshift
+delete table inet fwshift
+table inet fwshift {
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+		ct state established,related accept
+		ct state invalid drop
+		iifname "eth1" oifname "eth0" ip saddr 10.10.200.0/24 counter drop comment "Guests stay in"
+		iifname "eth1" oifname "eth0" tcp dport { 80, 443 } ct state new counter accept comment "LAN web"
+		iifname "eth0" oifname "eth2" ip6 daddr { 2001:db8:20::10, 2001:db8:20::25 } tcp dport { 25, 443 } ct state new counter accept comment "Inbound IPv6"
+	}
+}</pre></div>
   </article>
   <p id="nowatch" hidden>No watch item matches that filter.</p>
 </section>
@@ -1031,6 +1069,7 @@ fwshift usage rules.v4 --logs kern.log --log-year 2026 --log-offset +02:00 --unc
       <tr><td>PAN-OS</td><td class="wrap">TRAFFIC syslog (BSD or IETF, 8.1+); the Monitor CSV export</td><td>Rule UUID (9.0+), then name</td><td>Log at session end/start <em>and</em> a log forwarding profile</td></tr>
       <tr><td>FortiOS</td><td class="wrap"><code>key=value</code> syslog, also via FortiAnalyzer</td><td><code>poluuid</code>, then <code>policyid</code></td><td><code>set logtraffic all</code> (the default <code>utm</code> logs some)</td></tr>
       <tr><td>iptables</td><td class="wrap">Kernel <code>LOG</code> lines (<code>kern.log</code>, <code>journalctl -k -o short-iso</code>)</td><td>None: matched against the policy</td><td>A <code>LOG</code> rule covers it</td></tr>
+      <tr><td>nftables</td><td class="wrap">The same kernel lines, of <code>log</code> statements</td><td>None: matched against the policy</td><td>A <code>log</code> statement covers it (not <code>log group</code>)</td></tr>
     </tbody>
   </table></div>
 
@@ -1100,6 +1139,7 @@ fwshift usage rules.v4 --logs kern.log --log-year 2026 --unchanged-since 2026-01
     <thead><tr><th>Target</th><th>Replaces or overwrites</th><th>Do first</th></tr></thead>
     <tbody>
       <tr><td>iptables</td><td>Whole tables, unless <code>--noflush</code></td><td><code>iptables-restore --test</code>; an empty FORWARD chain</td></tr>
+      <tr><td>nftables</td><td>Table <code>inet fwshift</code> only</td><td><code>nft -c -f</code>; look at the other forward chains</td></tr>
       <tr><td>pfSense</td><td>Each restored area (Aliases, NAT, Rules)</td><td>A full backup</td></tr>
       <tr><td>ASA</td><td>Interface <code>access-group</code> bindings; <code>global_access</code> on every interface</td><td>Read the <code>access-group</code> lines</td></tr>
       <tr><td>FortiOS</td><td>Objects of the same name; central NAT changes existing NAT</td><td>A lab device for <code>central-nat enable</code></td></tr>

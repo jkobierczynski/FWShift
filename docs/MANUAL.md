@@ -2,10 +2,10 @@
 
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
 Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
-or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX and Linux iptables, and tells you,
+or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX, Linux iptables and Linux nftables, and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; and show what each zone may reach in each
-other zone. This manual covers version 0.17.
+other zone. This manual covers version 0.18.
 
 **Contents**
 
@@ -52,9 +52,9 @@ FWShift converts the **policy**. It does not convert interfaces, routing, VPN,
 users, security profiles, or system settings, and it is not a substitute for
 testing the result.
 
-> **Status.** Version 0.17 is tested against synthetic configurations. iptables
-> output and input are checked against a Linux kernel (filter rules, one
-> kernel and iptables version). Output for PAN-OS, FortiOS, Check Point,
+> **Status.** Version 0.18 is tested against synthetic configurations. iptables
+> and nftables output and input are checked against a Linux kernel (filter
+> rules, one kernel, iptables 1.8.10 and nft 1.0.9). Output for PAN-OS, FortiOS, Check Point,
 > Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda and Juniper SRX has
 > not been loaded on a device or management server yet; the Check Point input format follows the
 > API documentation, the ASA and FTD syntax Cisco's command references, the
@@ -88,8 +88,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.17.0.pyz --version
-python3 fwshift-0.17.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.18.0.pyz --version
+python3 fwshift-0.18.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -142,10 +142,30 @@ ip6tables-save > rules.v6
 
 Each file is converted on its own. The files written by `iptables-persistent`
 and `netfilter-persistent` have the same format, and so has the output of
-`iptables-nft-save`. A ruleset written in the `nft` language is not read.
-FWShift converts the `FORWARD` chain of the `filter` table, with the chains it
-jumps to, and the `PREROUTING` and `POSTROUTING` chains of the `nat` table;
-section 8 says what happens to the rest.
+`iptables-nft-save`. A ruleset written in the `nft` language is read as
+nftables (below). FWShift converts the `FORWARD` chain of the `filter` table,
+with the chains it jumps to, and the `PREROUTING` and `POSTROUTING` chains of
+the `nat` table; section 8 says what happens to the rest.
+
+**nftables.** List the running ruleset, as text or as JSON (either one; both
+give the same policy):
+
+```sh
+nft list ruleset    > ruleset.nft
+nft -j list ruleset > ruleset.json
+```
+
+The whole ruleset, every table: the kernel runs every base chain at the
+forward hook, whatever table it is in, so a table read on its own may not be
+the whole policy. `nft list ruleset` without `-a` is enough; handles, `-s`
+(no counters), `-n` and `-y` (numbers) listings are read as well. An input
+file for `nft -f` is read too when it holds tables in braces (with `define`,
+`flush ruleset`, `delete table`); a script of `add rule ...` commands is not:
+load it and list the result. FWShift converts the base chains of type
+`filter` at the `forward` hook of the `ip`, `ip6` and `inet` tables, with the
+chains they jump to, and the `nat` chains at `prerouting` and `postrouting`;
+section 8 says what happens to the rest. Tables of iptables-nft are better
+converted from `iptables-nft-save` (`IPTABLES_NFT`).
 
 **Cisco ASA.** FWShift reads the running configuration as the ASA prints it:
 
@@ -656,7 +676,7 @@ fwshift convert INPUT --to FORMAT [options]
 
 `FORMAT` is one of `panos`, `fortios`, `checkpoint`, `asa`, `fmc`, `fdm`,
 `sophos`, `pfsense`, `sonicwall`, `watchguard`, `barracuda`, `junos`,
-`iptables`, `ip6tables` and `json` (the neutral model; see `--to json` below).
+`iptables`, `ip6tables`, `nftables` and `json` (the neutral model; see `--to json` below).
 
 `INPUT` is a file, or `-` for standard input.
 
@@ -664,7 +684,7 @@ fwshift convert INPUT --to FORMAT [options]
 
 | Option | Meaning |
 |---|---|
-| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
@@ -695,6 +715,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to pfsense` | A configuration file with the areas Aliases, NAT and Firewall Rules, for *Diagnostics > Backup & Restore* of pfSense 2.7 or later. Each restore of an area **replaces** that area (section 10). |
 | `--to iptables` | A file for `iptables-restore`: the IPv4 half of the policy. |
 | `--to ip6tables` | A file for `ip6tables-restore`: the IPv6 half. |
+| `--to nftables` | A ruleset for `nft -f`: one table, `inet fwshift`, with the forward hook for both IP versions and the IPv4 NAT chains. Loading it replaces that table and nothing else (section 10). |
 | `--to json` | The neutral model as JSON, for inspection or other tools. It is the model as it was read: the audit options cannot be combined with it. Each rule carries what the source calls it (`source_ids`: the uid of a Check Point rule, the name and uuid of a PAN-OS rule, the policy ID and uuid of a FortiOS policy), the devices it is installed on where the source limits that (`targets`), and its hit count where the input has one (`hits`). |
 | `--target-vsys NAME` | PAN-OS: prefix commands with `vsys NAME`. Default: a single-vsys firewall, no prefix. |
 | `--target-device-group NAME` | Panorama: write into this device group; rules go to its pre-rulebase. |
@@ -794,8 +815,8 @@ fwshift usage INPUT [--from ...] [--layer ...] [--logs FILE ...] [--store FILE] 
 ```
 
 Reads the logs of the firewall and says which rules, objects and services of
-the policy they show used (section 15). A Check Point, PAN-OS, FortiOS or
-iptables policy, in this version. Nothing is converted.
+the policy they show used (section 15). A Check Point, PAN-OS, FortiOS,
+iptables or nftables policy, in this version. Nothing is converted.
 
 | Option | Meaning |
 |---|---|
@@ -804,8 +825,8 @@ iptables policy, in this version. Nothing is converted.
 | `--since DAYS\|YYYY-MM-DD` | The first day of the window: a number of days back from its last day (`30d`), or a day. Default: `usage_days` (90). |
 | `--until YYYY-MM-DD` | The last day of the window. Default: the last day the store has logs of. |
 | `--gateway NAME[=LOGNAME,...]` | A gateway the policy is installed on. A gateway that sent no logs proves nothing for its rules; this is how a gateway that sent none at all becomes known. `NAME=LOGNAME,...` names the members of a cluster: install-on names the cluster, its members log under their own names. Repeatable. For iptables, PAN-OS and FortiOS, the firewalls that run the policy: lines of other hosts are not counted, unless the rule they name is installed on them (Panorama). A PAN-OS firewall logs under its serial number, which is what Panorama's targets name: `--gateway pa-edge=012801000001` gives it a name. |
-| `--log-year YYYY` | iptables: the year of the first line of a log whose times have none (the old syslog form, `Oct 12 10:00:00`). The year goes up where the months run back. |
-| `--log-offset +HH:MM` | iptables, PAN-OS, FortiOS: the offset from UTC of times that give none (`+02:00`, `-05:00`, `Z`). PAN-OS and FortiOS write the firewall's local time; a PAN-OS line of 10.0 or later and a FortiOS line with `eventtime` or `tz` carry their zone. Without it, times without a zone are read as UTC, and the report says how many were. |
+| `--log-year YYYY` | iptables, nftables: the year of the first line of a log whose times have none (the old syslog form, `Oct 12 10:00:00`). The year goes up where the months run back. |
+| `--log-offset +HH:MM` | iptables, nftables, PAN-OS, FortiOS: the offset from UTC of times that give none (`+02:00`, `-05:00`, `Z`). PAN-OS and FortiOS write the firewall's local time; a PAN-OS line of 10.0 or later and a FortiOS line with `eventtime` or `tz` carry their zone. Without it, times without a zone are read as UTC, and the report says how many were. |
 | `--unchanged-since YYYY-MM-DD` | The rules have been as they are since this day, where the export does not say when they were changed (iptables, PAN-OS and FortiOS configurations never do; for PAN-OS the answer of `show rule-hit-count`, given with `--hits`, does). Your word: without it, no rule is called unused. Also an option of `fwshift audit` and `fwshift convert`. |
 | `--roll-up N` | Addresses kept per rule and side as they are (per pair of interfaces, for logs that name no rule); beyond, an address is kept as its /24 (IPv6: /64). Default 256. |
 | `--propose FILE` | Write the narrower rules of `WIDER_THAN_TRAFFIC` (not those accepted) to this file, as new rules named `<rule>-narrowed` with the objects they need, for review (section 15). |
@@ -950,7 +971,9 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `NOT_THIS_IP_VERSION` | I, skipped | To iptables or ip6tables: nothing in the rule can match this IP version. It is in the output for the other one. |
 | `INTERFACE_NAME` | R, disabled | To iptables or ASA: a zone name that cannot be an interface name. Map it with `--zone-map`. |
 | `FQDN_RESOLVED_ONCE` | A | To iptables: a host name is resolved once, when the rules are loaded. |
-| `DROP_BEFORE_ESTABLISHED` | R | iptables source: a deny that comes before the rule accepting established connections also dropped the replies of connections opened from the other side. The converted rule blocks new connections in its own direction only. |
+| `FQDN_NOT_SUPPORTED` | R, disabled | To nftables: the rule names a host name object. An nftables rule matches addresses; resolve the name into an address object, or into a set a script keeps up to date. |
+| `MATCHES_NOTHING` | I, skipped | To nftables: nothing in the rule can match a packet of either IP version (a negated list that holds everything, or "not any service"). |
+| `DROP_BEFORE_ESTABLISHED` | R | iptables or nftables source: a deny that comes before the rule accepting established connections also dropped the replies of connections opened from the other side. The converted rule blocks new connections in its own direction only. |
 | `INLINE_CLEANUP` | I or R | Check Point source: a rule added for the implicit cleanup of an inline layer. R when the export does not show whether the layer drops or accepts and drop was assumed (section 3). |
 | `GATEWAY_OBJECT` | A or R | Check Point source: the rule names a gateway object, which stood for every address of the gateway; only its main address is in the export. R where that lets more traffic through: a deny that matches it, or an allow that excludes it. |
 | `PROTOCOL_SIGNATURE` | A (R on deny) | Check Point source: a service of the rule also checked the signature of its protocol. Only the port is converted. |
@@ -971,7 +994,7 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `DEVICE_TARGET` | R | Panorama or Check Point source: the rule is installed on selected devices only. Decide whether it belongs on the target. |
 | `ACCESS_ROLE` | R | Check Point source: the rule matches the networks of an access role for its users. The users are names of Check Point identities (Active Directory, LDAP or internal groups, identity tags; `known-user` for "all identified users") and are kept as the rule's users: PAN-OS writes them as `source-user`, which must name users or groups the firewall knows; the other targets write the rule disabled (`USER_MATCH`). A cell with roles of different users became one rule per set of users (section 8). |
 | `RULE_SPLIT` | I | One rule became several: one per zone pair on FortiOS, Sophos and the two Cisco managers, or one for port-based and one for application-based services on PAN-OS. To a Management Center or a Device Manager also: one rule per set of source ports, because source ports and destination ports are two conditions of a rule there that must both hold (section 8). Sophos source: a rule with exclusions of several kinds became one rule per kind (`name`, `name-2`, ...), which between them match what the one rule matched (section 8). |
-| `RESET_ACTION` | I | A reset action has no exact equivalent: deny on FortiOS and ASA, a plain `REJECT` on iptables when the rule is not TCP only, `Reject` on Check Point and on Sophos (which answers the sender only), *Block with reset* on a Management Center (which resets both sides), *Block* on a Device Manager (which answers nobody). |
+| `RESET_ACTION` | I | A reset action has no exact equivalent: deny on FortiOS and ASA, a plain `REJECT` on iptables (`reject` on nftables) when the rule is not TCP only, `Reject` on Check Point and on Sophos (which answers the sender only), *Block with reset* on a Management Center (which resets both sides), *Block* on a Device Manager (which answers nobody). |
 | `ATTRIBUTES_IGNORED` | I | FortiOS source: NAT details such as `fixedport` have no equivalent. ASA, Management Center or Device Manager source, on a NAT rule: options such as `dns`, round robin, extended PAT or the fallback to the interface address. |
 | `MONITOR_RULE` | I, skipped | Management Center source: a rule with the action *Monitor*. It logs the traffic and leaves the decision to the rules below it: there is nothing to convert. |
 | `INTERACTIVE_BLOCK` | A | Management Center source: *Interactive Block* (with or without reset) shows web users a page from which they can go on to the site. It is converted as a rule that blocks. |
@@ -1022,7 +1045,8 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `NAT_DESTINATION`, `NAT_DESTINATION_SIZE`, `NAT_PORT` | R, skipped | To FortiOS: the destination NAT cannot become a virtual IP: it needs one IPv4 address or range on each side, of equal size, and for a port translation a service with one protocol and one port or range. To ASA, a Management Center or a Device Manager: one static address object on each side; a port translation needs a service with single ports. |
 | `NAT_POOL` | R, skipped | To FortiOS or iptables: the translated address is not a static IPv4 address, or not exactly one address or range. To ASA, a Management Center or a Device Manager: it is not a static address. |
 | `NAT_IPV6` | R or I, skipped | To FortiOS: the rule is not IPv4 (R). With `--to ip6tables`: NAT rules are written for IPv4 only (I, on every NAT rule). |
-| `NAT_DISABLED` | I | A NAT rule that is disabled in the source. To FortiOS no virtual IP is created for it (skipped); to iptables it is written as a comment line. |
+| `NAT_DISABLED` | I | A NAT rule that is disabled in the source. To FortiOS no virtual IP is created for it (skipped); to iptables and nftables it is written as a comment line. |
+| `NAT_IPV6_NOT_CONVERTED` | I | nftables source: a `masquerade` (or `redirect`) in an `inet` table translates IPv6 connections as well. The IPv4 half is converted; IPv6 NAT is not. |
 | `NAT_OVERLAP` | R | FortiOS source: another policy passes overlapping traffic without NAT, for other services. NAT rules do not match on service, so that traffic would be translated. Add a no-NAT rule or narrow this one. |
 | `NAT_EXEMPTION` | A | FortiOS source: a no-NAT rule was added for an earlier policy that passes this traffic untranslated. It applies to all services. |
 | `NAT_SERVICE_DROPPED` | A or R | To FortiOS: the rule translated one service only; the virtual IP (A) or central SNAT entry (R) applies to all. |
@@ -1080,7 +1104,7 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `INTERFACES_REQUIRED` | R | To iptables or ASA: zones are written as interface names. Map each zone to its interface with `--zone-map`. For an ASA the note also states what the access lists count on: that the ASA has no other interfaces than the policy names, and does not send traffic back out of the interface it came in on (section 8). To a Device Manager: the NAT rules name interfaces by their logical name and as physical interfaces; map the names with `--interface-map`, and change the type in the file where one is a subinterface, an EtherChannel or a VLAN interface. |
 | `INTRAZONE_ALLOW_MERGED` | R | To PAN-OS or Check Point: `--zone-map` merges a zone that allows intrazone traffic with another one; no allow rule was written for it. |
 | `NAT_ORDER` | A | To PAN-OS, Check Point or Sophos, from FortiOS, iptables, ASA, or Check Point automatic NAT rules: the source applies a destination NAT rule and a source NAT rule to one connection, the target one NAT rule only (section 8). To ASA from those sources: a destination NAT without a port is written as a rule that leaves the source alone, with the same effect. |
-| `TABLE_NOT_CONVERTED` | R | FortiOS source: a table such as `firewall policy6` or `firewall local-in-policy` has entries and is not converted. iptables source: the `mangle`, `raw` or `security` table has rules. ASA source before 9.0: `ipv6 access-list` lines; the result has no IPv6 rules. |
+| `TABLE_NOT_CONVERTED` | R | FortiOS source: a table such as `firewall policy6` or `firewall local-in-policy` has entries and is not converted. iptables source: the `mangle`, `raw` or `security` table has rules. nftables source: a table of the `bridge`, `arp` or `netdev` family has rules. ASA source before 9.0: `ipv6 access-list` lines; the result has no IPv6 rules. |
 | `SUSPICIOUS_QUOTING` | R | FortiOS source: a quoted value runs over lines that look like configuration. An unescaped quote may have hidden entries; check the line given. |
 | `NO_HIERARCHY` | R | Panorama source without `<readonly>`: parent device groups could not be found. |
 | `INTRAZONE_DENY_ADDED` | I | To PAN-OS: `fwshift-intrazone-deny` was appended (section 8). |
@@ -1102,6 +1126,26 @@ Notes that only an iptables source or target raises:
 | `OTHER_IP_VERSION` | I | Target: some rules match the other IP version (too). Convert with `--to ip6tables` or `--to iptables` as well. |
 | `LOGGING_NOT_CONVERTED` | I | Target: logging settings are not converted. Add `LOG` or `NFLOG` rules where needed. |
 | `LOG_EVERY_PACKET` | I | Source: a `LOG` rule ahead of the rule that accepts established connections (or in a ruleset without one) logs packets of connections already open. `fwshift usage` leaves out the TCP packets that open no connection and counts the lines of other protocols as possible only (section 15). |
+
+Notes that only an nftables source or target raises (an nftables source also raises `HOST_CHAIN_NOT_CONVERTED`,
+`STATELESS_RULESET`, `FORWARD_POLICY_ACCEPT` and `LOG_EVERY_PACKET`, as above, for its base chains):
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `SEVERAL_BASE_CHAINS` | I | Source: several base chains at the forward hook (in one table or in several) see the same packets. A packet is forwarded only if each of them accepts it; they were combined into one list of rules, in the order of their priorities (section 8). |
+| `EQUAL_PRIORITY` | I | Source: two of those base chains have the same priority. The kernel does not define their order; what is forwarded does not depend on it, which rule logs a packet may. |
+| `CHAIN_NOT_CONVERTED` | R or I | Source: a base chain at `prerouting`, `postrouting` or `ingress` can drop forwarded traffic too (R), or a `route` chain reroutes the host's own traffic (I). Neither is converted. A reverse path filter (`fib ... missing drop`) is the usual case: add the equivalent on the target. |
+| `NO_FORWARD_CHAIN` | R | Source: no base chain of type `filter` at the forward hook. The ruleset does not filter forwarded traffic at all; the converted policy has no security rules and allows everything. |
+| `NO_IPV4_CHAIN`, `NO_IPV6_CHAIN` | R | Source: base chains at the forward hook exist for one IP version only (an `ip` or `ip6` table). The other version is forwarded unfiltered; the conversion covers the one that is filtered, as for an iptables ruleset. |
+| `DYNAMIC_SET` | R | Source: a rule names a set with the flags `dynamic` or `timeout` (filled at run time, by the ruleset itself or by a tool such as fail2ban). What it matches is not known; the rule is written disabled. |
+| `EMPTY_SET` | R | Source: a rule names a set that was empty when the ruleset was listed, so it matched nothing and is left out. A script or a service may add elements later; they are not in the conversion. |
+| `TABLE_DORMANT` | R | Source: a table has `flags dormant`: none of its chains is attached to a hook, and none was converted. Convert again if it is switched on. |
+| `IPTABLES_NFT` | R | Source: tables managed by iptables-nft. Rules that use iptables extensions (`xt` statements) are not converted; nft shows them as `xt` in JSON always and in text where it cannot translate them, so the two listings can differ. Convert `iptables-nft-save` output with `--from iptables` for those tables. |
+| `PASSIVE_STATEMENTS` | I | Source: rules that only log (or count) decide nothing and were left out. A log rule directly before a rule with the same match, or one that matches everything, sets the logging of the rules it logs for. |
+| `NFT_LOAD` | R | Target: how the output loads (one table, replaced at once) and what another table at the forward hook still does to the same packets (section 10). |
+| `ONE_IP_VERSION` | R | Target: the source policy is for one IP version (an iptables ruleset, or an nftables ruleset with chains for one version). Table `inet fwshift` sees both: its policy decides the other version too. |
+| `LOG_STATEMENTS` | I | Target: rules that log the start of a connection got a `log` statement: a kernel log line for the first packet of each connection an allow rule accepts, and for every packet a deny rule drops. |
+| `LOGGING_AT_END` | I | Target: rules that log only the end of a connection on the source got no `log` statement; an nftables rule logs packets. Connection ends are in the conntrack events (`conntrack -E`, ulogd). |
 
 Notes that only a Cisco ASA source or target raises:
 
@@ -1578,6 +1622,102 @@ The second column matters too:
 * A host name is written as it is; iptables resolves it once, when the file is
   loaded (`FQDN_RESOLVED_ONCE`).
 * Logging is not written (`LOGGING_NOT_CONVERTED`).
+
+### nftables
+
+**What is read**
+
+* Every base chain of type `filter` at the `forward` hook of the `ip`, `ip6`
+  and `inet` tables is policy, with the chains it jumps to. Base chains at
+  `input` and `output` filter the traffic of the host itself and are reported
+  (`HOST_CHAIN_NOT_CONVERTED`); filter chains at `prerouting`, `postrouting`
+  and `ingress` can drop forwarded traffic too and are reported
+  (`CHAIN_NOT_CONVERTED`); tables of the `bridge`, `arp` and `netdev` families
+  are reported (`TABLE_NOT_CONVERTED`), and dormant tables (`TABLE_DORMANT`).
+* **Several base chains.** The kernel runs every base chain at a hook, in the
+  order of its priority, whatever table it is in. An accept ends one base
+  chain and the packet goes on to the next; a drop is final. A packet is
+  forwarded only if every base chain accepts it. FWShift combines the chains
+  into one list of first-match rules that decides the same: a rule of the
+  first chain that accepts is followed by the rules of the next chain, cut
+  down to what the first rule matched (`SEVERAL_BASE_CHAINS`). A chain with no
+  rules and the policy accept changes nothing and is left out.
+* **IP versions.** An `inet` chain sees IPv4 and IPv6, an `ip` chain IPv4, an
+  `ip6` chain IPv6. Where the two versions meet different chains they are
+  read one at a time, and a rule may then appear once per version (the second
+  with `-2` after its name). A version that meets no chain at all is not
+  filtered: `NO_IPV6_CHAIN` (or `NO_IPV4_CHAIN`) says so, and the policy is
+  for the other version only, as an iptables ruleset is. When the two versions
+  end in different policies, the model's default is drop and an explicit rule
+  (`IPv6 policy`, say) allows what the version that accepts lets through.
+* Interfaces are the zones (`iifname`, `oifname`, `iif`, `oif`), and a set of
+  interfaces is a list of zones. A negated interface or a wildcard (`eth*`)
+  disables the rule.
+* **Chains.** `jump` is flattened as for iptables: every rule of the chain is
+  combined with the rule that jumped. A `goto` from a base chain ends in the
+  policy of the base chain, and so does a `return` there. A conditional
+  `return` or `goto` in a chain lower down is followed exactly where one
+  condition can say what is left for the rules below it (`tcp dport 22 return`
+  leaves the other ports); otherwise the rules below it are written disabled.
+  An anonymous chain (`jump { ... }`) is a chain like any other.
+* **Sets and maps.** A named set of addresses becomes an address group with
+  its name; an anonymous set a list. A verdict map (`iifname vmap { ... }`,
+  `ct state vmap { ... }`) becomes one rule per element; so does a set of
+  concatenations (`ip saddr . tcp dport { 10.0.0.1 . 22, ... }`) and a NAT map.
+  A set filled at run time (`flags dynamic` or `timeout`) is not known: its
+  rules are written disabled (`DYNAMIC_SET`). An empty set matches nothing
+  (`EMPTY_SET`).
+* nftables filters packets, the other platforms connections. A rule that
+  accepts every packet of `established` and `related` connections is left
+  out, as for iptables, and so is a drop of every `invalid` packet. A rule that
+  accepts established packets of some traffic only (with an interface, say) is
+  a rule of its own and is written disabled: the source drops the replies of
+  the rest. Without a rule that accepts every established packet the ruleset
+  is stateless (`STATELESS_RULESET`).
+* Protocols and ports: `tcp dport`, `udp sport`, `meta l4proto { tcp, udp } th
+  dport 53` (one service with a TCP and a UDP entry), port comparisons
+  (`tcp dport < 1024`), negated ports and protocols, `icmp type` and
+  `icmpv6 type` with codes. `th dport` without a protocol disables the rule.
+* A `log` statement in a rule, or a log rule that matches every new
+  connection above it, turns on logging at the start of the connection. A
+  `log group N` writes to nflog: `fwshift usage` does not read those lines.
+* Never read as "matches everything": rate limits, quotas and meters, `fib`,
+  `socket`, `osf`, marks, `tcp flags`, `ct status`, TCP and IP options,
+  extension headers, the `xt` statements of iptables-nft, and anything the
+  reader cannot place. The rule is written disabled and the report names the
+  part; a rule whose verdict cannot be found is read as a drop that is not
+  enforced, never as an accept.
+* NAT: `dnat` of the `nat` chains at `prerouting`, `snat` and `masquerade` at
+  `postrouting`, NAT maps and an `accept` at `postrouting` (no NAT) become NAT
+  rules. `redirect`, `snat prefix` (netmap), an `accept` at `prerouting`, NAT
+  at `input` and `output`, and IPv6 NAT are not converted. nft lists an
+  aligned range of addresses as a prefix (`snat to 198.51.100.20/30`): it is
+  the same range.
+
+**What is written**
+
+* One table, `inet fwshift`, for both IP versions: a base chain at the forward
+  hook and, for IPv4, `nat` chains at `prerouting` and `postrouting`. Nothing
+  else on the host is touched. Section 10 says how to load it.
+* The forward chain starts with the two rules the other platforms have built
+  in: accept `established,related`, drop `invalid`. Allow rules match new
+  connections (`ct state new`). The policy is `drop`, or `accept` when the
+  source allows what no rule matches.
+* Lists of interfaces, addresses and ports become anonymous sets: a rule of
+  the model is one line per IP version and protocol. A rule that holds no
+  address of one IP version has no line for it; a rule with no address at all
+  is one line for both versions. A negated service becomes a small chain
+  (`fws1`, ...) that returns for each excluded service and decides for the
+  rest.
+* A rule that cannot be enforced is written as a comment line that starts with
+  `# FWSHIFT disabled`, in its place. A host name object disables the rule
+  (`FQDN_NOT_SUPPORTED`).
+* Rules that log the start of a connection get a `log` statement with their
+  name as the prefix (`LOG_STATEMENTS`); logging at the end of a connection
+  has no equivalent (`LOGGING_AT_END`). Every rule has a counter and its name
+  as the comment.
+* NAT is written as for iptables, in nft syntax (`dnat ip to`, `snat ip to`,
+  `masquerade`), for IPv4.
 
 ### Check Point
 
@@ -2636,6 +2776,35 @@ unreachable.
    rule a second time. Otherwise merge the file into your own ruleset by hand.
 4. Forwarding itself (`net.ipv4.ip_forward`) is a setting of the host.
 
+### nftables
+
+The output is one table, `inet fwshift`. The file first creates the table,
+then deletes it, then writes it again: `nft -f` loads a file in one
+transaction, so the table is replaced as a whole, or not at all, and no other
+table is touched. Loading it a second time replaces it again; nothing is added
+twice.
+
+1. Convert with `--zone-map` so that the rules name the interfaces of the
+   host:
+
+   ```sh
+   fwshift convert policy.xml --to nftables -o fwshift.nft --zone-map trust=eth1 --zone-map untrust=eth0
+   ```
+
+2. Check it without loading: `nft -c -f fwshift.nft` (as root: the kernel
+   checks it as well).
+3. Load it: `nft -f fwshift.nft`. To keep it over a reboot, include the file
+   from `/etc/nftables.conf`, after the `flush ruleset` there.
+4. **Other tables still apply.** Every base chain at the forward hook sees
+   every forwarded packet, whatever table it is in. The `drop` policy of
+   `inet fwshift` drops what it does not accept, even where another table
+   (firewalld, Docker, libvirt, iptables-nft) accepts it; and a drop in another
+   table still drops what `inet fwshift` accepts. List the ruleset
+   (`nft list ruleset`) and look at the other chains with `hook forward`
+   (`NFT_LOAD`).
+5. Forwarding itself (`net.ipv4.ip_forward`, `net.ipv6.conf.all.forwarding`)
+   is a setting of the host.
+
 ### Check Point
 
 The output is a shell script. It needs `mgmt_cli`, which is on every
@@ -3034,6 +3203,10 @@ the report is the list.)
 | `no tables found; expected the output of iptables-save or ip6tables-save` | The file is not a saved iptables ruleset. A script of `iptables -A ...` commands is not one: load it and save the result. |
 | `only '-A CHAIN ...' rules are understood` | The same: `-I`, `-D` and other commands do not occur in saved rulesets. |
 | `the chains expand to more than 50000 rules` | Chains that jump to each other many times over. Not converted. |
+| `'add rule' is a command; FWShift reads the ruleset as 'nft list ruleset' ... prints it` | An nftables script of commands. Load it with `nft -f` and give FWShift the output of `nft list ruleset`. |
+| `include is not followed` | An nftables input file that includes others. Give FWShift the output of `nft list ruleset`, which holds everything that was loaded. |
+| `$NAME is not defined` | An nftables input file that uses a variable it does not define (it may be in an included file). The same remedy. |
+| `the base chains combine to more than 50000 rules` | nftables: several base chains at the forward hook whose rules multiply when they are combined. Not converted. |
 | `not valid JSON` / `no Management API response found` | The file is not the JSON output of `show access-rulebase`. Use `--format json`. |
 | `the export holds several access layers; choose one with --layer: ...` | Name one of the listed layers. Inline layers are found by themselves. |
 | `layer '...' not found; available: ...` | `--layer` names a layer that is not in the input. |
@@ -3145,8 +3318,9 @@ deliberate: see *IPv4 and IPv6* in section 8.
 ## 12. Limits
 
 * The emitted syntax follows the vendors' documented formats. Only iptables
-  output has been loaded into the real thing (a Linux kernel with iptables
-  1.8.10, nf_tables backend; filter rules, not NAT); nothing has been
+  and nftables output has been loaded into the real thing (a Linux kernel
+  with iptables 1.8.10, nf_tables backend, and nft 1.0.9; filter rules, not
+  NAT); nothing has been
   validated on PAN-OS, FortiOS, ASA, Sophos or pfSense devices, a Check Point
   management server, a Cisco Secure Firewall Management Center or Device
   Manager, or across versions.
@@ -3166,7 +3340,14 @@ deliberate: see *IPv4 and IPv6* in section 8.
 * Dynamic address groups survive only PAN-OS to PAN-OS.
 * iptables: only forwarded traffic is converted. Matches beyond interfaces,
   addresses, protocols, ports, ICMP types and connection state disable the
-  rule. IPv6 NAT and `nft` rulesets are not read.
+  rule. IPv6 NAT is not read.
+* nftables: forwarded traffic only (the forward hook), and IPv4 NAT. Rate
+  limits, quotas, meters, sets filled at run time, `fib`, `socket`, marks,
+  options and anything else beyond interfaces, addresses, protocols, ports,
+  ICMP types and connection state disable the rule. Read from nft 1.0.9
+  listings and the formats nft 0.9.3 to 1.1.6 write (from their sources);
+  older listings that name ports by service name are read for the common
+  names only.
 * Check Point: one ordered layer per run; implied rules, Global Properties,
   identity awareness, application control, content awareness and VPN
   communities are not converted. The output is `mgmt_cli` calls for the
@@ -3830,7 +4011,7 @@ fwshift matrix running-config.xml \
 The audit knows what a policy allows; the hit counters know which rules were
 hit. The logs know more: which objects and services inside each rule the
 connections used. `fwshift usage` reads them, as fwanalyser did for Check
-Point, for a Check Point, PAN-OS, FortiOS or iptables policy
+Point, for a Check Point, PAN-OS, FortiOS, iptables or nftables policy
 (`docs/RULE_USAGE.md` has the design and the plan).
 
 ```sh
@@ -3918,6 +4099,11 @@ from.)
   `--log-offset`. `dmesg` keeps neither time nor host and is not read.
   Lines of `NFLOG` and `ULOG` rules go to ulogd, not to the kernel log, and
   are not read; nor are lines of `ebtables` or `TRACE`.
+* **nftables** writes the same lines for a `log` statement (`log prefix
+  "fw-new "`), and they are read the same way: give the files with
+  `fwshift usage ruleset.nft --logs ...`. A `log group N` statement writes to
+  nflog (ulogd) instead and is not read; a rule that logs only that way proves
+  nothing.
 * For a policy that does not log every rule, the simplest way to the logs is
   one `LOG` rule for new connections at the top of `FORWARD`, after the rule
   that accepts established connections:
@@ -4142,8 +4328,8 @@ so a later version can read it.
 
 ### Limits
 
-* Check Point, PAN-OS, FortiOS and iptables only. Narrower rules proposed from
-  the use come in 0.17; the Check Point CSV export and `fwm logexport`, PAN-OS
+* Check Point, PAN-OS, FortiOS, iptables and nftables only. Narrower rules proposed from
+  the use came in 0.17; the Check Point CSV export and `fwm logexport`, PAN-OS
   CEF and LEEF, and the FortiOS `csv`, `cef` and `json` formats later.
 * PAN-OS: a rule that only the first packets of a session match, before the
   application is known (an application dependency), is named in the start log
@@ -4152,7 +4338,7 @@ so a later version can read it.
 * FortiOS: before 6.4, IPv6 policies (`policy6`) had policy IDs of their own;
   a log of one names an ID that may be an IPv4 policy's. Policies with a UUID
   are found by it.
-* iptables: the lines carry no verdict, so the policy alone decides which rule
+* iptables and nftables: the lines carry no verdict, so the policy alone decides which rule
   a connection went through; a line of a packet that the policy as read does
   not let through (a ruleset changed since) counts for the rule the policy
   gives it now. The lines of the `nat` table, `INPUT` and `OUTPUT` are not

@@ -1,0 +1,31 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: nftables
+
+Summary
+  Security rules:     10   exact 5, approximated 2, needs review 3 (2 emitted disabled), skipped 0
+  NAT rules:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] NFT_LOAD: the output is one table, inet fwshift, which replaces itself when loaded: check it with 'nft -c -f FILE', load it with 'nft -f FILE'. Other tables stay as they are, but every base chain at the forward hook sees each packet: the drop policy here drops what this table does not accept even where another table (firewalld, Docker, libvirt, iptables-nft) accepts it, and a drop in another table still wins over an accept here
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names; map each zone to its interface with --zone-map: Trusted, Guests, External, DMZ, Lab
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] LOGGING_AT_END: 7 rules log the end of a connection on the source; an nftables rule logs the packet it matches, so only rules that log the start of a connection got a log statement. Connection ends are in the conntrack events (conntrack -E, ulogd)
+
+Security rules
+  Web Out  ->  approximated  (emitted as 1 forward rule)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+  Web In  ->  approximated  (emitted as 1 forward rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Web-Public.1.snat' with post-NAT 'Web-Public.2.snat' because of NAT rule 'Web-Public (Web In)'; check that this rule is meant to cover the translated traffic
+  Mail In  ->  needs-review  (emitted as 1 forward rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Mail-Public.1.snat' with post-NAT 'Mail-Public.2.snat' because of NAT rule 'Mail-Public (Mail In)'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Mail-Public (Mail In)' also translates the port to 2525; the service of this rule still names the pre-NAT port and must be adjusted
+  DMZ Updates  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object Update-Site.1.alm updates.example.com: an nftables rule matches addresses only; resolve it into an address object or a set kept up to date by a script.
+  Staff Only  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match Staff is not converted.

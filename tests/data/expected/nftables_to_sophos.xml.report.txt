@@ -1,0 +1,58 @@
+FWShift conversion report
+  source: nftables
+  target: sophos
+
+Summary
+  Security rules:     16   exact 11, approximated 1, needs review 4 (2 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 3, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CHAIN_NOT_CONVERTED: chain prerouting of table inet raw at the prerouting hook (priority -300, policy accept) can drop forwarded traffic as well and is not converted
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of table inet filter (3 rules, policy drop) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] DYNAMIC_SET: sets filled at run time decide what their rules match; those rules are not converted: @banned (flags timeout)
+  [needs-review] SOPHOS_LOAD: the output is an Entities.xml. Put it in a tar archive under that name (or let FWShift do it: give -o a name that ends in .tar) and import it under Backup & firmware > Import export. Rules are added below the rules the firewall has: a firewall rule or NAT rule that is there already, such as the default source NAT rule of a new firewall, comes first. An import can stop at the first object the firewall does not take: compare the number of rules and objects with this report, on a firewall that is not in production
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): eth1, eth0, eth2, eth3. Zones are not created: an import would overwrite the device access of a zone that exists
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] SEVERAL_BASE_CHAINS: IPv4 traffic passes 2 base chains at the forward hook: inet f2b forward (-5), inet filter forward (0). It is forwarded only if each of them accepts it; they were combined into one list of rules
+  [info] EXISTING_OBJECTS: an import overwrites what the firewall has under the same name: a host, a service or a rule that is in this output replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 5 rule(s) match IPv4 and IPv6 traffic and were written twice: Sophos Firewall keeps a rulebase per IP version. The name of the IPv6 rule ends in _v6
+
+Security rules
+  Banned by fail2ban  ->  needs-review, emitted disabled
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [needs-review] UNSUPPORTED_MATCH: not converted: set @banned, which is filled at run time (flags timeout). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad hosts  ->  needs-review
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  Rate limited mail  ->  needs-review, emitted disabled  (emitted as Rate limited mail, Rate limited mail_v6)
+      [needs-review] UNSUPPORTED_MATCH: not converted: rate limit 10/minute.
+  Inbound web  ->  needs-review
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '10.20.0.10' because of NAT rule 'Web DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Web DNAT' also translates the port to 8443; the service of this rule still names the post-NAT port and must be adjusted
+  Inbound mail  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to '10.20.0.25' because of NAT rule 'Mail DNAT'; check that this rule is meant to cover the translated traffic
+
+NAT rules
+  Web DNAT  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from eth0 only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  Mail DNAT  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from eth0 only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  No NAT to partner  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic to eth0 only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+  DMZ out  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic to eth0 only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface, so that it now translates traffic towards every other zone as well. Name the interfaces with --interface-map, or put a rule without translation above it for the traffic that must keep its addresses
+  LAN out  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic to eth0 only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface, so that it now translates traffic towards every other zone as well. Name the interfaces with --interface-map, or put a rule without translation above it for the traffic that must keep its addresses
+
+Services
+  tcp-80,443  ->  exact  (emitted as tcp-80_443)
+      [info] RENAMED: renamed to 'tcp-80_443' to fit the target's naming rules
+  tcp-53+udp-53  ->  exact  (emitted as tcp-53_udp-53)
+      [info] RENAMED: renamed to 'tcp-53_udp-53' to fit the target's naming rules
+  tcp-22,3389  ->  exact  (emitted as tcp-22_3389)
+      [info] RENAMED: renamed to 'tcp-22_3389' to fit the target's naming rules
+  tcp-25,443  ->  exact  (emitted as tcp-25_443)
+      [info] RENAMED: renamed to 'tcp-25_443' to fit the target's naming rules
+  icmp6-128+icmp6-135+icmp6-136  ->  exact  (emitted as icmp6-128_icmp6-135_icmp6-136)
+      [info] RENAMED: renamed to 'icmp6-128_icmp6-135_icmp6-136' to fit the target's naming rules

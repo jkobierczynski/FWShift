@@ -8,11 +8,11 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.17.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files) |
-| Tests | 3426, all passing (6 of them need root and iptables and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, a Check Point management server, a Cisco Management Center or a Device Manager |
-| Next | lab validation of the sample conversions; rule usage beyond the plan (see `TODO.md`); lab validation of the sample conversions; the brands not planned yet (see `TODO.md`) |
+| Version | 0.18.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`) |
+| Tests | 3530, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, a Check Point management server, a Cisco Management Center or a Device Manager |
+| Next | brands 0.19.0 to 0.21.0: VMware NSX, AWS security groups, Azure NSG; then the zone and conduit model as a gate (0.22.0); lab validation of the sample conversions (see `TODO.md`) |
 
 ## Layout
 
@@ -39,6 +39,9 @@ src/fwshift/
         junos.py      SRX set lines or braces -> model (pairs of zones, then
                       global policies; books of zones; NAT before the policy)
         iptables.py   iptables-save output   -> model (chains flattened)
+        nftables.py   nft list ruleset, text or JSON -> model (every base chain
+                      at the forward hook combined; chains, sets and maps
+                      flattened)
     emitters/
         panos.py      model -> PAN-OS set commands
         fortios.py    model -> FortiOS CLI configuration
@@ -61,6 +64,8 @@ src/fwshift/
         junos.py      model -> SRX set commands (policies per pair of zones,
                       the end of the model as global policies, NAT rule sets)
         iptables.py   model -> iptables-restore / ip6tables-restore file
+        nftables.py   model -> one table for nft -f (anonymous sets; NAT
+                      through the iptables planner)
     transform.py      passes shared by the emitters: hardening of names,
                       references, placeholders, names, application lowering,
                       NAT destination rewriting, NAT order, pruning
@@ -104,8 +109,9 @@ tests/
                       iptables logs of iptables_logged.rules, the PAN-OS and
                       FortiOS logs (and panos_logged.xml), the two
                       Cisco Secure Firewall samples and the SonicWall,
-                      WatchGuard, Barracuda and Juniper samples,
-                      and the kernel check
+                      WatchGuard, Barracuda and Juniper samples, the nftables
+                      sample (written by nft itself), and the kernel checks
+                      for iptables and nftables
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
                       Check Point, ASA, Sophos and Cisco Secure Firewall output;
                       a pfSense that judges packets from its configuration;
@@ -117,6 +123,8 @@ tests/
     test_emitters.py  PAN-OS and FortiOS emitters
     test_semantics.py one small configuration per semantic trap
     test_iptables.py  iptables both ways, a packet simulator, cross-format NAT
+    test_nftables.py  nftables both ways, against a walk through the chains as
+                      the kernel runs them; with nft, listings of the kernel
     test_checkpoint.py Check Point both ways, with simulators for an export
                       and for an emitted script
     test_asa.py       Cisco ASA both ways, with a random ASA that judges
@@ -407,6 +415,11 @@ python -m mypy
   agreed on every packet. Half of the packets are aimed at allow rules, so
   that "forwarded" is tested as much as "dropped". It covers the `filter`
   table for IPv4; NAT and IPv6 forwarding are not exercised.
+  `tests/tools/nft_kernel_check.py` does the same for nftables, with the
+  generators of `test_nftables.py` (`unshare -n python3
+  tests/tools/nft_kernel_check.py 40`). Last run (40 seeds): 111 rulesets,
+  20216 packets, 8764 forwarded, on kernel 6.18 with nft 1.0.9: the kernel
+  and the model agreed on every packet.
   For Cisco Secure Firewall there are three judges, none of them the
   project's parser. `Lab` is a made-up device: random zones, objects, access
   rules in sections with an inherited policy, a prefilter policy, and for
@@ -494,6 +507,8 @@ there for an old tag whose tests no longer run on today's tools.
 | PAN-OS output holds no comments | The CLI has no comment syntax; everything goes to the report instead. |
 | `edit 0` for FortiOS policies | Appends without colliding with existing policy ids. `--policy-id-start` exists for scripted setups. |
 | iptables: `FORWARD` and `nat` only | The other platforms filter what passes through them; `INPUT` and `OUTPUT` protect the host itself and have no counterpart. Writing them would also lock people out of the host they load the file on. |
+| nftables: one table, replaced whole | `table` / `delete table` / `table { ... }` in one file is one transaction: the table is replaced at once and nothing else is touched. `flush ruleset` would wipe firewalld, Docker and libvirt too. |
+| nftables: base chains combined into one list | The kernel runs every base chain at a hook; the model has one rulebase. A rule that accepts is followed by the next chain's rules under it, which is exact and keeps the order of logging. |
 | iptables: lists become chains | iptables has no objects and a rule matches one address per side. A chain per list keeps a rule with long or negated lists to one jump, instead of a product of lines. |
 | Check Point input is API JSON | There is no configuration file. The API export is documented, versioned and what other tools consume. |
 | Check Point output is a `mgmt_cli` script that stops at the first error and never publishes | The session is the unit of change on a management server: a person reviews it in SmartConsole and publishes or discards. A script that carried on after a refused call would leave a policy with rules missing. |
@@ -544,6 +559,7 @@ policy behaves unexpectedly.
 | The App-ID names in `appmap.py` (`ping`, `icmp`, `gre`, `ipsec-esp`, ...) | PAN-OS emitter |
 | A PAN-OS NAT rule needs one destination zone; `any` is not accepted | PAN-OS emitter (`--target-nat-zone`) |
 | iptables NAT: `FORWARD` sees destinations after `PREROUTING`; `POSTROUTING` cannot match the input interface; `iptables-restore --noflush` adds to existing chains. (The filter-table syntax and semantics the emitter and parser rely on are checked against a kernel, see Testing.) | iptables parser and emitter |
+| nftables: every base chain at a hook sees a packet in the order of its priority, whatever table; accept ends one base chain, drop is final; a family without a base chain is not filtered; the forward hook sees addresses after prerouting DNAT. (Checked against the kernel, see Testing.) Printed forms of nft 0.9.3 to 1.1.6 taken from their sources | nftables parser and emitter |
 | Check Point matches the access rulebase on the original packet and takes the destination zone after NAT | model, Check Point parser and emitter |
 | A connection sent into an inline layer never returns to the parent layer; a layer without a matching rule applies its implicit cleanup action | Check Point parser |
 | An object with automatic static NAT matches its translated address in the rulebase; with manual NAT the rules name the original address | `_automatic_nat`, `_also_valid` |
@@ -1922,6 +1938,116 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-13: version 0.18.0
+
+The first of four brands planned one release each (`TODO.md`): **nftables**,
+read and written.
+
+**Built**
+
+* `parsers/nftables.py`: `nft list ruleset` text and `nft -j list ruleset`
+  JSON, both read into one structure (tables, chains, sets and maps, rules of
+  matches and statements), so the two listings give the same model. The text
+  reader also takes an input file for `nft -f` with tables in braces
+  (`define`, `flush ruleset`, `delete table`, a table in several blocks).
+* What a rule matches is a condition of exact sets (IP versions, interfaces,
+  address intervals per side, protocols, port ranges, ICMP types and codes,
+  connection states), so jumps, sets and maps combine by intersection. Named
+  sets of addresses become address groups; the way a side was written (a
+  set, a negation) is kept to show it where the intersection leaves it so.
+* Chains are flattened: jump, goto (to the policy at the base chain, to the
+  caller below it), return (the policy at the base chain; below it, exact
+  where one condition can say what is left), verdict maps, concatenations and
+  NAT maps as one rule per element, anonymous chains.
+* Every base chain at the forward hook of the ip, ip6 and inet tables, in the
+  order of its priority, combined into one list of first-match rules: a rule
+  that accepts is followed by the rules of the next chain under it, a policy
+  that accepts by the next chain. IPv4 and IPv6 are walked apart where they
+  meet different chains; a version without a chain is not filtered
+  (`NO_IPV6_CHAIN`, the policy for the other version, as for iptables).
+* The stateful reading of iptables (an accept of every established packet is
+  left out, `STATELESS_RULESET`, `DROP_BEFORE_ESTABLISHED`, logging from log
+  rules, `LOG_EVERY_PACKET`), NAT from the nat chains at prerouting and
+  postrouting as iptables NAT is read, `transform.rewrite_destinations`.
+* `emitters/nftables.py`: one table, `inet fwshift`, created, deleted and
+  written again in one file (`nft -f` loads it as one transaction). Anonymous
+  sets for lists, one line per IP version and protocol, a chain per negated
+  service, `log` statements for rules that log the start of a connection, NAT
+  through the iptables emitter's planner, translated into nft syntax.
+* `fwshift usage` for an nftables policy: a `log` statement writes the kernel
+  lines a `LOG` rule does, so the iptables reader reads them; `log group`
+  (nflog) is evidence of nothing, as `NFLOG` is.
+* `tests/test_nftables.py` (75 tests), the sample (`nftables_sample.nft` and
+  `.json`, written by nft itself through `tests/tools/make_nftables_sample.py`),
+  27 golden conversions, the matrix and the audit of the sample, and
+  `tests/tools/nft_kernel_check.py`.
+
+**What the platform made necessary**
+
+* *Every base chain decides.* Tables are only a way to group chains: every
+  base chain at a hook sees every packet, an accept is not final, a drop is.
+  A table read alone is not the policy; neither is a converted table loaded
+  alone, which is why the emitter's `NFT_LOAD` note names the other tables.
+* *A listing is not an input file.* nft prints a range as a prefix where it
+  is aligned (`snat to 198.51.100.20/30`), a negated set in braces, flags
+  joined by commas, set elements wrapped over lines, and the statements it
+  cannot translate as `xt` (JSON always, text where libxtables has no
+  translation).
+* *Nothing read is ever a guess.* A word the reader cannot place makes the
+  rule unsupported; a verdict word is never read as a value, and a rule
+  without a verdict that could not be read in full is a drop that is not
+  enforced.
+
+**Sources**
+
+The research notes of this release (from the upstream nftables release
+tarballs 0.9.3, 1.0.2, 1.0.9, 1.1.1 and 1.1.6, iptables 1.8.11 and the Debian
+packaging, read and not run): nft(8), libnftables-json(5), the `tests/py` and
+`tests/shell` dumps of nft's own test suite, `src/rule.c` (how a ruleset is
+printed), `src/json.c`, `src/xt.c`. Checked against nft 1.0.9 here: every
+listing the tests use was printed by it.
+
+**Review**
+
+*Round 26* by the independent reviewer, with repro scripts of its own and the
+kernel (probes at the output hook in a network namespace).
+
+| | Finding | Fix |
+|---|---|---|
+| critical | A conditional goto in a chain below the base chain went on with the rest of that chain for packets that had gone back to the caller; an unconditional goto in a chain reached by a goto from the base chain lost the policy at its end. Both allowed what the kernel drops | the packets of a goto are taken out of what the rest of the chain sees (or that rest is marked); the end of the goto meets the policy |
+| high | Text listings: `log flags tcp sequence,options`, `quota name`, TCP and IP options, `exthdr`, `sctp chunk`, `meter`, `osf`: a word out of step took the verdict as a value, and the drop rule was gone, unflagged | a verdict word is never a value; those statements are read; a rule without a verdict that could not be read in full is an unknown verdict |
+| high | JSON: a jump to an anonymous chain (written as text, no JSON form) lost the rule | an unknown verdict |
+| medium | An accept of established packets with more matches (an interface) was left out as if it accepted every established packet | a rule of its own, disabled; only a plain one makes the ruleset stateful |
+| medium | Dormant tables were converted (a NAT rule that publishes nothing became live) | skipped, `TABLE_DORMANT` |
+| medium | `$` in a log prefix: nft expands it, and the file does not load | replaced |
+| low | `nft -n` listings: numeric connection states were not read | read |
+| low | `IPTABLES_NFT` said `xt` always shows; in text nft translates most extensions | reworded: the two listings can differ |
+
+The fixes were not reviewed again; they have tests (the last section of
+`test_nftables.py`), and the reviewer's chain generator is in the suite
+(`deep_ruleset`).
+
+**Verified, and not**
+
+* The tests: `tests/test_nftables.py` holds 75 tests, the suite 3530.
+  A reference that walks a ruleset as the kernel does (every base chain, jump,
+  goto, return, maps, sets), sharing no code with the parser's reading of a
+  match: 120 random rulesets of two tables and 800 of chains three deep
+  against the model; random models emitted and walked by the reference; with
+  nft present, 40 random rulesets loaded into the kernel and listed back as
+  text and JSON (the same model), and every emitted file and golden checked
+  with `nft -c`.
+* **Real packets** (`nft_kernel_check.py`, 40 seeds): 111 rulesets, 20216
+  packets, 8764 of them forwarded, on kernel 6.18 with nft 1.0.9: the kernel
+  and the model agreed on every packet, emitted rulesets and parsed ones.
+* A mutation check with 21 ways to break the parser and the emitter: 19
+  caught at first; tests for the other two (a negated connection state, the
+  IP version an ICMP match implies) were added, and catch them.
+* **Not verified**: NAT and IPv6 forwarding through the kernel (loaded, not
+  sent through); nft versions other than 1.0.9 (their output formats are
+  taken from their sources); listings of real hosts with firewalld, Docker or
+  libvirt tables.
 
 ### 2026-10-13: version 0.17.0
 

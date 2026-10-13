@@ -1,0 +1,59 @@
+FWShift conversion report
+  source: nftables
+  target: fdm
+
+Summary
+  Security rules:     16   exact 13, approximated 0, needs review 1, skipped 2
+  NAT rules:           5   exact 0, approximated 4, needs review 0, skipped 1
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CHAIN_NOT_CONVERTED: chain prerouting of table inet raw at the prerouting hook (priority -300, policy accept) can drop forwarded traffic as well and is not converted
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of table inet filter (3 rules, policy drop) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] DYNAMIC_SET: sets filled at run time decide what their rules match; those rules are not converted: @banned (flags timeout)
+  [needs-review] FDM_LOAD: the output is a file for the configuration import of a Firewall Device Manager (POST /action/uploadconfigfile, then /action/configimport). Its first object must say the hardware model and software version of the target: copy both from the first object of an export of the target device. The import adds to what the device has: its access rules stay above the rules of this file and decide first, its default action stays what it is, and its NAT rules come first. Nothing is in force until the changes are deployed: look at them in the pending changes before that
+  [needs-review] ZONES_REQUIRED: the rules name these security zones, which must exist on the target (or be renamed with --zone-map): eth1, eth0, eth2, eth3. Zones are not written: an import would take the interfaces out of a zone that exists
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. 1 destination NAT rule is written as a rule that names the source as well and leaves it as it is: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] SEVERAL_BASE_CHAINS: IPv4 traffic passes 2 base chains at the forward hook: inet f2b forward (-5), inet filter forward (0). It is forwarded only if each of them accepts it; they were combined into one list of rules
+  [info] EXISTING_OBJECTS: an import changes what the device has under the same name: an object or a rule of this file replaces the one on the target. --target-prefix gives every object that is created a name of its own
+
+Security rules
+  Banned by fail2ban  ->  skipped
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [needs-review] UNSUPPORTED_MATCH: not converted: set @banned, which is filled at run time (flags timeout). The rule is left out: a Device Manager has no rules that are switched off. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad hosts  ->  needs-review  (emitted as Block_bad_hosts)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  Rate limited mail  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: rate limit 10/minute. The rule is left out: a Device Manager has no rules that are switched off.
+  DMZ updates  ->  exact  (emitted as DMZ_updates)
+      [info] NEGATION_AS_ADDRESSES: an access rule cannot negate: 'not destination 10.0.0.0/8' is written as the addresses that are left (3 range(s))
+
+NAT rules
+  Web DNAT  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone eth0 only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  Mail DNAT  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone eth0 only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  No NAT to partner  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic to zone eth0 only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  DMZ out  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic to zone eth0 only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  LAN out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the rule is for the address of an interface of zone 'eth0', and the interfaces of that zone on the target are not known; name them with --interface-map
+
+Services
+  tcp-80,443  ->  exact  (emitted as tcp-80_443, tcp-80, tcp-443)
+      [info] RENAMED: renamed to 'tcp-80_443' to fit the target's naming rules
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-80_443' of 'tcp-80', 'tcp-443'
+  tcp-53+udp-53  ->  exact  (emitted as tcp-53_udp-53, tcp-53, udp-53)
+      [info] RENAMED: renamed to 'tcp-53_udp-53' to fit the target's naming rules
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-53_udp-53' of 'tcp-53', 'udp-53'
+  tcp-22,3389  ->  exact  (emitted as tcp-22_3389, tcp-22, tcp-3389)
+      [info] RENAMED: renamed to 'tcp-22_3389' to fit the target's naming rules
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-22_3389' of 'tcp-22', 'tcp-3389'
+  tcp-25,443  ->  exact  (emitted as tcp-25_443, tcp-25, tcp-443)
+      [info] RENAMED: renamed to 'tcp-25_443' to fit the target's naming rules
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-25_443' of 'tcp-25', 'tcp-443'
+  icmp6-128+icmp6-135+icmp6-136  ->  exact  (emitted as icmp6-128_icmp6-135_icmp6-136, icmp6-128, icmp6-135, icmp6-136)
+      [info] RENAMED: renamed to 'icmp6-128_icmp6-135_icmp6-136' to fit the target's naming rules
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'icmp6-128_icmp6-135_icmp6-136' of 'icmp6-128', 'icmp6-135', 'icmp6-136'

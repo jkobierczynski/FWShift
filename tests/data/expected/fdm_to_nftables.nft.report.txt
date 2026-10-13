@@ -1,0 +1,41 @@
+FWShift conversion report
+  source: fdm (FTD 7.2.5-208 on Cisco Firepower 1010 Threat Defense)
+  target: nftables
+
+Summary
+  Security rules:      8   exact 3, approximated 1, needs review 3 (3 emitted disabled), skipped 1
+  NAT rules:           4   exact 0, approximated 3, needs review 1, skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NFT_LOAD: the output is one table, inet fwshift, which replaces itself when loaded: check it with 'nft -c -f FILE', load it with 'nft -f FILE'. Other tables stay as they are, but every base chain at the forward hook sees each packet: the drop policy here drops what this table does not accept even where another table (firewalld, Docker, libvirt, iptables-nft) accepts it, and a drop in another table still wins over an accept here
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names; map each zone to its interface with --zone-map: inside_zone, outside_zone, iot
+  [info] LOGGING_AT_END: 2 rules log the end of a connection on the source; an nftables rule logs the packet it matches, so only rules that log the start of a connection got a log statement. Connection ends are in the conntrack events (conntrack -E, ulogd)
+  [info] LOG_STATEMENTS: rules that log the start of a connection have a log statement, which writes a line to the kernel log for the first packet of each connection they accept (and for every packet a deny rule drops)
+
+Security rules
+  Inside_Outside_web  ->  approximated  (emitted as 2 forward rules)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+  IoT_telemetry  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object vendor-cloud: an nftables rule matches addresses only; resolve it into an address object or a set kept up to date by a script.
+  Head_office_v6  ->  skipped
+      [info] MATCHES_NOTHING: nothing in this rule can match a packet of either IP version
+  Staff_streaming  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests_by_time  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+
+NAT rules
+  NAS_published  ->  approximated  (emitted as 1 prerouting)
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 192.0.2.2
+  nas_static  ->  approximated  (emitted as 1 prerouting, 1 postrouting)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from inside_zone only; postrouting cannot match the input interface, so it applies to traffic from every interface
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as an SNAT rule plus a DNAT rule for the inbound direction
+  InsideOutsideNatRule  ->  needs-review  (emitted as 1 postrouting)
+      [needs-review] NAT_INPUT_INTERFACE: the rule applied to traffic from inside_zone only; postrouting cannot match the input interface, so it applies to traffic from every interface
+  IoT_out  ->  approximated
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from iot only; postrouting cannot match the input interface, so it applies to traffic from every interface
+      [info] NAT_DISABLED: disabled in the source; written as a comment

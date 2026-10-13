@@ -1,0 +1,66 @@
+FWShift conversion report
+  source: panos (vsys1)
+  target: nftables
+
+Summary
+  Security rules:     14   exact 3, approximated 5, needs review 6 (5 emitted disabled), skipped 0
+  NAT rules:           5   exact 1, approximated 3, needs review 1, skipped 0
+  Addresses:          16   exact 14, approximated 0, needs review 2, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:            5   exact 5, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NFT_LOAD: the output is one table, inet fwshift, which replaces itself when loaded: check it with 'nft -c -f FILE', load it with 'nft -f FILE'. Other tables stay as they are, but every base chain at the forward hook sees each packet: the drop policy here drops what this table does not accept even where another table (firewalld, Docker, libvirt, iptables-nft) accepts it, and a drop in another table still wins over an accept here
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names; map each zone to its interface with --zone-map: trust, untrust, dmz, ot
+  [needs-review] INTRAZONE_DEFAULT: the source allows traffic inside a zone unless a rule denies it; here traffic that leaves by the interface it came in on is dropped unless a rule allows it
+  [info] LOGGING_AT_END: 8 rules log the end of a connection on the source; an nftables rule logs the packet it matches, so only rules that log the start of a connection got a log statement. Connection ends are in the conntrack events (conntrack -E, ulogd)
+  [info] LOG_STATEMENTS: rules that log the start of a connection have a log statement, which writes a line to the kernel log for the first packet of each connection they accept (and for every packet a deny rule drops)
+
+Security rules
+  Allow-Web-Out  ->  approximated  (emitted as 1 forward rule)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (group=default-profiles); attach equivalent inspection on the target
+      [approximated] APP_TO_PORTS: applications web-browsing, ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Allow-DNS  ->  approximated  (emitted as 2 forward rules)
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Inbound-Web  ->  needs-review  (emitted as 1 forward rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web-public' with post-NAT 'web-1' because of NAT rule 'Inbound-Web-DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Inbound-Web-DNAT' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] APP_FILTER_DROPPED: application match ssl dropped; the rule now matches everything on its services
+  Inbound-Mail  ->  approximated  (emitted as 1 forward rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'mail-public' with post-NAT 'mail-1' because of NAT rule 'Mail-Static'; check that this rule is meant to cover the translated traffic
+      [approximated] APP_TO_PORTS: applications smtp reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Admin-SSH  ->  needs-review, emitted disabled
+      [approximated] APP_TO_PORTS: applications ssh reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] USER_MATCH: source user match example\netadmins is not converted.
+  Engineering to PLCs  ->  approximated  (emitted as 1 forward rule)
+      [approximated] APP_TO_PORTS: applications modbus, siemens-s7 reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Block-Torrents  ->  needs-review, emitted disabled
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) bittorrent; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block-Region  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'KP': not defined in the input. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Tagged-Servers-Updates  ->  needs-review, emitted disabled
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'tagged-servers': dynamic address group, members are not known statically.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates.example.com: an nftables rule matches addresses only; resolve it into an address object or a set kept up to date by a script.
+  Not-From-Guests  ->  approximated  (emitted as 1 forward rule)
+      [approximated] APP_TO_PORTS: applications ping reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Old-Rule  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'odd-hosts': wildcard mask 10.20.1.2/0.0.254.0.
+
+NAT rules
+  No-NAT-Partner  ->  approximated  (emitted as 1 postrouting)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from trust only; postrouting cannot match the input interface, so it applies to traffic from every interface
+  Mail-Static  ->  approximated  (emitted as 1 prerouting, 1 postrouting)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from dmz only; postrouting cannot match the input interface, so it applies to traffic from every interface
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as an SNAT rule plus a DNAT rule for the inbound direction
+  DMZ-Out-Pool  ->  approximated  (emitted as 2 postrouting)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from dmz only; postrouting cannot match the input interface, so it applies to traffic from every interface
+  Outbound-PAT  ->  needs-review  (emitted as 1 postrouting)
+      [needs-review] NAT_INPUT_INTERFACE: the rule applied to traffic from trust only; postrouting cannot match the input interface, so it applies to traffic from every interface
+
+Addresses
+  odd-hosts  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard mask 10.20.1.2/0.0.254.0 cannot be converted
+  KP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'Block-Region' but not an address object in the input (a region, an external list or a missing object); emitted as a placeholder that matches nothing

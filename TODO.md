@@ -43,19 +43,30 @@ SonicOS 6.5 and 7, read; commands of the SonicOS 7 command line, written),
 Fireware 12, read; its policy part, to merge into a configuration of the
 target, written), **0.11.0, Barracuda CloudGen Firewall** (saved answers
 of its REST API, read; a script of calls to that API, written; the
-configuration backup is not readable), and **0.12.0, Juniper SRX**
+configuration backup is not readable), **0.12.0, Juniper SRX**
 (`display set` or the configuration in braces, read; set commands for
-`load set`, written).
+`load set`, written), and **0.18.0, nftables** (`nft list ruleset`, text or
+JSON, read: every base chain at the forward hook, sets, maps, NAT; one table
+for `nft -f`, written; checked against the kernel with real packets).
 What each rests on and what nobody has checked on a device is in
 the development log.
 
-The brands that were planned are done. Not planned yet, and asked for often
-enough to come next: nftables,
-OPNsense (planned with pfSense, and left out of 0.8.0: its configuration
-keeps aliases, automatic rules and parts of NAT elsewhere, and its rules have
-other fields; FWShift refuses it with that reason), Huawei USG, Forcepoint, Stormshield,
-MikroTik RouterOS, VMware NSX distributed firewall, cloud security groups
-(AWS, Azure NSG).
+Planned next, one release each (2026-10-13):
+
+1. **0.19.0, VMware NSX distributed firewall**: the policies and groups of
+   the NSX Policy API, read and written (calls of that API). Security groups
+   by membership criteria, applied-to, categories.
+2. **0.20.0, AWS security groups** (and network ACLs where they decide):
+   the answers of `aws ec2 describe-security-groups`, read; the calls that
+   create them, written. Stateful allow lists without order and without deny.
+3. **0.21.0, Azure network security groups**: the JSON of an NSG (Azure CLI
+   or Resource Graph), read and written. Priorities, service tags,
+   application security groups, the default rules.
+
+Not planned yet: OPNsense (planned with pfSense, and left out of 0.8.0: its
+configuration keeps aliases, automatic rules and parts of NAT elsewhere, and
+its rules have other fields; FWShift refuses it with that reason), Huawei USG,
+Forcepoint, Stormshield, MikroTik RouterOS, Google Cloud firewall rules.
 
 ## Rule usage
 
@@ -98,6 +109,13 @@ are in [docs/RULE_USAGE.md](docs/RULE_USAGE.md). One release per step;
    means what; `TRACE` lines, which name the rule.
 
 ## Audit and matrix
+
+Planned after the brands above (0.22.0): **a zone and conduit model as a
+gate**, with **the equivalence check** (items 2 and 5 below) — the model of
+which zone may reach which, kept as a file next to the firewall (the form of
+an IEC 62443 zone and conduit model), checked against a policy with an exit
+status for a pipeline; and the flows whose verdict a conversion or a change
+altered, from the audit's set arithmetic.
 
 1. **The matrix before and after a conversion**, and of two configurations
    against each other: which conduits a conversion opened or closed. The

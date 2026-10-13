@@ -1,0 +1,1553 @@
+{
+ "nftables": [
+  {
+   "metainfo": {
+    "version": "1.0.9",
+    "release_name": "Old Doc Yak #3",
+    "json_schema_version": 1
+   }
+  },
+  {
+   "table": {
+    "family": "inet",
+    "name": "raw",
+    "handle": 1
+   }
+  },
+  {
+   "chain": {
+    "family": "inet",
+    "table": "raw",
+    "name": "prerouting",
+    "handle": 1,
+    "type": "filter",
+    "hook": "prerouting",
+    "prio": -300,
+    "policy": "accept"
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "raw",
+    "chain": "prerouting",
+    "handle": 2,
+    "comment": "Reverse path filter",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "fib": {
+         "result": "oif",
+         "flags": [
+          "saddr",
+          "iif"
+         ]
+        }
+       },
+       "right": false
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "drop": null
+     }
+    ]
+   }
+  },
+  {
+   "table": {
+    "family": "inet",
+    "name": "f2b",
+    "handle": 2
+   }
+  },
+  {
+   "set": {
+    "family": "inet",
+    "name": "banned",
+    "table": "f2b",
+    "type": "ipv4_addr",
+    "handle": 2,
+    "flags": [
+     "timeout"
+    ]
+   }
+  },
+  {
+   "chain": {
+    "family": "inet",
+    "table": "f2b",
+    "name": "forward",
+    "handle": 1,
+    "type": "filter",
+    "hook": "forward",
+    "prio": -5,
+    "policy": "accept"
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "f2b",
+    "chain": "forward",
+    "handle": 3,
+    "comment": "Banned by fail2ban",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "saddr"
+        }
+       },
+       "right": "@banned"
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "drop": null
+     }
+    ]
+   }
+  },
+  {
+   "table": {
+    "family": "inet",
+    "name": "filter",
+    "handle": 3
+   }
+  },
+  {
+   "set": {
+    "family": "inet",
+    "name": "blocked",
+    "table": "filter",
+    "type": "ipv4_addr",
+    "handle": 5,
+    "flags": [
+     "interval"
+    ],
+    "elem": [
+     {
+      "prefix": {
+       "addr": "192.0.2.128",
+       "len": 25
+      }
+     },
+     "198.51.100.66"
+    ]
+   }
+  },
+  {
+   "set": {
+    "family": "inet",
+    "name": "admins",
+    "table": "filter",
+    "type": "ipv4_addr",
+    "handle": 6,
+    "flags": [
+     "interval"
+    ],
+    "elem": [
+     {
+      "range": [
+       "10.10.5.10",
+       "10.10.5.20"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "set": {
+    "family": "inet",
+    "name": "dmz_v6",
+    "table": "filter",
+    "type": "ipv6_addr",
+    "handle": 7,
+    "elem": [
+     "2001:db8:20::10",
+     "2001:db8:20::25"
+    ]
+   }
+  },
+  {
+   "chain": {
+    "family": "inet",
+    "table": "filter",
+    "name": "input",
+    "handle": 1,
+    "type": "filter",
+    "hook": "input",
+    "prio": 0,
+    "policy": "drop"
+   }
+  },
+  {
+   "chain": {
+    "family": "inet",
+    "table": "filter",
+    "name": "forward",
+    "handle": 2,
+    "type": "filter",
+    "hook": "forward",
+    "prio": 0,
+    "policy": "drop"
+   }
+  },
+  {
+   "chain": {
+    "family": "inet",
+    "table": "filter",
+    "name": "from_lan",
+    "handle": 3
+   }
+  },
+  {
+   "chain": {
+    "family": "inet",
+    "table": "filter",
+    "name": "from_ot",
+    "handle": 4
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "input",
+    "handle": 8,
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "iif"
+        }
+       },
+       "right": "lo"
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "input",
+    "handle": 9,
+    "expr": [
+     {
+      "match": {
+       "op": "in",
+       "left": {
+        "ct": {
+         "key": "state"
+        }
+       },
+       "right": [
+        "established",
+        "related"
+       ]
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "input",
+    "handle": 10,
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "iifname"
+        }
+       },
+       "right": "eth1"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "tcp",
+         "field": "dport"
+        }
+       },
+       "right": 22
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "forward",
+    "handle": 11,
+    "comment": "Block bad hosts",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "saddr"
+        }
+       },
+       "right": "@blocked"
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "drop": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "forward",
+    "handle": 13,
+    "expr": [
+     {
+      "vmap": {
+       "key": {
+        "ct": {
+         "key": "state"
+        }
+       },
+       "data": {
+        "set": [
+         [
+          "invalid",
+          {
+           "drop": null
+          }
+         ],
+         [
+          "established",
+          {
+           "accept": null
+          }
+         ],
+         [
+          "related",
+          {
+           "accept": null
+          }
+         ]
+        ]
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "forward",
+    "handle": 15,
+    "expr": [
+     {
+      "vmap": {
+       "key": {
+        "meta": {
+         "key": "iifname"
+        }
+       },
+       "data": {
+        "set": [
+         [
+          "eth1",
+          {
+           "jump": {
+            "target": "from_lan"
+           }
+          }
+         ],
+         [
+          "eth3",
+          {
+           "jump": {
+            "target": "from_ot"
+           }
+          }
+         ]
+        ]
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "forward",
+    "handle": 16,
+    "comment": "Inbound web",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "iifname"
+        }
+       },
+       "right": "eth0"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "oifname"
+        }
+       },
+       "right": "eth2"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "daddr"
+        }
+       },
+       "right": "10.20.0.10"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "tcp",
+         "field": "dport"
+        }
+       },
+       "right": 8443
+      }
+     },
+     {
+      "match": {
+       "op": "in",
+       "left": {
+        "ct": {
+         "key": "state"
+        }
+       },
+       "right": "new"
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "forward",
+    "handle": 17,
+    "comment": "Inbound mail",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "iifname"
+        }
+       },
+       "right": "eth0"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "oifname"
+        }
+       },
+       "right": "eth2"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "daddr"
+        }
+       },
+       "right": "10.20.0.25"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "tcp",
+         "field": "dport"
+        }
+       },
+       "right": 25
+      }
+     },
+     {
+      "match": {
+       "op": "in",
+       "left": {
+        "ct": {
+         "key": "state"
+        }
+       },
+       "right": "new"
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "forward",
+    "handle": 19,
+    "comment": "Inbound IPv6",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "iifname"
+        }
+       },
+       "right": "eth0"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "oifname"
+        }
+       },
+       "right": "eth2"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip6",
+         "field": "daddr"
+        }
+       },
+       "right": "@dmz_v6"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "tcp",
+         "field": "dport"
+        }
+       },
+       "right": {
+        "set": [
+         25,
+         443
+        ]
+       }
+      }
+     },
+     {
+      "match": {
+       "op": "in",
+       "left": {
+        "ct": {
+         "key": "state"
+        }
+       },
+       "right": "new"
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "forward",
+    "handle": 21,
+    "comment": "DMZ updates",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "iifname"
+        }
+       },
+       "right": "eth2"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "oifname"
+        }
+       },
+       "right": "eth0"
+      }
+     },
+     {
+      "match": {
+       "op": "!=",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "daddr"
+        }
+       },
+       "right": {
+        "prefix": {
+         "addr": "10.0.0.0",
+         "len": 8
+        }
+       }
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "tcp",
+         "field": "dport"
+        }
+       },
+       "right": {
+        "set": [
+         80,
+         443
+        ]
+       }
+      }
+     },
+     {
+      "match": {
+       "op": "in",
+       "left": {
+        "ct": {
+         "key": "state"
+        }
+       },
+       "right": "new"
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "forward",
+    "handle": 23,
+    "comment": "ICMPv6 basics",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "icmpv6",
+         "field": "type"
+        }
+       },
+       "right": {
+        "set": [
+         "echo-request",
+         "nd-neighbor-solicit",
+         "nd-neighbor-advert"
+        ]
+       }
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "from_lan",
+    "handle": 24,
+    "comment": "Guests stay in",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "oifname"
+        }
+       },
+       "right": "eth0"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "saddr"
+        }
+       },
+       "right": {
+        "prefix": {
+         "addr": "10.10.200.0",
+         "len": 24
+        }
+       }
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "drop": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "from_lan",
+    "handle": 26,
+    "comment": "LAN web",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "oifname"
+        }
+       },
+       "right": "eth0"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "tcp",
+         "field": "dport"
+        }
+       },
+       "right": {
+        "set": [
+         80,
+         443
+        ]
+       }
+      }
+     },
+     {
+      "match": {
+       "op": "in",
+       "left": {
+        "ct": {
+         "key": "state"
+        }
+       },
+       "right": "new"
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "from_lan",
+    "handle": 28,
+    "comment": "LAN DNS",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "oifname"
+        }
+       },
+       "right": "eth0"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "l4proto"
+        }
+       },
+       "right": {
+        "set": [
+         "tcp",
+         "udp"
+        ]
+       }
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "th",
+         "field": "dport"
+        }
+       },
+       "right": 53
+      }
+     },
+     {
+      "match": {
+       "op": "in",
+       "left": {
+        "ct": {
+         "key": "state"
+        }
+       },
+       "right": "new"
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "from_lan",
+    "handle": 29,
+    "comment": "Rate limited mail",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "oifname"
+        }
+       },
+       "right": "eth0"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "tcp",
+         "field": "dport"
+        }
+       },
+       "right": 25
+      }
+     },
+     {
+      "limit": {
+       "rate": 10,
+       "burst": 5,
+       "per": "minute"
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "from_lan",
+    "handle": 30,
+    "comment": "Partner tunnel",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "oifname"
+        }
+       },
+       "right": "eth0"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "l4proto"
+        }
+       },
+       "right": "gre"
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "from_lan",
+    "handle": 32,
+    "comment": "Admins",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "oifname"
+        }
+       },
+       "right": "eth2"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "saddr"
+        }
+       },
+       "right": "@admins"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "daddr"
+        }
+       },
+       "right": {
+        "prefix": {
+         "addr": "10.20.0.0",
+         "len": 24
+        }
+       }
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "tcp",
+         "field": "dport"
+        }
+       },
+       "right": {
+        "set": [
+         22,
+         3389
+        ]
+       }
+      }
+     },
+     {
+      "match": {
+       "op": "in",
+       "left": {
+        "ct": {
+         "key": "state"
+        }
+       },
+       "right": "new"
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "from_lan",
+    "handle": 33,
+    "comment": "Ping the DMZ",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "oifname"
+        }
+       },
+       "right": "eth2"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "icmp",
+         "field": "type"
+        }
+       },
+       "right": "echo-request"
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "from_lan",
+    "handle": 34,
+    "comment": "SCADA to PLCs",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "oifname"
+        }
+       },
+       "right": "eth3"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "saddr"
+        }
+       },
+       "right": "10.10.7.15"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "daddr"
+        }
+       },
+       "right": {
+        "prefix": {
+         "addr": "10.30.1.0",
+         "len": 24
+        }
+       }
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "tcp",
+         "field": "dport"
+        }
+       },
+       "right": 502
+      }
+     },
+     {
+      "match": {
+       "op": "in",
+       "left": {
+        "ct": {
+         "key": "state"
+        }
+       },
+       "right": "new"
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "filter",
+    "chain": "from_ot",
+    "handle": 35,
+    "comment": "OT no internet",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "oifname"
+        }
+       },
+       "right": "eth0"
+      }
+     },
+     {
+      "log": {
+       "prefix": "ot-out "
+      }
+     },
+     {
+      "reject": {
+       "type": "icmpx",
+       "expr": "port-unreachable"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "table": {
+    "family": "ip",
+    "name": "nat",
+    "handle": 4
+   }
+  },
+  {
+   "chain": {
+    "family": "ip",
+    "table": "nat",
+    "name": "prerouting",
+    "handle": 1,
+    "type": "nat",
+    "hook": "prerouting",
+    "prio": -100,
+    "policy": "accept"
+   }
+  },
+  {
+   "chain": {
+    "family": "ip",
+    "table": "nat",
+    "name": "postrouting",
+    "handle": 2,
+    "type": "nat",
+    "hook": "postrouting",
+    "prio": 100,
+    "policy": "accept"
+   }
+  },
+  {
+   "rule": {
+    "family": "ip",
+    "table": "nat",
+    "chain": "prerouting",
+    "handle": 3,
+    "comment": "Web DNAT",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "iifname"
+        }
+       },
+       "right": "eth0"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "daddr"
+        }
+       },
+       "right": "203.0.113.10"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "tcp",
+         "field": "dport"
+        }
+       },
+       "right": 443
+      }
+     },
+     {
+      "dnat": {
+       "addr": "10.20.0.10",
+       "port": 8443
+      }
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "ip",
+    "table": "nat",
+    "chain": "prerouting",
+    "handle": 4,
+    "comment": "Mail DNAT",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "iifname"
+        }
+       },
+       "right": "eth0"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "daddr"
+        }
+       },
+       "right": "203.0.113.25"
+      }
+     },
+     {
+      "dnat": {
+       "addr": "10.20.0.25"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "ip",
+    "table": "nat",
+    "chain": "postrouting",
+    "handle": 5,
+    "comment": "No NAT to partner",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "oifname"
+        }
+       },
+       "right": "eth0"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "saddr"
+        }
+       },
+       "right": {
+        "prefix": {
+         "addr": "10.10.0.0",
+         "len": 16
+        }
+       }
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "daddr"
+        }
+       },
+       "right": {
+        "prefix": {
+         "addr": "10.99.0.0",
+         "len": 16
+        }
+       }
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "ip",
+    "table": "nat",
+    "chain": "postrouting",
+    "handle": 6,
+    "comment": "DMZ out",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "oifname"
+        }
+       },
+       "right": "eth0"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "saddr"
+        }
+       },
+       "right": {
+        "prefix": {
+         "addr": "10.20.0.0",
+         "len": 24
+        }
+       }
+      }
+     },
+     {
+      "snat": {
+       "addr": {
+        "prefix": {
+         "addr": "198.51.100.20",
+         "len": 30
+        }
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "ip",
+    "table": "nat",
+    "chain": "postrouting",
+    "handle": 7,
+    "comment": "LAN out",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "oifname"
+        }
+       },
+       "right": "eth0"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "saddr"
+        }
+       },
+       "right": {
+        "prefix": {
+         "addr": "10.10.0.0",
+         "len": 16
+        }
+       }
+      }
+     },
+     {
+      "masquerade": null
+     }
+    ]
+   }
+  }
+ ]
+}

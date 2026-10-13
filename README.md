@@ -20,6 +20,7 @@ what was approximated and what a person has to look at.
 | Barracuda CloudGen Firewall (8.0 and later) | the answers of its REST API (JSON) | a shell script that creates the rules through that API |
 | Juniper SRX (Junos OS) | `show configuration \| display set`, or the configuration in braces | `set` commands, for `load set` |
 | Linux iptables / ip6tables | `iptables-save` output | `iptables-restore` file |
+| Linux nftables | `nft list ruleset` output, or its JSON (`nft -j list ruleset`) | a ruleset for `nft -f`: one table, `inet fwshift` |
 
 It also **audits** a policy, of any of these formats: rules that allow too
 much, rules that never match because earlier rules cover them, unused and
@@ -31,14 +32,16 @@ on which services, through which rules.
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.17).** The converter is tested against synthetic
+> **Status: alpha (0.18).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
-> * **iptables** is checked against the real thing: generated rulesets are
->   loaded into a Linux kernel, and real packets forwarded through it are
->   compared with the model, in both directions. That covers the IPv4 filter
->   rules on one kernel (iptables 1.8.10, nf_tables backend); NAT rules and
->   IPv6 rulesets are loaded but no packets are sent through them.
+> * **iptables** and **nftables** are checked against the real thing:
+>   generated rulesets are loaded into a Linux kernel, and real packets
+>   forwarded through it are compared with the model, in both directions. That
+>   covers the IPv4 filter rules on one kernel (iptables 1.8.10, nf_tables
+>   backend; nft 1.0.9); NAT rules and IPv6 rules are loaded but no packets
+>   are sent through them. Generated nftables rulesets are also listed back
+>   by nft, as text and as JSON, and both listings must give the same model.
 > * **PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall,
 >   Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda and Juniper SRX** output has **not been loaded on a
 >   device or management server**. The Check Point input format is taken from the API
@@ -117,8 +120,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.17.0.pyz --version
-python3 fwshift-0.17.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.18.0.pyz --version
+python3 fwshift-0.18.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -137,6 +140,12 @@ fwshift convert checkpoint.json --to panos -o panos.set --report report.txt --ta
 # PAN-OS to iptables: one file per IP version, zones mapped to interfaces
 fwshift convert running-config.xml --to iptables  -o rules.v4 --zone-map trust=eth1 --zone-map untrust=eth0
 fwshift convert running-config.xml --to ip6tables -o rules.v6 --zone-map trust=eth1 --zone-map untrust=eth0
+
+# nftables, both ways: the ruleset as nft lists it, and one table for nft -f
+nft list ruleset > ruleset.nft
+fwshift convert ruleset.nft --to panos -o panos.set --report report.txt --zone-map eth0=untrust --zone-map eth1=trust
+fwshift convert running-config.xml --to nftables -o fwshift.nft --zone-map trust=eth1 --zone-map untrust=eth0
+nft -c -f fwshift.nft && nft -f fwshift.nft
 
 # iptables to Check Point: a script of mgmt_cli calls that publishes nothing
 fwshift convert rules.v4 --to checkpoint -o checkpoint.sh --report report.txt --target-prefix mig_
@@ -293,10 +302,11 @@ proves nothing about another rule: the audit lists it instead.
 
 `fwshift usage` reads the logs of a Check Point firewall (what Log Exporter
 sends, or the answer of `show-logs`), the traffic logs of PAN-OS and FortiOS,
-or the lines of the `LOG` rules of an iptables firewall, and says which rules,
+or the lines of the `LOG` rules of an iptables firewall (the `log` statements
+of nftables write the same lines), and says which rules,
 objects and services they show used, into a store that grows with every run,
 over a window of days. Check Point, PAN-OS and FortiOS logs name the rule the
-firewall chose (by its UUID where they can); an iptables line names none, and
+firewall chose (by its UUID where they can); an iptables or nftables line names none, and
 is matched against the rules of the policy: certain where the first rule it
 meets surely matches it, possible where it only might.
 
@@ -314,7 +324,7 @@ review).
 
 A rule is only called unused when the logs can prove it: the rule logs, every
 gateway it is on sent logs on every day of the window, no line of them could
-not be read, and the rule did not change within it (iptables, PAN-OS and
+not be read, and the rule did not change within it (iptables, nftables, PAN-OS and
 FortiOS configurations do not say when it changed: `--unchanged-since` is your
 word for it, or for PAN-OS the hit counters). A rule with only
 possible connections is never called unused. Otherwise it says why they prove
@@ -365,15 +375,15 @@ knows only interfaces. Text, JSON or CSV. See
 | NAT | source (interface, pool, static, bi-directional), destination with port, no-NAT | per-policy NAT, IP pools, virtual IPs with port forwarding, central SNAT |
 | Scope | vsys, `shared`, Panorama device-group hierarchy with pre/post rulebases | single VDOM or one VDOM of a multi-VDOM backup |
 
-| | Check Point | iptables |
-|---|---|---|
-| Address objects | host, network, address range, DNS domain; gateways by their main address | none: addresses are written into the rules |
-| Address groups | group, nested | read: none. Written: one chain per list |
-| Services | TCP, UDP, SCTP with source ports, ICMP, ICMPv6, IP protocol | protocol, port lists, ICMP type and code |
-| Service groups | yes | none |
-| Security rules | one ordered layer with its inline layers flattened; zones in cells, negation, action, track, disabled, install-on reported | `FORWARD` chain with the chains it jumps to flattened; interfaces as zones, negation, connection state |
-| NAT | manual and automatic rules: hide, static, port translation, no-NAT | `DNAT`, `SNAT`, `MASQUERADE` and exemptions of the `nat` table (IPv4) |
-| Scope | one access layer and the NAT rulebase of one policy package | one IP version per file |
+| | Check Point | iptables | nftables |
+|---|---|---|---|
+| Address objects | host, network, address range, DNS domain; gateways by their main address | none: addresses are written into the rules | none: addresses in the rules, or in sets |
+| Address groups | group, nested | read: none. Written: one chain per list | named sets of addresses. Written: anonymous sets in the rules |
+| Services | TCP, UDP, SCTP with source ports, ICMP, ICMPv6, IP protocol | protocol, port lists, ICMP type and code | the same, `th` ports with a protocol set, port comparisons |
+| Service groups | yes | none | none |
+| Security rules | one ordered layer with its inline layers flattened; zones in cells, negation, action, track, disabled, install-on reported | `FORWARD` chain with the chains it jumps to flattened; interfaces as zones, negation, connection state | every base chain at the forward hook (ip, ip6, inet tables), combined as the kernel runs them; jump, goto, return, verdict maps, concatenations flattened; interfaces as zones, negation, connection state, logging |
+| NAT | manual and automatic rules: hide, static, port translation, no-NAT | `DNAT`, `SNAT`, `MASQUERADE` and exemptions of the `nat` table (IPv4) | `dnat`, `snat`, `masquerade`, NAT maps and exemptions at prerouting and postrouting (IPv4) |
+| Scope | one access layer and the NAT rulebase of one policy package | one IP version per file | both IP versions in one table |
 
 | | Cisco ASA |
 |---|---|
@@ -459,7 +469,9 @@ Check Point access roles that name machines or a remote access client (roles of
 networks and users are read; PAN-OS writes their users, the other targets
 write such rules disabled), application objects, VPN communities and implied
 rules, iptables match modules beyond addresses, ports and state, the `INPUT`
-and `OUTPUT` chains, ASA time ranges, identity (user and TrustSec) matches,
+and `OUTPUT` chains, nftables rate limits, quotas and meters, sets filled at run
+time, `fib`, `socket` and mark matches, chains at hooks other than forward and
+tables of the bridge, arp and netdev families, ASA time ranges, identity (user and TrustSec) matches,
 outbound access lists that do more than deny, NAT of ASA releases before 8.3,
 the application, URL, user, VLAN, security group tag and dynamic object
 conditions of FTD rules, its intrusion, file and SSL policies, what a prefilter
@@ -482,16 +494,17 @@ and everything else outside the policy.
 
 * **Firewall brands**, one per release: Sophos Firewall 0.6, Cisco Secure
   Firewall (formerly Firepower) 0.7, pfSense 0.8, SonicWall 0.9, WatchGuard
-  0.10, Barracuda 0.11, Juniper SRX 0.12. Next on the list: nftables,
+  0.10, Barracuda 0.11, Juniper SRX 0.12, nftables 0.18. Next: VMware NSX
+  0.19, AWS security groups 0.20, Azure network security groups 0.21; then
   OPNsense and others (see TODO.md).
 * **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](docs/RULE_USAGE.md)):
   rule identities and hit counters (0.13), Check Point logs (0.14),
   connections without a rule uid and iptables logs (0.15), PAN-OS and FortiOS logs (0.16) and
   narrower rules proposed from the use (0.17), all done, as fwanalyser did for Check
   Point.
-* Audit and matrix: the matrix before and after a conversion, a zone and
-  conduit model as a file to check a policy against, an equivalence check as
-  a command, zone ranks.
+* Audit and matrix: a zone and conduit model as a file to check a policy
+  against, with an equivalence check as a command (0.22), the matrix before
+  and after a conversion, zone ranks.
 * Validation of the output on lab devices of every platform.
 
 ## Licence

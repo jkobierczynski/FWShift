@@ -1,0 +1,66 @@
+FWShift conversion report
+  source: nftables
+  target: asa
+
+Summary
+  Security rules:     16   exact 1, approximated 5, needs review 10 (9 emitted disabled), skipped 0
+  NAT rules:           5   exact 5, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CHAIN_NOT_CONVERTED: chain prerouting of table inet raw at the prerouting hook (priority -300, policy accept) can drop forwarded traffic as well and is not converted
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of table inet filter (3 rules, policy drop) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] DYNAMIC_SET: sets filled at run time decide what their rules match; those rules are not converted: @banned (flags timeout)
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: eth1, eth0, eth2, eth3. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. 1 destination NAT rule is written as a rule that names the source as well and leaves it as it is: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] SEVERAL_BASE_CHAINS: IPv4 traffic passes 2 base chains at the forward hook: inet f2b forward (-5), inet filter forward (0). It is forwarded only if each of them accepts it; they were combined into one list of rules
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+
+Security rules
+  Banned by fail2ban  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [needs-review] UNSUPPORTED_MATCH: not converted: set @banned, which is filled at run time (flags timeout). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad hosts  ->  needs-review  (emitted as global_access)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  Guests stay in  ->  needs-review, emitted disabled  (emitted as eth1_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by eth0, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind eth2, eth3, eth0 with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN web  ->  needs-review, emitted disabled  (emitted as eth1_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by eth0, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind eth2, eth3, eth0 with --zone-network.
+  LAN DNS  ->  needs-review, emitted disabled  (emitted as eth1_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by eth0, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind eth2, eth3, eth0 with --zone-network.
+  Rate limited mail  ->  needs-review, emitted disabled  (emitted as eth1_access_in)
+      [needs-review] UNSUPPORTED_MATCH: not converted: rate limit 10/minute.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by eth0, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind eth2, eth3, eth0 with --zone-network.
+  Partner tunnel  ->  needs-review, emitted disabled  (emitted as eth1_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by eth0, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind eth2, eth3, eth0 with --zone-network.
+  Admins  ->  approximated  (emitted as eth1_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by eth2. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Ping the DMZ  ->  needs-review, emitted disabled  (emitted as eth1_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by eth2, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind eth0, eth3, eth2 with --zone-network.
+  SCADA to PLCs  ->  approximated  (emitted as eth1_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by eth3. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  OT no internet  ->  needs-review, emitted disabled  (emitted as eth3_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by eth0, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind eth1, eth2, eth0 with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Inbound web  ->  approximated  (emitted as eth0_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by eth2. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Inbound mail  ->  approximated  (emitted as eth0_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by eth2. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Inbound IPv6  ->  approximated  (emitted as eth0_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by eth2. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  DMZ updates  ->  needs-review, emitted disabled  (emitted as eth2_access_in)
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated destination is written as the 3 address ranges it leaves
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by eth0, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind eth1, eth3, eth0 with --zone-network.
+
+Services
+  tcp-80,443  ->  exact  (emitted as tcp-80_443)
+      [info] RENAMED: renamed to 'tcp-80_443' to fit the target's naming rules
+  tcp-53+udp-53  ->  exact  (emitted as tcp-53_udp-53)
+      [info] RENAMED: renamed to 'tcp-53_udp-53' to fit the target's naming rules
+  tcp-22,3389  ->  exact  (emitted as tcp-22_3389)
+      [info] RENAMED: renamed to 'tcp-22_3389' to fit the target's naming rules
+  tcp-25,443  ->  exact  (emitted as tcp-25_443)
+      [info] RENAMED: renamed to 'tcp-25_443' to fit the target's naming rules
+  icmp6-128+icmp6-135+icmp6-136  ->  exact  (emitted as icmp6-128_icmp6-135_icmp6-136)
+      [info] RENAMED: renamed to 'icmp6-128_icmp6-135_icmp6-136' to fit the target's naming rules
