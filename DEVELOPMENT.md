@@ -152,6 +152,8 @@ tests/
                       that gets through is in it, and nothing else
     test_cli.py       command line, golden files
 docs/MANUAL.md        user manual
+docs/guide.html       field guide: the features on one page, per brand what to
+                      export, how to load and what to watch for (from the manual)
 docs/RULE_USAGE.md    design of rule usage from hit counters and logs (0.13.0
                       to 0.17.0)
 TODO.md               what is planned, release by release
@@ -454,7 +456,10 @@ To release:
 
 1. Set `__version__` in `src/fwshift/__init__.py`, and write the entry
    `### <date>: version X.Y.Z` in the development log below. What stands under
-   its `**Built**` becomes the text of the release.
+   its `**Built**` becomes the text of the release. The version also stands in
+   the Status table above, the manual ("This manual covers version"), the
+   README (its status line and the `.pyz` names) and `docs/guide.html` (its
+   eyebrow and the `.pyz` names); `test_cli.py` checks them all.
 2. Run the tests with the oldest Python the package supports (3.9) as well as
    a current one: syntax that only newer releases take (a backslash in an
    expression of an f-string, before 3.12) compiles here and fails there.
@@ -1951,6 +1956,10 @@ narrower rules proposed from what the logs show went through a rule.
 * The PAN-OS emitter keeps a PAN-OS rule's log forwarding profile.
 * Manual: section 15, *Narrower rules*; the check and the threshold in
   section 13; the options in section 5.
+* `docs/guide.html`: a field guide on one page, every feature with commands
+  and output of the samples, and per brand what to export, how to load the
+  result and what to watch for, with a filter over those lists. Its facts come
+  from the manual; the version test checks that it names this version.
 
 **What the platform made necessary**
 

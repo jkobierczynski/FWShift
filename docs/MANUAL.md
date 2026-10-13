@@ -88,8 +88,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.9.0.pyz --version
-python3 fwshift-0.9.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.17.0.pyz --version
+python3 fwshift-0.17.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the

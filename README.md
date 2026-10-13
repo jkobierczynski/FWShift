@@ -71,6 +71,9 @@ Pure Python, standard library only, Python 3.9 or newer.
   source firewall, every command and option, how to read the report, a
   reference of all findings, how each difference between the platforms is
   handled, and how to load the result.
+* **[Field guide](docs/guide.html)**: every feature on one page, with real
+  commands and output, and per brand what to export, how to load the result
+  and the edge cases to watch for. Open it in a browser.
 * **[DEVELOPMENT.md](DEVELOPMENT.md)**: architecture, the rules the code
   follows, how to add a vendor, testing, and the development log.
 * **[TODO.md](TODO.md)**: what is planned, release by release.

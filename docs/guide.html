@@ -1,0 +1,1200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- FWShift - multi-vendor firewall policy converter. Copyright (C) 2026 Jurgen Kobierczynski. SPDX-License-Identifier: GPL-3.0-or-later -->
+<title>FWShift Field Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a field manual. Sticky section index on the left (top strip on phones), one reading column,
+   every brand laid out the same way: export, options, output and loading, what to watch for, an example. */
+:root {
+  --bg: #f3f5f3;
+  --surface: #ffffff;
+  --sunk: #e8ece9;
+  --ink: #172124;
+  --muted: #56646a;
+  --rule: #d3dad6;
+  --accent: #0d6b66;
+  --accent-soft: #d9ece9;
+  --amber: #a85f07;
+  --amber-soft: #f7ead6;
+  --exact: #2f7d3a;
+  --approx: #2f5f9e;
+  --review: #a85f07;
+  --skip: #6b6f73;
+  --code-bg: #1d2629;
+  --code-ink: #dfe8e5;
+  --code-dim: #8fa3a0;
+  --code-hl: #f0b65e;
+  --display: "Barlow Semi Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101618; --surface: #172023; --sunk: #1d282b; --ink: #e2e9e6; --muted: #95a3a1; --rule: #2a3639;
+    --accent: #5bbdb2; --accent-soft: #173431; --amber: #e5a352; --amber-soft: #3a2c19;
+    --exact: #6cc07a; --approx: #7fa9e6; --review: #e5a352; --skip: #9aa0a4;
+    --code-bg: #0b1012; --code-ink: #dfe8e5; --code-dim: #7f9592; --code-hl: #f0b65e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101618; --surface: #172023; --sunk: #1d282b; --ink: #e2e9e6; --muted: #95a3a1; --rule: #2a3639;
+  --accent: #5bbdb2; --accent-soft: #173431; --amber: #e5a352; --amber-soft: #3a2c19;
+  --exact: #6cc07a; --approx: #7fa9e6; --review: #e5a352; --skip: #9aa0a4;
+  --code-bg: #0b1012; --code-ink: #dfe8e5; --code-dim: #7f9592; --code-hl: #f0b65e;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15.5px; line-height: 1.6; }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code, kbd { font-family: var(--mono); font-size: 0.88em; }
+:not(pre) > code { background: var(--sunk); padding: 0.05em 0.35em; border-radius: 3px; overflow-wrap: anywhere; }
+
+.shell { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px; max-width: 1180px; margin: 0 auto; padding-inline: 24px; padding-block: 0 80px; }
+nav.index { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; max-height: 100vh; overflow-y: auto; padding-block: 28px 24px; font-size: 13.5px; }
+nav.index .brandmark { font-family: var(--display); font-weight: 700; font-size: 22px; letter-spacing: 0.02em; color: var(--ink); text-decoration: none; display: block; margin-bottom: 18px; }
+nav.index .brandmark span { color: var(--accent); }
+nav.index h4 { font-family: var(--display); font-weight: 600; text-transform: uppercase; letter-spacing: 0.09em; font-size: 12px; color: var(--muted); margin: 18px 0 6px; }
+nav.index ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.index a { color: var(--ink); text-decoration: none; display: block; padding: 3px 8px; border-radius: 4px; border-left: 2px solid transparent; }
+nav.index a:hover { background: var(--sunk); }
+nav.index a.on { border-left-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+
+main { min-width: 0; padding-block: 28px 0; }
+.mast { padding-block: 28px 28px; border-bottom: 1px solid var(--rule); margin-bottom: 8px; }
+.mast .eyebrow { font-family: var(--display); font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; font-size: 13px; color: var(--accent); }
+.mast h1 { font-family: var(--display); font-weight: 700; font-size: clamp(34px, 5vw, 52px); line-height: 1.02; margin: 6px 0 14px; text-wrap: balance; letter-spacing: 0.005em; }
+.mast p.lead { font-size: 17px; max-width: 66ch; margin: 0; color: var(--ink); }
+.mast .facts { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 18px; font-size: 13px; color: var(--muted); }
+.mast .facts b { color: var(--ink); font-weight: 600; }
+
+section.part { padding-block: 40px 8px; border-bottom: 1px solid var(--rule); }
+section.part:last-of-type { border-bottom: 0; }
+h2 { font-family: var(--display); font-weight: 700; font-size: 32px; line-height: 1.1; margin: 0 0 6px; text-wrap: balance; }
+h2 .num { color: var(--muted); font-weight: 600; margin-right: 10px; font-size: 0.8em; }
+h3 { font-family: var(--display); font-weight: 600; font-size: 22px; margin: 30px 0 8px; text-wrap: balance; }
+h4.sub { font-family: var(--display); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); margin: 22px 0 6px; }
+p, ul.prose, ol.prose { max-width: 70ch; }
+.intro { color: var(--muted); max-width: 70ch; margin-top: 0; }
+ul.prose li, ol.prose li { margin-block: 4px; }
+
+pre { background: var(--code-bg); color: var(--code-ink); font-family: var(--mono); font-size: 13px; line-height: 1.55; padding: 14px 16px; border-radius: 6px; overflow-x: auto; margin: 10px 0 16px; tab-size: 4; }
+pre .c { color: var(--code-dim); }
+pre .h { color: var(--code-hl); }
+pre .p { color: #7fd0c4; user-select: none; }
+.codebox { position: relative; }
+.codebox .label { position: absolute; top: 0; left: 14px; transform: translateY(-50%); background: var(--accent); color: #fff; font-family: var(--display); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; padding: 1px 8px; border-radius: 3px; }
+.codebox pre { padding-top: 18px; }
+.copy { position: absolute; top: 6px; right: 6px; font: 500 11px var(--body); background: transparent; color: var(--code-dim); border: 1px solid #3b4a4d; border-radius: 4px; padding: 2px 8px; cursor: pointer; }
+.copy:hover { color: var(--code-ink); border-color: var(--code-dim); }
+
+.tablewrap { overflow-x: auto; margin: 10px 0 18px; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-family: var(--display); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); background: var(--sunk); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td code { white-space: nowrap; }
+td.wrap code { white-space: normal; }
+
+.chip { display: inline-block; font: 600 11.5px var(--body); padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.chip.exact { color: var(--exact); } .chip.approx { color: var(--approx); } .chip.review { color: var(--review); } .chip.skip { color: var(--skip); }
+.lvl { font: 600 11.5px var(--mono); text-transform: uppercase; }
+.lvl.high { color: #c0392b; } .lvl.medium { color: var(--review); } .lvl.low { color: var(--approx); } .lvl.info { color: var(--muted); }
+:root[data-theme="dark"] .lvl.high { color: #ff8a7a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lvl.high { color: #ff8a7a; } }
+
+.callout { border-left: 3px solid var(--amber); background: var(--amber-soft); padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 14px 0; max-width: 74ch; }
+.callout b:first-child { color: var(--amber); }
+.note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 14px 0; max-width: 74ch; }
+
+.diagram { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 14px; margin: 18px 0; overflow-x: auto; }
+.diagram svg { display: block; width: 100%; min-width: 620px; height: auto; }
+.diagram svg text { font-family: var(--body); fill: var(--ink); }
+.diagram svg .lbl { font-family: var(--display); font-weight: 600; font-size: 15px; }
+.diagram svg .small { font-size: 11.5px; fill: var(--muted); }
+.diagram svg .box { fill: var(--sunk); stroke: var(--rule); }
+.diagram svg .core { fill: var(--accent-soft); stroke: var(--accent); }
+.diagram svg .wire { stroke: var(--muted); fill: none; stroke-width: 1.5; }
+.diagram svg .arrow { fill: var(--muted); }
+
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 14px 0; }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; min-width: 0; }
+.card h5 { font-family: var(--display); font-weight: 600; font-size: 17px; margin: 0 0 4px; }
+.card p { margin: 4px 0; font-size: 14px; }
+
+.brandgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; margin: 14px 0 6px; }
+.brandgrid a { display: block; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 8px 12px; text-decoration: none; color: var(--ink); }
+.brandgrid a:hover { border-color: var(--accent); }
+.brandgrid a b { font-family: var(--display); font-weight: 600; font-size: 16px; display: block; }
+.brandgrid a span { font-size: 12px; color: var(--muted); }
+
+article.brand { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 22px 24px 8px; margin: 22px 0; }
+article.brand h3 { margin-top: 0; font-size: 26px; }
+.ports { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }
+.port { font: 500 12px var(--mono); border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; display: inline-flex; max-width: 100%; }
+.port i { font-style: normal; background: var(--ink); color: var(--bg); padding: 2px 6px; font-family: var(--display); font-weight: 600; letter-spacing: 0.06em; }
+.port span { padding: 2px 8px; background: var(--sunk); overflow-wrap: anywhere; }
+ul.watch { list-style: none; padding: 0; margin: 6px 0 14px; display: grid; gap: 6px; max-width: none; }
+ul.watch li { padding: 7px 10px 7px 30px; position: relative; background: var(--bg); border-radius: 6px; font-size: 14.5px; }
+ul.watch li::before { content: "!"; position: absolute; left: 9px; top: 7px; width: 14px; height: 14px; border-radius: 50%; background: var(--amber); color: var(--surface); font: 700 10px/14px var(--body); text-align: center; }
+ul.watch li[hidden] { display: none; }
+
+.filterbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 10px; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; border-bottom: 1px solid var(--rule); margin-bottom: 4px; }
+.filterbar label { font-family: var(--display); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px; color: var(--muted); }
+.filterbar input { flex: 1 1 220px; min-width: 0; font: 14px var(--body); padding: 7px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); color: var(--ink); }
+.filterbar output { font-size: 13px; color: var(--muted); }
+
+.terms { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 10px 0 16px; font-size: 14.5px; }
+.terms dt { font-weight: 600; }
+.terms dd { margin: 0; }
+
+footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width: 70ch; }
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 0; padding-inline: 16px; }
+  nav.index { position: static; max-height: none; padding-block: 16px 4px; border-bottom: 1px solid var(--rule); }
+  nav.index .groups { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+  nav.index h4 { display: none; }
+  nav.index ul { display: contents; }
+  nav.index a { border: 1px solid var(--rule); border-left-width: 1px; padding: 2px 8px; font-size: 12.5px; }
+  nav.index .brandmark { margin-bottom: 10px; }
+  article.brand { padding: 16px 14px 4px; }
+  .terms { grid-template-columns: minmax(0, 1fr); gap: 2px 0; }
+  .terms dd { margin-bottom: 8px; }
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+<nav class="index" aria-label="Contents">
+  <a class="brandmark" href="#top">FW<span>Shift</span> guide</a>
+  <div class="groups">
+    <h4>Basics</h4>
+    <ul>
+      <li><a href="#overview">What it does</a></li>
+      <li><a href="#install">Install and run</a></li>
+      <li><a href="#workflow">A conversion, step by step</a></li>
+      <li><a href="#commands">Commands</a></li>
+      <li><a href="#report">The report</a></li>
+    </ul>
+    <h4>Between platforms</h4>
+    <ul>
+      <li><a href="#rules">Cross-platform rules</a></li>
+      <li><a href="#nat">NAT order</a></li>
+      <li><a href="#appmap">Applications and ports</a></li>
+    </ul>
+    <h4>Brands</h4>
+    <ul>
+      <li><a href="#brands">Brand index</a></li>
+      <li><a href="#panos">PAN-OS / Panorama</a></li>
+      <li><a href="#fortios">FortiOS</a></li>
+      <li><a href="#checkpoint">Check Point</a></li>
+      <li><a href="#asa">Cisco ASA</a></li>
+      <li><a href="#fmc">Cisco FMC</a></li>
+      <li><a href="#fdm">Cisco FDM</a></li>
+      <li><a href="#sophos">Sophos Firewall</a></li>
+      <li><a href="#pfsense">pfSense</a></li>
+      <li><a href="#sonicwall">SonicWall</a></li>
+      <li><a href="#watchguard">WatchGuard</a></li>
+      <li><a href="#barracuda">Barracuda CloudGen</a></li>
+      <li><a href="#junos">Juniper SRX</a></li>
+      <li><a href="#iptables">iptables</a></li>
+    </ul>
+    <h4>Analysis</h4>
+    <ul>
+      <li><a href="#audit">Audit</a></li>
+      <li><a href="#matrix">Zone matrix</a></li>
+      <li><a href="#usage">Rule usage from logs</a></li>
+      <li><a href="#narrow">Narrower rules</a></li>
+      <li><a href="#reference">Quick reference</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main id="top">
+<header class="mast">
+  <div class="eyebrow">Field guide · version 0.17</div>
+  <h1>FWShift, feature by feature</h1>
+  <p class="lead">FWShift converts firewall policies between thirteen platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
+  <div class="facts">
+    <span><b>13</b> platforms in, <b>14</b> formats out</span>
+    <span>Python 3.9+, standard library only</span>
+    <span>GPL-3.0-or-later</span>
+    <span>Examples run on the synthetic samples in <code>tests/data</code></span>
+  </div>
+</header>
+
+<!-- ============================================================ OVERVIEW -->
+<section class="part" id="overview">
+  <h2><span class="num">1</span>What FWShift does</h2>
+  <p>FWShift reads a policy into a neutral model of objects, security rules and NAT rules, then writes that model for another platform together with a report of everything that did not carry over exactly. The same model feeds the audit, the zone matrix and the rule-usage analysis.</p>
+
+  <div class="diagram" role="img" aria-label="Pipeline: a source configuration is parsed into the neutral model; from the model come the target output with its report, the audit, the zone matrix, and rule usage when logs are added.">
+    <svg viewBox="0 0 760 250" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+      <rect class="box" x="10" y="84" width="150" height="76" rx="6"/>
+      <text class="lbl" x="85" y="114" text-anchor="middle">Source config</text>
+      <text class="small" x="85" y="134" text-anchor="middle">XML, CLI, JSON, API</text>
+      <text class="small" x="85" y="149" text-anchor="middle">answers, iptables-save</text>
+      <path class="wire" d="M160,122 L222,122" marker-end="url(#ah)"/>
+      <text class="small" x="191" y="112" text-anchor="middle">parser</text>
+      <rect class="core" x="226" y="78" width="168" height="88" rx="6"/>
+      <text class="lbl" x="310" y="112" text-anchor="middle">Neutral model</text>
+      <text class="small" x="310" y="132" text-anchor="middle">objects · rules · NAT</text>
+      <text class="small" x="310" y="148" text-anchor="middle">source IDs · targets · hits</text>
+      <path class="wire" d="M394,100 C440,100 440,34 486,34" marker-end="url(#ah)"/>
+      <path class="wire" d="M394,114 C440,114 440,94 486,94" marker-end="url(#ah)"/>
+      <path class="wire" d="M394,130 C440,130 440,154 486,154" marker-end="url(#ah)"/>
+      <path class="wire" d="M394,144 C440,144 440,214 486,214" marker-end="url(#ah)"/>
+      <rect class="box" x="490" y="12" width="260" height="44" rx="6"/>
+      <text class="lbl" x="504" y="32">convert</text>
+      <text class="small" x="504" y="48">target output + lossiness report</text>
+      <rect class="box" x="490" y="72" width="260" height="44" rx="6"/>
+      <text class="lbl" x="504" y="92">audit</text>
+      <text class="small" x="504" y="108">risky, shadowed, unused rules; actions</text>
+      <rect class="box" x="490" y="132" width="260" height="44" rx="6"/>
+      <text class="lbl" x="504" y="152">matrix</text>
+      <text class="small" x="504" y="168">what each zone may reach, and how</text>
+      <rect class="box" x="490" y="192" width="260" height="44" rx="6"/>
+      <text class="lbl" x="504" y="212">usage</text>
+      <text class="small" x="504" y="228">logs → used, unused, narrower rules</text>
+    </svg>
+  </div>
+
+  <h3>The promise</h3>
+  <p><strong>A conversion never makes the policy more permissive without saying so.</strong> In practice:</p>
+  <ul class="prose">
+    <li>Every source rule appears in the output, in the same order, or is listed in the report as <em>skipped</em>. Two counted exceptions: ASA entries that can never match (<code>RULE_WITHOUT_EFFECT</code>) and pfSense rules pfSense itself would not load (<code>RULE_NOT_LOADED</code>).</li>
+    <li>A rule the target cannot express is written <strong>disabled</strong> and marked <em>needs review</em>.</li>
+    <li>An object that cannot be converted becomes a placeholder that matches nothing, with <code>FWSHIFT PLACEHOLDER</code> in its comment.</li>
+    <li>Nothing that is missing is ever read as "any".</li>
+  </ul>
+  <p>FWShift converts the <strong>policy</strong>. It does not convert interfaces, routing, VPN, users, security profiles or system settings, and it is not a substitute for testing.</p>
+  <div class="callout"><b>Status.</b> Tested against synthetic configurations. Only iptables output has been loaded on a real system (a Linux kernel, IPv4 filter rules, iptables 1.8.10 with the nf_tables backend). Treat every other output as a draft for a lab device.</div>
+
+  <h3>Platforms</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Platform</th><th><code>--from</code> / <code>--to</code></th><th>Reads</th><th>Writes</th></tr></thead>
+    <tbody>
+      <tr><td>PAN-OS, Panorama</td><td><code>panos</code></td><td>XML configuration</td><td><code>set</code> commands</td></tr>
+      <tr><td>FortiOS</td><td><code>fortios</code></td><td>full backup (CLI)</td><td>CLI configuration</td></tr>
+      <tr><td>Check Point</td><td><code>checkpoint</code></td><td>Management API JSON</td><td><code>mgmt_cli</code> script</td></tr>
+      <tr><td>Cisco ASA (and FTD running-config)</td><td><code>asa</code></td><td><code>show running-config</code></td><td>ASA 9.x commands</td></tr>
+      <tr><td>Cisco Secure Firewall, Management Center</td><td><code>fmc</code></td><td>REST API answers</td><td>Python loader script</td></tr>
+      <tr><td>Cisco Secure Firewall, Device Manager</td><td><code>fdm</code></td><td>config export (zip) or API</td><td>import file</td></tr>
+      <tr><td>Sophos Firewall (SFOS 18+)</td><td><code>sophos</code></td><td><code>Entities.xml</code> / <code>.tar</code></td><td><code>Entities.xml</code> / <code>.tar</code></td></tr>
+      <tr><td>pfSense 2.6+</td><td><code>pfsense</code></td><td><code>config.xml</code></td><td>Aliases, NAT, Rules areas (2.7+)</td></tr>
+      <tr><td>SonicWall (SonicOS 6.5, 7)</td><td><code>sonicwall</code></td><td>settings export <code>.exp</code></td><td>SonicOS 7 CLI</td></tr>
+      <tr><td>WatchGuard (Fireware 12)</td><td><code>watchguard</code></td><td>Policy Manager XML</td><td>policy part, to merge</td></tr>
+      <tr><td>Barracuda CloudGen 8.0+</td><td><code>barracuda</code></td><td>REST API answers</td><td>curl shell script</td></tr>
+      <tr><td>Juniper SRX</td><td><code>junos</code></td><td><code>display set</code> or braces</td><td><code>set</code> commands</td></tr>
+      <tr><td>iptables / ip6tables</td><td><code>iptables</code>, <code>ip6tables</code></td><td><code>iptables-save</code></td><td><code>iptables-restore</code> file</td></tr>
+      <tr><td>Neutral model</td><td><code>json</code> (target only)</td><td>—</td><td>the model, with source IDs, targets, hits</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================================================ INSTALL -->
+<section class="part" id="install">
+  <h2><span class="num">2</span>Install and run</h2>
+  <p>Each release has three packages: the project as a zip, a single file that runs with any Python 3.9 or newer, and a wheel for <code>pip</code>. Nothing else needs installing.</p>
+  <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># one file, nothing to install</span>
+python3 fwshift-0.17.0.pyz --version
+python3 fwshift-0.17.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+
+<span class="c"># or with pip</span>
+pip install fwshift-0.17.0-py3-none-any.whl
+fwshift convert running-config.xml --to fortios -o fortigate.conf</pre></div>
+  <p>The input may be <code>-</code> for standard input. The source format is detected (XML root elements, JSON keys, CLI keywords); give <code>--from</code> when detection could be ambiguous, for example <code>--from ip6tables</code>.</p>
+</section>
+
+<!-- ============================================================ WORKFLOW -->
+<section class="part" id="workflow">
+  <h2><span class="num">3</span>A conversion, step by step</h2>
+  <ol class="prose">
+    <li><strong>Inspect</strong> what was read: counts, zones, and findings raised while reading.</li>
+    <li><strong>Convert</strong> with a report file, and read <em>Notes for the whole policy</em> first, then every rule marked needs-review. Disabled deny rules come first: the report says "This deny rule is NOT enforced until fixed".</li>
+    <li><strong>Re-run</strong> with the options the report asks for: <code>--zone-map</code>, <code>--interface-map</code>, <code>--app-map</code>, <code>--zone-network</code>, <code>--target-prefix</code>, <code>--target-gateway</code>, <code>--target-nat-zone</code>.</li>
+    <li><strong>Fix</strong> placeholders and disabled rules by hand.</li>
+    <li><strong>Load in a lab</strong> and test NAT first.</li>
+  </ol>
+  <div class="codebox"><span class="label">example</span><button class="copy" type="button">Copy</button><pre><span class="p">$ </span>fwshift inspect tests/data/asa_sample.cfg
+format:          asa
+scope:           ASA Version 9.12(4)
+addresses:       9
+zones:           outside, inside, dmz, guest
+security rules:  18 (1 disabled)
+NAT rules:       5
+
+findings while reading:
+  UNBOUND_ACL: 1 access lists are not bound with access-group ... branch_vpn
+  <span class="h">VPN_BYPASS</span>: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ...
+
+<span class="p">$ </span>fwshift convert tests/data/panos_sample.xml --to iptables -o rules.v4 --report report.txt \
+      --zone-map trust=eth1 --zone-map untrust=eth0 --zone-map dmz=eth2 --zone-map ot=eth3</pre></div>
+</section>
+
+<!-- ============================================================ COMMANDS -->
+<section class="part" id="commands">
+  <h2><span class="num">4</span>Commands</h2>
+  <p class="intro">Five commands share the source options. Only <code>convert</code> writes a configuration; the others read and report.</p>
+
+  <div class="grid2">
+    <div class="card"><h5>convert</h5><p>Writes the policy for a target, with the report.</p><p><code>fwshift convert INPUT --to FORMAT</code></p></div>
+    <div class="card"><h5>inspect</h5><p>Shows what was read and what the parser had to say.</p><p><code>fwshift inspect INPUT</code></p></div>
+    <div class="card"><h5>audit</h5><p>Finds rules that allow too much, never match, or are unused.</p><p><code>fwshift audit INPUT</code></p></div>
+    <div class="card"><h5>matrix</h5><p>What each zone may reach in every other zone.</p><p><code>fwshift matrix INPUT</code></p></div>
+    <div class="card"><h5>usage</h5><p>Which rules, objects and services the logs show used.</p><p><code>fwshift usage INPUT --logs FILE</code></p></div>
+  </div>
+
+  <h3>Source options</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Option</th><th>For</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>--from FORMAT</code></td><td>all</td><td>Source format, when detection is not enough.</td></tr>
+      <tr><td><code>--vsys NAME</code></td><td>PAN-OS</td><td>Virtual system to read.</td></tr>
+      <tr><td><code>--device-group NAME</code></td><td>Panorama</td><td>Device group to read, with its parents and <code>shared</code>.</td></tr>
+      <tr><td><code>--vdom NAME</code></td><td>FortiOS</td><td>VDOM to read (one per run).</td></tr>
+      <tr><td><code>--layer NAME</code></td><td>Check Point</td><td>Ordered access layer to read.</td></tr>
+      <tr><td><code>--policy NAME</code>, <code>--nat-policy NAME</code></td><td>FMC</td><td>Access control and NAT policy to read.</td></tr>
+      <tr><td><code>--interface-address IF=ADDR/BITS</code></td><td>pfSense, SonicWall</td><td>The address of an interface the export does not hold (DHCP, PPPoE).</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>convert: target and adaptation options</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense sonicwall watchguard barracuda junos iptables ip6tables json</code>.</td></tr>
+      <tr><td><code>--zone-map SRC=DST</code></td><td>Rename a zone or interface. For iptables and ASA, this is how a zone becomes an interface.</td></tr>
+      <tr><td><code>--interface-map SRC=DST</code></td><td>Map a source interface to a target interface: FortiOS zone members, interface NAT, Sophos/SonicWall/FDM NAT interfaces, Barracuda source interfaces.</td></tr>
+      <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, Barracuda; SonicWall object zones).</td></tr>
+      <tr><td><code>--app-map FILE</code></td><td>JSON of extra application-to-port mappings.</td></tr>
+      <tr><td><code>--target-vsys</code>, <code>--target-device-group</code>, <code>--target-shared</code></td><td>Where PAN-OS output goes.</td></tr>
+      <tr><td><code>--target-vdom</code>, <code>--policy-id-start N</code></td><td>FortiOS VDOM wrapper; first policy ID (0 lets the FortiGate pick).</td></tr>
+      <tr><td><code>--target-layer</code>, <code>--target-package</code>, <code>--target-gateway</code></td><td>Check Point layer (default <code>Network</code>), package (default <code>Standard</code>), hide-NAT gateway.</td></tr>
+      <tr><td><code>--target-nat-zone ZONE</code></td><td>Destination zone for NAT rules of a source that names none; ASA interface for "NAT to the outgoing interface".</td></tr>
+      <tr><td><code>--target-prefix TEXT</code></td><td>Prefix for created objects (Check Point, ASA, Sophos, Cisco SF, pfSense, SonicWall, WatchGuard, Barracuda, Juniper).</td></tr>
+      <tr><td><code>--target-policy NAME</code></td><td>Name of the FMC access and NAT policy created (default <code>FWShift</code>).</td></tr>
+      <tr><td><code>--prune-unused</code></td><td>Leave out objects no rule uses.</td></tr>
+      <tr><td><code>-o FILE</code>, <code>--report FILE</code>, <code>--report-json FILE</code></td><td>Output, text report (default: standard error), JSON report.</td></tr>
+      <tr><td><code>--strict</code>, <code>-q</code></td><td>Exit 2 when anything needs review; quiet.</td></tr>
+      <tr><td><code>--audit</code> and the audit options</td><td>Audit before and after the conversion (section <a href="#audit">Audit</a>).</td></tr>
+      <tr><td><code>--usage-store FILE</code>, <code>--usage-gateway</code></td><td>Use a store of logs for the use checks (and <code>UNUSED_RULE=disable</code>).</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Exit status</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>0</code></td><td>Done. The report may still hold findings.</td></tr>
+      <tr><td><code>1</code></td><td>Error; the message starts with <code>fwshift: error:</code>.</td></tr>
+      <tr><td><code>2</code></td><td><code>--strict</code> and something needs review; also an invalid command line.</td></tr>
+      <tr><td><code>3</code></td><td><code>--audit-fail-on LEVEL</code> and a finding at that level was neither accepted nor disabled. Status 2 wins over 3.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================================================ REPORT -->
+<section class="part" id="report">
+  <h2><span class="num">5</span>The report</h2>
+  <p>The report opens with counts per kind, then <em>Notes for the whole policy</em>, then each item that has findings. An item takes the status of its most severe finding.</p>
+  <dl class="terms">
+    <dt><span class="chip exact">exact</span></dt><dd>Converted with the same meaning.</dd>
+    <dt><span class="chip approx">approximated</span></dt><dd>Converted, with a difference the report names (an application reduced to ports, a profile not carried).</dd>
+    <dt><span class="chip review">needs-review</span></dt><dd>Emitted disabled, or enabled with a risk to check.</dd>
+    <dt><span class="chip skip">skipped</span></dt><dd>Not in the output; the reason is listed.</dd>
+  </dl>
+  <div class="codebox"><span class="label">report excerpt · PAN-OS to iptables</span><button class="copy" type="button">Copy</button><pre>Summary
+  Security rules:     14   exact 3, approximated 5, needs review 6 (5 emitted disabled), skipped 0
+  NAT rules:           5   exact 1, approximated 3, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] IPTABLES_LOAD: the output holds the FORWARD chain only. Plain 'iptables-restore' replaces
+                 the whole filter table, INPUT and OUTPUT included ...
+  [info] OTHER_IP_VERSION: some rules also match IPv6; convert with --to ip6tables as well to get that half
+
+Security rules
+  Inbound-Web  ->  needs-review  (emitted as 1 FORWARD rule)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web-public' with post-NAT 'web-1'
+                     because of NAT rule 'Inbound-Web-DNAT'
+      [needs-review] <span class="h">NAT_PORT_TRANSLATION</span>: NAT rule 'Inbound-Web-DNAT' also translates the port to 8443;
+                     the service of this rule still names the pre-NAT port and must be adjusted
+  Block-Torrents  ->  needs-review, emitted disabled
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) bittorrent; supply one with --app-map.
+                     <span class="h">This deny rule is NOT enforced until fixed</span>; allow rules below it may match more traffic.</pre></div>
+  <p><code>--report-json</code> gives the same as JSON: per item its <code>kind</code> (<code>rule</code>, <code>nat</code>, <code>address</code>, <code>address-group</code>, <code>service</code>, <code>service-group</code>), status, findings and <code>emitted_as</code>.</p>
+</section>
+
+<!-- ============================================================ CROSS-PLATFORM -->
+<section class="part" id="rules">
+  <h2><span class="num">6</span>Cross-platform rules</h2>
+  <p class="intro">These differences hold whichever pair of platforms you convert between. Most findings in a report come from one of them.</p>
+
+  <h3>Zones and interfaces</h3>
+  <ul class="prose">
+    <li>Names are kept as they are; rename with <code>--zone-map</code>.</li>
+    <li>PAN-OS, Sophos and FDM: zones are not created and must exist on the target (<code>ZONES_REQUIRED</code>). The FMC script creates missing zones, empty.</li>
+    <li>FortiOS: zones are created empty unless <code>--interface-map</code> fills them.</li>
+    <li>iptables and ASA have interfaces only: every zone needs a <code>--zone-map</code> entry (<code>INTERFACES_REQUIRED</code>).</li>
+    <li>PAN-OS intrazone and interzone rules become one FortiOS policy per zone, or per pair of zones.</li>
+  </ul>
+
+  <h3>Default behaviour</h3>
+  <ul class="prose">
+    <li>To PAN-OS: <code>fwshift-intrazone-deny</code> is appended, preceded by <code>fwshift-intrazone-allow</code> for zones that allowed intrazone traffic.</li>
+    <li>To FortiOS and Sophos: <code>INTRAZONE_DEFAULT</code> when the source allowed traffic inside a zone and the target does not.</li>
+    <li>A source that accepts what no rule matches keeps that only in iptables output (chain policy <code>ACCEPT</code>), ASA output (a final <code>permit ip any any</code>) and pfSense output (pass-all per interface). Elsewhere: <code>INTERZONE_DEFAULT</code>.</li>
+  </ul>
+
+  <h3>IPv4 and IPv6</h3>
+  <ul class="prose">
+    <li>FortiOS <code>all</code> is IPv4 only; PAN-OS <code>any</code> covers both. A FortiOS all-to-all becomes <code>0.0.0.0/0</code>, not <code>any</code>.</li>
+    <li>Host names: FortiOS gets an IPv6 twin where needed; PAN-OS reports <code>FQDN_FAMILY</code>.</li>
+    <li>Sophos keeps one rulebase per IP version: rules become <code>name</code> and <code>name_v6</code> (<code>IP_VERSION_SPLIT</code>).</li>
+    <li>iptables and ip6tables are separate programs: convert with both <code>--to iptables</code> and <code>--to ip6tables</code> (<code>OTHER_IP_VERSION</code>).</li>
+  </ul>
+
+  <h3>Negation</h3>
+  <ul class="prose">
+    <li>PAN-OS negates both IP versions at once; "not X" becomes a negated IPv4 list plus an IPv6 <code>all</code>. A FortiOS policy negated for one version only has no PAN-OS equivalent and is disabled.</li>
+    <li>ASA has no negation: the list is written as the ranges that are left (<code>NEGATION_EXPANDED</code>); a negated service gives <code>SERVICE_NEGATE</code>; a negated list with a host name, <code>NEGATION_NOT_STATIC</code>.</li>
+    <li>Cisco Secure Firewall: <code>NEGATION_AS_ADDRESSES</code> or <code>NEGATION</code>. Juniper: <code>-excluded</code> for up to 10 IPv4 addresses, else <code>NEGATION_EXPANDED</code>.</li>
+  </ul>
+
+  <h3>Names</h3>
+  <p>Changed names are reported as <code>RENAMED</code>: <code>10.0.0.0/8</code> becomes <code>10.0.0.0_8</code> on PAN-OS, FortiOS policy names are cut to 35 characters, control characters become <code>_</code>.</p>
+
+  <h3>What is not carried over</h3>
+  <p>Security profiles, schedules, users, URL categories, HIP profiles and tags. When a rule's match depends on one, the rule is disabled; when it only adds inspection, the rule is approximated (<code>PROFILES_NOT_CONVERTED</code>, <code>USER_MATCH</code>).</p>
+</section>
+
+<!-- ============================================================ NAT -->
+<section class="part" id="nat">
+  <h2><span class="num">7</span>NAT order</h2>
+  <p>The single biggest source of conversion surprises. Platforms disagree on whether a security rule sees the destination <em>before</em> or <em>after</em> destination NAT. The model follows PAN-OS: rules match the pre-NAT address and the post-NAT destination zone.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Security rules match</th><th>Platforms</th><th>What FWShift does</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Before NAT</strong> (the original packet)</td><td>PAN-OS, Check Point, Sophos 18+, SonicWall</td><td>Rules keep the public address.</td></tr>
+      <tr><td><strong>After NAT</strong> (the translated packet)</td><td>FortiOS, iptables (after <code>PREROUTING</code>), ASA 8.3+, FTD, pfSense, Juniper SRX</td><td>Rules are rewritten to the mapped address (<code>NAT_DESTINATION_REWRITTEN</code>), or the original is added next to it.</td></tr>
+    </tbody>
+  </table></div>
+  <p>The same PAN-OS rule, written for three targets. The DNAT also changes the port from 443 to 8443, which no target rewrites for you:</p>
+  <div class="codebox"><span class="label">PAN-OS source</span><button class="copy" type="button">Copy</button><pre>set rulebase security rules Inbound-Web destination web-public      <span class="c"># 203.0.113.10, pre-NAT</span>
+set rulebase security rules Inbound-Web service service-https       <span class="c"># tcp/443</span>
+set rulebase nat rules Inbound-Web-DNAT ...                         <span class="c"># to web-1 10.20.0.10:8443</span></pre></div>
+  <div class="codebox"><span class="label">iptables</span><button class="copy" type="button">Copy</button><pre>-A FORWARD -i eth0 -o eth2 -d <span class="h">10.20.0.10/32</span> -p tcp -m tcp --dport <span class="h">443</span> ... -m comment --comment "Inbound-Web" -j ACCEPT
+-A PREROUTING -i eth0 -d 203.0.113.10/32 -p tcp -m tcp --dport 443 ... -j DNAT --to-destination 10.20.0.10:8443</pre></div>
+  <div class="codebox"><span class="label">Juniper SRX</span><button class="copy" type="button">Copy</button><pre>set security policies global policy Inbound-Web match destination-address <span class="h">web-1</span>
+set security policies global policy Inbound-Web match application service-https
+set security nat destination pool Inbound-Web-DNAT-pool address 10.20.0.10/32 port 8443</pre></div>
+  <div class="codebox"><span class="label">Check Point</span><button class="copy" type="button">Copy</button><pre>m add access-rule layer Network_untrust_to_dmz position bottom name Inbound-Web destination.1 <span class="h">web-public</span> service.1 service-https action Accept track.type Log
+m add nat-rule package Standard position bottom original-destination web-public original-service service-https translated-destination web-1 translated-service tcp-8443 method static</pre></div>
+  <div class="callout"><b>Watch for.</b> On iptables and Juniper the rule now names the mapped address but still the <em>original</em> port: the report raises <code>NAT_PORT_TRANSLATION</code> (needs-review). Change the service to tcp/8443 by hand.</div>
+  <h4 class="sub">Other NAT findings</h4>
+  <ul class="prose">
+    <li><code>NAT_ORDER</code>: from FortiOS, iptables or ASA to PAN-OS, Check Point or Sophos, a connection that got DNAT and SNAT from two rules gets only the first on the target; from PAN-OS or Check Point to FortiOS or iptables, first-match NAT order is reported, not reproduced.</li>
+    <li><code>NAT_OUTPUT_INTERFACE</code>, <code>NAT_AFTER_DNAT</code>: a rule that translates both destination and source.</li>
+    <li><code>NAT_ADDRESS_EXPOSED</code>, <code>NAT_DESTINATION_WIDENED</code>, <code>NAT_PORT_EXPOSED</code>, <code>NAT_EXEMPTION</code>, <code>NAT_OVERLAP</code>: where the translated traffic is reachable in ways it was not.</li>
+    <li>A negated destination must name the same thing on both sides of the translation, or the rule is disabled.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ APP MAP -->
+<section class="part" id="appmap">
+  <h2><span class="num">8</span>Applications and ports</h2>
+  <p>PAN-OS rules match applications; most targets match ports. For FortiOS, Check Point, iptables and the others, an application on <code>application-default</code> becomes a service <code>app-&lt;name&gt;</code> from FWShift's own table (<code>APP_TO_PORTS</code>). That table is not Palo Alto's App-ID database.</p>
+  <ul class="prose">
+    <li>An application not in the table disables the rule (<code>APP_UNKNOWN</code>). Add it with <code>--app-map</code>.</li>
+    <li>Explicit services on the rule win; the application match is dropped (<code>APP_FILTER_DROPPED</code>).</li>
+    <li>To PAN-OS, ICMP and IP-protocol services become applications (<code>PROTOCOL_AS_APP</code>). A single ICMP type becomes <code>icmp</code>, which matches every type (<code>ICMP_TYPE</code>).</li>
+    <li>Built-in entries include industrial protocols: <code>modbus</code>, <code>dnp3</code>, <code>siemens-s7</code>, <code>bacnet</code>, <code>mqtt</code>.</li>
+  </ul>
+  <div class="codebox"><span class="label">app-map.json</span><button class="copy" type="button">Copy</button><pre>{
+  "bittorrent": ["tcp/6881-6889", "udp/6881-6889"],
+  "my-erp":     ["tcp/8000-8080"],
+  "ping":       ["icmp/8", "icmp6/128"],
+  "gre-tunnel": ["ip/47"]
+}</pre></div>
+  <p>Accepted specs: <code>tcp/443</code>, <code>udp/53</code>, <code>sctp/2905</code>, <code>tcp/8000-8080</code>, <code>tcp/80,443</code>, <code>icmp/8</code>, <code>icmp/any</code>, <code>icmp6/128</code>, <code>icmp6/any</code>, <code>ip/47</code>.</p>
+</section>
+
+<!-- ============================================================ BRANDS -->
+<section class="part" id="brands">
+  <h2><span class="num">9</span>Brand by brand</h2>
+  <p class="intro">Each brand has the same five parts: what to export, the options that matter, what the output is and how to load it, what to watch for, and an example. The finding codes in the watch lists are the ones the report raises.</p>
+  <div class="brandgrid">
+    <a href="#panos"><b>PAN-OS / Panorama</b><span>XML → set commands</span></a>
+    <a href="#fortios"><b>FortiOS</b><span>backup → CLI</span></a>
+    <a href="#checkpoint"><b>Check Point</b><span>API JSON → mgmt_cli</span></a>
+    <a href="#asa"><b>Cisco ASA</b><span>running-config → CLI</span></a>
+    <a href="#fmc"><b>Cisco FMC</b><span>REST → Python loader</span></a>
+    <a href="#fdm"><b>Cisco FDM</b><span>export zip → import</span></a>
+    <a href="#sophos"><b>Sophos Firewall</b><span>Entities.xml</span></a>
+    <a href="#pfsense"><b>pfSense</b><span>config.xml areas</span></a>
+    <a href="#sonicwall"><b>SonicWall</b><span>.exp → CLI</span></a>
+    <a href="#watchguard"><b>WatchGuard</b><span>Policy Manager XML</span></a>
+    <a href="#barracuda"><b>Barracuda CloudGen</b><span>REST → curl script</span></a>
+    <a href="#junos"><b>Juniper SRX</b><span>display set</span></a>
+    <a href="#iptables"><b>iptables</b><span>iptables-save</span></a>
+  </div>
+
+  <div class="filterbar">
+    <label for="watchfilter">Filter watch lists</label>
+    <input id="watchfilter" type="search" placeholder="A finding code or a word: NAT, zone, IPv6, disabled ..." autocomplete="off">
+    <output id="watchcount" for="watchfilter"></output>
+  </div>
+
+  <!-- PAN-OS -->
+  <article class="brand" id="panos">
+    <h3>PAN-OS and Panorama</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>running-config.xml</span></span><span class="port"><i>OUT</i><span>set commands</span></span><span class="port"><i>ID</i><span>panos</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p><em>Device › Setup › Operations › Export named configuration snapshot</em> gives the XML. Panorama: the same export; one device group is read with its parents and <code>shared</code>. Files of <code>set</code> commands are not read.</p>
+    <h4 class="sub">Options</h4>
+    <p>Source: <code>--vsys</code>, <code>--device-group</code>. Target: <code>--target-vsys</code>, <code>--target-device-group</code>, <code>--target-shared</code>, <code>--target-nat-zone</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <p><code>set</code> commands. Run <code>set cli scripting-mode on</code>, <code>configure</code>, paste, review, <code>commit</code>. New rules land after the existing ones.</p>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>A Panorama export without its <code>&lt;readonly&gt;</code> section cannot find parent device groups (<code>NO_HIERARCHY</code>). Firewall-local rules and template zones are not in a Panorama export (<code>PANORAMA_SOURCE</code>).</li>
+      <li>Zones are not created and must exist on the target (<code>ZONES_REQUIRED</code>).</li>
+      <li><code>fwshift-intrazone-deny</code> (and <code>-allow</code>) are appended to reproduce the source's intrazone behaviour; place them deliberately when merging into an existing rulebase (<code>INTRAZONE_DENY_ADDED</code>).</li>
+      <li>NAT rules from a source that names no destination zone (Check Point, some iptables and ASA rules) are skipped unless <code>--target-nat-zone</code> is given (<code>NAT_ZONE_ASSUMED</code>).</li>
+      <li>ICMP and IP-protocol services become App-IDs (<code>PROTOCOL_AS_APP</code>); a single ICMP type widens to all of ICMP (<code>ICMP_TYPE</code>).</li>
+      <li>PAN-OS to PAN-OS: security profiles are referenced by name and must exist (<code>PROFILES_BY_NAME</code>). Dynamic address groups survive only PAN-OS to PAN-OS.</li>
+      <li>Hit counters from Panorama only say whether a rule was used anywhere: give each firewall's own <code>show rule-hit-count</code> answer, one <code>--hits</code> per firewall.</li>
+    </ul>
+    <div class="codebox"><span class="label">output · PAN-OS</span><button class="copy" type="button">Copy</button><pre>set rulebase security rules Inbound-Web from untrust
+set rulebase security rules Inbound-Web to dmz
+set rulebase security rules Inbound-Web source any
+set rulebase security rules Inbound-Web destination web-public
+set rulebase security rules Inbound-Web application ssl
+set rulebase security rules Inbound-Web service service-https
+set rulebase security rules Inbound-Web action allow
+set rulebase security rules Inbound-Web log-start yes
+set rulebase security rules Inbound-Web log-end yes</pre></div>
+  </article>
+
+  <!-- FortiOS -->
+  <article class="brand" id="fortios">
+    <h3>FortiOS</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>full backup, unencrypted</span></span><span class="port"><i>OUT</i><span>CLI configuration</span></span><span class="port"><i>ID</i><span>fortios</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>An unencrypted full configuration backup. Not <code>show full-configuration</code> output, which would flag nearly every rule. One VDOM per run.</p>
+    <h4 class="sub">Options</h4>
+    <p>Source: <code>--vdom</code>. Target: <code>--target-vdom</code>, <code>--policy-id-start N</code>, <code>--interface-map</code> (zone members).</p>
+    <h4 class="sub">Output and loading</h4>
+    <p>CLI configuration. If it holds <code>config firewall vip</code> or <code>central-snat-map</code>, enable central NAT first (<code>config system settings</code>, <code>set central-nat enable</code>, <code>end</code>) on a lab device: that changes how existing per-policy NAT translates. Assign interfaces to the zones the output creates. Policies use <code>edit 0</code> and are appended; an object with an existing name is overwritten.</p>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>A default service missing from the file is assumed to have its factory definition (<code>FACTORY_DEFAULT</code>).</li>
+      <li>NAT is written as central NAT (<code>CENTRAL_NAT</code>): source NAT as <code>central-snat-map</code> with IP pools, destination NAT as VIPs with <code>extintf any</code>, bi-directional static NAT as SNAT plus a VIP (<code>NAT_BIDIRECTIONAL</code>).</li>
+      <li>A VIP needs one IPv4 address or range of equal size on each side (<code>NAT_DESTINATION</code>, <code>NAT_DESTINATION_SIZE</code>, <code>NAT_PORT</code>); IPv6 NAT is skipped (<code>NAT_IPV6</code>).</li>
+      <li>From FortiOS: a deny policy that covers a VIP without <code>match-vip</code> gives <code>DENY_AND_VIP</code>; NAT rules derived from policies ignore the policy's services (<code>NAT_OVERLAP</code>, <code>NAT_EXEMPTION</code>).</li>
+      <li><code>policy6</code> and <code>local-in-policy</code> are not converted (<code>TABLE_NOT_CONVERTED</code>); unknown attributes give <code>UNKNOWN_ATTRIBUTES</code>.</li>
+      <li>FortiOS <code>all</code> is IPv4 only: an all-to-all policy is not an IPv6 rule on the target.</li>
+      <li>Zones are created without interfaces (<code>ZONES_WITHOUT_INTERFACES</code>); intrazone behaviour differs (<code>INTRAZONE_DEFAULT</code>).</li>
+    </ul>
+    <div class="codebox"><span class="label">output · FortiOS</span><button class="copy" type="button">Copy</button><pre>config firewall policy
+    edit 0
+        set name "Inbound-Web"
+        set srcintf "untrust"
+        set dstintf "dmz"
+        set action accept
+        set srcaddr "all"
+        set dstaddr "web-1"            <span class="c"># rewritten to the mapped address: FortiOS matches after NAT</span>
+        set schedule "always"
+        set service "service-https"
+        set logtraffic all
+        set logtraffic-start enable
+    next
+end</pre></div>
+  </article>
+
+  <!-- Check Point -->
+  <article class="brand" id="checkpoint">
+    <h3>Check Point</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>Management API JSON</span></span><span class="port"><i>OUT</i><span>mgmt_cli shell script</span></span><span class="port"><i>ID</i><span>checkpoint</span></span></div>
+    <h4 class="sub">Export</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>mgmt_cli login -r true &gt; sid.txt
+opts='details-level full use-object-dictionary true dereference-group-members true limit 500 --format json -s sid.txt'
+mgmt_cli show access-rulebase name "Network" offset 0 $opts &gt; access-0.json
+mgmt_cli show nat-rulebase package "Standard" offset 0 $opts &gt; nat-0.json
+mgmt_cli show access-layers details-level full limit 500 --format json -s sid.txt &gt; layers.json
+mgmt_cli logout -s sid.txt
+jq -s . access-*.json nat-*.json layers.json &gt; checkpoint.json</pre></div>
+    <p>Optional: add <code>show-hits true</code> for hit counts, <code>show access-roles</code> for access roles, and export each inline layer.</p>
+    <h4 class="sub">Options</h4>
+    <p>Source: <code>--layer</code>. Target: <code>--target-layer</code>, <code>--target-package</code>, <code>--target-gateway</code>, <code>--target-prefix</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <p>A shell script of <code>mgmt_cli add</code> calls. It never publishes or installs.</p>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>mgmt_cli login -r true &gt; fwshift.sid          <span class="c"># or: mgmt_cli login user admin -m 192.0.2.10 &gt; fwshift.sid</span>
+sh checkpoint.sh                               <span class="c"># from elsewhere: MGMT_OPTS='-m 192.0.2.10' sh checkpoint.sh</span>
+mgmt_cli publish -s fwshift.sid                <span class="c"># or, on error: mgmt_cli discard -s fwshift.sid</span></pre></div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Each API call returns at most 500 rules: page until <code>to</code> equals <code>total</code>, or the shortfall is reported (<code>INCOMPLETE_EXPORT</code>).</li>
+      <li>Without <code>details-level full</code> and <code>dereference-group-members true</code>, objects are names only and their rules are disabled. Hand-written JSON without a <code>rulebase</code> is refused with <code>no rulebase found</code>.</li>
+      <li>One ordered layer per run; inline layers are flattened (<code>INLINE_CLEANUP</code>); implied rules are not in the export (<code>IMPLIED_RULES</code>).</li>
+      <li>A cell holding zones <em>and</em> addresses means "either" and is disabled. A gateway object carries only its main address (<code>GATEWAY_OBJECT</code>).</li>
+      <li>Access roles become the source plus the rule's users (<code>ACCESS_ROLE</code>), which can split one rule into several. Roles with machines, in the destination, or negated are disabled.</li>
+      <li>To Check Point: rules with zones become inline layers <code>&lt;layer&gt;_&lt;from&gt;_to_&lt;to&gt;</code>, and every layer ends in <code>FWShift cleanup</code>. The script stops on predefined names; use <code>--target-prefix</code>. NAT is written as manual rules without zones (<code>NAT_ZONES</code>); hide NAT to the outgoing interface needs <code>--target-gateway</code>.</li>
+    </ul>
+    <div class="codebox"><span class="label">output · Check Point</span><button class="copy" type="button">Copy</button><pre>m add access-rule layer Network_untrust_to_dmz position bottom name Inbound-Web destination.1 web-public service.1 service-https action Accept track.type Log</pre></div>
+  </article>
+
+  <!-- ASA -->
+  <article class="brand" id="asa">
+    <h3>Cisco ASA</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>show running-config</span></span><span class="port"><i>OUT</i><span>ASA 9.x commands</span></span><span class="port"><i>ID</i><span>asa</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p><code>terminal pager 0</code>, then <code>show running-config</code>. In multiple-context mode, <code>changeto context NAME</code> first; one context per run. Give the whole configuration: interfaces, static routes and the <code>ASA Version</code> line are all used. <code>show access-list</code> output is not read.</p>
+    <h4 class="sub">Options</h4>
+    <p><code>--zone-map</code> (zones to interfaces), <code>--zone-network</code>, <code>--target-nat-zone</code> (interface for NAT to the interface), <code>--target-prefix</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <p><code>&lt;zone&gt;_access_in</code> lists and <code>global_access</code>. Read the <code>access-group</code> lines first: they replace the current bindings, and <code>access-group global_access global</code> ends the policy on every interface. Then <code>configure terminal</code>, paste, check <code>show access-list</code> and <code>show nat</code>, <code>write memory</code>.</p>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Only access lists bound with <code>access-group</code> are policy (<code>UNBOUND_ACL</code>). No version line: 9.0+ is assumed (<code>VERSION_ASSUMED</code>). NAT from before 8.3 is not converted (<code>LEGACY_NAT</code>).</li>
+      <li>From ASA: permits are narrowed to the egress interface using routes (<code>EGRESS_BY_ROUTE</code>); an interface without an ACL gives an <code>implicit-&lt;if&gt;</code> rule (<code>IMPLICIT_PERMIT</code>); outbound ACLs give <code>OUTBOUND_ACL</code>.</li>
+      <li>To ASA: a rule for a destination zone needs <code>--zone-network</code> for every zone (<code>EGRESS_BY_NETWORKS</code>); without it you get <code>EGRESS_INTERFACE</code>, approximated or written <code>inactive</code>. Add <code>0.0.0.0/0,::/0</code> to the zone behind the default route.</li>
+      <li>VPN traffic bypasses interface ACLs (<code>VPN_BYPASS</code>); ICMP is stateless without <code>inspect icmp</code> (<code>ICMP_STATELESS</code>).</li>
+      <li><code>time-range</code>, TrustSec and interface-address matches disable the rule.</li>
+      <li>An FTD's <code>show running-config</code>: rules with the <code>L7 RULE</code> remark are converted disabled (<code>FTD_CONFIGURATION</code>). Prefer <code>--from fmc</code> or <code>--from fdm</code>.</li>
+      <li>Interfaces need different security levels or <code>same-security-traffic permit inter-interface</code>; FQDN objects need <code>dns domain-lookup</code>.</li>
+    </ul>
+    <div class="codebox"><span class="label">output · ASA</span><button class="copy" type="button">Copy</button><pre>access-list eth0_access_in remark Inbound-Web
+access-list eth0_access_in extended permit object service-https any object web-1 log
+access-list eth2_access_in remark FWSHIFT: inactive, see the conversion report
+access-list eth2_access_in extended deny ip any any inactive
+access-group eth0_access_in in interface eth0
+access-group global_access global</pre></div>
+  </article>
+
+  <!-- FMC -->
+  <article class="brand" id="fmc">
+    <h3>Cisco Secure Firewall Management Center</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>REST API answers</span></span><span class="port"><i>OUT</i><span>Python loader (3.8+)</span></span><span class="port"><i>ID</i><span>fmc</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>There is no file to export (the <code>.sfo</code> is binary). Save REST API answers one after another into one file: log in with <code>generatetoken</code>, then fetch each object kind with <code>object/&lt;kind&gt;?expanded=true&amp;limit=1000</code> (hosts, networks, ranges, fqdns, networkgroups, protocolportobjects, icmpv4objects, icmpv6objects, portobjectgroups, securityzones, interfacegroups), the access policy with its <code>inheritancesettings</code> and <code>accessrules</code>, the prefilter policy and its rules, the NAT policy with <code>manualnatrules</code> and <code>autonatrules</code>, and the device interfaces. The manual has the full script.</p>
+    <h4 class="sub">Options</h4>
+    <p>Source: <code>--policy</code>, <code>--nat-policy</code>. Target: <code>--target-policy</code>, <code>--target-prefix</code> (at most 20 characters), <code>--target-nat-zone</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>python3 load_policy.py --show                                     <span class="c"># --plan prints the policy as JSON</span>
+python3 load_policy.py --host fmc.example.net --user api-user --dry-run
+python3 load_policy.py --host fmc.example.net --user api-user     <span class="c"># FMC_PASSWORD, --cafile, --journal, --undo</span></pre></div>
+    <p>It creates a new access control policy that blocks by default, with all rules in the mandatory section, plus a new NAT policy. It never assigns or deploys.</p>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Without <code>expanded=true</code> rules come without their contents (<code>RULES_NOT_EXPANDED</code>); a page short of <code>paging.count</code> gives <code>EXPORT_INCOMPLETE</code>.</li>
+      <li>A missing policy object makes the default action block (<code>DEFAULT_ACTION_UNKNOWN</code>); missing inheritance gives <code>INHERITANCE_UNKNOWN</code> or <code>PARENT_POLICY_MISSING</code>; a missing custom prefilter, <code>PREFILTER_MISSING</code>. Object overrides use the FMC value (<code>OBJECT_OVERRIDES</code>).</li>
+      <li>Prefilter: a Fastpath rule below an overlapping Analyze rule is not converted (<code>PREFILTER_ANALYZE</code>); tunnel rules become GRE, IP 4, IP 41 and UDP 3544 (<code>TUNNEL_RULE</code>).</li>
+      <li><em>Interactive Block</em> becomes block (<code>INTERACTIVE_BLOCK</code>); <em>Monitor</em> rules are dropped (<code>MONITOR_RULE</code>); application, URL, VLAN, SGT, dynamic-object and time conditions disable the rule.</li>
+      <li>The script stops if any object or policy name exists already, whatever the case: use <code>--target-prefix</code> or <code>--target-policy</code>. <code>--undo</code> deletes by ID, including objects you changed since.</li>
+      <li>Cisco to Cisco: Fastpath becomes Trust (<code>PREFILTER_AS_TRUST</code>); built-in objects are referenced, not created (<code>EXISTING_OBJECT</code>).</li>
+    </ul>
+  </article>
+
+  <!-- FDM -->
+  <article class="brand" id="fdm">
+    <h3>Cisco Secure Firewall Device Manager</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>config export zip, or API answers</span></span><span class="port"><i>OUT</i><span>import file</span></span><span class="port"><i>ID</i><span>fdm</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>The configuration export zip as it is, or the text file inside it. Over REST (6.5+): <code>POST .../action/configexport</code> with <code>{"type": "scheduleconfigexport", "configExportType": "FULL_EXPORT", "doNotEncrypt": true}</code>, poll <code>jobs/configexportstatus</code>, then <code>GET .../action/downloadconfigfile/NAME</code>.</p>
+    <h4 class="sub">Options</h4>
+    <p><code>--interface-map</code> (logical names such as <code>inside</code>, <code>outside</code>), <code>--target-prefix</code>, <code>--target-nat-zone</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <p>Upload the file (<code>action/uploadconfigfile</code>), import it with <code>configimport</code> and <code>"autoDeploy": false</code>, poll <code>jobs/configimportstatus</code>, and review the pending changes before deploying.</p>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li><strong>FDM has no disabled rules.</strong> Rules that are disabled or cannot be converted are left out and listed as skipped, blocking rules included: check them first.</li>
+      <li>The first line needs <code>hardwareModel</code> and <code>softwareVersion</code> copied from an export of the target, unless the source is itself an FDM export (placeholder <code>REPLACE WITH THE VALUE FROM AN EXPORT OF THE TARGET</code>).</li>
+      <li>An encrypted zip cannot be read; a partial export resolves only <code>any-ipv4</code>/<code>any-ipv6</code> (<code>PREDEFINED_OBJECT</code>).</li>
+      <li>Zones are not written (<code>ZONES_REQUIRED</code>). NAT needs <code>--interface-map</code> with logical names (<code>NAT_ZONES</code>). Every interface is written as <code>physicalinterface</code>; change the type by hand for subinterfaces, EtherChannels and VLANs (<code>INTERFACES_REQUIRED</code>).</li>
+      <li>No reset action (<code>RESET_ACTION</code>); IP-in-IP cannot be written; NAT rules take single ports only.</li>
+    </ul>
+  </article>
+
+  <!-- Sophos -->
+  <article class="brand" id="sophos">
+    <h3>Sophos Firewall</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>Entities.xml or its .tar</span></span><span class="port"><i>OUT</i><span>Entities.xml or import .tar</span></span><span class="port"><i>ID</i><span>sophos</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p><em>Backup &amp; firmware › Import export</em> gives a <code>.tar</code> with <code>Entities.xml</code>; give the archive or the XML. An XML API <code>Get</code> answer also works. Not read: the <em>Backup &amp; restore</em> file, Sophos UTM, and SFOS 17 or older NAT (<code>RULE_NAT</code>, <code>RULE_TYPE_NOT_READ</code>).</p>
+    <h4 class="sub">Options</h4>
+    <p><code>--interface-map</code> (NAT interfaces), <code>--target-prefix</code>, <code>--target-nat-zone</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <p><code>Entities.xml</code>, or with <code>-o import.tar</code> the archive. Import it under <em>Import export</em> and compare the counts with the report. An import overwrites objects of the same name. Rules land below the existing ones.</p>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>An absent list means "any"; a present but empty list, or a match element FWShift does not know, makes the rule unsupported (<code>ELEMENTS_NOT_READ</code>).</li>
+      <li>Exclusions of several kinds split a rule into one rule per kind (<code>RULE_SPLIT</code>, <code>EXCLUSION_AS_ADDRESSES</code>, <code>EXCLUSION_ZONES</code>, <code>RULE_MATCHES_NOTHING</code>).</li>
+      <li>Linked NAT rules are read with their firewall rule's match (<code>NAT_LINKED</code>, <code>NAT_LINKED_ABOVE</code>, <code>NAT_LINKED_INACTIVE</code>).</li>
+      <li>To Sophos: one rule per IP version, <code>name</code> and <code>name_v6</code> (<code>IP_VERSION_SPLIT</code>), plus <code>GROUP_SPLIT</code> and <code>SERVICE_SPLIT</code>; two negated fields give <code>NEGATION_AS_ADDRESSES</code>.</li>
+      <li>A zone named <code>Any</code>, <code>None</code>, <code>Original</code> or <code>MASQ</code> stops the conversion and asks for <code>--zone-map</code>. NAT without <code>--interface-map</code> is written for any interface (<code>NAT_ZONES</code>).</li>
+      <li>Security Heartbeat, user rules, MAC hosts and country groups give disabled rules; WAF rules are left out (<code>WAF_RULE</code>).</li>
+    </ul>
+    <div class="codebox"><span class="label">output · Sophos</span><button class="copy" type="button">Copy</button><pre>&lt;FirewallRule transactionid=""&gt;
+  &lt;Name&gt;Inbound-Web&lt;/Name&gt;
+  &lt;IPFamily&gt;IPv4&lt;/IPFamily&gt;
+  &lt;Status&gt;Enable&lt;/Status&gt;
+  &lt;Position&gt;After&lt;/Position&gt;
+  &lt;After&gt;&lt;Name&gt;Allow-DNS&lt;/Name&gt;&lt;/After&gt;
+  &lt;NetworkPolicy&gt;
+    &lt;Action&gt;Accept&lt;/Action&gt;
+    &lt;SourceZones&gt;&lt;Zone&gt;untrust&lt;/Zone&gt;&lt;/SourceZones&gt;
+    &lt;DestinationZones&gt;&lt;Zone&gt;dmz&lt;/Zone&gt;&lt;/DestinationZones&gt;
+    &lt;DestinationNetworks&gt;&lt;Network&gt;web-public&lt;/Network&gt;&lt;/DestinationNetworks&gt;
+    ...</pre></div>
+  </article>
+
+  <!-- pfSense -->
+  <article class="brand" id="pfsense">
+    <h3>pfSense</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>config.xml (2.6+)</span></span><span class="port"><i>OUT</i><span>Aliases, NAT, Rules areas (2.7+)</span></span><span class="port"><i>ID</i><span>pfsense</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p><em>Diagnostics › Backup &amp; Restore</em>, backup area <strong>All</strong>, no encryption (or <code>/cf/conf/config.xml</code>). OPNsense files are refused.</p>
+    <h4 class="sub">Options</h4>
+    <p><code>--interface-address wan=198.51.100.7/24</code> (one per IP version), <code>--zone-map</code> or <code>--interface-map</code> to <code>wan</code>, <code>lan</code>, <code>optN</code> or a group, <code>--zone-network</code>, <code>--target-nat-zone</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <p>One file with <code>&lt;aliases&gt;</code>, <code>&lt;nat&gt;</code> and <code>&lt;filter&gt;</code>. Back up first, then restore area by area: Aliases, NAT, Firewall Rules. <strong>Each restore replaces that area.</strong> Assign the interfaces and create the groups listed under <code>INTERFACES_REQUIRED</code>. pfSense validates nothing on restore.</p>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Interfaces with DHCP, PPPoE, SLAAC or Track have no address in the file, so rules that depend on it are disabled: give <code>--interface-address</code>.</li>
+      <li>Rule order on interface groups depends on the version (<code>RULE_ORDER_VERSION</code>); non-quick floating rules go last (<code>FLOATING_LAST_MATCH</code>); floating pass-out rules give <code>FLOATING_OUT_PASS</code>.</li>
+      <li>Automatic and package rules are not in the file (<code>PFSENSE_AUTOMATIC_RULES</code>, <code>BOGONS_NOT_CONVERTED</code>).</li>
+      <li>Port forwards rewrite their rules (<code>NAT_DESTINATION_REWRITTEN</code>); reflection in proxy mode is not converted (<code>NAT_REFLECTION_PROXY</code>); NPt gives <code>NPT_NOT_CONVERTED</code>.</li>
+      <li>To pfSense: a destination zone needs <code>--zone-network</code>, else <code>EGRESS_INTERFACE</code>; pass-any rules exclude <em>This Firewall</em> (<code>SELF_EXCLUDED</code>); ICMP codes disable the rule (<code>ICMP_CODE</code>).</li>
+      <li>Schedules, gateways (<code>POLICY_ROUTING</code>), stateless and match rules are not converted; without <em>Allow IPv6</em>, IPv6 rules are not read (<code>IPV6_NOT_ALLOWED</code>).</li>
+    </ul>
+    <div class="codebox"><span class="label">output · pfSense NAT</span><button class="copy" type="button">Copy</button><pre>&lt;rule&gt;
+  &lt;source&gt;&lt;any&gt;&lt;/any&gt;&lt;/source&gt;
+  &lt;destination&gt;&lt;address&gt;web_public&lt;/address&gt;&lt;port&gt;443&lt;/port&gt;&lt;/destination&gt;
+  &lt;protocol&gt;tcp&lt;/protocol&gt;
+  &lt;target&gt;10.20.0.10&lt;/target&gt;
+  &lt;local-port&gt;8443&lt;/local-port&gt;
+  &lt;interface&gt;untrust&lt;/interface&gt;
+  &lt;descr&gt;&lt;![CDATA[Inbound-Web-DNAT]]&gt;&lt;/descr&gt;
+&lt;/rule&gt;</pre></div>
+  </article>
+
+  <!-- SonicWall -->
+  <article class="brand" id="sonicwall">
+    <h3>SonicWall</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>settings export .exp</span></span><span class="port"><i>OUT</i><span>SonicOS 7 CLI</span></span><span class="port"><i>ID</i><span>sonicwall</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>SonicOS 7: <em>Device › Settings › Firmware and Settings › Import/Export Configuration › Export Configuration</em>. SonicOS 6.5: <em>Manage › Updates › Firmware &amp; Settings › Export Settings</em>. The decoded form also works (<code>base64 -d settings.exp | tr '&amp;' '\n'</code>). Classic mode only.</p>
+    <h4 class="sub">Options</h4>
+    <p><code>--interface-address X1=...</code> (IPv4), <code>--interface-map</code> (NAT interfaces such as <code>X1</code>, <code>X3:V10</code>), <code>--zone-network</code> (object zones), <code>--target-prefix</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <p>Paste over SSH. The commands start with <code>configure terminal</code> (change to <code>configure</code> for 6.5) and end with <code>commit</code>. A refused command does not stop the rest. Assumptions are listed under <code>SONICWALL_LOAD</code>.</p>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>The export format is undocumented (<code>SONICWALL_FORMAT</code>); built-in objects such as <code>X1 IP</code> and <code>LAN Subnets</code> are derived (<code>DEFAULT_OBJECT</code>).</li>
+      <li>Zone pairs without a default row get assumed defaults (<code>DEFAULT_RULE_ASSUMED</code>, <code>DEFAULT_RULES_UNKNOWN</code>).</li>
+      <li>ICMP service objects, IPv6 and MAC objects are not read (<code>OBJECTS_NOT_READ</code>); Policy mode (SonicOSX) is not read.</li>
+      <li>To SonicWall: every pair of zones ends in a deny (<code>DEFAULT_DENY_ADDED</code>); zone "any" expands to every pair; ICMP echo becomes <code>Ping</code> (<code>ICMP_AS_DEFAULT</code>), other ICMP is disabled.</li>
+      <li>Objects need a zone: from <code>--zone-network</code>, else the zone of the first rule using them. Reflexive NAT gives <code>NAT_REFLEXIVE</code>.</li>
+    </ul>
+    <div class="codebox"><span class="label">output · SonicWall</span><button class="copy" type="button">Copy</button><pre>access-rule ipv4 from untrust to dmz action allow source address any service name "service-https" destination address name "web-public"
+    name "Inbound-Web"
+    priority manual 1
+    exit
+access-rule ipv4 from trust to dmz action allow source address name "admin-range" service name "app ssh" destination address group "dmz-servers"
+    name "Admin-SSH"
+    priority manual 1
+    no enable                <span class="c"># disabled: its user match cannot be written</span>
+    exit</pre></div>
+  </article>
+
+  <!-- WatchGuard -->
+  <article class="brand" id="watchguard">
+    <h3>WatchGuard</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>Policy Manager XML</span></span><span class="port"><i>OUT</i><span>policy part, to merge</span></span><span class="port"><i>ID</i><span>watchguard</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>Policy Manager <em>File › Save › As File</em> (root element <code>&lt;profile&gt;</code>), or the Web UI's <em>System › Configuration File</em> download, unzipped. Fireware 12.</p>
+    <h4 class="sub">Options</h4>
+    <p><code>--zone-map</code> (zones must be Firebox interfaces), <code>--target-prefix</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <p>The policy part only, <strong>not a configuration to restore</strong>. Merge each list (<code>address-group-list</code>, <code>service-list</code>, <code>nat-list</code>, <code>alias-list</code>, <code>abs-policy-list</code>, <code>policy-list</code>) into a saved target file, set <code>auto-order-enabled</code> to <code>0</code>, open it in Policy Manager and save it to the Firebox. Assumptions: <code>WATCHGUARD_LOAD</code>.</p>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>The format is undocumented (<code>WATCHGUARD_FORMAT</code>). Automatic policy order is read as file order (<code>POLICY_ORDER_AUTOMATIC</code>): switch to manual order before saving.</li>
+      <li>Aliases with several interfaces give one rule per From/To pair (<code>POLICY_SPLIT</code>); VPN members and users in To disable the policy.</li>
+      <li>Only static NAT is read; dynamic and 1-to-1 NAT give <code>NAT_NOT_READ</code>.</li>
+      <li>To WatchGuard: static NAT goes only into a policy that allows exactly its traffic (<code>NAT_NOT_IN_POLICY</code>, <code>NAT_ZONE_DROPPED</code>, <code>NAT_NO_POLICY</code>); source NAT is not written (<code>NAT_NOT_CONVERTED</code>); negation is expanded (<code>NEGATION_EXPANDED</code>).</li>
+    </ul>
+  </article>
+
+  <!-- Barracuda -->
+  <article class="brand" id="barracuda">
+    <h3>Barracuda CloudGen Firewall</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>REST API answers</span></span><span class="port"><i>OUT</i><span>curl shell script</span></span><span class="port"><i>ID</i><span>barracuda</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>Enable <em>Configuration Tree › Box › Infrastructure Services › REST API Service</em>, create a token, and fetch the rules and every object a rule names (8.0+):</p>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>curl -sS -H "$H" "$FW/rest/config/v1/forwarding-firewall/rules?expand=true&amp;envelope=false" &gt; barracuda.json
+curl -sS -H "$H" "$FW/rest/config/v1/forwarding-firewall/objects/networks/Office-LAN" &gt;&gt; barracuda.json
+curl -sS -H "$H" "$FW/rest/config/v1/forwarding-firewall/objects/services/HTTP%2BS" &gt;&gt; barracuda.json</pre></div>
+    <h4 class="sub">Options</h4>
+    <p><code>--interface-map</code> (source interfaces such as <code>port2</code>), <code>--zone-network</code>, <code>--target-prefix</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <p><code>DRY_RUN=1 sh rules.sh</code> to preview, then <code>BARRACUDA=https://fw.example.net:8443 TOKEN=&lt;token&gt; sh rules.sh</code> (curl 7.76+). It stops at the first refusal. Activate <code>FWSHIFT-BLOCK</code> and <code>FWSHIFT-BLOCK-v6</code> afterwards.</p>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Objects a rule names but the file lacks give <code>OBJECTS_MISSING</code>; those rules are unusable until the objects are added. Only the name <code>Any</code> means any (<code>BARRACUDA_FORMAT</code>).</li>
+      <li>Cascade, Dst NAT, Map and connection objects are not read (<code>CONNECTION_NOT_READ</code>); bi-directional rules are split (<code>BIDIRECTIONAL_SPLIT</code>); ICMP limits give <code>ICMP_LIMITS</code>.</li>
+      <li>To Barracuda: zones become source interfaces (<code>--interface-map</code>) or networks (<code>--zone-network</code>, <code>ZONE_BY_NETWORKS</code>). With neither, allow rules are deactivated (<code>ZONE_NETWORK_MISSING</code>) and block rules block everywhere (<code>ZONE_WIDENED</code>).</li>
+      <li>The block-all rules are created deactivated (<code>BLOCK_RULE_INACTIVE</code>); NAT is not written (<code>NAT_NOT_CONVERTED</code>); host names become placeholders.</li>
+    </ul>
+    <div class="codebox"><span class="label">output · Barracuda (request body)</span><button class="copy" type="button">Copy</button><pre>{"name": "Inbound-Web", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false,
+ "source": {"references": "Any"}, "destination": {"references": "Inbound-Web.dst"},
+ "service": {"references": "service-https"}, "action": {"type": "pass"},
+ "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}</pre></div>
+  </article>
+
+  <!-- Juniper -->
+  <article class="brand" id="junos">
+    <h3>Juniper SRX</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>display set, or braces</span></span><span class="port"><i>OUT</i><span>set commands</span></span><span class="port"><i>ID</i><span>junos</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p><code>show configuration | display inheritance no-comments | display set | no-more</code>. Plain <code>display set</code> and the brace format are read too; <code>apply-groups</code> without the inheritance shown is refused.</p>
+    <h4 class="sub">Options</h4>
+    <p><code>--zone-map</code>, <code>--target-prefix</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">Junos CLI</span><button class="copy" type="button">Copy</button><pre>configure private
+load set terminal          <span class="c"># paste, then Ctrl-D; or: load set /var/tmp/fwshift.set</span>
+show | compare
+commit check
+commit confirmed 5
+commit</pre></div>
+    <p>New policies land at the end of their zone pair; reorder with <code>insert security policies ... before policy OLD</code>.</p>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Only the root system is read; logical systems and tenants give <code>PARTS_NOT_READ</code>.</li>
+      <li>Predefined <code>junos-*</code> applications come from FWShift's own table (<code>PREDEFINED_APPLICATIONS</code>); an unknown or ambiguous one (such as <code>junos-ping</code>) makes the policy unusable.</li>
+      <li>NAT is applied before the policy: the original destination is added, and a port translation must be fixed by hand (<code>NAT_DESTINATION_REWRITTEN</code>, <code>NAT_PORT_TRANSLATION</code>).</li>
+      <li>To Juniper: one policy per zone pair (<code>RULE_SPLIT</code>, <code>ZONES_EXPANDED</code>); disabled rules are written and then <code>deactivate</code>d.</li>
+      <li>Objects go into the global address book; an SRX that uses per-zone address books cannot take both. A default permit becomes <code>default-policy permit-all</code> (<code>DEFAULT_PERMIT</code>).</li>
+    </ul>
+  </article>
+
+  <!-- iptables -->
+  <article class="brand" id="iptables">
+    <h3>iptables and ip6tables</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>iptables-save</span></span><span class="port"><i>OUT</i><span>iptables-restore file</span></span><span class="port"><i>ID</i><span>iptables, ip6tables</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p><code>iptables-save &gt; rules.v4</code> and <code>ip6tables-save &gt; rules.v6</code>, one file per IP version. Files from <code>iptables-nft-save</code> and the persistent packages are fine; rulesets in the <code>nft</code> language are not read.</p>
+    <h4 class="sub">Options</h4>
+    <p><code>--zone-map</code> (required: zones become interfaces), <code>--from ip6tables</code> for an ambiguous file.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to iptables -o rules.v4 --zone-map trust=eth1 --zone-map untrust=eth0
+iptables-restore --test rules.v4
+iptables-restore --noflush rules.v4       <span class="c"># once, on a host whose FORWARD chain is empty</span></pre></div>
+    <div class="callout"><b>Plain <code>iptables-restore</code> replaces whole tables.</b> Without <code>--noflush</code> it wipes INPUT and OUTPUT too, and can lock you out of the host. Enabling <code>ip_forward</code> is up to you.</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>INPUT and OUTPUT are not converted (<code>HOST_CHAIN_NOT_CONVERTED</code>). Without an ESTABLISHED rule the source filters every packet on its own (<code>STATELESS_RULESET</code>); a deny before the established accept also dropped replies (<code>DROP_BEFORE_ESTABLISHED</code>).</li>
+      <li>Matches FWShift does not hold (<code>-m recent</code>, <code>-m limit</code>, <code>-m set</code>, <code>-m owner</code>, a negated interface) and non-contiguous masks disable the rule. Jumps into user chains are flattened exactly, or the rule is disabled.</li>
+      <li>REDIRECT, NETMAP, <code>ACCEPT</code> in <code>PREROUTING</code> and IPv6 NAT are not converted; a DNAT without a destination address gives <code>NAT_REDIRECT</code>.</li>
+      <li>To iptables: long or negated lists become chains <code>FWS1</code>, ...; disabled rules become comment lines <code># FWSHIFT disabled</code>; host names are resolved once, at load (<code>FQDN_RESOLVED_ONCE</code>); logging is not written (<code>LOGGING_NOT_CONVERTED</code>).</li>
+      <li>A <code>LOG</code> rule directly before a rule with the same match sets that rule's logging; a <code>LOG</code> ahead of the established accept logs every packet (<code>LOG_EVERY_PACKET</code>), which matters for rule usage.</li>
+    </ul>
+    <div class="codebox"><span class="label">output · iptables</span><button class="copy" type="button">Copy</button><pre>*filter
+:FORWARD DROP [0:0]
+-A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -m conntrack --ctstate INVALID -j DROP
+-A FORWARD -i eth0 -o eth2 -d 10.20.0.10/32 -p tcp -m tcp --dport 443 -m conntrack --ctstate NEW -m comment --comment "Inbound-Web" -j ACCEPT
+COMMIT</pre></div>
+  </article>
+  <p id="nowatch" hidden>No watch item matches that filter.</p>
+</section>
+
+<!-- ============================================================ AUDIT -->
+<section class="part" id="audit">
+  <h2><span class="num">10</span>Audit</h2>
+  <p>The audit reads a policy of any supported format and reports rules that allow too much, rules that never decide anything, loose ends, and rules that hit counters or logs prove unused. It changes nothing on its own; in a conversion, <code>--audit</code> audits the policy as read and again as converted, and carries out the actions you choose.</p>
+  <div class="codebox"><span class="label">example</span><button class="copy" type="button">Copy</button><pre><span class="p">$ </span>fwshift audit tests/data/panos_sample.xml
+Summary
+  high 0, medium 0, low 14, info 1
+
+Findings in the policy as it was read
+  [low] ANY_DESTINATION: rule 'Allow-Web-Out' allows its sources to reach any destination, from zone trust to zone untrust
+  [low] INDUSTRIAL_SERVICE: rule 'Engineering to PLCs' allows modbus, siemens-s7, from zone trust to zone ot
+  [info] DISABLED_RULE: rule 'Old-Rule' is disabled: remove it, or note why it is kept</pre></div>
+
+  <h3>Checks</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Check</th><th>Level</th><th>Finds</th></tr></thead>
+    <tbody>
+      <tr><td><code>ANY_ANY_ANY</code></td><td><span class="lvl high">high</span></td><td>Allow rule for any source, destination and service.</td></tr>
+      <tr><td><code>ANY_SERVICE</code>, <code>ANY_TO_ANY</code></td><td><span class="lvl medium">medium</span></td><td>Any service; any source to any destination.</td></tr>
+      <tr><td><code>ANY_SOURCE</code>, <code>ANY_DESTINATION</code></td><td><span class="lvl low">low</span></td><td>One side is any.</td></tr>
+      <tr><td><code>WIDE_NETWORK</code>, <code>WIDE_PORTS</code></td><td><span class="lvl low">low</span></td><td>A /8 or larger (IPv6 /32); 1024 ports or more.</td></tr>
+      <tr><td><code>RISKY_SERVICE</code></td><td><span class="lvl medium">medium</span></td><td>Cleartext or remote administration protocols (telnet, ftp, rdp, ...).</td></tr>
+      <tr><td><code>INDUSTRIAL_SERVICE</code></td><td><span class="lvl low">low</span></td><td>Industrial control protocols (modbus, s7, dnp3, ...).</td></tr>
+      <tr><td><code>NO_LOG</code>, <code>NO_PROFILE</code></td><td><span class="lvl low">low</span></td><td>A rule that does not log; an allow rule without a security profile.</td></tr>
+      <tr><td><code>SHADOWED_RULE</code></td><td><span class="lvl high">high</span></td><td>Never matches: earlier rules decide its traffic otherwise (can be <code>reorder</code>ed).</td></tr>
+      <tr><td><code>REDUNDANT_RULE</code>, <code>EMPTY_RULE</code></td><td><span class="lvl low">low</span></td><td>Can go without changing a verdict; can match nothing.</td></tr>
+      <tr><td><code>OVERLAPPING_RULES</code></td><td><span class="lvl info">info</span></td><td>Earlier rules with another action take part of its traffic (off by default).</td></tr>
+      <tr><td><code>SHADOWED_NAT</code></td><td><span class="lvl medium">medium</span></td><td>A NAT rule that never matches.</td></tr>
+      <tr><td><code>DEFAULT_ALLOW</code></td><td><span class="lvl high">high</span></td><td>Traffic no rule matches is allowed.</td></tr>
+      <tr><td><code>EXPOSED_BY_CONVERSION</code></td><td><span class="lvl high">high</span></td><td>After a conversion: a blocking rule that did not make it, with allow rules below it.</td></tr>
+      <tr><td><code>DISABLED_RULE</code>, <code>NO_DESCRIPTION</code>, <code>UNUSED_OBJECT</code>, <code>DUPLICATE_OBJECT</code></td><td><span class="lvl info">info</span></td><td>Loose ends.</td></tr>
+      <tr><td><code>EMPTY_GROUP</code></td><td><span class="lvl low">low</span></td><td>A group without members.</td></tr>
+      <tr><td><code>UNUSED_RULE</code></td><td><span class="lvl medium">medium</span></td><td>An allow rule that hit counters or logs prove unused.</td></tr>
+      <tr><td><code>UNUSED_RULE_OBJECT</code>, <code>UNUSED_RULE_SERVICE</code></td><td><span class="lvl low">low</span></td><td>Members of a used rule that no logged connection used.</td></tr>
+      <tr><td><code>NO_USAGE_EVIDENCE</code></td><td><span class="lvl info">info</span></td><td>The counters or logs cannot prove anything about the rule, with the reasons.</td></tr>
+      <tr><td><code>WIDER_THAN_TRAFFIC</code></td><td><span class="lvl low">low</span></td><td>A used rule whose connections used a small part of it, with a narrower rule.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Actions per check: <code>off</code>, <code>accept</code>, <code>report</code>, and for rule checks <code>disable</code> (and <code>reorder</code> for shadowed rules). Disabling a redundant, shadowed or empty rule is proven safe before it is done. <code>fwshift audit --list-checks</code> prints the table.</p>
+
+  <h3>Configuration file</h3>
+  <div class="codebox"><span class="label">audit.json</span><button class="copy" type="button">Copy</button><pre>{
+  "checks": {
+    "SHADOWED_RULE": "reorder",
+    "REDUNDANT_RULE": "disable",
+    "NO_PROFILE": "off",
+    "ANY_SOURCE": {"action": "report", "level": "info"}
+  },
+  "accept": [
+    "Legacy-*",
+    {"rule": "Inbound-Web", "checks": ["ANY_SOURCE"], "reason": "the public web server"}
+  ],
+  "thresholds": {"wide_network_v4": 8, "wide_network_v6": 32, "wide_ports": 1024, "usage_days": 90, "wider_than_traffic": 10},
+  "services": {"risky": {"telnet": ["tcp/23"]}, "industrial": {"modbus": ["tcp/502"]}},
+  "fail_on": "high",
+  "hits_since": "2026-01-01",
+  "unchanged_since": "2026-01-01"
+}</pre></div>
+  <h3>Hit counters</h3>
+  <p>Check Point rulebases exported with <code>show-hits true</code> carry their counters. For PAN-OS and FortiOS, give the counters with <code>--hits</code>:</p>
+  <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># PAN-OS, per firewall</span>
+curl -sk -H "X-PAN-KEY: $KEY" "https://fw.example.net/api/?type=op&amp;cmd=&lt;show&gt;&lt;rule-hit-count&gt;&lt;vsys&gt;&lt;vsys-name&gt;&lt;entry%20name='vsys1'&gt;&lt;rule-base&gt;&lt;entry%20name='security'&gt;&lt;rules&gt;&lt;all/&gt;&lt;/rules&gt;&lt;/entry&gt;&lt;/rule-base&gt;&lt;/entry&gt;&lt;/vsys-name&gt;&lt;/vsys&gt;&lt;/rule-hit-count&gt;&lt;/show&gt;" &gt; hits-fw1.xml
+<span class="c"># FortiOS, per VDOM</span>
+curl -sk -H "Authorization: Bearer $TOKEN" "https://fg.example.net/api/v2/monitor/firewall/policy?vdom=root" &gt; hits-fg.json
+
+fwshift audit running-config.xml --hits hits-fw1.xml --hits hits-fw2.xml</pre></div>
+  <p>A zero proves a rule unused only after the counter has counted for <code>usage_days</code> (90) days; otherwise <code>NO_USAGE_EVIDENCE</code>. Blocking rules never get <code>UNUSED_RULE</code>.</p>
+</section>
+
+<!-- ============================================================ MATRIX -->
+<section class="part" id="matrix">
+  <h2><span class="num">11</span>Zone matrix</h2>
+  <p>What each zone may reach in every other zone, on which services and through which rules. Useful for IEC 62443 zone and conduit reviews: it flags industrial protocols per conduit.</p>
+  <div class="codebox"><span class="label">example</span><button class="copy" type="button">Copy</button><pre><span class="p">$ </span>fwshift matrix tests/data/panos_sample.xml --summary
+What each zone may reach (rows: from, columns: to)
+           trust             untrust           dmz               ot
+  trust    any               app:web-brow… +2  tcp/80 +6         app:modbus +1
+  untrust  -                 any               app:ssl app:smtp  -
+  dmz      -                 app:dns app:ssl~  -                 -
+  ot       -                 -                 -                 any
+
+trust -> ot
+  allowed: app:modbus, app:siemens-s7
+  industrial protocols: modbus (rule 'Engineering to PLCs'); siemens-s7 (rule 'Engineering to PLCs')</pre></div>
+  <ul class="prose">
+    <li><code>-</code> nothing, <code>any</code> every service, <code>+N</code> and N more, <code>~</code> at most this (see the notes).</li>
+    <li><code>--network-zone NAME[@ZONE]=NETWORK[,...]</code> defines zones of your own from networks; the matrix is then between those. <code>0.0.0.0/0,::/0</code> means "the rest".</li>
+    <li><code>--json</code> or <code>--csv</code> (a line per rule and conduit), <code>--summary</code> for the grid without rules.</li>
+    <li>The matrix shows what is allowed, not what is used. Source NAT is not applied.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ USAGE -->
+<section class="part" id="usage">
+  <h2><span class="num">12</span>Rule usage from logs</h2>
+  <p>The audit knows what a policy allows; the logs know what was used. <code>fwshift usage</code> reads firewall logs into a store, attributes each connection to a rule, counts which objects and services inside the rule were used, and only calls a rule unused when the logs can prove it.</p>
+  <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift usage checkpoint.json --logs gw-edge-2026-09.log --store usage.db
+fwshift usage checkpoint.json --logs gw-edge-2026-10.log --store usage.db --html usage.html
+fwshift usage checkpoint.json --store usage.db --since 30d
+fwshift usage rules.v4 --logs kern.log --log-year 2026 --log-offset +02:00 --unchanged-since 2026-01-01</pre></div>
+
+  <h3>Logs per platform</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Policy</th><th>Logs read</th><th>How a line names its rule</th><th>Logs a rule only when</th></tr></thead>
+    <tbody>
+      <tr><td>Check Point</td><td class="wrap">Log Exporter <code>syslog</code>, <code>splunk</code>, <code>cef</code>; <code>show-logs</code> JSON</td><td>Rule UIDs of every layer in the match table</td><td>Track is not None</td></tr>
+      <tr><td>PAN-OS</td><td class="wrap">TRAFFIC syslog (BSD or IETF, 8.1+); the Monitor CSV export</td><td>Rule UUID (9.0+), then name</td><td>Log at session end/start <em>and</em> a log forwarding profile</td></tr>
+      <tr><td>FortiOS</td><td class="wrap"><code>key=value</code> syslog, also via FortiAnalyzer</td><td><code>poluuid</code>, then <code>policyid</code></td><td><code>set logtraffic all</code> (the default <code>utm</code> logs some)</td></tr>
+      <tr><td>iptables</td><td class="wrap">Kernel <code>LOG</code> lines (<code>kern.log</code>, <code>journalctl -k -o short-iso</code>)</td><td>None: matched against the policy</td><td>A <code>LOG</code> rule covers it</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>When the logs prove a rule unused</h3>
+  <p>No connection proves a rule unused only when all of these hold. Otherwise the finding is <code>NO_USAGE_EVIDENCE</code> with the reasons.</p>
+  <ul class="prose">
+    <li>The rule logs its connections (see the table above).</li>
+    <li>It was not created or changed within the window: from Check Point <code>meta-info</code>, PAN-OS hit counters, or your word with <code>--unchanged-since</code>.</li>
+    <li>Every gateway it is on logged connections on <strong>every day</strong> of the window, with at least one accepted connection. For a policy of a vsys or VDOM, only that vsys or VDOM's lines count.</li>
+    <li>No line of those gateways could not be read, and no log said lines were lost.</li>
+  </ul>
+  <div class="note"><b>Certain and possible.</b> An iptables line names no rule, so it is matched against the rules in order: certain for the first rule that surely matches it, possible for every rule it may have gone through (a <code>-m limit</code> rule, a negation that cannot be read). The same holds for a PAN-OS session start without its end. A rule with only possible connections is never called unused.</div>
+
+  <h4 class="sub">Usage options</h4>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>--logs FILE</code></td><td>A log file; repeatable. A file already in the store is not read again.</td></tr>
+      <tr><td><code>--store FILE</code></td><td>Keep connections in SQLite; add to it on every run.</td></tr>
+      <tr><td><code>--since</code>, <code>--until</code></td><td>The window: <code>30d</code> or a day (default 90 days).</td></tr>
+      <tr><td><code>--gateway NAME[=LOGNAME,...]</code></td><td>The gateways the policy is on; cluster members, or a PAN-OS serial (<code>pa-edge=012801000001</code>).</td></tr>
+      <tr><td><code>--log-year</code>, <code>--log-offset</code></td><td>For times without a year or zone (old syslog, PAN-OS, FortiOS local time).</td></tr>
+      <tr><td><code>--unchanged-since</code></td><td>The rules have been as they are since this day.</td></tr>
+      <tr><td><code>--roll-up N</code></td><td>Addresses kept per rule and side before /24 or /64 networks (default 256).</td></tr>
+      <tr><td><code>--propose FILE</code>, <code>--propose-to FORMAT</code></td><td>Write the narrower rules (next section).</td></tr>
+      <tr><td><code>--json</code>, <code>--html FILE</code></td><td>Report as JSON; also as a page of its own.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 class="sub">Watch for</h4>
+  <ul class="watch">
+    <li>PAN-OS: a rule only the first packets of a session match (an application dependency) appears in start logs only; with logging at session start off, its use is not seen.</li>
+    <li>PAN-OS logs local time; lines of 10.0 and later carry a zone in the high-resolution timestamp. Older lines need <code>--log-offset</code>.</li>
+    <li>FortiOS before 6.4: IPv6 policies (<code>policy6</code>) had their own IDs; a log may name an ID that is an IPv4 policy's. UUIDs avoid this.</li>
+    <li>Several firewalls in one log file and no <code>--gateway</code>: a rule found by name or policy ID (not UUID) is possible only.</li>
+    <li>iptables lines carry no verdict; NFLOG and ULOG go to ulogd and are not read; <code>dmesg</code> keeps neither time nor host.</li>
+    <li>Two exports that overlap count shared connections twice: counts grow, no rule is called unused by it.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ NARROW -->
+<section class="part" id="narrow">
+  <h2><span class="num">13</span>Narrower rules</h2>
+  <p>A used allow rule whose connections used at most 10% of a cell (threshold <code>wider_than_traffic</code>) gets <code>WIDER_THAN_TRAFFIC</code> with a narrower rule: the same rule with its sources, destinations and services cut to what was used. A proposal is never wider than its rule and holds every connection the logs show, possible ones included.</p>
+  <div class="codebox"><span class="label">usage report</span><button class="copy" type="button">Copy</button><pre>  [low] WIDER_THAN_TRAFFIC: rule 'LAN web' had 90 connection(s) from 2026-07-03 to 2026-09-30, which used of its
+        sources less than 0.01% of what they hold ('10.10.4.20/32'); ...
+
+Narrower rules
+  'LAN web-narrowed' for 'LAN web': sources 10.10.4.20/32; destinations 203.0.113.200/32; services tcp/443 (the rest as it is)
+  'LAN DNS-narrowed' for 'LAN DNS': sources 10.10.4.20/32; destinations 192.0.2.53/32 (the rest as it is)</pre></div>
+  <ul class="prose">
+    <li>Addresses are grouped into /24, then /16 networks (IPv6 /64, /48) while there are more than 16, and cut back to the cell.</li>
+    <li>A cell is left as it is when it holds a host name or an unreadable object, is negated, names a destination NAT, or when a connection left its address or port unknown.</li>
+    <li>No proposal for blocking rules, rules whose logs prove nothing, rules read approximately, or parts of a split rule. Zones, applications and users are not narrowed.</li>
+  </ul>
+  <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift usage rules.v4 --logs kern.log --log-year 2026 --unchanged-since 2026-01-01 --propose narrow.json
+fwshift usage rules.v4 --logs kern.log --log-year 2026 --unchanged-since 2026-01-01 --propose narrow.rules --propose-to iptables</pre></div>
+  <div class="callout"><b>Take the rules out; do not load the file.</b> <code>--propose</code> writes the neutral model by default. A <code>--propose-to</code> file is a conversion of a policy holding only the narrowed rules, and the emitter adds what its target needs around them: a whole table for <code>iptables-restore</code>, a layer ending in a cleanup Drop (Check Point), access groups (ASA). Copy the <code>&lt;rule&gt;-narrowed</code> rules into place, check <code>FILE.report.txt</code>, then disable the original.</div>
+  <p>A proposal only knows the window: a quarterly job the logs did not see is not in it. Choose a window that covers the rule's whole cycle.</p>
+</section>
+
+<!-- ============================================================ REFERENCE -->
+<section class="part" id="reference">
+  <h2><span class="num">14</span>Quick reference</h2>
+  <h3>Before you load anything</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Target</th><th>Replaces or overwrites</th><th>Do first</th></tr></thead>
+    <tbody>
+      <tr><td>iptables</td><td>Whole tables, unless <code>--noflush</code></td><td><code>iptables-restore --test</code>; an empty FORWARD chain</td></tr>
+      <tr><td>pfSense</td><td>Each restored area (Aliases, NAT, Rules)</td><td>A full backup</td></tr>
+      <tr><td>ASA</td><td>Interface <code>access-group</code> bindings; <code>global_access</code> on every interface</td><td>Read the <code>access-group</code> lines</td></tr>
+      <tr><td>FortiOS</td><td>Objects of the same name; central NAT changes existing NAT</td><td>A lab device for <code>central-nat enable</code></td></tr>
+      <tr><td>Sophos</td><td>Objects of the same name</td><td>Compare counts with the report after import</td></tr>
+      <tr><td>Check Point</td><td>Nothing until you publish; the script stops on a name that is taken (predefined objects)</td><td><code>--target-prefix</code>; <code>mgmt_cli discard</code> on error</td></tr>
+      <tr><td>FMC</td><td>Nothing: a new policy, never assigned or deployed</td><td><code>--dry-run</code></td></tr>
+      <tr><td>FDM</td><td>Pending changes, with <code>"autoDeploy": false</code></td><td>Copy <code>hardwareModel</code>/<code>softwareVersion</code>; check skipped rules</td></tr>
+      <tr><td>WatchGuard</td><td>Not a file to restore: merge the lists</td><td>Manual policy order</td></tr>
+      <tr><td>Barracuda</td><td>Stops at the first refusal</td><td><code>DRY_RUN=1</code></td></tr>
+      <tr><td>Juniper SRX</td><td>Nothing until commit</td><td><code>commit confirmed 5</code></td></tr>
+      <tr><td>PAN-OS</td><td>Nothing until commit; rules are appended after the existing ones</td><td>Review the candidate configuration before <code>commit</code></td></tr>
+      <tr><td>SonicWall</td><td>A refused command does not stop the rest</td><td>Read <code>SONICWALL_LOAD</code>; check the result before <code>commit</code></td></tr>
+    </tbody>
+  </table></div>
+  <h3>Findings to read first</h3>
+  <dl class="terms">
+    <dt>Disabled deny rules</dt><dd>"This deny rule is NOT enforced until fixed": allow rules below it may now match more.</dd>
+    <dt><code>EXPOSED_BY_CONVERSION</code></dt><dd>A blocking rule that did not make it, with allow rules below it.</dd>
+    <dt><code>NAT_PORT_TRANSLATION</code></dt><dd>The rule names the port on the wrong side of a NAT.</dd>
+    <dt><code>NAT_ORDER</code></dt><dd>DNAT and SNAT order differs between source and target.</dd>
+    <dt><code>INTERFACES_REQUIRED</code>, <code>ZONES_REQUIRED</code></dt><dd>Zones or interfaces you must map or create.</dd>
+    <dt><code>APP_UNKNOWN</code></dt><dd>An application without ports: the rule is disabled until <code>--app-map</code> gives them.</dd>
+    <dt><code>INCOMPLETE_EXPORT</code>, <code>EXPORT_INCOMPLETE</code></dt><dd>The export was paged and not every page was given.</dd>
+  </dl>
+</section>
+
+<footer>
+  FWShift is free software (GPL-3.0-or-later). Examples come from the synthetic samples shipped with the project; every address in them is a private or documentation address. The full reference is <code>docs/MANUAL.md</code>.
+</footer>
+</main>
+</div>
+
+<script>
+(function () {
+  // Copy buttons on code blocks.
+  document.querySelectorAll(".codebox").forEach(function (box) {
+    var button = box.querySelector(".copy");
+    var pre = box.querySelector("pre");
+    if (!button || !pre) return;
+    button.addEventListener("click", function () {
+      var clone = pre.cloneNode(true);
+      clone.querySelectorAll(".p").forEach(function (node) { node.remove(); });
+      var text = clone.textContent;
+      var done = function () { button.textContent = "Copied"; setTimeout(function () { button.textContent = "Copy"; }, 1400); };
+      var select = function () {
+        var range = document.createRange();
+        range.selectNodeContents(pre);
+        var selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        button.textContent = "Selected";
+        setTimeout(function () { button.textContent = "Copy"; }, 1400);
+      };
+      try {
+        navigator.clipboard.writeText(text).then(done, select);
+      } catch (error) { select(); }
+    });
+  });
+
+  // Filter the watch lists of the brands.
+  var input = document.getElementById("watchfilter");
+  var count = document.getElementById("watchcount");
+  var none = document.getElementById("nowatch");
+  var items = Array.prototype.slice.call(document.querySelectorAll("#brands ul.watch li"));
+  function filter() {
+    var query = input.value.trim().toLowerCase();
+    var shown = 0;
+    items.forEach(function (item) {
+      var match = !query || item.textContent.toLowerCase().indexOf(query) !== -1;
+      item.hidden = !match;
+      if (match) shown += 1;
+    });
+    document.querySelectorAll("#brands article.brand").forEach(function (article) {
+      var visible = article.querySelectorAll("ul.watch li:not([hidden])").length;
+      article.hidden = query !== "" && visible === 0;
+    });
+    count.textContent = query ? shown + " of " + items.length + " items" : items.length + " items";
+    none.hidden = !(query && shown === 0);
+  }
+  input.addEventListener("input", filter);
+  filter();
+
+  // Mark the section in view in the index.
+  var links = Array.prototype.slice.call(document.querySelectorAll("nav.index a[href^='#']")).filter(function (a) { return a.getAttribute("href") !== "#top"; });
+  var targets = links.map(function (a) { return document.getElementById(a.getAttribute("href").slice(1)); });
+  if ("IntersectionObserver" in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        links.forEach(function (a) { a.classList.toggle("on", a.getAttribute("href") === "#" + entry.target.id); });
+      });
+    }, { rootMargin: "-10% 0px -75% 0px" });
+    targets.forEach(function (target) { if (target) observer.observe(target); });
+  }
+})();
+</script>
+</body>
+</html>

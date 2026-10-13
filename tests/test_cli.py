@@ -319,5 +319,11 @@ def test_version_is_the_same_everywhere_a_release_reads_it() -> None:
     short = version.rsplit(".", 1)[0]
     assert f"This manual covers version {short}." in (root / "docs" / "MANUAL.md").read_text(encoding="utf-8")
     assert f"**Status: alpha ({short}).**" in (root / "README.md").read_text(encoding="utf-8")
+    # The guide, and every file name of the single-file package the documents give, say this version too.
+    guide = (root / "docs" / "guide.html").read_text(encoding="utf-8")
+    assert f"Field guide · version {short}" in guide
+    for name in ("README.md", "docs/MANUAL.md", "docs/guide.html"):
+        named = set(re.findall(r"fwshift-([0-9]+\.[0-9]+\.[0-9]+)\.pyz", (root / name).read_text(encoding="utf-8")))
+        assert named <= {version}, (name, named)
     workflow = (root / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
     assert "src/fwshift/__init__.py" in workflow and 's/^__version__ = "\\(.*\\)"$/\\1/p' in workflow
