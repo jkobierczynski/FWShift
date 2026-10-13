@@ -17,6 +17,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Set, TextIO, Tuple
 from . import __version__, audit, hits, matrix, narrow, transform, usage
 from .appmap import load_app_map
 from .emitters import asa as emit_asa
+from .emitters import aws as emit_aws
 from .emitters import checkpoint as emit_checkpoint
 from .emitters import cisco as emit_cisco
 from .emitters import fortios as emit_fortios
@@ -35,6 +36,7 @@ from .model import ANY, Policy
 from .netutil import parse_literal
 from .options import Options
 from .parsers import asa as parse_asa
+from .parsers import aws as parse_aws
 from .parsers import checkpoint as parse_checkpoint
 from .parsers import cisco as parse_cisco
 from .parsers import fortios as parse_fortios
@@ -57,6 +59,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "ip6tables": emit_iptables.emit_v6,
     "nftables": emit_nftables.emit,
     "nsx": emit_nsx.emit,
+    "aws": emit_aws.emit,
     "checkpoint": emit_checkpoint.emit,
     "asa": emit_asa.emit,
     "sophos": emit_sophos.emit,
@@ -69,7 +72,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "fdm": emit_cisco.emit_fdm,
 }
 VENDORS = ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "pfsense", "sonicwall", "watchguard", "barracuda", "junos",
-           "iptables", "ip6tables", "nftables", "nsx")  # fmt: skip
+           "iptables", "ip6tables", "nftables", "nsx", "aws")  # fmt: skip
 
 
 def detect_format(data: bytes) -> str:
@@ -107,6 +110,8 @@ def detect_format(data: bytes) -> str:
         return "nftables"
     if parse_nsx.looks_like_nsx(data):
         return "nsx"
+    if parse_aws.looks_like_aws(data):
+        return "aws"
     head = data.lstrip(b"\xef\xbb\xbf \t\r\n")
     if head.startswith(b"<"):
         return "panos"
@@ -159,6 +164,8 @@ def load(
         return parse_nftables.parse(data, report)
     if source == "nsx":
         return parse_nsx.parse(data, report)
+    if source == "aws":
+        return parse_aws.parse(data, report)
     raise FwshiftError(f"unknown source format '{source}'")
 
 
@@ -172,7 +179,7 @@ def convert(policy: Policy, target: str, report: Report, options: Optional[Optio
              "--target-nat-zone": options.nat_zone, "--target-layer": options.target_layer,
              "--target-package": options.target_package, "--target-gateway": options.target_gateway,
              "--target-prefix": options.object_prefix, "--target-policy": options.target_policy,
-             "--zone-network": " ".join(options.zone_networks)}  # fmt: skip
+             "--zone-network": " ".join(options.zone_networks), "--inside-zone": " ".join(options.inside_zones)}  # fmt: skip
     transform.check_words(words)
     if ANY in options.zone_map.values():
         raise FwshiftError("--zone-map: 'any' stands for every zone and cannot be the name of one")
@@ -419,7 +426,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="fwshift",
         description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall "
         "(Management Center and Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX, iptables, "
-        "nftables and VMware NSX, with a lossiness report.",
+        "nftables, VMware NSX and AWS security groups, with a lossiness report.",
     )
     parser.add_argument("--version", action="version", version=f"fwshift {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -437,8 +444,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conv.add_argument(
         "--zone-network", action="append", default=[], metavar="ZONE=NET[,NET]",
-        help="ASA, pfSense, Barracuda and NSX targets: the networks behind a zone, so that rules for other zones can leave them out. Give them "
-        "for every zone; 0.0.0.0/0,::/0 for the zone with the default route",
+        help="ASA, pfSense, Barracuda, NSX and AWS targets: the networks behind a zone, so that rules for other zones can leave them out. Give "
+        "them for every zone; 0.0.0.0/0,::/0 for the zone with the default route",
+    )  # fmt: skip
+    conv.add_argument(
+        "--inside-zone", action="append", default=[], metavar="ZONE",
+        help="AWS target: a zone whose networks (--zone-network) are inside the VPC; only its addresses get security groups. "
+        "Repeatable",
     )  # fmt: skip
     conv.add_argument("--app-map", metavar="FILE", help="JSON file: application name -> list of port specs")
     conv.add_argument("--prune-unused", action="store_true", help="leave out objects no rule uses")
@@ -572,6 +584,7 @@ def _run_convert(args: argparse.Namespace) -> int:
         object_prefix=args.target_prefix,
         target_policy=args.target_policy,
         zone_networks=_networks(args.zone_network),
+        inside_zones=list(dict.fromkeys(args.inside_zone)),
     )
     auditing = bool(args.audit or args.audit_config or args.audit_action or args.audit_accept or args.audit_fail_on or args.hits
                     or args.hits_since or args.usage_store)

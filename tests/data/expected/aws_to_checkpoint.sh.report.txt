@@ -1,0 +1,43 @@
+FWShift conversion report
+  source: aws (vpc-0a1b2c3d4e5f60789)
+  target: checkpoint
+
+Summary
+  Security rules:     32   exact 31, approximated 0, needs review 1 (1 emitted disabled), skipped 0
+  NAT rules:           3   exact 3, approximated 0, needs review 0, skipped 0
+  Address groups:     13   exact 13, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0db0000000000000a of subnet subnet-0300000000000003a denies some inbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections out of the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0db0000000000000a of subnet subnet-0300000000000003a denies some outbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections into the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_HAIRPIN: connections from inside the VPC to its own public addresses are not converted as AWS decides them: they leave through the internet gateway, the source's outbound rules see the public address and the destination's inbound rules see the source's public address (or that of its NAT gateway). The converted policy treats them as connections to the private address, which may allow more
+  [needs-review] AWS_REMOTE_GROUP: rules name groups that are not in the export (another VPC, another account, or left out): sg-0bbbbbbbbbbbbbbb0. Their members are not known; those rules are not converted
+  [needs-review] CHECKPOINT_SCRIPT: the output is a shell script of mgmt_cli calls. It changes one session and publishes nothing: log in, run it, review the session in SmartConsole, then publish and install the policy yourself. It stops at the first call the server refuses; discard the session before running it again
+  [needs-review] IMPLIED_RULES: Check Point applies implied rules (Global Properties) next to the rulebase, and every ordered layer of the policy package must accept a connection. Neither is part of the conversion: check that they allow no more and no less than intended
+  [needs-review] NAT_MANUAL_RULES: 3 NAT rules are written as manual rules at the bottom of the NAT rulebase, below the automatic ones. Manual NAT does not answer ARP for translated addresses: add proxy ARP on the gateway for every translated address that is not routed to it
+  [info] AWS_EGRESS_PAIRS: inside the VPC a connection needs an outbound rule of the source's groups and an inbound rule of the destination's. Where the outbound rules do not allow everything, 1 rule allows what both allow, and a rule after them blocks the rest of what those members send inside the VPC
+  [info] AWS_PUBLIC_ADDRESSES: the public and Elastic IP addresses of the network interfaces are static NAT of their private addresses: the internet gateway translates what comes from outside, and the groups see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  [info] AWS_UNFILTERED: security groups never filter traffic to the Amazon DNS server, DHCP, the instance metadata service, the Time Sync Service and Windows license activation; neither does the converted policy say anything about it
+  [info] AWS_GROUP_UNUSED: no network interface of the export carries these groups, so their inbound rules allow nothing and were left out: legacy-sg
+  [info] LAYER_PLACEMENT: the rules are written to the top of access layer 'Network', in order, and end in a cleanup rule; rules the layer held before stay below it and are no longer reached. Choose another layer with --target-layer
+  [info] NAME_COLLISIONS: Check Point predefines several hundred objects (http, https, ssh, ...). If the script stops because a name exists already, convert again with --target-prefix to give every created object a prefix
+  [info] ANY_ONE_IP_VERSION: 'any address of one IP version' is written as a range object covering that version (All-IPv4, All-IPv6)
+
+Security rules
+  db-sg-in-2  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'sg-0bbbbbbbbbbbbbbb0': dynamic address group, members are not known statically.
+
+NAT rules
+  public-203.0.113.10  ->  exact
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as two rules, one for each direction
+  public-203.0.113.11  ->  exact
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as two rules, one for each direction
+  public-203.0.113.50  ->  exact
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as two rules, one for each direction
+
+Address groups
+  app-sg members  ->  exact  (emitted as app-sg_members)
+      [info] RENAMED: renamed to 'app-sg_members' to fit the target's naming rules
+  db-sg members  ->  exact  (emitted as db-sg_members)
+      [info] RENAMED: renamed to 'db-sg_members' to fit the target's naming rules

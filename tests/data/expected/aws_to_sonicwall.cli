@@ -1,0 +1,107 @@
+configure terminal
+address-object ipv4 "r 10.20.9.5-10.20.9.6" range 10.20.9.5 10.20.9.6 zone LAN
+address-object ipv4 "n 10.20.1.10_31" network 10.20.1.10 255.255.255.254 zone LAN
+address-object ipv6 "n 2001:db8:20:1::10_127" network 2001:db8:20:1::10 /127 zone LAN
+address-object ipv4 "n 10.20.2.20_31" network 10.20.2.20 255.255.255.254 zone LAN
+address-object ipv4 "h 10.20.2.30" host 10.20.2.30 zone LAN
+address-object ipv6 "h 2001:db8:20:2::20" host 2001:db8:20:2::20 zone LAN
+address-object ipv4 "h 10.20.3.40" host 10.20.3.40 zone LAN
+address-object ipv4 "h 10.20.9.5" host 10.20.9.5 zone LAN
+address-object ipv4 "h 10.20.9.6" host 10.20.9.6 zone LAN
+address-object ipv4 "legacy-sg" host 192.0.0.8 zone LAN
+address-object ipv4 "n 10.20.0.0_16" network 10.20.0.0 255.255.0.0 zone LAN
+address-object ipv6 "n 2001:db8:20::_56" network 2001:db8:20:: /56 zone LAN
+address-object ipv4 "sg-0bbbbbbbbbbbbbbb0" host 192.0.0.8 zone LAN
+address-object ipv4 "r 203.0.113.128-203.0.113.223" range 203.0.113.128 203.0.113.223 zone LAN
+address-object ipv4 "n 192.0.2.128_25" network 192.0.2.128 255.255.255.128 zone LAN
+address-object ipv4 "n 198.51.100.0_24" network 198.51.100.0 255.255.255.0 zone LAN
+address-object ipv4 "h 10.20.1.10" host 10.20.1.10 zone LAN
+address-object ipv4 "h 203.0.113.10" host 203.0.113.10 zone LAN
+address-object ipv4 "h 10.20.1.11" host 10.20.1.11 zone LAN
+address-object ipv4 "h 203.0.113.11" host 203.0.113.11 zone LAN
+address-object ipv4 "h 203.0.113.50" host 203.0.113.50 zone LAN
+address-group ipv4 "default"
+    address-object ipv4 "r 10.20.9.5-10.20.9.6"
+    exit
+address-group ipv4 "web-sg"
+    address-object ipv4 "n 10.20.1.10_31"
+    exit
+address-group ipv6 "web-sg v6"
+    address-object ipv6 "n 2001:db8:20:1::10_127"
+    exit
+address-group ipv4 "app-sg"
+    address-object ipv4 "n 10.20.2.20_31"
+    address-object ipv4 "h 10.20.2.30"
+    exit
+address-group ipv6 "app-sg v6"
+    address-object ipv6 "h 2001:db8:20:2::20"
+    exit
+address-group ipv4 "db-sg"
+    address-object ipv4 "h 10.20.3.40"
+    exit
+address-group ipv4 "bastion-sg"
+    address-object ipv4 "h 10.20.9.5"
+    exit
+address-group ipv4 "monitoring-sg"
+    address-object ipv4 "n 10.20.1.10_31"
+    address-object ipv4 "n 10.20.2.20_31"
+    address-object ipv4 "h 10.20.9.6"
+    exit
+address-group ipv6 "monitoring-sg v6"
+    address-object ipv6 "n 2001:db8:20:1::10_127"
+    address-object ipv6 "h 2001:db8:20:2::20"
+    exit
+address-group ipv4 "shop-prod"
+    address-object ipv4 "n 10.20.0.0_16"
+    exit
+address-group ipv6 "shop-prod v6"
+    address-object ipv6 "n 2001:db8:20::_56"
+    exit
+address-group ipv4 "com.amazonaws.eu-west-1.s3"
+    address-object ipv4 "r 203.0.113.128-203.0.113.223"
+    exit
+address-group ipv4 "app-sg members"
+    address-object ipv4 "h 10.20.2.30"
+    exit
+address-group ipv4 "db-sg members"
+    address-object ipv4 "h 10.20.3.40"
+    exit
+address-group ipv4 "corp-offices"
+    address-object ipv4 "n 192.0.2.128_25"
+    address-object ipv4 "n 198.51.100.0_24"
+    exit
+service-object "db-acl-in-1" TCP 1 65535
+service-object "db-acl-out-1" TCP 1024 65535
+service-object "tcp-8443" TCP 8443 8443
+service-object "tcp-22" TCP 22 22
+service-object "tcp-5432" TCP 5432 5432
+service-object "tcp-443" TCP 443 443
+service-object "udp-161-162" UDP 161 162
+service-object "tcp-80" TCP 80 80
+service-object "udp-53" UDP 53 53
+nat-policy inbound any outbound any source name "h 10.20.1.10" translated-source name "h 203.0.113.10" destination any translated-destination original service any translated-service original
+    name "public-203.0.113.10"
+    comment "public address of eni-0e10000000"
+    exit
+nat-policy inbound any outbound any source any translated-source original destination name "h 203.0.113.10" translated-destination name "h 10.20.1.10" service any translated-service original
+    name "public-203.0.113.10 in"
+    comment "inbound of public-203.0.113.10"
+    exit
+nat-policy inbound any outbound any source name "h 10.20.1.11" translated-source name "h 203.0.113.11" destination any translated-destination original service any translated-service original
+    name "public-203.0.113.11"
+    comment "public address of eni-0e20000000"
+    exit
+nat-policy inbound any outbound any source any translated-source original destination name "h 203.0.113.11" translated-destination name "h 10.20.1.11" service any translated-service original
+    name "public-203.0.113.11 in"
+    comment "inbound of public-203.0.113.11"
+    exit
+nat-policy inbound any outbound any source name "h 10.20.9.5" translated-source name "h 203.0.113.50" destination any translated-destination original service any translated-service original
+    name "public-203.0.113.50"
+    comment "public address of eni-0b10000000"
+    exit
+nat-policy inbound any outbound any source any translated-source original destination name "h 203.0.113.50" translated-destination name "h 10.20.9.5" service any translated-service original
+    name "public-203.0.113.50 in"
+    comment "inbound of public-203.0.113.50"
+    exit
+commit
+exit

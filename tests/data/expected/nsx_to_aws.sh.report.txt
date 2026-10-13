@@ -1,0 +1,40 @@
+FWShift conversion report
+  source: nsx
+  target: aws
+
+Summary
+  Security rules:     15   exact 10, approximated 0, needs review 5 (4 emitted disabled), skipped 0
+  Address groups:      9   exact 8, approximated 0, needs review 1, skipped 0
+  Services:           10   exact 9, approximated 1, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] DYNAMIC_MEMBERSHIP: groups whose members NSX finds itself (tags, names, virtual machines, segment ports) are kept as dynamic groups: only an NSX target writes them again; other targets write their rules disabled. Export the members (GET .../groups/ID/members/ip-addresses) and make them address groups to convert those rules
+  [needs-review] AWS_LOAD: the output is a shell script of AWS CLI calls (section 10): DRY_RUN=1 prints them, CHECK=1 with VPC_ID sends each with --dry-run, VPC_ID alone creates the groups and their rules. It creates new groups only, and stops if a group of the same name exists. The groups have no members when it is done: nothing changes until they are attached
+  [needs-review] AWS_ATTACH: 12 groups: attach each to the network interfaces whose private addresses its '# attach' line lists, and take the other groups off those interfaces; an interface with addresses of both IP versions gets a group for each. A group applies to the whole interface: an interface with several addresses of one IP version in different groups gives each address the rules of all of them, so give such addresses the same group. Attaching (aws ec2 modify-network-interface-attribute --groups ...) replaces the groups of an interface: it is left to you
+  [info] LAYER2_NOT_CONVERTED: 1 rules of the Ethernet category (layer 2, before every layer-3 rule) are not converted
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security group does not. VPC Flow Logs record the connections of the interfaces instead
+
+Security rules
+  Block quarantined  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Quarantine': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN block the rest  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: follows a conditional jump to the application rules (rule 'LAN to the application rules'), which cannot be expressed. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Inbound web  ->  needs-review  (emitted as security groups fwshift-addresses, fwshift-addresses-2, fwshift-Admins, fwshift-addresses-3, fwshift-Web-servers, fwshift-App-servers, fwshift-OT-cell, fwshift-addresses-4, fwshift-addresses-5, fwshift-addresses-6)
+      [needs-review] APPLIED_TO_ONE_END: applied to DMZ, which holds its destinations and not its sources: where its sources are workloads of NSX, NSX checks that end against the rules below this one, and may drop what this rule allows. The converted rule allows it at both ends
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  App to DB  ->  needs-review, emitted disabled
+      [needs-review] APPLIED_TO_ONE_END: applied to DMZ, which holds its sources and not its destinations: where its destinations are workloads of NSX, NSX checks that end against the rules below this one, and may drop what this rule allows. The converted rule allows it at both ends
+      [needs-review] UNSUPPORTED_MATCH: not converted: direction IN only: NSX checks the other end of the connection against the rules below it, which one rule cannot say.
+  Others no SSH  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  TLS out  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: context profile SSL (layer 7: applications, domain names), which the model has no place for.
+
+Address groups
+  OT cell  ->  needs-review
+      [needs-review] SEGMENT_AS_SUBNET: a segment in the group stands for its subnet here. NSX means the workloads attached to it: the subnet also holds the gateway and other addresses that are not members
+
+Services
+  FTP  ->  approximated
+      [approximated] ALG_SERVICE: application level gateway FTP: converted as its port. NSX also lets through the connections the protocol opens (an FTP data connection, RPC ports); a target without such a helper does not

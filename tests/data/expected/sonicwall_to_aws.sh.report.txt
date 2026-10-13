@@ -1,0 +1,120 @@
+FWShift conversion report
+  source: sonicwall (SonicOS 7.1.2-7019)
+  target: aws
+
+Summary
+  Security rules:     18   exact 1, approximated 3, needs review 14 (14 emitted disabled), skipped 0
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] INTRAZONE_ALLOW: these zones allow traffic inside them without a rule; without their networks (--zone-network) that is not written: LAN, Servers, VPN
+  [needs-review] AWS_LOAD: the output is a shell script of AWS CLI calls (section 10): DRY_RUN=1 prints them, CHECK=1 with VPC_ID sends each with --dry-run, VPC_ID alone creates the groups and their rules. It creates new groups only, and stops if a group of the same name exists. The groups have no members when it is done: nothing changes until they are attached
+  [needs-review] AWS_ATTACH: 1 group: attach each to the network interfaces whose private addresses its '# attach' line lists, and take the other groups off those interfaces; an interface with addresses of both IP versions gets a group for each. A group applies to the whole interface: an interface with several addresses of one IP version in different groups gives each address the rules of all of them, so give such addresses the same group. Attaching (aws ec2 modify-network-interface-attribute --groups ...) replaces the groups of an interface: it is left to you
+  [info] ZONE_TYPE_ASSUMED: the security type of these zones was read from a code of the export whose meaning is taken from the published readers of the format, not from SonicWall: Servers (trusted)
+  [info] SONICWALL_FORMAT: the settings export is not documented by SonicWall beyond its encoding. The keys read are those every published reader of the format agrees on; what this parser does not know of a rule is not read
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security group does not. VPC Flow Logs record the connections of the interfaces instead
+
+Security rules
+  LAN to WAN #1  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAN; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  Admins out by SSH  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a security group names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a security group names no zone: give the networks behind WAN with --zone-network.
+  LAN to WAN #3  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a security group names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a security group names no zone: give the networks behind WAN with --zone-network.
+  LAN to WAN #5  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a security group names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a security group names no zone: give the networks behind WAN with --zone-network.
+  Web server from the internet  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Web Public' with post-NAT 'Web Server' because of NAT rule 'Web server'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a security group names no zone: give the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a security group names no zone: give the networks behind DMZ with --zone-network.
+  Mail from partners  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Mail Public' with post-NAT 'Mail Server' because of NAT rule 'Mail on another port'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Mail on another port' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a security group names no zone: give the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a security group names no zone: give the networks behind DMZ with --zone-network.
+  WAN to DMZ #3  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone WAN; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  WAN to LAN #1  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone WAN; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone LAN; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  Web server to the database  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a security group names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone Servers, and a security group names no zone: give the networks behind Servers with --zone-network.
+  Mail server pings the LAN  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Echo Object': ICMP type and code of a service object: how the export stores them is not known.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a security group names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAN, and a security group names no zone: give the networks behind LAN with --zone-network.
+  Administrators to the DMZ  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match Admins is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a security group names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a security group names no zone: give the networks behind DMZ with --zone-network.
+  Updates in working hours  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Work Hours' is not converted; the rule would apply at all times.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object Update Site: a security group names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Servers, and a security group names no zone: give the networks behind Servers with --zone-network.
+  IPv6 out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a security group names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a security group names no zone: give the networks behind WAN with --zone-network.
+  default LAN to DMZ  ->  needs-review, emitted disabled
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from LAN to DMZ; SonicOS allows it by default for zones of these security types, and this rule stands for that
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a security group names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a security group names no zone: give the networks behind DMZ with --zone-network.
+  default DMZ to WAN  ->  needs-review, emitted disabled
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from DMZ to WAN; SonicOS allows it by default for zones of these security types, and this rule stands for that
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a security group names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a security group names no zone: give the networks behind WAN with --zone-network.
+  default Servers to WAN  ->  needs-review, emitted disabled
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from Servers to WAN; SonicOS allows it by default for zones of these security types, and this rule stands for that
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Servers, and a security group names no zone: give the networks behind Servers with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a security group names no zone: give the networks behind WAN with --zone-network.
+  default Servers to DMZ  ->  needs-review, emitted disabled
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from Servers to DMZ; SonicOS allows it by default for zones of these security types, and this rule stands for that
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Servers, and a security group names no zone: give the networks behind Servers with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a security group names no zone: give the networks behind DMZ with --zone-network.
+
+NAT rules
+  Default NAT  ->  skipped
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  Web server  ->  skipped
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  Mail on another port  ->  skipped
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  Servers one to one  ->  skipped
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  Servers one to one (reflexive)  ->  skipped
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [approximated] NAT_REFLEXIVE: policy 'Servers one to one' is reflexive: SonicOS adds its mirror image, which is converted as this rule. How SonicOS builds the mirror is assumed (sources and destinations swapped with their translations)
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  Old admin NAT  ->  skipped
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+
+Addresses
+  X0 Subnet  ->  exact
+      [info] DEFAULT_OBJECT: an object SonicOS has by itself, not defined in the export: worked out from the interfaces of the export
+
+Services
+  SMTP (Send E-Mail)  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+  HTTP  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+  HTTPS  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+  SSH  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed

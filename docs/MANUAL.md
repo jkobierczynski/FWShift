@@ -2,11 +2,11 @@
 
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
 Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
-or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX, Linux iptables, Linux nftables and the VMware NSX
-distributed firewall, and tells you,
+or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX, Linux iptables, Linux nftables, the VMware NSX
+distributed firewall and AWS security groups, and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; and show what each zone may reach in each
-other zone. This manual covers version 0.19.
+other zone. This manual covers version 0.20.
 
 **Contents**
 
@@ -53,10 +53,10 @@ FWShift converts the **policy**. It does not convert interfaces, routing, VPN,
 users, security profiles, or system settings, and it is not a substitute for
 testing the result.
 
-> **Status.** Version 0.19 is tested against synthetic configurations. iptables
+> **Status.** Version 0.20 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). Output for PAN-OS, FortiOS, Check Point,
-> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX and NSX has
+> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX and AWS has
 > not been loaded on a device or management server yet; the Check Point input format follows the
 > API documentation, the ASA and FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
@@ -89,8 +89,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.19.0.pyz --version
-python3 fwshift-0.19.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.20.0.pyz --version
+python3 fwshift-0.20.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -187,6 +187,36 @@ machine) give no addresses; their members are in
 `.../groups/ID/members/ip-addresses` (section 8). The legacy communication
 maps of NSX-T 2.4 are read as well; the Manager API (`/api/v1/firewall/sections`)
 is not.
+
+**AWS security groups.** FWShift reads the JSON the AWS CLI prints, for one
+VPC: the security groups, and with them the network interfaces (which say
+which addresses each group stands for), the VPC and its subnets, the network
+ACLs and the managed prefix lists with their entries. Save each answer and put
+them together in one JSON array:
+
+```sh
+o="--region eu-west-1 --output json"; f="--filters Name=vpc-id,Values=vpc-0a1b2c3d4e5f60789"
+aws ec2 describe-security-groups $o $f > sg.json
+aws ec2 describe-network-interfaces $o $f > eni.json
+aws ec2 describe-vpcs $o --vpc-ids vpc-0a1b2c3d4e5f60789 > vpc.json
+aws ec2 describe-subnets $o $f > subnets.json
+aws ec2 describe-network-acls $o $f > acls.json
+aws ec2 describe-managed-prefix-lists $o > lists.json
+for pl in $(jq -r '[.SecurityGroups[] | (.IpPermissions + .IpPermissionsEgress)[] | .PrefixListIds[]?.PrefixListId] | unique[]' sg.json); do
+  aws ec2 get-managed-prefix-list-entries $o --prefix-list-id "$pl" | jq --arg id "$pl" '{PrefixListId: $id, Entries: .Entries}'
+done > entries.json
+jq -s . sg.json eni.json vpc.json subnets.json acls.json lists.json entries.json > aws.json
+```
+
+Only the security groups are required. Without the interfaces a group's
+members are not known, and no target can write its rules
+(`AWS_NO_INTERFACES`); without the ACLs the converted policy is what the
+groups allow (`AWS_NACL_NOT_EXPORTED`). The entries of a prefix list need one
+call per list, wrapped as above (`{"PrefixListId": ..., "Entries": [...]}`):
+without them a rule that names the list is not converted. Let the CLI page
+through everything (no `--max-items`): an answer with a `NextToken` is
+incomplete (`AWS_INCOMPLETE_EXPORT`). The answer of
+`describe-security-group-rules` is read too, and gives each rule its id.
 
 **Cisco ASA.** FWShift reads the running configuration as the ASA prints it:
 
@@ -697,7 +727,7 @@ fwshift convert INPUT --to FORMAT [options]
 
 `FORMAT` is one of `panos`, `fortios`, `checkpoint`, `asa`, `fmc`, `fdm`,
 `sophos`, `pfsense`, `sonicwall`, `watchguard`, `barracuda`, `junos`,
-`iptables`, `ip6tables`, `nftables`, `nsx` and `json` (the neutral model; see `--to json` below).
+`iptables`, `ip6tables`, `nftables`, `nsx`, `aws` and `json` (the neutral model; see `--to json` below).
 
 `INPUT` is a file, or `-` for standard input.
 
@@ -705,7 +735,7 @@ fwshift convert INPUT --to FORMAT [options]
 
 | Option | Meaning |
 |---|---|
-| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
@@ -737,6 +767,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to iptables` | A file for `iptables-restore`: the IPv4 half of the policy. |
 | `--to ip6tables` | A file for `ip6tables-restore`: the IPv6 half. |
 | `--to nsx` | The body of one `PATCH /policy/api/v1/infra` of the VMware NSX Policy API: services, groups and one security policy with the rules (section 10). |
+| `--to aws` | A shell script of AWS CLI calls that creates security groups for one VPC, without members, and says which addresses each is for (section 10). |
 | `--to nftables` | A ruleset for `nft -f`: one table, `inet fwshift`, with the forward hook for both IP versions and the IPv4 NAT chains. Loading it replaces that table and nothing else (section 10). |
 | `--to json` | The neutral model as JSON, for inspection or other tools. It is the model as it was read: the audit options cannot be combined with it. Each rule carries what the source calls it (`source_ids`: the uid of a Check Point rule, the name and uuid of a PAN-OS rule, the policy ID and uuid of a FortiOS policy), the devices it is installed on where the source limits that (`targets`), and its hit count where the input has one (`hits`). |
 | `--target-vsys NAME` | PAN-OS: prefix commands with `vsys NAME`. Default: a single-vsys firewall, no prefix. |
@@ -756,7 +787,8 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | Option | Meaning |
 |---|---|
 | `--zone-map SRC=DST` | Use `DST` wherever the source names zone or interface `SRC`. Repeatable. For iptables and ASA this is how a zone becomes an interface name, and the other way round; for pfSense how it becomes an interface (`lan`, `opt1`) or an interface group. |
-| `--zone-network ZONE=NET[,NET...]` | ASA, pfSense and Barracuda targets: the networks that lie behind a zone (SonicWall: the zone an address object is created in; Barracuda: both sides of a rule, which names no zone) (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
+| `--zone-network ZONE=NET[,NET...]` | ASA, pfSense, Barracuda, NSX and AWS targets: the networks that lie behind a zone (SonicWall: the zone an address object is created in; Barracuda, NSX and AWS: both sides of a rule, which names no zone) (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
+| `--inside-zone ZONE` | AWS target: a zone whose networks (`--zone-network`) are inside the VPC. Repeatable. Only addresses inside get security groups, and their outbound rules leave the addresses inside to the inbound rules of the destination's group, which keeps them short. Without it every address gets a group (those outside are never attached), and each end says everything. From an AWS source the VPC it was read from is the inside. |
 | `--interface-map SRC=DST` | Map a source interface to a target interface: zone members written for FortiOS, source NAT to an interface address on PAN-OS, and the interfaces of a NAT rule on Sophos Firewall, SonicWall and a Device Manager, which match interfaces and not zones (SonicWall: `X1`, `X3:V10`); for a Barracuda target, the interface of the entries of the source of a rule in that zone (`port2`). For those two, map every interface of a zone the NAT rules name (for an iptables or ASA source, whose zones are interfaces, that is the zone name itself); for a Device Manager `DST` is the logical name of the interface (`inside`, `outside`). Repeatable. |
 | `--app-map FILE` | JSON file that adds or overrides application port definitions (section 9). |
 | `--prune-unused` | Leave out objects that no rule or NAT rule uses, directly or through a group. |
@@ -1194,6 +1226,44 @@ Findings and notes that only an NSX source or target raises (an NSX target also 
 | `ZONE_DYNAMIC` | R, disabled | Target (on the rule): a rule between zones names a group NSX fills itself; it cannot be cut down to the networks of the zones. |
 | `SERVICE_SCTP` | R, disabled | Target (on the rule): SCTP ports. A service of NSX matches TCP and UDP ports only (SCTP as a whole is written as IP protocol 132). |
 | `ADDRESS_NOT_WRITTEN`, `LIST_TOO_LONG` | R, disabled | Target (on the rule): an address that cannot be written, or more than 128 entries in a list of a rule. |
+
+Findings and notes that only an AWS source or target raises (an AWS target also raises `ZONE_BY_NETWORKS`,
+`ZONE_NETWORK_MISSING`, `ZONE_WIDENED`, `RULE_TYPE` and `SERVICE_SCTP`, as for NSX):
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `AWS_NO_INTERFACES` | R | Source: the network interfaces (`describe-network-interfaces`) are not in the export. Which addresses a group stands for is not known: the groups are dynamic groups, and no target writes their rules. Add that answer. |
+| `AWS_EGRESS_UNKNOWN` | R | Source, without the interfaces: groups whose outbound rules do not allow everything. Inside the VPC a connection needs the source's outbound rules as well; without members that cannot be worked out. |
+| `AWS_EGRESS_PAIRS` | I | Source: members whose groups' outbound rules do not allow everything inside the VPC. For them a rule per outbound rule of their groups and inbound rule of the destination's says what both allow, and a rule after those blocks the rest of what they send inside the VPC (`... members`, `...-outbound-rest`). |
+| `AWS_EGRESS_PAIRS_LEFT_OUT` | R | Source: for these members not every such pair could be worked out (too many, a prefix list without its entries, a group whose members are not known); the converted policy blocks what was left out. |
+| `AWS_REMOTE_GROUP` | R | Source: rules name groups that are not in the export (another VPC, another account, a peering). Their members are not known: those rules are not converted. |
+| `AWS_STALE_REFERENCE` | R | Source (on the rule): it names a group through a peering connection that is not active. |
+| `AWS_GROUP_MISSING` | R | Source: interfaces carry groups that are not in the export. What those groups allow is missing; the members' outbound rules count as not allowing everything. |
+| `AWS_GROUP_UNUSED` | I | Source: no interface carries these groups; their inbound rules allow nothing and were left out. |
+| `AWS_OTHER_VPC_INTERFACES` | I | Source: interfaces of other VPCs were left out; a group of this VPC attached to one of them (a security group VPC association) is not converted. |
+| `AWS_ROUTED_THROUGH` | R | Source: interfaces of NAT gateways, load balancers, endpoints or appliances (source/destination check off). Traffic routed through them also crosses the network ACLs of their subnets, and what they do themselves; neither is converted. |
+| `AWS_PORTS_IGNORED` | I | Source (on the rule): ports with a protocol other than TCP, UDP or ICMP; AWS ignores them, and so does the converted rule. |
+| `AWS_PUBLIC_ADDRESSES` | I | Source: the public and Elastic IP addresses of instance interfaces are static NAT of their private addresses; the rules that name a private address name its public one too. |
+| `AWS_HAIRPIN` | R | Source: connections from inside the VPC to its own public addresses go out through the internet gateway, where AWS sees public addresses at both ends; the converted policy treats them as connections to the private address, which may allow more. |
+| `AWS_INCOMPLETE_EXPORT` | R | Source: an answer says there is more (`NextToken`). Export without `--max-items`. |
+| `AWS_UNFILTERED` | I | Source: traffic security groups never filter (the Amazon DNS server, DHCP, the instance metadata service, the Time Sync Service, Windows license activation). |
+| `AWS_NACL_NOT_EXPORTED` | I | Source: the network ACLs are not in the export; the converted policy is what the groups allow, and an ACL may deny more. |
+| `AWS_NACL_MISSING`, `AWS_NACL_NO_SUBNET` | R | Source: the ACL of a subnet with members, or the subnet itself (its addresses), is not in the export: the converted policy allows what the ACL may deny. Export `describe-network-acls` and `describe-subnets`. |
+| `AWS_NACL_NOT_CONVERTED` | R | Source: an ACL could not be converted (an entry that cannot be read, or what it denies is too complex); the converted policy allows what it may deny. |
+| `AWS_NACL_RETURN` | R | Source: an ACL denies some TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols in the other direction. It does not remember connections: replies need rules of their own, and where it denies them a connection the converted policy allows fails. |
+| `AWS_LOAD` | R | Target: how the script is run (section 10): `DRY_RUN=1` prints the calls, `CHECK=1` sends them with `--dry-run`, the VPC id alone creates the groups. It creates new groups only, and stops if one of the same name exists. |
+| `AWS_ATTACH` | R | Target: the groups have no members. Attach each to the interfaces whose addresses its `# attach` line lists, and take other groups off them; a group applies to a whole interface, so addresses of one interface (and one IP version) need the same group. |
+| `AWS_RULE_QUOTA` | R | Target: a group has more rules than the default quota (60 per direction and IP version); AWS refuses the call that goes over it unless the quota was raised. |
+| `AWS_PART_NOT_WRITTEN` | R | Target (on the rule): part of what the rule allows cannot be said by a security group (every protocol but some, source ports, ports of SCTP, many ICMP codes) and is not written: the converted rule allows less. |
+| `AWS_TOO_COMPLEX` | R, disabled | Target (on the rule): without what the blocking rules above it block, the rule falls apart into more pieces than are written. |
+| `AWS_DEFAULT_ALLOW` | R | Target: the source allows what no rule matches; written as rules that allow everything the blocking rules do not block. |
+| `AWS_DEFAULT_NOT_WRITTEN` | R | Target: the source allows what no rule matches between zones; without the networks of every zone that is not written. |
+| `DENY_SUBTRACTED` | I | Target (on the rule): a security group cannot block, so the rule is written without what the blocking rules above it match. |
+| `SHADOWED_BY_DENY` | I, skipped | Target (on the rule): the blocking rules above it block everything it allows; nothing is written. |
+| `ACTION_DROP` | I | Target (on a blocking rule): what a group does not allow is dropped without an answer, whatever the action was. |
+| `SOURCE_PORTS` | R, disabled | Target (on an allow rule): source ports; a security group rule matches destination ports only. |
+| `SOURCE_PORTS_WIDENED` | A | Target (on a blocking rule): it blocks certain source ports only, and is written for every source port, which blocks more. |
+| `ADDRESS_UNKNOWN`, `SERVICE_UNKNOWN`, `NOT_WRITTEN` | R, disabled | Target (on the rule): addresses (a dynamic group) or a service that cannot be read; a security group rule names addresses and ports. |
 
 Notes that only a Cisco ASA source or target raises:
 
@@ -1839,6 +1909,81 @@ The second column matters too:
 * A source that denies by default gets a last drop rule (`NSX_DEFAULT_DENY`).
 * Logging (start or end) becomes `logged`; the rule's name is its log label
   (`tag`, 32 characters), which `dfwpktlogs.log` carries.
+
+### AWS security groups
+
+**What is read**
+
+* One VPC. A security group only allows; the rules of all the groups of a
+  network interface are one set, without order, and what none allows is
+  denied. Every rule of the model allows, the model denies by default, and
+  there are no zones.
+* A group stands for the private addresses (IPv4 and IPv6) of the interfaces
+  that carry it, from `describe-network-interfaces`. Without that answer it is
+  a dynamic group: no target writes its rules (`AWS_NO_INTERFACES`). A group
+  of another VPC or account, which a rule names, is one too
+  (`AWS_REMOTE_GROUP`). A prefix list is a group of its entries.
+* An inbound rule (each address block, prefix list or group of it) becomes a
+  rule from its sources to the members of its group. An outbound rule becomes
+  a rule from the members to its destinations outside the VPC: inside, the
+  destination's inbound rules must allow the connection too.
+* Where the outbound rules of a member's groups do not allow everything
+  inside the VPC (the default rule allows all), a rule per outbound rule of
+  its groups and inbound rule of the destination's says what both allow, and a
+  rule after those blocks the rest of what it sends inside the VPC
+  (`AWS_EGRESS_PAIRS`). A member without IPv6 sends no IPv6.
+* `-1` is every protocol; TCP and UDP with their port range; ICMP with its type
+  and code (`-1` for all); other protocols as such (`AWS_PORTS_IGNORED` when
+  ports are given). A rule that cannot be read is not converted, never read
+  as all.
+* A public or Elastic IP address of an instance's interface is a static NAT of
+  its private address (`AWS_PUBLIC_ADDRESSES`): the rules that name the private
+  address name the public one too. Traffic from inside to those public
+  addresses goes through the internet gateway and is not converted as AWS
+  decides it (`AWS_HAIRPIN`).
+* Network ACLs, where a subnet holds members: what an ACL denies, in the
+  order of its rule numbers and with its last rule `*`, is a blocking rule at
+  the top for traffic entering or leaving that subnet; traffic inside a subnet
+  passes no ACL. An ACL does not remember connections: where it denies what
+  replies need, the conversion says so (`AWS_NACL_RETURN`) and does not
+  convert it. ACLs of subnets traffic is routed through (a NAT gateway's) are
+  not converted (`AWS_ROUTED_THROUGH`).
+* What security groups never filter (the Amazon DNS server, DHCP, the instance
+  metadata service) is said (`AWS_UNFILTERED`).
+
+**What is written**
+
+* A shell script of AWS CLI calls (section 10) that creates new security
+  groups in one VPC and gives them rules. Nothing that exists is changed.
+* A security group cannot block, and its rules have no order. Each allow rule
+  is written as what it matches without what the blocking rules above it
+  match (`DENY_SUBTRACTED`), cut into pieces of sources, destinations and
+  services; a blocking rule is written as what it takes away from the rules
+  below it. That is exact. What a group cannot say is left out and reported
+  (`AWS_PART_NOT_WRITTEN`): every protocol but some (a group says "all
+  protocols" or one), source ports, ports of SCTP. A blocking rule with source
+  ports blocks every source port (`SOURCE_PORTS_WIDENED`).
+* A rule of a group names one side: an inbound rule its sources, an outbound
+  rule its destinations; the other side is the interface the group is attached
+  to. So each piece is written twice: as inbound rules of the groups of its
+  destinations, and as outbound rules of the groups of its sources. A
+  connection passes when both ends allow it.
+* The groups are cut by addresses: every address lies in exactly one group per
+  IP version, which holds the pieces whose sources or destinations hold it.
+  The `# attach` line before each group in the script lists its addresses;
+  addresses no rule names get `fwshift-no-rules`. Names come from the objects
+  of the model whose addresses a group has, else from the zone, else
+  `addresses`; `--target-prefix` replaces `fwshift-`.
+* With `--inside-zone` (and from an AWS source), only the addresses inside the
+  VPC get groups, and their outbound rules allow everything inside, where the
+  destination's inbound rules decide. Without it every address gets a group:
+  those for addresses outside the VPC are never attached, and can be left out.
+* Zones become the networks behind them (`--zone-network`), as for NSX.
+* What the source allows by default is written as rules that allow it, less
+  the blocking rules (`AWS_DEFAULT_ALLOW`).
+* NAT is not written: the internet gateway and the NAT gateways do it. The
+  rules are written for the private addresses.
+* Logging is not written: VPC Flow Logs record the connections of interfaces.
 
 ### Check Point
 
@@ -2963,6 +3108,50 @@ named by `--target-policy` (default `FWShift`), with the rules in their order.
    rules name the addresses NAT translates to, which is what the distributed
    firewall sees.
 
+### AWS security groups
+
+The output is a POSIX shell script of AWS CLI calls. It creates new security
+groups in one VPC, takes the rule that allows all outbound traffic off each,
+and gives them their rules. It changes nothing that exists, and it attaches
+the groups to nothing.
+
+1. Convert with `--zone-network` for every zone the rules name, and
+   `--inside-zone` for the zones that are in the VPC:
+
+   ```sh
+   fwshift convert policy.xml --to aws -o groups.sh --report report.txt \
+       --zone-network trust=10.10.0.0/16 --zone-network dmz=10.20.0.0/24 --zone-network untrust=0.0.0.0/0,::/0 \
+       --inside-zone dmz
+   ```
+
+2. Look at the calls, let AWS check the permissions, then run it:
+
+   ```sh
+   DRY_RUN=1 sh groups.sh                                   # prints the calls; needs no AWS access
+   VPC_ID=vpc-0a1b2c3d4e5f60789 CHECK=1 sh groups.sh        # every call with --dry-run
+   VPC_ID=vpc-0a1b2c3d4e5f60789 AWS_OPTS='--region eu-west-1' sh groups.sh
+   ```
+
+   It stops before creating anything when the VPC has a group of one of its
+   names, and at the first call AWS refuses. The groups it made up to then
+   have no members, so traffic is not affected: delete them
+   (`aws ec2 delete-security-group --group-id ...`) and run it again.
+3. Attach the groups (`AWS_ATTACH`). The line `# attach NAME: ...` before each
+   group lists the private addresses it is for. Give each network interface
+   the group of each of its addresses, and no other group:
+
+   ```sh
+   aws ec2 modify-network-interface-attribute --network-interface-id eni-... --groups sg-... sg-...
+   ```
+
+   That call replaces the groups of the interface, which is why the script
+   leaves it to you. A group applies to the whole interface: the addresses of
+   one interface (of one IP version) should be in one group. Interfaces with
+   IPv4 and IPv6 addresses get a group for each.
+4. A group may hold more rules than the default quota of 60 per direction and
+   IP version (`AWS_RULE_QUOTA`): raise the quota, or leave out the groups of
+   addresses outside the VPC, which are never attached.
+
 ### Check Point
 
 The output is a shell script. It needs `mgmt_cli`, which is on every
@@ -3366,6 +3555,10 @@ the report is the list.)
 | `$NAME is not defined` | An nftables input file that uses a variable it does not define (it may be in an included file). The same remedy. |
 | `no security policies found; expected the answers of the NSX Policy API` | The JSON holds no security policy of NSX: save the policies (and their rules) with the others (section 3). |
 | `groups, services or JSON nested deeper than can be followed` | NSX: a chain of nested groups or services thousands deep, or JSON nested as deep. Not converted. |
+| `no security groups found; expected the answer of 'aws ec2 describe-security-groups --output json'` | AWS: the JSON holds no security groups (or the CLI printed text or a table: give `--output json`). |
+| `the export holds security groups of several VPCs (...)` | AWS: convert one VPC at a time; filter the answers with `--filters Name=vpc-id,Values=vpc-...`. |
+| `network interface ...: '...' is not an address` | AWS: an address of an interface that cannot be read. |
+| `--inside-zone ZONE: give the networks behind it with --zone-network` | AWS target: a zone named by `--inside-zone` needs its networks. |
 | `the base chains combine to more than 50000 rules` | nftables: several base chains at the forward hook whose rules multiply when they are combined. Not converted. |
 | `not valid JSON` / `no Management API response found` | The file is not the JSON output of `show access-rulebase`. Use `--format json`. |
 | `the export holds several access layers; choose one with --layer: ...` | Name one of the listed layers. Inline layers are found by themselves. |
@@ -3507,6 +3700,15 @@ deliberate: see *IPv4 and IPv6* in section 8.
   one direction and allow rules applied to neither end are written disabled.
   The formats follow VMware's Policy SDK 4.2 and Terraform provider; no export
   of a real manager was read, and no output was loaded on one.
+* AWS: security groups and network ACLs of one VPC, from the AWS CLI. Members
+  are the private addresses of the interfaces; without the interfaces no rule
+  can be written. Traffic from inside the VPC to its own public addresses, the
+  ACLs of subnets traffic is routed through, and the replies a stateless ACL
+  may drop are reported, not converted. To AWS: groups are cut by address, so
+  an interface with several addresses of one IP version needs them in one
+  group; a group cannot say "every protocol but some". The formats follow the
+  AWS CLI's service model (botocore) and the EC2 documentation; nothing was
+  read from or sent to a real account.
 * nftables: forwarded traffic only (the forward hook), and IPv4 NAT. Rate
   limits, quotas, meters, sets filled at run time, `fib`, `socket`, marks,
   options and anything else beyond interfaces, addresses, protocols, ports,

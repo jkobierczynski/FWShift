@@ -22,6 +22,7 @@ what was approximated and what a person has to look at.
 | Linux iptables / ip6tables | `iptables-save` output | `iptables-restore` file |
 | Linux nftables | `nft list ruleset` output, or its JSON (`nft -j list ruleset`) | a ruleset for `nft -f`: one table, `inet fwshift` |
 | VMware NSX (distributed firewall) | the JSON of the Policy API: the hierarchical tree, or the list answers of groups, services and security policies | the body of one hierarchical `PATCH /policy/api/v1/infra` |
+| AWS EC2 security groups (and network ACLs) | the JSON of the AWS CLI for one VPC: security groups, network interfaces, subnets, network ACLs, prefix lists | a shell script of AWS CLI calls that creates new security groups |
 
 It also **audits** a policy, of any of these formats: rules that allow too
 much, rules that never match because earlier rules cover them, unused and
@@ -33,7 +34,7 @@ on which services, through which rules.
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.19).** The converter is tested against synthetic
+> **Status: alpha (0.20).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -44,7 +45,7 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   are sent through them. Generated nftables rulesets are also listed back
 >   by nft, as text and as JSON, and both listings must give the same model.
 > * **PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall,
->   Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX and VMware NSX** output has **not been loaded on a
+>   Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX, VMware NSX and AWS** output has **not been loaded on a
 >   device or management server**. The Check Point input format is taken from the API
 >   documentation, not from a real export, the ASA and FTD syntax from Cisco's
 >   command references, and the Sophos format from the documentation of its
@@ -65,7 +66,8 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   reads and writes of it. Junos is taken from Juniper's documentation and the
 >   grammar of a published reader of it. The NSX Policy API is taken from
 >   VMware's API reference and the schema of its Python SDK and Terraform
->   provider. Several conversion rules rest on
+>   provider; AWS from the service model of the AWS CLI (botocore) and the EC2
+>   documentation. Several conversion rules rest on
 >   vendor behaviour taken from documentation rather than from a lab.
 >
 > Treat the output as a draft for a lab, read the report, and never load it in
@@ -123,8 +125,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.19.0.pyz --version
-python3 fwshift-0.19.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.20.0.pyz --version
+python3 fwshift-0.20.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -235,6 +237,15 @@ curl -sS -u admin 'https://MANAGER/policy/api/v1/infra?type_filter=Domain;Group;
 fwshift convert nsx.json --to fortios -o fortigate.conf --report report.txt
 fwshift convert running-config.xml --to nsx -o nsx-body.json --report report.txt --target-prefix mig- \
     --zone-network trust=10.10.0.0/16 --zone-network untrust=0.0.0.0/0,::/0
+
+# AWS security groups: the answers of the AWS CLI for one VPC, in one JSON array
+# (section 3 of the manual). To AWS, the output is a script that creates new
+# groups without members, and says which addresses each one is for
+fwshift convert aws.json --to fortios -o fortigate.conf --report report.txt
+fwshift convert running-config.xml --to aws -o groups.sh --report report.txt \
+    --zone-network trust=10.10.0.0/16 --zone-network dmz=10.20.0.0/24 --zone-network untrust=0.0.0.0/0,::/0 \
+    --inside-zone dmz
+DRY_RUN=1 sh groups.sh
 
 # What did the parser read?
 fwshift inspect fgt-backup.conf
@@ -482,6 +493,15 @@ knows only interfaces. Text, JSON or CSV. See
 | NAT | not read (it is on the gateways); not written, the rules name the addresses NAT translates to |
 | Scope | domain `default` of the distributed firewall. Written: services, groups and one security policy, in one `PATCH` |
 
+| | AWS security groups |
+|---|---|
+| Address objects | address blocks of a rule (IPv4, IPv6), the private addresses of the network interfaces; public and Elastic IPs as static NAT. Written: address blocks in the rules |
+| Address groups | a security group as the addresses of the interfaces that carry it; managed prefix lists with their entries; groups of other VPCs and accounts kept as dynamic groups |
+| Services | every protocol, TCP and UDP port ranges, ICMP and ICMPv6 type and code, IP protocols. Written: the same, one per rule |
+| Security rules | inbound rules; outbound rules for outside the VPC; inside, an outbound rule of the source's groups and an inbound rule of the destination's together; network ACLs as blocking rules, in rule-number order, between subnets. Written: what each rule allows without what the blocking rules above it block, on both ends, in groups cut by address |
+| NAT | public and Elastic IPs of instances, read as static NAT. Not written (the internet and NAT gateways do it) |
+| Scope | one VPC. Written: new groups and their rules, attached to nothing |
+
 Not converted, and reported where a rule depends on it: security profiles,
 schedules, user and group matches, URL categories, HIP profiles, application
 filters, wildcard-mask and geography addresses, external dynamic lists,
@@ -509,7 +529,9 @@ dynamic NAT and 1-to-1 NAT, proxy actions and schedules, Barracuda rule lists
 unified policies, schedulers and policy-based VPN, the NSX gateway firewall,
 context profiles (layer-7 applications, FQDNs), extended expressions of
 groups, identity firewall, rule schedulers, EtherType services, the Manager
-API, routing, interfaces, VPN,
+API, AWS traffic from inside a VPC to its own public addresses, the network
+ACLs of subnets traffic is routed through and the replies a stateless ACL
+drops (reported), security group VPC associations, routing, interfaces, VPN,
 and everything else outside the policy.
 
 ## Roadmap
@@ -518,8 +540,8 @@ and everything else outside the policy.
 
 * **Firewall brands**, one per release: Sophos Firewall 0.6, Cisco Secure
   Firewall (formerly Firepower) 0.7, pfSense 0.8, SonicWall 0.9, WatchGuard
-  0.10, Barracuda 0.11, Juniper SRX 0.12, nftables 0.18, VMware NSX 0.19.
-  Next: AWS security groups 0.20, Azure network security groups 0.21; then
+  0.10, Barracuda 0.11, Juniper SRX 0.12, nftables 0.18, VMware NSX 0.19,
+  AWS security groups 0.20. Next: Azure network security groups 0.21; then
   OPNsense and others (see TODO.md).
 * **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](docs/RULE_USAGE.md)):
   rule identities and hit counters (0.13), Check Point logs (0.14),

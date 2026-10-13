@@ -42,6 +42,8 @@ class Options:
     # ASA target: networks behind a zone, for rules that an access list can only keep to their
     # destination zone by leaving out the networks of the other zones.
     zone_networks: Dict[str, List[str]] = field(default_factory=dict)
+    # AWS target: the zones whose networks are inside the VPC, where the interfaces the groups are attached to are.
+    inside_zones: List[str] = field(default_factory=list)
     # When a list: an emitter adds the model it writes its output from, with the names, zones and
     # addresses as the target gets them. The audit proves what it disables on that as well.
     written: Optional[List[Policy]] = None

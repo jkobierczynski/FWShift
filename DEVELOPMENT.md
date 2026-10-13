@@ -8,11 +8,11 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.19.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`) |
-| Tests | 3625, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, a Check Point management server, a Cisco Management Center or a Device Manager |
-| Next | brands 0.20.0 and 0.21.0: AWS security groups, Azure NSG; then the zone and conduit model as a gate (0.22.0); lab validation of the sample conversions (see `TODO.md`) |
+| Version | 0.20.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups) |
+| Tests | 3762, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, a Check Point management server, a Cisco Management Center or a Device Manager |
+| Next | brand 0.21.0: Azure NSG; then the zone and conduit model as a gate (0.22.0); lab validation of the sample conversions (see `TODO.md`) |
 
 ## Layout
 
@@ -45,6 +45,9 @@ src/fwshift/
         nsx.py        NSX Policy API JSON -> model (categories, sequence
                       numbers, jump to Application, default rule; applied-to,
                       direction and IP version as far as they decide)
+        aws.py        AWS CLI JSON -> model (groups as the addresses of their
+                      interfaces; outbound rules outside the VPC, pairs of
+                      outbound and inbound rules inside; network ACLs)
     emitters/
         panos.py      model -> PAN-OS set commands
         fortios.py    model -> FortiOS CLI configuration
@@ -71,6 +74,12 @@ src/fwshift/
                       through the iptables planner)
         nsx.py        model -> the body of one hierarchical PATCH (services,
                       groups, one security policy; zones as networks)
+        aws.py        model -> a script of AWS CLI calls (allow rules without
+                      the deny rules above them, both ends, groups cut by
+                      address)
+    regions.py        sets of connections as boxes (IP version, sources,
+                      destinations, services): subtraction, and services back
+                      to entries; for AWS, which cannot block
     transform.py      passes shared by the emitters: hardening of names,
                       references, placeholders, names, application lowering,
                       NAT destination rewriting, NAT order, pruning
@@ -115,8 +124,8 @@ tests/
                       FortiOS logs (and panos_logged.xml), the two
                       Cisco Secure Firewall samples and the SonicWall,
                       WatchGuard, Barracuda and Juniper samples, the nftables
-                      sample (written by nft itself), the NSX sample, and the
-                      kernel checks for iptables and nftables
+                      sample (written by nft itself), the NSX and AWS samples,
+                      and the kernel checks for iptables and nftables
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
                       Check Point, ASA, Sophos and Cisco Secure Firewall output;
                       a pfSense that judges packets from its configuration;
@@ -132,6 +141,8 @@ tests/
                       the kernel runs them; with nft, listings of the kernel
     test_nsx.py       NSX both ways, against a judge of Policy API JSON that
                       shares no code with the parser
+    test_aws.py       AWS both ways: a judge of a VPC (groups, ACLs, public
+                      addresses) and a judge of the emitted script
     test_checkpoint.py Check Point both ways, with simulators for an export
                       and for an emitted script
     test_asa.py       Cisco ASA both ways, with a random ASA that judges
@@ -519,6 +530,10 @@ there for an old tag whose tests no longer run on today's tools.
 | NSX: one hierarchical `PATCH` | One call creates services, groups and the policy together, or none of them; a `PATCH` changes only what it names. A policy of category Application with sequence number 1 lands where a person can see and move it. |
 | NSX: zones as the networks behind them | The distributed firewall has no zones and runs at every workload. A rule between zones is written for the networks of `--zone-network`, as for Barracuda; an allow rule whose zones have none is written disabled. |
 | NSX: applied-to and direction read only as far as they decide | NSX checks a connection at both ends. An allow rule that applies to one end, or to one direction, does not decide alone what the other end does; it is flagged or written disabled rather than read as allowing everywhere. |
+| AWS: allow rules without the deny rules above them | A security group cannot block and has no order. What a first-match allow rule allows is its match without the matches of the blocking rules above it, which the boxes of `regions.py` hold exactly; earlier allow rules need not be taken out, the result is a union. |
+| AWS: every piece on both ends, groups cut by address | A group's rule names one side; the other is the interface. Written as an inbound rule at the destination and an outbound rule at the source, each end lets through only what the policy allows between the two, which is exact without knowing which addresses are in the VPC. Every address in one group per IP version keeps the number of groups per interface at one or two. |
+| AWS: new groups, attached to nothing | EC2 has no transaction. Groups without members change no traffic, so a script that stops halfway is harmless; attaching replaces the groups of an interface and is left to a person. |
+| AWS: read without zones | A group is a set of interfaces, not a place; an interface carries up to sixteen. The VPC's addresses are a group of the model, so a target that needs no zones (NSX, AWS) needs no options. |
 | iptables: lists become chains | iptables has no objects and a rule matches one address per side. A chain per list keeps a rule with long or negated lists to one jump, instead of a product of lines. |
 | Check Point input is API JSON | There is no configuration file. The API export is documented, versioned and what other tools consume. |
 | Check Point output is a `mgmt_cli` script that stops at the first error and never publishes | The session is the unit of change on a management server: a person reviews it in SmartConsole and publishes or discards. A script that carried on after a refused call would leave a policy with rules missing. |
@@ -571,6 +586,7 @@ policy behaves unexpectedly.
 | iptables NAT: `FORWARD` sees destinations after `PREROUTING`; `POSTROUTING` cannot match the input interface; `iptables-restore --noflush` adds to existing chains. (The filter-table syntax and semantics the emitter and parser rely on are checked against a kernel, see Testing.) | iptables parser and emitter |
 | nftables: every base chain at a hook sees a packet in the order of its priority, whatever table; accept ends one base chain, drop is final; a family without a base chain is not filtered; the forward hook sees addresses after prerouting DNAT. (Checked against the kernel, see Testing.) Printed forms of nft 0.9.3 to 1.1.6 taken from their sources | nftables parser and emitter |
 | NSX: categories run in a fixed order (Ethernet, Emergency, Infrastructure, Environment, Application), policies by sequence number with the default policy last, rules by sequence number; `JUMP_TO_APPLICATION` skips the rest of Environment; the default layer-3 rule decides what no rule matches; a connection is checked at both ends (applied-to); a segment in a group means its workloads. From the Policy API reference, the SDK schema and the Terraform provider, not from a manager | NSX parser and emitter |
+| AWS: a group allows only; the rules of the groups of an interface are one set; a reference to a group means the private addresses of its interfaces; a connection inside the VPC needs the source's outbound and the destination's inbound rules; a network ACL is first match by rule number, ends in `*` deny, is stateless and not applied inside a subnet; the internet gateway translates public addresses for what comes from outside. From the botocore service model and the VPC and EC2 user guides, not from an account | AWS parser and emitter |
 | Check Point matches the access rulebase on the original packet and takes the destination zone after NAT | model, Check Point parser and emitter |
 | A connection sent into an inline layer never returns to the parent layer; a layer without a matching rule applies its implicit cleanup action | Check Point parser |
 | An object with automatic static NAT matches its translated address in the rulebase; with manual NAT the rules name the original address | `_automatic_nat`, `_also_valid` |
@@ -1949,6 +1965,109 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-13: version 0.20.0
+
+The third of four brands planned one release each (`TODO.md`): **AWS EC2
+security groups**, with the network ACLs where they decide, read and written.
+
+**Built**
+
+* `parsers/aws.py`: the JSON of the AWS CLI for one VPC, the answers alone or
+  in one array, each told by its top-level key: `describe-security-groups`
+  (required), `describe-network-interfaces`, `describe-vpcs`,
+  `describe-subnets`, `describe-network-acls`, the managed prefix lists and
+  their entries, `describe-security-group-rules`.
+* A group is the private addresses of the interfaces that carry it; without
+  the interfaces a dynamic group no target writes. Inbound rules allow their
+  sources to reach the members; outbound rules are for the destinations
+  outside the VPC. Where a member's outbound rules do not allow everything
+  inside, rules for each outbound rule of its groups and inbound rule of the
+  destination's, and a rule that blocks the rest. Public and Elastic IPs of
+  instances as static NAT. Network ACLs as blocking rules between subnets, in
+  rule-number order; replies through a stateless ACL, routed paths and
+  traffic to the VPC's own public addresses are reported.
+* `regions.py`: boxes of connections (IP version, sources, destinations, the
+  service sets of the audit) with intersection and subtraction, and service
+  sets back to entries, positive or negated.
+* `emitters/aws.py`: a POSIX shell script of AWS CLI calls (print, `--dry-run`
+  and real modes) that creates new groups and their rules. Each allow rule
+  without the deny rules above it, each piece as an inbound rule at the
+  destination and an outbound rule at the source, every address in one group
+  per IP version; `--inside-zone` (and an AWS source's VPC) keeps the groups
+  to the VPC.
+* `--inside-zone`, a new option of `convert`.
+* `tests/test_aws.py` (104 tests), the sample (`aws_sample.json`, written by
+  `tests/tools/make_aws_sample.py`), 31 golden conversions, the matrix and the
+  audit of the sample.
+
+**What the platform made necessary**
+
+* *Allow only.* A first-match policy with blocking rules has to be turned into
+  what each allow rule really allows; the matrix already did that for its
+  cells, the emitter now does it for every rule.
+* *Two ends, one side each.* A rule of a group names the other end only.
+  Writing every piece at both ends makes the outcome exact whichever addresses
+  turn out to be interfaces.
+* *Members are interfaces.* Without `describe-network-interfaces` a group
+  stands for nothing anyone can write. Interfaces of NAT gateways and load
+  balancers carry no groups, and their public addresses publish nothing.
+
+**Sources**
+
+The research notes of this release (read as data, never run): the EC2 service
+model of botocore 1.43 (`service-2.json`, paginators, waiters), the AWS CLI
+command reference, the VPC and EC2 user guides (security groups, rules,
+default groups, quotas, network ACLs, prefix lists, security group VPC
+associations, connection tracking), the Transit Gateway guide, and the
+Terraform AWS provider as corroboration. No account was used: the sample is
+written by hand from that model.
+
+**Review**
+
+*Round 28* by the independent reviewer, with repro scripts and a stand-in for
+the AWS CLI.
+
+| | Finding | Fix |
+|---|---|---|
+| high | Parser: traffic from inside to a public address of the VPC was read as traffic to the private address; on AWS it leaves through the internet gateway, with public addresses at both ends | outbound rules keep the public addresses; the rest is reported (`AWS_HAIRPIN`) |
+| high | Emitter: outbound rules were widened to the public addresses NAT maps inside, where an inbound rule for an outside range then let the source's public address in | widened to the private inside only |
+| high | Emitter: an intrazone blocking rule was kept to its destination zones, which the model does not look at; it blocked less | the source zones on both sides |
+| medium | Groups are cut by address, AWS applies them per interface | said in `AWS_ATTACH`, the manual and the script |
+| medium | Script: when the new group's outbound rules were not listed, the default allow-all rule stayed, silently | both default rules revoked by their permissions, and a group that still has outbound rules stops the script |
+| medium | Replies through a stateless ACL: ICMP echo replies and other protocols were not checked | checked with TCP and UDP |
+| medium | ACLs of subnets traffic is routed through (a NAT gateway's) were ignored; a NAT gateway's public address became a static NAT | `AWS_ROUTED_THROUGH`; only instance interfaces publish |
+| medium | `1e400`, `Infinity`: `OverflowError` | `ParseError`, or the value cannot be read |
+| low | ACL entries without their port range or ICMP type, TCP and UDP rules without ports, were read as all | not converted |
+| low | IPv6 ACL rules were lost for a subnet whose answer lists no IPv6 block | the members' IPv6 addresses stand for it |
+| low | The script checked each name just before creating that group | all names first |
+| low | A CIDR without a prefix length was used in the pairs; groups whose members are unknown were left out of them silently | refused; said |
+
+The fixes were not reviewed again; they have tests (the last section of
+`test_aws.py`).
+
+**Verified, and not**
+
+* The tests: `tests/test_aws.py` holds 104 tests, the suite 3762. A
+  judge of a VPC (groups of interfaces, outbound and inbound rules, prefix
+  lists, network ACLs of both subnets, public addresses), sharing no code with
+  the parser: 120 random VPCs, more than 10000 connections judged; a judge of
+  the emitted script: 40 random models exactly (but for what the report says
+  is left out), 20 with zones without networks, source ports and rule types
+  (never more), 20 with zones inside the VPC; the sample converted to AWS and
+  judged again. The script itself runs in its three modes against a stand-in
+  for the AWS CLI.
+* A mutation check with 27 ways to break the parser, the emitter and
+  `regions.py`: 24 caught at first; a test for one more (ICMP type and code
+  swapped) was added; the other two change nothing that can be reached (a
+  check the subtraction of the VPC makes again, and source ports the emitter
+  never leaves in a piece).
+* **Not verified**: nothing was read from or sent to an AWS account. Whether
+  `--dry-run` checks more than permissions, which addresses of an interface a
+  group reference covers (secondary, IPv6, delegated prefixes), whether
+  describe answers echo protocol numbers or names, and whether AWS accepts
+  every call as written are taken from the service model and the
+  documentation.
 
 ### 2026-10-13: version 0.19.0
 

@@ -47,20 +47,21 @@ configuration backup is not readable), **0.12.0, Juniper SRX**
 (`display set` or the configuration in braces, read; set commands for
 `load set`, written), **0.18.0, nftables** (`nft list ruleset`, text or
 JSON, read: every base chain at the forward hook, sets, maps, NAT; one table
-for `nft -f`, written; checked against the kernel with real packets), and
+for `nft -f`, written; checked against the kernel with real packets),
 **0.19.0, VMware NSX distributed firewall** (the JSON of the Policy API,
 read: categories, jump to Application, the default rule, groups by address,
 path, segment or membership criteria, applied-to and direction as far as they
-decide; the body of one hierarchical `PATCH`, written).
+decide; the body of one hierarchical `PATCH`, written), and **0.20.0, AWS
+security groups** (the JSON of the AWS CLI for one VPC, read: groups as the
+addresses of their interfaces, inbound and outbound rules, network ACLs,
+public addresses; a script of AWS CLI calls that creates new groups, written:
+each allow rule without the deny rules above it, at both ends).
 What each rests on and what nobody has checked on a device is in
 the development log.
 
 Planned next, one release each (2026-10-13):
 
-1. **0.20.0, AWS security groups** (and network ACLs where they decide):
-   the answers of `aws ec2 describe-security-groups`, read; the calls that
-   create them, written. Stateful allow lists without order and without deny.
-2. **0.21.0, Azure network security groups**: the JSON of an NSG (Azure CLI
+1. **0.21.0, Azure network security groups**: the JSON of an NSG (Azure CLI
    or Resource Graph), read and written. Priorities, service tags,
    application security groups, the default rules.
 
@@ -230,6 +231,12 @@ altered, from the audit's set arithmetic.
     members/ip-addresses`) by a script the manual names; the distributed
     firewall's logs for `fwshift usage`; one policy per category written,
     instead of one policy of category Application.
+17. AWS: a CloudFormation template as a second output; the network ACLs
+    written where a blocking rule is for a whole subnet; the members of a
+    group kept by interface, so that the groups of the script follow
+    interfaces; traffic to the VPC's own public addresses and through NAT
+    gateways converted; VPC Flow Logs for `fwshift usage`; several VPCs, with
+    peering, at once.
 
 ## Validation
 
@@ -302,6 +309,13 @@ altered, from the audit's set arithmetic.
    record what it refuses (`profiles`, ids of service entries, ids with
    `-`); check what a segment in a group matches, and that a connection is
    checked at both ends.
+12. AWS, in a lab account: export a VPC with the calls of the manual and
+   compare the answers with `aws_sample.json` (protocol names or numbers,
+   ports of protocol 50, the ACL entries of a default ACL with IPv6); run
+   `panos_to_aws.sh` and `aws_to_aws.sh` with `CHECK=1` and for real, and
+   record what AWS refuses (descriptions, quotas); check which addresses a
+   group reference covers (secondary, IPv6, delegated prefixes) and what
+   `--dry-run` checks.
 
 ## Project
 

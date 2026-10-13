@@ -1,0 +1,76 @@
+FWShift conversion report
+  source: junos (root)
+  target: aws
+
+Summary
+  Security rules:     14   exact 2, approximated 1, needs review 11 (11 emitted disabled), skipped 0
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWS_LOAD: the output is a shell script of AWS CLI calls (section 10): DRY_RUN=1 prints them, CHECK=1 with VPC_ID sends each with --dry-run, VPC_ID alone creates the groups and their rules. It creates new groups only, and stops if a group of the same name exists. The groups have no members when it is done: nothing changes until they are attached
+  [needs-review] AWS_ATTACH: 1 group: attach each to the network interfaces whose private addresses its '# attach' line lists, and take the other groups off those interfaces; an interface with addresses of both IP versions gets a group for each. A group applies to the whole interface: an interface with several addresses of one IP version in different groups gives each address the rules of all of them, so give such addresses the same group. Attaching (aws ec2 modify-network-interface-attribute --groups ...) replaces the groups of an interface: it is left to you
+  [info] JUNOS_FORMAT: read 14 security policies and 6 NAT rules of the root system. Policies are looked up after static and destination NAT; they were brought back to the original destination, as the model has it
+  [info] PREDEFINED_APPLICATIONS: predefined applications are not in the configuration; these were taken from FWShift's table of them: junos-dns-udp, junos-http, junos-https, junos-ping, junos-smtp, junos-ssh
+  [info] HOST_POLICIES: policies for the zone junos-host (traffic to and from the firewall itself) are not read: 'to-box'
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security group does not. VPC Flow Logs record the connections of the interfaces instead
+
+Security rules
+  block-bad  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone trust; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone untrust; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  web-out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a security group names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a security group names no zone: give the networks behind untrust with --zone-network.
+  updates  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates: a security group names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a security group names no zone: give the networks behind trust with --zone-network.
+  ping-out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a security group names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a security group names no zone: give the networks behind untrust with --zone-network.
+  web-in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone untrust, and a security group names no zone: give the networks behind untrust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a security group names no zone: give the networks behind dmz with --zone-network.
+  mail-in  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone untrust, and a security group names no zone: give the networks behind untrust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a security group names no zone: give the networks behind dmz with --zone-network.
+  admin  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a security group names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a security group names no zone: give the networks behind dmz with --zone-network.
+  not-servers  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a security group names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a security group names no zone: give the networks behind dmz with --zone-network.
+  guest-web  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'work-hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone guest, and a security group names no zone: give the networks behind guest with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a security group names no zone: give the networks behind untrust with --zone-network.
+  guest-ping  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'junos-ping': the predefined application junos-ping: Juniper describes it as ICMP echo, other readers of Junos as every ICMP type.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone guest, and a security group names no zone: give the networks behind guest with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a security group names no zone: give the networks behind untrust with --zone-network.
+  intra  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a security group names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone trust, and a security group names no zone: give the networks behind trust with --zone-network.
+  global-block  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action reset-client: a security group drops what it does not allow, without an answer
+  global-ntp  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a security group names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a security group names no zone: give the networks behind untrust with --zone-network.
+      [needs-review] SOURCE_PORTS: source ports: a security group rule matches destination ports only.
+
+NAT rules
+  inbound static-mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  from-internet dnat-web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  inbound static-mail (outbound)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  trust-out snat-lan  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  dmz-out snat-dmz  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  vr-out snat-vr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see

@@ -211,6 +211,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <li><a href="#iptables">iptables</a></li>
       <li><a href="#nftables">nftables</a></li>
       <li><a href="#nsx">VMware NSX</a></li>
+      <li><a href="#aws">AWS security groups</a></li>
     </ul>
     <h4>Analysis</h4>
     <ul>
@@ -225,7 +226,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
 
 <main id="top">
 <header class="mast">
-  <div class="eyebrow">Field guide · version 0.19</div>
+  <div class="eyebrow">Field guide · version 0.20</div>
   <h1>FWShift, feature by feature</h1>
   <p class="lead">FWShift converts firewall policies between thirteen platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
   <div class="facts">
@@ -303,6 +304,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <tr><td>iptables / ip6tables</td><td><code>iptables</code>, <code>ip6tables</code></td><td><code>iptables-save</code></td><td><code>iptables-restore</code> file</td></tr>
       <tr><td>nftables</td><td><code>nftables</code></td><td><code>nft list ruleset</code>, text or JSON</td><td>one table for <code>nft -f</code></td></tr>
       <tr><td>VMware NSX (distributed firewall)</td><td><code>nsx</code></td><td>Policy API JSON (hierarchical or lists)</td><td>body of one <code>PATCH</code></td></tr>
+      <tr><td>AWS security groups (and network ACLs)</td><td><code>aws</code></td><td>AWS CLI JSON of one VPC</td><td>script of AWS CLI calls</td></tr>
       <tr><td>Neutral model</td><td><code>json</code> (target only)</td><td>—</td><td>the model, with source IDs, targets, hits</td></tr>
     </tbody>
   </table></div>
@@ -313,11 +315,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
   <h2><span class="num">2</span>Install and run</h2>
   <p>Each release has three packages: the project as a zip, a single file that runs with any Python 3.9 or newer, and a wheel for <code>pip</code>. Nothing else needs installing.</p>
   <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># one file, nothing to install</span>
-python3 fwshift-0.19.0.pyz --version
-python3 fwshift-0.19.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.20.0.pyz --version
+python3 fwshift-0.20.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 
 <span class="c"># or with pip</span>
-pip install fwshift-0.19.0-py3-none-any.whl
+pip install fwshift-0.20.0-py3-none-any.whl
 fwshift convert running-config.xml --to fortios -o fortigate.conf</pre></div>
   <p>The input may be <code>-</code> for standard input. The source format is detected (XML root elements, JSON keys, CLI keywords); give <code>--from</code> when detection could be ambiguous, for example <code>--from ip6tables</code>.</p>
 </section>
@@ -379,10 +381,11 @@ findings while reading:
   <div class="tablewrap"><table>
     <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx json</code>.</td></tr>
+      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws json</code>.</td></tr>
       <tr><td><code>--zone-map SRC=DST</code></td><td>Rename a zone or interface. For iptables, nftables and ASA, this is how a zone becomes an interface.</td></tr>
       <tr><td><code>--interface-map SRC=DST</code></td><td>Map a source interface to a target interface: FortiOS zone members, interface NAT, Sophos/SonicWall/FDM NAT interfaces, Barracuda source interfaces.</td></tr>
-      <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, Barracuda, NSX; SonicWall object zones).</td></tr>
+      <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, Barracuda, NSX, AWS; SonicWall object zones).</td></tr>
+      <tr><td><code>--inside-zone ZONE</code></td><td>AWS: a zone inside the VPC; only its addresses get security groups.</td></tr>
       <tr><td><code>--app-map FILE</code></td><td>JSON of extra application-to-port mappings.</td></tr>
       <tr><td><code>--target-vsys</code>, <code>--target-device-group</code>, <code>--target-shared</code></td><td>Where PAN-OS output goes.</td></tr>
       <tr><td><code>--target-vdom</code>, <code>--policy-id-start N</code></td><td>FortiOS VDOM wrapper; first policy ID (0 lets the FortiGate pick).</td></tr>
@@ -555,6 +558,7 @@ m add nat-rule package Standard position bottom original-destination web-public 
     <a href="#iptables"><b>iptables</b><span>iptables-save</span></a>
     <a href="#nftables"><b>nftables</b><span>nft list ruleset</span></a>
     <a href="#nsx"><b>VMware NSX</b><span>Policy API → PATCH</span></a>
+    <a href="#aws"><b>AWS security groups</b><span>AWS CLI → script</span></a>
   </div>
 
   <div class="filterbar">
@@ -993,6 +997,40 @@ curl -sS -u admin -H 'Content-Type: application/json' -X PATCH --data @nsx-body.
   "scope": ["ANY"], "logged": true, "disabled": false
 }</pre></div>
   </article>
+  <!-- aws -->
+  <article class="brand" id="aws">
+    <h3>AWS security groups</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>AWS CLI JSON (one VPC)</span></span><span class="port"><i>OUT</i><span>script of AWS CLI calls</span></span><span class="port"><i>ID</i><span>aws</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>The answers of the AWS CLI for one VPC, in one JSON array: <code>describe-security-groups</code> (required), <code>describe-network-interfaces</code> (which addresses each group stands for: without it no rule can be written), <code>describe-vpcs</code>, <code>describe-subnets</code>, <code>describe-network-acls</code>, the managed prefix lists and their entries. The manual (section 3) has the loop for the entries.</p>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>f="--output json --filters Name=vpc-id,Values=vpc-0a1b2c3d4e5f60789"
+aws ec2 describe-security-groups $f &gt; sg.json; aws ec2 describe-network-interfaces $f &gt; eni.json
+aws ec2 describe-subnets $f &gt; subnets.json; aws ec2 describe-network-acls $f &gt; acls.json
+jq -s . sg.json eni.json subnets.json acls.json &gt; aws.json
+fwshift convert aws.json --to fortios -o fortigate.conf --report report.txt</pre></div>
+    <h4 class="sub">Options</h4>
+    <p><code>--zone-network</code> for every zone, <code>--inside-zone</code> for the zones in the VPC (only they get groups), <code>--target-prefix</code> (replaces <code>fwshift-</code> in the group names).</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to aws -o groups.sh --report report.txt \
+    --zone-network trust=10.10.0.0/16 --zone-network dmz=10.20.0.0/24 --zone-network untrust=0.0.0.0/0,::/0 --inside-zone dmz
+DRY_RUN=1 sh groups.sh                                  <span class="c"># prints the calls</span>
+VPC_ID=vpc-0a1b2c3d4e5f60789 CHECK=1 sh groups.sh       <span class="c"># every call with --dry-run</span>
+VPC_ID=vpc-0a1b2c3d4e5f60789 sh groups.sh               <span class="c"># creates the groups, attaches nothing</span></pre></div>
+    <div class="callout"><b>Attach them yourself.</b> Each group comes with a line <code># attach NAME: addresses</code>. Give every network interface the group of each of its addresses and no other (<code>AWS_ATTACH</code>); until then no traffic changes. A group applies to a whole interface: the addresses of one interface belong in one group.</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>A group is the private addresses of the interfaces that carry it. Without the interfaces the groups are dynamic and nothing can be written (<code>AWS_NO_INTERFACES</code>); groups of other VPCs or accounts too (<code>AWS_REMOTE_GROUP</code>).</li>
+      <li>Inside the VPC a connection needs the source's outbound and the destination's inbound rules: where outbound rules do not allow everything, rules for each pair are written and the rest is blocked (<code>AWS_EGRESS_PAIRS</code>).</li>
+      <li>Network ACLs become blocking rules between subnets; they do not remember connections, and where they deny replies that is said, not converted (<code>AWS_NACL_RETURN</code>). ACLs of a NAT gateway's subnet are not converted (<code>AWS_ROUTED_THROUGH</code>).</li>
+      <li>Public and Elastic IPs are static NAT (<code>AWS_PUBLIC_ADDRESSES</code>); traffic from inside to them goes through the internet gateway and is not converted as AWS sees it (<code>AWS_HAIRPIN</code>).</li>
+      <li>To AWS: a group cannot block, so each allow rule is written without the blocking rules above it (<code>DENY_SUBTRACTED</code>). It cannot say "every protocol but some", source ports or SCTP ports: that part is left out (<code>AWS_PART_NOT_WRITTEN</code>). Watch <code>AWS_RULE_QUOTA</code> (60 rules per direction and IP version).</li>
+    </ul>
+    <div class="codebox"><span class="label">output · aws (one call)</span><button class="copy" type="button">Copy</button><pre># attach fwshift-web-1: 10.20.0.10
+G2=$(group 'fwshift-web-1' 'FWShift: for the interfaces of 10.20.0.10') || exit 1
+ingress "$G2" &lt;&lt;'FWSHIFT_JSON'
+[{"IpProtocol": "tcp", "FromPort": 80, "ToPort": 80, "IpRanges": [{"CidrIp": "10.10.0.0/16", "Description": "FWShift: App-Server-Ports"}]}, ...]
+FWSHIFT_JSON</pre></div>
+  </article>
   <p id="nowatch" hidden>No watch item matches that filter.</p>
 </section>
 
@@ -1177,6 +1215,7 @@ fwshift usage rules.v4 --logs kern.log --log-year 2026 --unchanged-since 2026-01
       <tr><td>iptables</td><td>Whole tables, unless <code>--noflush</code></td><td><code>iptables-restore --test</code>; an empty FORWARD chain</td></tr>
       <tr><td>nftables</td><td>Table <code>inet fwshift</code> only</td><td><code>nft -c -f</code>; look at the other forward chains</td></tr>
       <tr><td>NSX</td><td>Services, groups and the policy of the same id</td><td><code>--target-prefix</code>; a lab manager (no dry run)</td></tr>
+      <tr><td>AWS</td><td>Nothing: new groups, attached to nothing; stops if a name exists</td><td><code>DRY_RUN=1</code>, then <code>CHECK=1</code>; attach by hand</td></tr>
       <tr><td>pfSense</td><td>Each restored area (Aliases, NAT, Rules)</td><td>A full backup</td></tr>
       <tr><td>ASA</td><td>Interface <code>access-group</code> bindings; <code>global_access</code> on every interface</td><td>Read the <code>access-group</code> lines</td></tr>
       <tr><td>FortiOS</td><td>Objects of the same name; central NAT changes existing NAT</td><td>A lab device for <code>central-nat enable</code></td></tr>

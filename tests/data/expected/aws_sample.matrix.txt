@@ -1,0 +1,51 @@
+FWShift zone matrix
+  source: aws (vpc-0a1b2c3d4e5f60789)
+  security rules: 32 (0 disabled, 1 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 (other zones)
+  (other zones)  any~
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+(other zones) -> (other zones)
+  allowed: any ~
+  cleartext or remote administration: snmp (rule 'monitoring-sg-in-1')
+  rule 'app-sg-to-db-sg': 10.20.2.30 -> 10.20.3.40: tcp/5432
+  rule 'default-in-1': default -> default: any
+  rule 'web-sg-in-1': 0.0.0.0/0 -> web-sg: tcp/443
+  rule 'web-sg-in-2': ::/0 -> web-sg: tcp/443
+  rule 'web-sg-in-3': 0.0.0.0/0 -> web-sg: tcp/80
+  rule 'web-sg-in-4': ::/0 -> web-sg: tcp/80
+  rule 'web-sg-in-5': bastion-sg -> web-sg: tcp/22
+  rule 'web-sg-in-6': monitoring-sg -> web-sg: icmp type 8
+  rule 'app-sg-in-1': web-sg -> app-sg: tcp/8443
+  rule 'app-sg-in-2': bastion-sg -> app-sg: tcp/22
+  rule 'app-sg-in-3': 2001:db8:20::/56 -> app-sg: icmp6
+  rule 'db-sg-in-1': app-sg -> db-sg: tcp/5432
+  rule 'db-sg-in-2': sg-0bbbbbbbbbbbbbbb0 -> db-sg: tcp/5432 ~
+  rule 'db-sg-in-3': bastion-sg -> db-sg: tcp/22
+  rule 'bastion-sg-in-1': corp-offices -> bastion-sg: tcp/22
+  rule 'monitoring-sg-in-1': 10.20.9.0/24 -> monitoring-sg: udp/161-162
+  rule 'default-out-1': default -> 0.0.0.0-10.19.255.255, 10.21.0.0-255.255.255.255: any
+  rule 'web-sg-out-2': web-sg -> 0.0.0.0-10.19.255.255, 10.21.0.0-255.255.255.255: tcp/443
+  rule 'web-sg-out-3': web-sg -> ::-2001:db8:1f:ffff:ffff:ffff:ffff:ffff, 2001:db8:20:100::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff: tcp/443
+  rule 'app-sg-out-2': app-sg -> com.amazonaws.eu-west-1.s3: tcp/443
+  rule 'monitoring-sg-out-1': monitoring-sg -> 0.0.0.0-10.19.255.255, 10.21.0.0-255.255.255.255: any
+  rule 'monitoring-sg-out-2': monitoring-sg -> ::-2001:db8:1f:ffff:ffff:ffff:ffff:ffff, 2001:db8:20:100::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff: any
+
+From reading the configuration
+  AWS_NACL_RETURN: network ACL acl-0db0000000000000a of subnet subnet-0300000000000003a denies some inbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections out of the subnet need them, and where it denies them a connection the converted policy allows fails
+  AWS_NACL_RETURN: network ACL acl-0db0000000000000a of subnet subnet-0300000000000003a denies some outbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections into the subnet need them, and where it denies them a connection the converted policy allows fails
+  AWS_EGRESS_PAIRS: inside the VPC a connection needs an outbound rule of the source's groups and an inbound rule of the destination's. Where the outbound rules do not allow everything, 1 rule allows what both allow, and a rule after them blocks the rest of what those members send inside the VPC
+  AWS_PUBLIC_ADDRESSES: the public and Elastic IP addresses of the network interfaces are static NAT of their private addresses: the internet gateway translates what comes from outside, and the groups see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  AWS_HAIRPIN: connections from inside the VPC to its own public addresses are not converted as AWS decides them: they leave through the internet gateway, the source's outbound rules see the public address and the destination's inbound rules see the source's public address (or that of its NAT gateway). The converted policy treats them as connections to the private address, which may allow more
+  AWS_UNFILTERED: security groups never filter traffic to the Amazon DNS server, DHCP, the instance metadata service, the Time Sync Service and Windows license activation; neither does the converted policy say anything about it
+  AWS_REMOTE_GROUP: rules name groups that are not in the export (another VPC, another account, or left out): sg-0bbbbbbbbbbbbbbb0. Their members are not known; those rules are not converted
+  AWS_GROUP_UNUSED: no network interface of the export carries these groups, so their inbound rules allow nothing and were left out: legacy-sg
+
+Notes
+  The policy names no zones, so the matrix has one cell. Give zones as networks with --network-zone NAME=NETWORK[,NETWORK...] to see who reaches whom.
+  1 rule(s) never match and are left out; 'fwshift audit' names them.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

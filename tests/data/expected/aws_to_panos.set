@@ -1,0 +1,461 @@
+set address r-10.20.9.5-10.20.9.6 ip-range 10.20.9.5-10.20.9.6
+set address-group default static r-10.20.9.5-10.20.9.6
+set address-group default description "default VPC security group (security group sg-0d0000000000000d1)"
+set address n-10.20.1.10_31 ip-netmask 10.20.1.10/31
+set address n-2001_db8_20_1__10_127 ip-netmask 2001:db8:20:1::10/127
+set address-group web-sg static [ n-10.20.1.10_31 n-2001_db8_20_1__10_127 ]
+set address-group web-sg description "Web servers behind the internet (security group sg-0e0000000000000e1)"
+set address n-10.20.2.20_31 ip-netmask 10.20.2.20/31
+set address h-10.20.2.30 ip-netmask 10.20.2.30
+set address h-2001_db8_20_2__20 ip-netmask 2001:db8:20:2::20
+set address-group app-sg static [ n-10.20.2.20_31 h-10.20.2.30 h-2001_db8_20_2__20 ]
+set address-group app-sg description "Application servers (security group sg-0a0000000000000a1)"
+set address h-10.20.3.40 ip-netmask 10.20.3.40
+set address-group db-sg static h-10.20.3.40
+set address-group db-sg description "Database (security group sg-0db00000000000db1)"
+set address h-10.20.9.5 ip-netmask 10.20.9.5
+set address-group bastion-sg static h-10.20.9.5
+set address-group bastion-sg description "Bastion host (security group sg-0b0000000000000b1)"
+set address h-10.20.9.6 ip-netmask 10.20.9.6
+set address-group monitoring-sg static [ n-10.20.1.10_31 n-10.20.2.20_31 h-10.20.9.6 n-2001_db8_20_1__10_127 h-2001_db8_20_2__20 ]
+set address-group monitoring-sg description "Monitoring (security group sg-0c0000000000000c1)"
+set address legacy-sg ip-netmask 0.0.0.0/32
+set address legacy-sg description "FWSHIFT PLACEHOLDER, matches nothing: empty address group"
+set address n-10.20.0.0_16 ip-netmask 10.20.0.0/16
+set address n-2001_db8_20___56 ip-netmask 2001:db8:20::/56
+set address-group shop-prod static [ n-10.20.0.0_16 n-2001_db8_20___56 ]
+set address-group shop-prod description "the addresses of VPC vpc-0a1b2c3d4e5f60789 (its CIDR blocks)"
+set address sg-0bbbbbbbbbbbbbbb0 ip-netmask 0.0.0.0/32
+set address sg-0bbbbbbbbbbbbbbb0 description "FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically"
+set address r-203.0.113.128-203.0.113.223 ip-range 203.0.113.128-203.0.113.223
+set address-group com.amazonaws.eu-west-1.s3 static r-203.0.113.128-203.0.113.223
+set address-group com.amazonaws.eu-west-1.s3 description "prefix list pl-6da54004"
+set address-group "app-sg members" static h-10.20.2.30
+set address-group "app-sg members" description "the addresses whose groups are exactly app-sg"
+set address-group "db-sg members" static h-10.20.3.40
+set address-group "db-sg members" description "the addresses whose groups are exactly db-sg"
+set address n-192.0.2.128_25 ip-netmask 192.0.2.128/25
+set address n-198.51.100.0_24 ip-netmask 198.51.100.0/24
+set address-group corp-offices static [ n-192.0.2.128_25 n-198.51.100.0_24 ]
+set address-group corp-offices description "prefix list pl-0c0000000000000c1"
+set service db-acl-in-1 protocol tcp port 1-65535
+set service db-acl-in-1 description "network ACL acl-0db0000000000000a"
+set service db-acl-in-2 protocol tcp port 1024-65535
+set service db-acl-in-2 description "network ACL acl-0db0000000000000a"
+set service db-acl-in-3 protocol tcp port 22,1024-65535
+set service db-acl-in-3 description "network ACL acl-0db0000000000000a"
+set service db-acl-in-4 protocol tcp port 1-65535
+set service db-acl-in-4 description "network ACL acl-0db0000000000000a"
+set service db-acl-out-1 protocol tcp port 1024-65535
+set service db-acl-out-1 description "network ACL acl-0db0000000000000a"
+set service tcp-8443 protocol tcp port 8443
+set service tcp-22 protocol tcp port 22
+set service tcp-5432 protocol tcp port 5432
+set service tcp-443 protocol tcp port 443
+set service udp-161-162 protocol udp port 161-162
+set service tcp-80 protocol tcp port 80
+set service udp-53 protocol udp port 53
+set rulebase security rules db-acl-in-db from any
+set rulebase security rules db-acl-in-db to any
+set rulebase security rules db-acl-in-db source 10.20.1.0/24
+set rulebase security rules db-acl-in-db destination 10.20.3.0/24
+set rulebase security rules db-acl-in-db source-user any
+set rulebase security rules db-acl-in-db category any
+set rulebase security rules db-acl-in-db application any
+set rulebase security rules db-acl-in-db service db-acl-in-1
+set rulebase security rules db-acl-in-db action drop
+set rulebase security rules db-acl-in-db log-end no
+set rulebase security rules db-acl-in-db description "denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a"
+set rulebase security rules db-acl-in-db-2 from any
+set rulebase security rules db-acl-in-db-2 to any
+set rulebase security rules db-acl-in-db-2 source [ 0.0.0.0-10.19.255.255 10.21.0.0-255.255.255.255 ]
+set rulebase security rules db-acl-in-db-2 destination 10.20.3.0/24
+set rulebase security rules db-acl-in-db-2 source-user any
+set rulebase security rules db-acl-in-db-2 category any
+set rulebase security rules db-acl-in-db-2 application any
+set rulebase security rules db-acl-in-db-2 service any
+set rulebase security rules db-acl-in-db-2 action drop
+set rulebase security rules db-acl-in-db-2 log-end no
+set rulebase security rules db-acl-in-db-2 description "denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a"
+set rulebase security rules db-acl-in-db-3 from any
+set rulebase security rules db-acl-in-db-3 to any
+set rulebase security rules db-acl-in-db-3 source [ 10.20.0.0/24 10.20.2.0/24 10.20.4.0-10.20.8.255 10.20.10.0-10.20.255.255 ]
+set rulebase security rules db-acl-in-db-3 destination 10.20.3.0/24
+set rulebase security rules db-acl-in-db-3 source-user any
+set rulebase security rules db-acl-in-db-3 category any
+set rulebase security rules db-acl-in-db-3 application any
+set rulebase security rules db-acl-in-db-3 service db-acl-in-2
+set rulebase security rules db-acl-in-db-3 action drop
+set rulebase security rules db-acl-in-db-3 log-end no
+set rulebase security rules db-acl-in-db-3 disabled yes
+set rulebase security rules db-acl-in-db-3 description "FWSHIFT: disabled by the converter, see the report. denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a"
+set rulebase security rules db-acl-in-db-3-apps from any
+set rulebase security rules db-acl-in-db-3-apps to any
+set rulebase security rules db-acl-in-db-3-apps source [ 10.20.0.0/24 10.20.2.0/24 10.20.4.0-10.20.8.255 10.20.10.0-10.20.255.255 ]
+set rulebase security rules db-acl-in-db-3-apps destination 10.20.3.0/24
+set rulebase security rules db-acl-in-db-3-apps source-user any
+set rulebase security rules db-acl-in-db-3-apps category any
+set rulebase security rules db-acl-in-db-3-apps application icmp
+set rulebase security rules db-acl-in-db-3-apps service application-default
+set rulebase security rules db-acl-in-db-3-apps action drop
+set rulebase security rules db-acl-in-db-3-apps log-end no
+set rulebase security rules db-acl-in-db-3-apps disabled yes
+set rulebase security rules db-acl-in-db-3-apps description "FWSHIFT: disabled by the converter, see the report. denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a"
+set rulebase security rules db-acl-in-db-4 from any
+set rulebase security rules db-acl-in-db-4 to any
+set rulebase security rules db-acl-in-db-4 source 10.20.9.0/24
+set rulebase security rules db-acl-in-db-4 destination 10.20.3.0/24
+set rulebase security rules db-acl-in-db-4 source-user any
+set rulebase security rules db-acl-in-db-4 category any
+set rulebase security rules db-acl-in-db-4 application any
+set rulebase security rules db-acl-in-db-4 service db-acl-in-3
+set rulebase security rules db-acl-in-db-4 action drop
+set rulebase security rules db-acl-in-db-4 log-end no
+set rulebase security rules db-acl-in-db-4 disabled yes
+set rulebase security rules db-acl-in-db-4 description "FWSHIFT: disabled by the converter, see the report. denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a"
+set rulebase security rules db-acl-in-db-4-apps from any
+set rulebase security rules db-acl-in-db-4-apps to any
+set rulebase security rules db-acl-in-db-4-apps source 10.20.9.0/24
+set rulebase security rules db-acl-in-db-4-apps destination 10.20.3.0/24
+set rulebase security rules db-acl-in-db-4-apps source-user any
+set rulebase security rules db-acl-in-db-4-apps category any
+set rulebase security rules db-acl-in-db-4-apps application icmp
+set rulebase security rules db-acl-in-db-4-apps service application-default
+set rulebase security rules db-acl-in-db-4-apps action drop
+set rulebase security rules db-acl-in-db-4-apps log-end no
+set rulebase security rules db-acl-in-db-4-apps disabled yes
+set rulebase security rules db-acl-in-db-4-apps description "FWSHIFT: disabled by the converter, see the report. denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a"
+set rulebase security rules db-acl-in-db-5 from any
+set rulebase security rules db-acl-in-db-5 to any
+set rulebase security rules db-acl-in-db-5 source 10.20.1.0/24
+set rulebase security rules db-acl-in-db-5 destination 10.20.3.0/24
+set rulebase security rules db-acl-in-db-5 source-user any
+set rulebase security rules db-acl-in-db-5 category any
+set rulebase security rules db-acl-in-db-5 application any
+set rulebase security rules db-acl-in-db-5 service db-acl-in-4
+set rulebase security rules db-acl-in-db-5 action drop
+set rulebase security rules db-acl-in-db-5 log-end no
+set rulebase security rules db-acl-in-db-5 disabled yes
+set rulebase security rules db-acl-in-db-5 description "FWSHIFT: disabled by the converter, see the report. denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a"
+set rulebase security rules db-acl-in-db-5-apps from any
+set rulebase security rules db-acl-in-db-5-apps to any
+set rulebase security rules db-acl-in-db-5-apps source 10.20.1.0/24
+set rulebase security rules db-acl-in-db-5-apps destination 10.20.3.0/24
+set rulebase security rules db-acl-in-db-5-apps source-user any
+set rulebase security rules db-acl-in-db-5-apps category any
+set rulebase security rules db-acl-in-db-5-apps application icmp
+set rulebase security rules db-acl-in-db-5-apps service application-default
+set rulebase security rules db-acl-in-db-5-apps action drop
+set rulebase security rules db-acl-in-db-5-apps log-end no
+set rulebase security rules db-acl-in-db-5-apps disabled yes
+set rulebase security rules db-acl-in-db-5-apps description "FWSHIFT: disabled by the converter, see the report. denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a"
+set rulebase security rules db-acl-out-db from any
+set rulebase security rules db-acl-out-db to any
+set rulebase security rules db-acl-out-db source 10.20.3.0/24
+set rulebase security rules db-acl-out-db destination [ 0.0.0.0-10.19.255.255 10.21.0.0-255.255.255.255 ]
+set rulebase security rules db-acl-out-db source-user any
+set rulebase security rules db-acl-out-db category any
+set rulebase security rules db-acl-out-db application any
+set rulebase security rules db-acl-out-db service any
+set rulebase security rules db-acl-out-db action drop
+set rulebase security rules db-acl-out-db log-end no
+set rulebase security rules db-acl-out-db description "denied by network ACL acl-0db0000000000000a where traffic leaves subnet subnet-0300000000000003a"
+set rulebase security rules db-acl-out-db-2 from any
+set rulebase security rules db-acl-out-db-2 to any
+set rulebase security rules db-acl-out-db-2 source 10.20.3.0/24
+set rulebase security rules db-acl-out-db-2 destination [ 10.20.0.0-10.20.2.255 10.20.4.0-10.20.255.255 203.0.113.10 203.0.113.11 203.0.113.50 ]
+set rulebase security rules db-acl-out-db-2 source-user any
+set rulebase security rules db-acl-out-db-2 category any
+set rulebase security rules db-acl-out-db-2 application any
+set rulebase security rules db-acl-out-db-2 service db-acl-out-1
+set rulebase security rules db-acl-out-db-2 action drop
+set rulebase security rules db-acl-out-db-2 log-end no
+set rulebase security rules db-acl-out-db-2 disabled yes
+set rulebase security rules db-acl-out-db-2 description "FWSHIFT: disabled by the converter, see the report. denied by network ACL acl-0db0000000000000a where traffic leaves subnet subnet-0300000000000003a"
+set rulebase security rules app-sg-to-db-sg from any
+set rulebase security rules app-sg-to-db-sg to any
+set rulebase security rules app-sg-to-db-sg source 10.20.2.30
+set rulebase security rules app-sg-to-db-sg destination 10.20.3.40
+set rulebase security rules app-sg-to-db-sg source-user any
+set rulebase security rules app-sg-to-db-sg category any
+set rulebase security rules app-sg-to-db-sg application any
+set rulebase security rules app-sg-to-db-sg service tcp-5432
+set rulebase security rules app-sg-to-db-sg action allow
+set rulebase security rules app-sg-to-db-sg log-end no
+set rulebase security rules app-sg-to-db-sg description "outbound rule of app-sg and inbound rule of db-sg"
+set rulebase security rules app-sg-outbound-rest from any
+set rulebase security rules app-sg-outbound-rest to any
+set rulebase security rules app-sg-outbound-rest source "app-sg members"
+set rulebase security rules app-sg-outbound-rest destination [ shop-prod 203.0.113.10 203.0.113.11 203.0.113.50 ]
+set rulebase security rules app-sg-outbound-rest source-user any
+set rulebase security rules app-sg-outbound-rest category any
+set rulebase security rules app-sg-outbound-rest application any
+set rulebase security rules app-sg-outbound-rest service any
+set rulebase security rules app-sg-outbound-rest action drop
+set rulebase security rules app-sg-outbound-rest log-end no
+set rulebase security rules app-sg-outbound-rest description "what the outbound rules of app-sg do not allow inside the VPC"
+set rulebase security rules db-sg-outbound-rest from any
+set rulebase security rules db-sg-outbound-rest to any
+set rulebase security rules db-sg-outbound-rest source "db-sg members"
+set rulebase security rules db-sg-outbound-rest destination [ shop-prod 203.0.113.10 203.0.113.11 203.0.113.50 ]
+set rulebase security rules db-sg-outbound-rest source-user any
+set rulebase security rules db-sg-outbound-rest category any
+set rulebase security rules db-sg-outbound-rest application any
+set rulebase security rules db-sg-outbound-rest service any
+set rulebase security rules db-sg-outbound-rest action drop
+set rulebase security rules db-sg-outbound-rest log-end no
+set rulebase security rules db-sg-outbound-rest description "what the outbound rules of db-sg do not allow inside the VPC"
+set rulebase security rules default-in-1 from any
+set rulebase security rules default-in-1 to any
+set rulebase security rules default-in-1 source default
+set rulebase security rules default-in-1 destination [ default 203.0.113.50 ]
+set rulebase security rules default-in-1 source-user any
+set rulebase security rules default-in-1 category any
+set rulebase security rules default-in-1 application any
+set rulebase security rules default-in-1 service any
+set rulebase security rules default-in-1 action allow
+set rulebase security rules default-in-1 log-end no
+set rulebase security rules web-sg-in-1 from any
+set rulebase security rules web-sg-in-1 to any
+set rulebase security rules web-sg-in-1 source 0.0.0.0/0
+set rulebase security rules web-sg-in-1 destination [ web-sg 203.0.113.10 203.0.113.11 ]
+set rulebase security rules web-sg-in-1 source-user any
+set rulebase security rules web-sg-in-1 category any
+set rulebase security rules web-sg-in-1 application any
+set rulebase security rules web-sg-in-1 service tcp-443
+set rulebase security rules web-sg-in-1 action allow
+set rulebase security rules web-sg-in-1 log-end no
+set rulebase security rules web-sg-in-1 description "HTTPS from anywhere"
+set rulebase security rules web-sg-in-2 from any
+set rulebase security rules web-sg-in-2 to any
+set rulebase security rules web-sg-in-2 source ::/0
+set rulebase security rules web-sg-in-2 destination [ web-sg 203.0.113.10 203.0.113.11 ]
+set rulebase security rules web-sg-in-2 source-user any
+set rulebase security rules web-sg-in-2 category any
+set rulebase security rules web-sg-in-2 application any
+set rulebase security rules web-sg-in-2 service tcp-443
+set rulebase security rules web-sg-in-2 action allow
+set rulebase security rules web-sg-in-2 log-end no
+set rulebase security rules web-sg-in-2 description "HTTPS from anywhere"
+set rulebase security rules web-sg-in-3 from any
+set rulebase security rules web-sg-in-3 to any
+set rulebase security rules web-sg-in-3 source 0.0.0.0/0
+set rulebase security rules web-sg-in-3 destination [ web-sg 203.0.113.10 203.0.113.11 ]
+set rulebase security rules web-sg-in-3 source-user any
+set rulebase security rules web-sg-in-3 category any
+set rulebase security rules web-sg-in-3 application any
+set rulebase security rules web-sg-in-3 service tcp-80
+set rulebase security rules web-sg-in-3 action allow
+set rulebase security rules web-sg-in-3 log-end no
+set rulebase security rules web-sg-in-3 description "HTTP, redirected"
+set rulebase security rules web-sg-in-4 from any
+set rulebase security rules web-sg-in-4 to any
+set rulebase security rules web-sg-in-4 source ::/0
+set rulebase security rules web-sg-in-4 destination [ web-sg 203.0.113.10 203.0.113.11 ]
+set rulebase security rules web-sg-in-4 source-user any
+set rulebase security rules web-sg-in-4 category any
+set rulebase security rules web-sg-in-4 application any
+set rulebase security rules web-sg-in-4 service tcp-80
+set rulebase security rules web-sg-in-4 action allow
+set rulebase security rules web-sg-in-4 log-end no
+set rulebase security rules web-sg-in-4 description "HTTP, redirected"
+set rulebase security rules web-sg-in-5 from any
+set rulebase security rules web-sg-in-5 to any
+set rulebase security rules web-sg-in-5 source bastion-sg
+set rulebase security rules web-sg-in-5 destination [ web-sg 203.0.113.10 203.0.113.11 ]
+set rulebase security rules web-sg-in-5 source-user any
+set rulebase security rules web-sg-in-5 category any
+set rulebase security rules web-sg-in-5 application any
+set rulebase security rules web-sg-in-5 service tcp-22
+set rulebase security rules web-sg-in-5 action allow
+set rulebase security rules web-sg-in-5 log-end no
+set rulebase security rules web-sg-in-5 description "SSH from the bastion"
+set rulebase security rules web-sg-in-6 from any
+set rulebase security rules web-sg-in-6 to any
+set rulebase security rules web-sg-in-6 source monitoring-sg
+set rulebase security rules web-sg-in-6 destination [ web-sg 203.0.113.10 203.0.113.11 ]
+set rulebase security rules web-sg-in-6 source-user any
+set rulebase security rules web-sg-in-6 category any
+set rulebase security rules web-sg-in-6 application ping
+set rulebase security rules web-sg-in-6 service application-default
+set rulebase security rules web-sg-in-6 action allow
+set rulebase security rules web-sg-in-6 log-end no
+set rulebase security rules web-sg-in-6 description "ping from monitoring"
+set rulebase security rules app-sg-in-1 from any
+set rulebase security rules app-sg-in-1 to any
+set rulebase security rules app-sg-in-1 source web-sg
+set rulebase security rules app-sg-in-1 destination app-sg
+set rulebase security rules app-sg-in-1 source-user any
+set rulebase security rules app-sg-in-1 category any
+set rulebase security rules app-sg-in-1 application any
+set rulebase security rules app-sg-in-1 service tcp-8443
+set rulebase security rules app-sg-in-1 action allow
+set rulebase security rules app-sg-in-1 log-end no
+set rulebase security rules app-sg-in-1 description "from the web servers"
+set rulebase security rules app-sg-in-2 from any
+set rulebase security rules app-sg-in-2 to any
+set rulebase security rules app-sg-in-2 source bastion-sg
+set rulebase security rules app-sg-in-2 destination app-sg
+set rulebase security rules app-sg-in-2 source-user any
+set rulebase security rules app-sg-in-2 category any
+set rulebase security rules app-sg-in-2 application any
+set rulebase security rules app-sg-in-2 service tcp-22
+set rulebase security rules app-sg-in-2 action allow
+set rulebase security rules app-sg-in-2 log-end no
+set rulebase security rules app-sg-in-2 description "SSH from the bastion"
+set rulebase security rules app-sg-in-3 from any
+set rulebase security rules app-sg-in-3 to any
+set rulebase security rules app-sg-in-3 source 2001:db8:20::/56
+set rulebase security rules app-sg-in-3 destination app-sg
+set rulebase security rules app-sg-in-3 source-user any
+set rulebase security rules app-sg-in-3 category any
+set rulebase security rules app-sg-in-3 application [ ipv6-icmp ping6 ]
+set rulebase security rules app-sg-in-3 service application-default
+set rulebase security rules app-sg-in-3 action allow
+set rulebase security rules app-sg-in-3 log-end no
+set rulebase security rules app-sg-in-3 description "ICMPv6 inside the VPC"
+set rulebase security rules db-sg-in-1 from any
+set rulebase security rules db-sg-in-1 to any
+set rulebase security rules db-sg-in-1 source app-sg
+set rulebase security rules db-sg-in-1 destination db-sg
+set rulebase security rules db-sg-in-1 source-user any
+set rulebase security rules db-sg-in-1 category any
+set rulebase security rules db-sg-in-1 application any
+set rulebase security rules db-sg-in-1 service tcp-5432
+set rulebase security rules db-sg-in-1 action allow
+set rulebase security rules db-sg-in-1 log-end no
+set rulebase security rules db-sg-in-1 description "from the application"
+set rulebase security rules db-sg-in-2 from any
+set rulebase security rules db-sg-in-2 to any
+set rulebase security rules db-sg-in-2 source sg-0bbbbbbbbbbbbbbb0
+set rulebase security rules db-sg-in-2 destination db-sg
+set rulebase security rules db-sg-in-2 source-user any
+set rulebase security rules db-sg-in-2 category any
+set rulebase security rules db-sg-in-2 application any
+set rulebase security rules db-sg-in-2 service tcp-5432
+set rulebase security rules db-sg-in-2 action allow
+set rulebase security rules db-sg-in-2 log-end no
+set rulebase security rules db-sg-in-2 disabled yes
+set rulebase security rules db-sg-in-2 description "FWSHIFT: disabled by the converter, see the report. reporting VPC"
+set rulebase security rules db-sg-in-3 from any
+set rulebase security rules db-sg-in-3 to any
+set rulebase security rules db-sg-in-3 source bastion-sg
+set rulebase security rules db-sg-in-3 destination db-sg
+set rulebase security rules db-sg-in-3 source-user any
+set rulebase security rules db-sg-in-3 category any
+set rulebase security rules db-sg-in-3 application any
+set rulebase security rules db-sg-in-3 service tcp-22
+set rulebase security rules db-sg-in-3 action allow
+set rulebase security rules db-sg-in-3 log-end no
+set rulebase security rules db-sg-in-3 description "SSH from the bastion"
+set rulebase security rules bastion-sg-in-1 from any
+set rulebase security rules bastion-sg-in-1 to any
+set rulebase security rules bastion-sg-in-1 source corp-offices
+set rulebase security rules bastion-sg-in-1 destination [ bastion-sg 203.0.113.50 ]
+set rulebase security rules bastion-sg-in-1 source-user any
+set rulebase security rules bastion-sg-in-1 category any
+set rulebase security rules bastion-sg-in-1 application any
+set rulebase security rules bastion-sg-in-1 service tcp-22
+set rulebase security rules bastion-sg-in-1 action allow
+set rulebase security rules bastion-sg-in-1 log-end no
+set rulebase security rules bastion-sg-in-1 description "SSH from the offices"
+set rulebase security rules monitoring-sg-in-1 from any
+set rulebase security rules monitoring-sg-in-1 to any
+set rulebase security rules monitoring-sg-in-1 source 10.20.9.0/24
+set rulebase security rules monitoring-sg-in-1 destination [ monitoring-sg 203.0.113.10 203.0.113.11 ]
+set rulebase security rules monitoring-sg-in-1 source-user any
+set rulebase security rules monitoring-sg-in-1 category any
+set rulebase security rules monitoring-sg-in-1 application any
+set rulebase security rules monitoring-sg-in-1 service udp-161-162
+set rulebase security rules monitoring-sg-in-1 action allow
+set rulebase security rules monitoring-sg-in-1 log-end no
+set rulebase security rules monitoring-sg-in-1 description "SNMP from the management subnet"
+set rulebase security rules default-out-1 from any
+set rulebase security rules default-out-1 to any
+set rulebase security rules default-out-1 source default
+set rulebase security rules default-out-1 destination [ 0.0.0.0-10.19.255.255 10.21.0.0-255.255.255.255 ]
+set rulebase security rules default-out-1 source-user any
+set rulebase security rules default-out-1 category any
+set rulebase security rules default-out-1 application any
+set rulebase security rules default-out-1 service any
+set rulebase security rules default-out-1 action allow
+set rulebase security rules default-out-1 log-end no
+set rulebase security rules default-out-1 description "0.0.0.0/0 without the addresses of the VPC"
+set rulebase security rules web-sg-out-2 from any
+set rulebase security rules web-sg-out-2 to any
+set rulebase security rules web-sg-out-2 source web-sg
+set rulebase security rules web-sg-out-2 destination [ 0.0.0.0-10.19.255.255 10.21.0.0-255.255.255.255 ]
+set rulebase security rules web-sg-out-2 source-user any
+set rulebase security rules web-sg-out-2 category any
+set rulebase security rules web-sg-out-2 application any
+set rulebase security rules web-sg-out-2 service tcp-443
+set rulebase security rules web-sg-out-2 action allow
+set rulebase security rules web-sg-out-2 log-end no
+set rulebase security rules web-sg-out-2 description "updates | 0.0.0.0/0 without the addresses of the VPC"
+set rulebase security rules web-sg-out-3 from any
+set rulebase security rules web-sg-out-3 to any
+set rulebase security rules web-sg-out-3 source web-sg
+set rulebase security rules web-sg-out-3 destination [ ::-2001:db8:1f:ffff:ffff:ffff:ffff:ffff 2001:db8:20:100::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ]
+set rulebase security rules web-sg-out-3 source-user any
+set rulebase security rules web-sg-out-3 category any
+set rulebase security rules web-sg-out-3 application any
+set rulebase security rules web-sg-out-3 service tcp-443
+set rulebase security rules web-sg-out-3 action allow
+set rulebase security rules web-sg-out-3 log-end no
+set rulebase security rules web-sg-out-3 description "updates | ::/0 without the addresses of the VPC"
+set rulebase security rules app-sg-out-2 from any
+set rulebase security rules app-sg-out-2 to any
+set rulebase security rules app-sg-out-2 source app-sg
+set rulebase security rules app-sg-out-2 destination com.amazonaws.eu-west-1.s3
+set rulebase security rules app-sg-out-2 source-user any
+set rulebase security rules app-sg-out-2 category any
+set rulebase security rules app-sg-out-2 application any
+set rulebase security rules app-sg-out-2 service tcp-443
+set rulebase security rules app-sg-out-2 action allow
+set rulebase security rules app-sg-out-2 log-end no
+set rulebase security rules app-sg-out-2 description "to S3"
+set rulebase security rules bastion-sg-out-2 from any
+set rulebase security rules bastion-sg-out-2 to any
+set rulebase security rules bastion-sg-out-2 source bastion-sg
+set rulebase security rules bastion-sg-out-2 destination [ 0.0.0.0-10.19.255.255 10.21.0.0-255.255.255.255 ]
+set rulebase security rules bastion-sg-out-2 source-user any
+set rulebase security rules bastion-sg-out-2 category any
+set rulebase security rules bastion-sg-out-2 application any
+set rulebase security rules bastion-sg-out-2 service tcp-443
+set rulebase security rules bastion-sg-out-2 action allow
+set rulebase security rules bastion-sg-out-2 log-end no
+set rulebase security rules bastion-sg-out-2 description "updates | 0.0.0.0/0 without the addresses of the VPC"
+set rulebase security rules monitoring-sg-out-1 from any
+set rulebase security rules monitoring-sg-out-1 to any
+set rulebase security rules monitoring-sg-out-1 source monitoring-sg
+set rulebase security rules monitoring-sg-out-1 destination [ 0.0.0.0-10.19.255.255 10.21.0.0-255.255.255.255 ]
+set rulebase security rules monitoring-sg-out-1 source-user any
+set rulebase security rules monitoring-sg-out-1 category any
+set rulebase security rules monitoring-sg-out-1 application any
+set rulebase security rules monitoring-sg-out-1 service any
+set rulebase security rules monitoring-sg-out-1 action allow
+set rulebase security rules monitoring-sg-out-1 log-end no
+set rulebase security rules monitoring-sg-out-1 description "0.0.0.0/0 without the addresses of the VPC"
+set rulebase security rules monitoring-sg-out-2 from any
+set rulebase security rules monitoring-sg-out-2 to any
+set rulebase security rules monitoring-sg-out-2 source monitoring-sg
+set rulebase security rules monitoring-sg-out-2 destination [ ::-2001:db8:1f:ffff:ffff:ffff:ffff:ffff 2001:db8:20:100::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ]
+set rulebase security rules monitoring-sg-out-2 source-user any
+set rulebase security rules monitoring-sg-out-2 category any
+set rulebase security rules monitoring-sg-out-2 application any
+set rulebase security rules monitoring-sg-out-2 service any
+set rulebase security rules monitoring-sg-out-2 action allow
+set rulebase security rules monitoring-sg-out-2 log-end no
+set rulebase security rules monitoring-sg-out-2 description "::/0 without the addresses of the VPC"
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."

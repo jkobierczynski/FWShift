@@ -1,0 +1,40 @@
+FWShift conversion report
+  source: aws (vpc-0a1b2c3d4e5f60789)
+  target: aws
+
+Summary
+  Security rules:     32   exact 31, approximated 0, needs review 1 (1 emitted disabled), skipped 0
+  NAT rules:           3   exact 0, approximated 0, needs review 0, skipped 3
+  Address groups:     13   exact 13, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0db0000000000000a of subnet subnet-0300000000000003a denies some inbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections out of the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0db0000000000000a of subnet subnet-0300000000000003a denies some outbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections into the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_HAIRPIN: connections from inside the VPC to its own public addresses are not converted as AWS decides them: they leave through the internet gateway, the source's outbound rules see the public address and the destination's inbound rules see the source's public address (or that of its NAT gateway). The converted policy treats them as connections to the private address, which may allow more
+  [needs-review] AWS_REMOTE_GROUP: rules name groups that are not in the export (another VPC, another account, or left out): sg-0bbbbbbbbbbbbbbb0. Their members are not known; those rules are not converted
+  [needs-review] AWS_LOAD: the output is a shell script of AWS CLI calls (section 10): DRY_RUN=1 prints them, CHECK=1 with VPC_ID sends each with --dry-run, VPC_ID alone creates the groups and their rules. It creates new groups only, and stops if a group of the same name exists. The groups have no members when it is done: nothing changes until they are attached
+  [needs-review] AWS_ATTACH: 12 groups: attach each to the network interfaces whose private addresses its '# attach' line lists, and take the other groups off those interfaces; an interface with addresses of both IP versions gets a group for each. A group applies to the whole interface: an interface with several addresses of one IP version in different groups gives each address the rules of all of them, so give such addresses the same group. Attaching (aws ec2 modify-network-interface-attribute --groups ...) replaces the groups of an interface: it is left to you
+  [needs-review] AWS_RULE_QUOTA: these groups have more rules than the default quota of 60 per direction and IP version; AWS refuses the call that goes over it unless the quota was raised (a group whose addresses are not in the VPC is never attached, and its call can be taken out of the script): fwshift-web-sg (67 inbound IPv4)
+  [info] AWS_EGRESS_PAIRS: inside the VPC a connection needs an outbound rule of the source's groups and an inbound rule of the destination's. Where the outbound rules do not allow everything, 1 rule allows what both allow, and a rule after them blocks the rest of what those members send inside the VPC
+  [info] AWS_PUBLIC_ADDRESSES: the public and Elastic IP addresses of the network interfaces are static NAT of their private addresses: the internet gateway translates what comes from outside, and the groups see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  [info] AWS_UNFILTERED: security groups never filter traffic to the Amazon DNS server, DHCP, the instance metadata service, the Time Sync Service and Windows license activation; neither does the converted policy say anything about it
+  [info] AWS_GROUP_UNUSED: no network interface of the export carries these groups, so their inbound rules allow nothing and were left out: legacy-sg
+
+Security rules
+  web-sg-in-1  ->  exact  (emitted as security groups fwshift-addresses, fwshift-web-sg, fwshift-addresses-2, fwshift-addresses-3, fwshift-bastion-sg, fwshift-addresses-4)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  web-sg-in-3  ->  exact  (emitted as security groups fwshift-addresses, fwshift-web-sg, fwshift-addresses-2, fwshift-addresses-3, fwshift-bastion-sg, fwshift-addresses-4)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  db-sg-in-1  ->  exact  (emitted as security groups fwshift-addresses-2, fwshift-db-sg)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  db-sg-in-2  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'sg-0bbbbbbbbbbbbbbb0': dynamic address group, members are not known statically.
+
+NAT rules
+  public-203.0.113.10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  public-203.0.113.11  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  public-203.0.113.50  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see

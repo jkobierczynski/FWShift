@@ -1,0 +1,49 @@
+FWShift conversion report
+  source: barracuda (forwarding firewall)
+  target: aws
+
+Summary
+  Security rules:     17   exact 9, approximated 1, needs review 6 (6 emitted disabled), skipped 1
+  Addresses:           8   exact 8, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CONNECTION_NOT_READ: rules whose connection object translates the source address: 'LAN-2-INTERNET'. Source NAT is not read; the rules are, as they match
+  [needs-review] AWS_LOAD: the output is a shell script of AWS CLI calls (section 10): DRY_RUN=1 prints them, CHECK=1 with VPC_ID sends each with --dry-run, VPC_ID alone creates the groups and their rules. It creates new groups only, and stops if a group of the same name exists. The groups have no members when it is done: nothing changes until they are attached
+  [needs-review] AWS_ATTACH: 6 groups: attach each to the network interfaces whose private addresses its '# attach' line lists, and take the other groups off those interfaces; an interface with addresses of both IP versions gets a group for each. A group applies to the whole interface: an interface with several addresses of one IP version in different groups gives each address the rules of all of them, so give such addresses the same group. Attaching (aws ec2 modify-network-interface-attribute --groups ...) replaces the groups of an interface: it is left to you
+  [needs-review] AWS_RULE_QUOTA: these groups have more rules than the default quota of 60 per direction and IP version; AWS refuses the call that goes over it unless the quota was raised (a group whose addresses are not in the VPC is never attached, and its call can be taken out of the script): fwshift-V6-Servers-ipv6 (96 inbound IPv6)
+  [info] BARRACUDA_FORMAT: read 15 forwarding rules, 10 network objects and 8 service objects from 19 answers of the REST API. Barracuda documents that API by examples only: the keys read are those its examples and published tools show, and a key of a rule, an object or an entry this parser does not know makes it unusable
+  [info] ICMP_LIMITS: service objects that limit the size or rate of ICMP echo requests: 'Ping'. The limits are not converted: the rules allow ICMP of any size and rate
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security group does not. VPC Flow Logs record the connections of the interfaces instead
+
+Security rules
+  ADMIN-SSH (port2)  ->  needs-review, emitted disabled
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone port2, and a security group names no zone: give the networks behind port2 with --zone-network.
+  ADMIN-SSH (port1)  ->  needs-review, emitted disabled
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone port1, and a security group names no zone: give the networks behind port1 with --zone-network.
+  WEB-IN  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Dst NAT: how the API spells its target list is not known, so the translation is not read.
+  SERVER-SYNC  ->  exact  (emitted as security groups fwshift-Office-LAN, fwshift-DMZ-Servers)
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  SERVER-SYNC (back)  ->  exact  (emitted as security groups fwshift-Office-LAN, fwshift-DMZ-Servers)
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  PING-ALL  ->  approximated  (emitted as security groups fwshift-addresses, fwshift-Office-LAN, fwshift-DMZ-Servers)
+      [approximated] ICMP_LIMITS: service 'Ping' limits the size or rate of ICMP echo requests; the limits are not converted
+  UPDATES  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates.example.com (IPv4): a security group names addresses.
+  V6-WEB  ->  exact  (emitted as security groups fwshift-addresses-ipv6, fwshift-V6-Servers-ipv6)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  DENY-LAN-DMZ  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action reset-client: a security group drops what it does not allow, without an answer
+  GRE-LAB  ->  skipped
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application=urlFilter, ips=Default); attach equivalent inspection on the target
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  TO-LAB  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Cascade: the rules of the rule list it hands traffic to are not read, and they decide that traffic. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ODD  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule '{"type": "recurring", "name": "Work-Hours"}' is not converted; the rule would apply at all times.
+      [needs-review] SOURCE_PORTS: source ports: a security group rule matches destination ports only.

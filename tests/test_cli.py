@@ -240,6 +240,37 @@ CASES = [
     ("iptables_sample.rules", "nsx", "iptables_to_nsx.json"),
     ("junos_sample.conf", "nsx", "junos_to_nsx.json"),
     ("nftables_sample.nft", "nsx", "nftables_to_nsx.json"),
+    ("aws_sample.json", "aws", "aws_to_aws.sh"),
+    ("aws_sample.json", "panos", "aws_to_panos.set"),
+    ("aws_sample.json", "fortios", "aws_to_fortios.conf"),
+    ("aws_sample.json", "checkpoint", "aws_to_checkpoint.sh"),
+    ("aws_sample.json", "asa", "aws_to_asa.cfg"),
+    ("aws_sample.json", "sophos", "aws_to_sophos.xml"),
+    ("aws_sample.json", "fmc", "aws_to_fmc.policy.txt"),
+    ("aws_sample.json", "fdm", "aws_to_fdm.json"),
+    ("aws_sample.json", "pfsense", "aws_to_pfsense.xml"),
+    ("aws_sample.json", "sonicwall", "aws_to_sonicwall.cli"),
+    ("aws_sample.json", "watchguard", "aws_to_watchguard.xml"),
+    ("aws_sample.json", "barracuda", "aws_to_barracuda.sh"),
+    ("aws_sample.json", "iptables", "aws_to_iptables.rules"),
+    ("aws_sample.json", "junos", "aws_to_junos.set.conf"),
+    ("aws_sample.json", "nftables", "aws_to_nftables.nft"),
+    ("aws_sample.json", "nsx", "aws_to_nsx.json"),
+    ("panos_sample.xml", "aws", "panos_to_aws.sh"),
+    ("fortios_sample.conf", "aws", "fortios_to_aws.sh"),
+    ("checkpoint_sample.json", "aws", "checkpoint_to_aws.sh"),
+    ("asa_sample.cfg", "aws", "asa_to_aws.sh"),
+    ("sophos_sample.xml", "aws", "sophos_to_aws.sh"),
+    ("fmc_sample.json", "aws", "fmc_to_aws.sh"),
+    ("fdm_sample.txt", "aws", "fdm_to_aws.sh"),
+    ("pfsense_sample.xml", "aws", "pfsense_to_aws.sh"),
+    ("sonicwall_sample.exp", "aws", "sonicwall_to_aws.sh"),
+    ("watchguard_sample.xml", "aws", "watchguard_to_aws.sh"),
+    ("barracuda_sample.json", "aws", "barracuda_to_aws.sh"),
+    ("iptables_sample.rules", "aws", "iptables_to_aws.sh"),
+    ("junos_sample.conf", "aws", "junos_to_aws.sh"),
+    ("nftables_sample.nft", "aws", "nftables_to_aws.sh"),
+    ("nsx_sample.json", "aws", "nsx_to_aws.sh"),
 ]
 
 
@@ -251,6 +282,7 @@ def test_detect_format() -> None:
     assert detect_format((DATA / "nftables_sample.nft").read_bytes()) == "nftables"
     assert detect_format((DATA / "nftables_sample.json").read_bytes()) == "nftables"
     assert detect_format((DATA / "nsx_sample.json").read_bytes()) == "nsx"
+    assert detect_format((DATA / "aws_sample.json").read_bytes()) == "aws"
     assert detect_format(b'\n[\n {"uid": "x", "rulebase": []}]') == "checkpoint"
     assert detect_format(b": Saved\n:\nASA Version 9.12(4)\n!\nhostname fw\n") == "asa"
     assert detect_format(b'<?xml version="1.0" encoding="UTF-8"?>\n<Configuration APIVersion="2000.1">') == "sophos"
