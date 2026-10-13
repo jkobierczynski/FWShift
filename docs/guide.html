@@ -213,6 +213,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <li><a href="#nsx">VMware NSX</a></li>
       <li><a href="#aws">AWS security groups</a></li>
       <li><a href="#azure">Azure network security groups</a></li>
+      <li><a href="#routeros">MikroTik RouterOS</a></li>
     </ul>
     <h4>Analysis</h4>
     <ul>
@@ -229,11 +230,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
 
 <main id="top">
 <header class="mast">
-  <div class="eyebrow">Field guide · version 0.22</div>
+  <div class="eyebrow">Field guide · version 0.23</div>
   <h1>FWShift, feature by feature</h1>
-  <p class="lead">FWShift converts firewall policies between seventeen platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
+  <p class="lead">FWShift converts firewall policies between eighteen platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
   <div class="facts">
-    <span><b>17</b> platforms in, <b>18</b> formats out</span>
+    <span><b>18</b> platforms in, <b>19</b> formats out</span>
     <span>Python 3.9+, standard library only</span>
     <span>GPL-3.0-or-later</span>
     <span>Examples run on the synthetic samples in <code>tests/data</code></span>
@@ -309,6 +310,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <tr><td>VMware NSX (distributed firewall)</td><td><code>nsx</code></td><td>Policy API JSON (hierarchical or lists)</td><td>body of one <code>PATCH</code></td></tr>
       <tr><td>AWS security groups (and network ACLs)</td><td><code>aws</code></td><td>AWS CLI JSON of one VPC</td><td>script of AWS CLI calls</td></tr>
       <tr><td>Azure network security groups</td><td><code>azure</code></td><td>Azure CLI, REST, template or Resource Graph JSON</td><td>ARM template</td></tr>
+      <tr><td>MikroTik RouterOS (6 and 7)</td><td><code>routeros</code></td><td>the output of <code>/export</code></td><td>script for <code>/import</code></td></tr>
       <tr><td>Neutral model</td><td><code>json</code> (target only)</td><td>—</td><td>the model, with source IDs, targets, hits</td></tr>
     </tbody>
   </table></div>
@@ -319,11 +321,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
   <h2><span class="num">2</span>Install and run</h2>
   <p>Each release has three packages: the project as a zip, a single file that runs with any Python 3.9 or newer, and a wheel for <code>pip</code>. Nothing else needs installing.</p>
   <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># one file, nothing to install</span>
-python3 fwshift-0.22.0.pyz --version
-python3 fwshift-0.22.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.23.0.pyz --version
+python3 fwshift-0.23.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 
 <span class="c"># or with pip</span>
-pip install fwshift-0.22.0-py3-none-any.whl
+pip install fwshift-0.23.0-py3-none-any.whl
 fwshift convert running-config.xml --to fortios -o fortigate.conf</pre></div>
   <p>The input may be <code>-</code> for standard input. The source format is detected (XML root elements, JSON keys, CLI keywords); give <code>--from</code> when detection could be ambiguous, for example <code>--from ip6tables</code>.</p>
 </section>
@@ -387,7 +389,7 @@ findings while reading:
   <div class="tablewrap"><table>
     <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure json</code>.</td></tr>
+      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure routeros json</code>.</td></tr>
       <tr><td><code>--zone-map SRC=DST</code></td><td>Rename a zone or interface. For iptables, nftables and ASA, this is how a zone becomes an interface.</td></tr>
       <tr><td><code>--interface-map SRC=DST</code></td><td>Map a source interface to a target interface: FortiOS zone members, interface NAT, Sophos/SonicWall/FDM NAT interfaces, Barracuda source interfaces.</td></tr>
       <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, Barracuda, NSX, AWS, Azure; SonicWall object zones).</td></tr>
@@ -567,6 +569,7 @@ m add nat-rule package Standard position bottom original-destination web-public 
     <a href="#nsx"><b>VMware NSX</b><span>Policy API → PATCH</span></a>
     <a href="#aws"><b>AWS security groups</b><span>AWS CLI → script</span></a>
     <a href="#azure"><b>Azure NSG</b><span>Azure JSON → ARM template</span></a>
+    <a href="#routeros"><b>MikroTik RouterOS</b><span>/export → /import</span></a>
   </div>
 
   <div class="filterbar">
@@ -1071,6 +1074,32 @@ az network vnet subnet update -g rg-net --vnet-name vnet-hub -n snet-dmz --netwo
   "direction": "Inbound", "sourcePortRange": "*", "destinationPortRange": "443",
   "sourceAddressPrefix": "*", "destinationAddressPrefix": "10.20.0.10/32", "priority": 200}}</pre></div>
   </article>
+  <!-- routeros -->
+  <article class="brand" id="routeros">
+    <h3>MikroTik RouterOS</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>the output of /export (RouterOS 6 or 7)</span></span><span class="port"><i>OUT</i><span>script for /import</span></span><span class="port"><i>ID</i><span>routeros</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>The whole export (compact, <code>terse</code> or <code>verbose</code>): the interface lists and their members are the zones, and <code>/ip address</code> and the bridge settings are read with the firewall. A partial export works with its menu line at the top. The output of <code>print</code> is refused.</p>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>/export file=router                                       <span class="c"># on the router; copy router.rsc off it</span>
+fwshift convert router.rsc --to fortios -o fortigate.conf --report report.txt</pre></div>
+    <h4 class="sub">Options</h4>
+    <p><code>--zone-map</code> or <code>--interface-map</code> so that the interface lists hold interfaces of the router; <code>--target-prefix</code> instead of <code>fws-</code> for the names of the lists.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to routeros -o fwshift.rsc --report report.txt --interface-map ethernet1/1=ether1
+/import file-name=fwshift.rsc verbose=yes                  <span class="c"># on the router: nothing changes yet</span>
+/ip firewall filter enable [find where comment~"fwshift: enable"]   <span class="c"># in Safe Mode, then move it into place</span></pre></div>
+    <div class="callout"><b>Switched on by one change.</b> The rules go into chains of their own (<code>fwshift-forward</code>, <code>fwshift-dstnat</code>, <code>fwshift-srcnat</code>), and the jumps to them are added disabled. The chain ends with the policy's default, so the rules of <code>forward</code> after the jump no longer see forwarded traffic. The script never touches <code>input</code> or <code>output</code>, removes nothing, and stops at its first line when an earlier conversion is still there (<code>ROUTEROS_LOAD</code>).</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>RouterOS accepts what no rule decides: the default of the policy is allow, and a target that denies by default says so (<code>FORWARD_POLICY_ACCEPT</code>, <code>INTERZONE_DEFAULT</code>).</li>
+      <li>Interface lists are the zones when they do not overlap; otherwise every interface is one (<code>ROUTEROS_ZONES</code>). A negated interface covers only the interfaces the export shows (<code>ROUTEROS_NEGATED_INTERFACE</code>).</li>
+      <li>The default configuration's "drop all from WAN not DSTNATed" becomes allow rules for each port forward ahead of a deny, where that is exact (<code>ROUTEROS_DSTNAT_EXCEPTION</code>); otherwise the rule is disabled.</li>
+      <li>A <code>return</code> is taken away exactly where addresses, protocols or ports say what returns; on an interface it makes the rules below it disabled. Address lists the router fills while it runs disable their rules (<code>ROUTEROS_DYNAMIC_LIST</code>).</li>
+      <li><code>ipsec-policy</code>, layer-7, content, rate limits, marks, <code>time</code> and the masquerade's <code>ipsec-policy=out,none</code> (<code>ROUTEROS_NAT_IPSEC_EXEMPT</code>) are not carried over as such.</li>
+    </ul>
+    <div class="codebox"><span class="label">output · routeros (one rule and its port forward)</span><button class="copy" type="button">Copy</button><pre>/ip firewall filter add chain=fwshift-forward in-interface-list=fws-untrust out-interface-list=fws-dmz dst-address=10.20.0.10 protocol=tcp dst-port=443 action=accept log=yes log-prefix="Inbound-Web" comment="Inbound-Web"
+/ip firewall nat add chain=fwshift-dstnat in-interface-list=fws-untrust dst-address=203.0.113.10 protocol=tcp dst-port=443 action=dst-nat to-addresses=10.20.0.10 to-ports=8443 comment="Inbound-Web-DNAT"</pre></div>
+  </article>
   <p id="nowatch" hidden>No watch item matches that filter.</p>
 </section>
 
@@ -1205,7 +1234,7 @@ fwshift convert running-config.xml --to iptables -o rules.v4 --report report.txt
     <li><b>opened</b>: the second allows it, the first does not; <b>closed</b>: the other way round. <b>certain</b> where both are read exactly; <b>possible</b> where not, never left out.</li>
     <li>Applications, users, URL categories and schedules are labels of a connection; what both policies hold alike but cannot be read (a region, a dynamic group, a rule not held exactly) decides alike.</li>
     <li><code>--zone-map</code> renames zones of the first (several may become one); <code>--zone-network</code> keeps the comparison to connections that can happen.</li>
-    <li><code>convert --compare</code> reads back asa (with networks), azure, fdm, fortios, iptables, ip6tables, junos, nftables, nsx, sophos and watchguard output. NAT rules are not compared.</li>
+    <li><code>convert --compare</code> reads back asa (with networks), azure, fdm, fortios, iptables, ip6tables, junos, nftables, nsx, routeros (with its jumps on), sophos and watchguard output. NAT rules are not compared.</li>
   </ul>
 </section>
 
@@ -1300,6 +1329,7 @@ fwshift usage rules.v4 --logs kern.log --log-year 2026 --unchanged-since 2026-01
       <tr><td>NSX</td><td>Services, groups and the policy of the same id</td><td><code>--target-prefix</code>; a lab manager (no dry run)</td></tr>
       <tr><td>AWS</td><td>Nothing: new groups, attached to nothing; stops if a name exists</td><td><code>DRY_RUN=1</code>, then <code>CHECK=1</code>; attach by hand</td></tr>
       <tr><td>Azure</td><td>All rules of a group of the same name; associates nothing</td><td><code>what-if</code>; incremental mode; associate by hand</td></tr>
+      <tr><td>RouterOS</td><td>Nothing: chains and lists of its own; the jumps that switch it on are disabled</td><td>Import with <code>verbose=yes</code>; enable the jumps in Safe Mode</td></tr>
       <tr><td>pfSense</td><td>Each restored area (Aliases, NAT, Rules)</td><td>A full backup</td></tr>
       <tr><td>ASA</td><td>Interface <code>access-group</code> bindings; <code>global_access</code> on every interface</td><td>Read the <code>access-group</code> lines</td></tr>
       <tr><td>FortiOS</td><td>Objects of the same name; central NAT changes existing NAT</td><td>A lab device for <code>central-nat enable</code></td></tr>

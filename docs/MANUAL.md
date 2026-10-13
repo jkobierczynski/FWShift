@@ -3,12 +3,12 @@
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
 Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
 or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX, Linux iptables, Linux nftables, the VMware NSX
-distributed firewall, AWS security groups and Azure network security groups, and tells you,
+distributed firewall, AWS security groups, Azure network security groups and MikroTik RouterOS, and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; show what each zone may reach in each
 other zone; check a policy against a zone and conduit model kept as a file;
 and say which connections two policies decide differently.
-This manual covers version 0.22.
+This manual covers version 0.23.
 
 **Contents**
 
@@ -62,10 +62,10 @@ may reach (section 14), check a policy against a zone and conduit model kept
 as a file (section 16), and name every connection two policies decide
 differently, including a source and its conversion read back (section 17).
 
-> **Status.** Version 0.22 is tested against synthetic configurations. iptables
+> **Status.** Version 0.23 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). Output for PAN-OS, FortiOS, Check Point,
-> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS and Azure has
+> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS, Azure and RouterOS has
 > not been loaded on a device or management server yet; the Check Point input format follows the
 > API documentation, the ASA and FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
@@ -98,8 +98,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.22.0.pyz --version
-python3 fwshift-0.22.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.23.0.pyz --version
+python3 fwshift-0.23.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -255,6 +255,23 @@ rules: the six every group has are added (`AZURE_DEFAULT_RULES_ADDED`). Let the
 CLI page through everything: an answer with a `nextLink` or a skip token is
 incomplete (`AZURE_INCOMPLETE_EXPORT`). The report says which networks lie
 behind each group, for `--zone-network` (`AZURE_ZONES`).
+
+**MikroTik RouterOS.** FWShift reads the output of `/export` (RouterOS 6 or 7;
+compact, `terse` or `verbose`), as the terminal prints it or as
+`/export file=NAME` writes it to the router's files:
+
+```
+/export file=router
+```
+
+Copy `router.rsc` from the router's files (WinBox, `scp`, FTP). A partial
+export such as `/ip firewall export` is read too, as long as the menu line
+(`/ip firewall filter`) is at its top. Give the whole export where you can:
+the interface lists and their members (the zones), `/ip address` and the
+bridge settings are read with the firewall. Neither `hide-sensitive` nor
+`show-sensitive` changes anything the conversion reads. The output of `print`
+is refused: it is a table, not a script, and it holds rules the router adds
+itself.
 
 **Cisco ASA.** FWShift reads the running configuration as the ASA prints it:
 
@@ -765,7 +782,7 @@ fwshift convert INPUT --to FORMAT [options]
 
 `FORMAT` is one of `panos`, `fortios`, `checkpoint`, `asa`, `fmc`, `fdm`,
 `sophos`, `pfsense`, `sonicwall`, `watchguard`, `barracuda`, `junos`,
-`iptables`, `ip6tables`, `nftables`, `nsx`, `aws`, `azure` and `json` (the neutral model; see `--to json` below).
+`iptables`, `ip6tables`, `nftables`, `nsx`, `aws`, `azure`, `routeros` and `json` (the neutral model; see `--to json` below).
 
 `INPUT` is a file, or `-` for standard input.
 
@@ -773,7 +790,7 @@ fwshift convert INPUT --to FORMAT [options]
 
 | Option | Meaning |
 |---|---|
-| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; JSON with network security groups of Azure (`Microsoft.Network/networkSecurityGroups`, or `securityRules` with priorities) is Azure; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; JSON with network security groups of Azure (`Microsoft.Network/networkSecurityGroups`, or `securityRules` with priorities) is Azure; a file whose header says `by RouterOS`, or whose first line is a menu such as `/ip firewall filter` or `/interface list`, is RouterOS; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
@@ -807,6 +824,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to nsx` | The body of one `PATCH /policy/api/v1/infra` of the VMware NSX Policy API: services, groups and one security policy with the rules (section 10). |
 | `--to aws` | A shell script of AWS CLI calls that creates security groups for one VPC, without members, and says which addresses each is for (section 10). |
 | `--to azure` | An ARM template with one network security group per zone (section 10). |
+| `--to routeros` | A script for `/import` on RouterOS 6 or 7: interface lists for the zones, address lists, the rules in chains of their own, and the jumps that switch them on, disabled (section 10). |
 | `--to nftables` | A ruleset for `nft -f`: one table, `inet fwshift`, with the forward hook for both IP versions and the IPv4 NAT chains. Loading it replaces that table and nothing else (section 10). |
 | `--to json` | The neutral model as JSON, for inspection or other tools. It is the model as it was read: the audit options cannot be combined with it. Each rule carries what the source calls it (`source_ids`: the uid of a Check Point rule, the name and uuid of a PAN-OS rule, the policy ID and uuid of a FortiOS policy), the devices it is installed on where the source limits that (`targets`), and its hit count where the input has one (`hits`). |
 | `--target-vsys NAME` | PAN-OS: prefix commands with `vsys NAME`. Default: a single-vsys firewall, no prefix. |
@@ -818,8 +836,8 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--target-layer NAME` | Check Point: the access layer the rules are written to. Default `Network`. It must exist. |
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
-| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS and Azure: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on Azure every network security group) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
-| `--compare[=FILE]` | Read the output back (for the targets FWShift reads: `asa`, `azure`, `fdm`, `fortios`, `iptables`, `ip6tables`, `junos`, `nftables`, `nsx`, `sophos`, `watchguard`) and compare it with the policy as it was read: every connection the two decide differently is in the report (`COMPARE_OPENED`, `COMPARE_CLOSED`, section 17). With `FILE` the whole comparison is written there. Give `--zone-network` for every zone, so that only connections that can happen are compared. |
+| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS, Azure and RouterOS: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on Azure every network security group; on RouterOS every interface list and address list, instead of `fws-`) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
+| `--compare[=FILE]` | Read the output back (for the targets FWShift reads: `asa`, `azure`, `fdm`, `fortios`, `iptables`, `ip6tables`, `junos`, `nftables`, `nsx`, `routeros`, `sophos`, `watchguard`) and compare it with the policy as it was read: every connection the two decide differently is in the report (`COMPARE_OPENED`, `COMPARE_CLOSED`, section 17). With `FILE` the whole comparison is written there. Give `--zone-network` for every zone, so that only connections that can happen are compared. |
 | `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates; the script can be given another name when it is run (`--name`). NSX: the name of the security policy. Azure: the name of the one network security group written when no zone has networks. Default `FWShift`. |
 
 **Adapting the policy**
@@ -1386,6 +1404,40 @@ Findings and notes that only an Azure source or target raises (an Azure target a
 | `AZURE_TOO_MANY_RULES` | R | Target: a group would have more than 2,000 security rules, or name more than 100 application security groups, which Azure does not allow; it is not written. |
 | `AZURE_PART_NOT_WRITTEN` | A | Target (on the rule): part of what it allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH): the converted rule allows less. |
 | `ICMP_TYPE_WIDENED` | A | Target (on a blocking rule): it blocks certain ICMP types; a security rule matches all of ICMP, which blocks more. |
+
+Findings and notes that only a RouterOS source or target raises (a RouterOS source also raises
+`HOST_CHAIN_NOT_CONVERTED`, `TABLE_NOT_CONVERTED`, `STATELESS_RULESET`, `DROP_BEFORE_ESTABLISHED`,
+`FORWARD_POLICY_ACCEPT`, `LOG_EVERY_PACKET` and `RESET_ACTION`, as for iptables; a RouterOS target
+`INTERFACES_REQUIRED`, `ONE_IP_VERSION`, `RESET_ACTION`, `NAT_AFTER_DNAT` and the NAT findings of iptables):
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `ROUTEROS_ZONES` | I | Source: which zones were made. When the interface lists the rules use do not overlap, each list is a zone; otherwise every interface is one, and a list stands for the zones of its members. |
+| `ROUTEROS_NEGATED_INTERFACE` | A, R | Source (on the rule): a negated interface or interface list (`in-interface-list=!LAN`), on the rule or on the jump to its chain. The export does not list every interface of the router (an Ethernet port with its default settings is not in it, PPP and VPN interfaces come and go), so the rule covers the zones the export shows. Review a deny rule: on the router it also blocks the interfaces the export leaves out. |
+| `ROUTEROS_DSTNAT_EXCEPTION` | I | Source (on the rule): `connection-nat-state=!dstnat` (the default configuration's "drop all from WAN not DSTNATed"). The rule does not block connections a destination NAT rule translated; allow rules for exactly those connections were put ahead of it. Where that cannot be exact (the rule matches more than interfaces and states, a destination NAT rule cannot be read, or a rule below it blocks part of what is translated), the rule is written disabled instead. |
+| `ROUTEROS_DYNAMIC_LIST` | R | Source: address lists that are filled while the router runs (`add-src-to-address-list` in a filter, NAT, mangle or raw rule; the `address-list` of a DHCP server or a PPP profile). What they hold is not known; the rules that name them are written disabled. |
+| `ROUTEROS_EMPTY_LIST` | R | Source: address lists with no entry in the export: a rule that names one matches nothing here (and `!list` everything). |
+| `ROUTEROS_FQDN_LIST` | I | Source: address lists that hold host names, which RouterOS resolves while it runs; they are host name objects in the model. |
+| `ROUTEROS_LIST_TIMEOUT` | I | Source: address list entries with a timeout, which the router removes when it runs out; converted as permanent. |
+| `ROUTEROS_PASSIVE` | I | Source: rules with the action `log`, `passthrough` or `add-*-to-address-list` decide nothing and were left out. A log rule directly before a rule with the same match, or one that matches everything, sets the logging of the rules it logs for. |
+| `ROUTEROS_DISABLED_JUMP` | I | Source: disabled rules that would jump, return or log were left out. |
+| `ROUTEROS_UNUSED_CHAIN` | I | Source: chains no jump from `forward` reaches. |
+| `ROUTEROS_FASTTRACK` | R | Source: `fasttrack-connection` for more than established and related connections: the rules below it no longer see the later packets of those connections. Left out. |
+| `ROUTEROS_TARPIT` | A | Source (on the rule): `action=tarpit` holds TCP connections open, so the client sees an open port; converted as a drop. |
+| `ROUTEROS_BRIDGE` | I | Source: traffic between the ports of one bridge does not pass the IP firewall (`use-ip-firewall=no`, the default); the conversion is of routed traffic. |
+| `ROUTEROS_UPNP` | R | Source: UPnP is on; the router adds port forwards for clients while it runs, and they are not in the export. |
+| `ROUTEROS_IP_FORWARD` | R | Source: `/ip settings ip-forward=no`: the router forwards no IPv4 traffic at all. |
+| `ROUTEROS_L3HW` | R | Source: L3 hardware offloading on switch ports: traffic routed between offloaded ports bypasses the firewall. |
+| `ROUTEROS_NO_IPV6_RULES` | I | Source: the forward chain of `/ipv6 firewall filter` has no rules: IPv6 is forwarded unfiltered, and the converted policy allows it too. |
+| `ROUTEROS_SCRIPT_LINES` | R | Source: lines of RouterOS scripting (starting with `:`) were not read; rules they add are not in the conversion. An export holds none. |
+| `ROUTEROS_EXPORT_ERROR` | R | Source: the export says it could not export a menu (`#error exporting ... (timeout)`); what it holds is not in the conversion. For the firewall, interface list and address menus this is an error: export again. |
+| `ROUTEROS_NAT_PORTS` | A | Source (on the NAT rule): `to-ports` of a source NAT, or `action=same`; the ports the router picks from, or the address it keeps per client, are not converted. |
+| `ROUTEROS_NAT_IPSEC_EXEMPT` | A | Source (on the NAT rule): `ipsec-policy=out,none` (the default masquerade). The router does not translate traffic that goes into an IPsec tunnel; the converted rule translates it unless the target exempts it. |
+| `ROUTEROS_LOCAL_ADDRESS` | R | Source (on the NAT rule): `dst-address-type=local` is every address of the router; the addresses of interfaces with a DHCP client or a PPP client are not in the export, and the rule was converted for the static ones only. |
+| `ROUTEROS_LOAD` | R | Target: how the script is loaded and switched on, and how to take it away again (section 10). |
+| `ROUTEROS_FQDN` | I | Target (on the rule): a host name in an address list; the router resolves it and keeps the list up to date. |
+| `ROUTEROS_LOG` | I | Target: rules that log the start of a connection have `log=yes`. |
+| `ROUTEROS_TEXT` | I | Target: names and comments with characters a script cannot hold (`?`, control characters, characters beyond ASCII), or longer than RouterOS takes, were changed. |
 
 Notes that only a Cisco ASA source or target raises:
 
@@ -2189,6 +2241,110 @@ The second column matters too:
 * NAT is not written: the rules are for what a group sees, the translated
   destination of what comes in and the untranslated source of what goes out.
   Logging is not written: flow logs record the connections.
+
+### MikroTik RouterOS
+
+**What is read**
+
+* The `forward` chain of `/ip firewall filter` and `/ipv6 firewall filter` is
+  policy, with the chains it jumps to. `input` and `output` filter the
+  router's own traffic and are reported (`HOST_CHAIN_NOT_CONVERTED`); so are
+  `raw` and `mangle` (`TABLE_NOT_CONVERTED`).
+* **The default is accept.** A packet that no rule of a built-in chain decides
+  is accepted, and that cannot be changed: the model's defaults are allow,
+  inside a zone and between zones (`FORWARD_POLICY_ACCEPT`). A conversion to a
+  platform that denies by default says so there (`INTERZONE_DEFAULT` and the
+  like); add a final allow rule if that is what was meant.
+* **Zones.** When the interface lists the rules use do not overlap, each list
+  is a zone, named after it (`LAN`, `WAN`); an interface a rule names that is
+  in none of them is a zone of its own. When lists overlap, or a rule names an
+  interface that is only part of a list, every interface is a zone and a list
+  stands for the zones of its members (`ROUTEROS_ZONES`). `include` and
+  `exclude` are followed. A negated interface or list covers the zones the
+  export shows (`ROUTEROS_NEGATED_INTERFACE`): an Ethernet port with its
+  default settings is not in an export unless something names it. A list with
+  no members (the router can add some for PPP and VPN connections), the lists
+  `dynamic` and `static`, and a port of a bridge disable the rule.
+* RouterOS filters packets, the other platforms connections. As for iptables,
+  the accept of `established,related[,untracked]`, the drop of `invalid` and
+  `fasttrack-connection` for established connections are left out; a rule for
+  other states without `new` is written disabled.
+* **Chains.** `jump` is flattened as for iptables. A `return` in a chain is
+  followed exactly when what it takes away differs in addresses, protocols or
+  ports: the rules below it are split into the parts that did not return (a
+  return for `protocol=tcp dst-port=22 src-address-list=!admins` leaves the
+  admins, other protocols, and other TCP ports). A return on an interface, on
+  an ICMP type or on a match that is not read makes the rules below it
+  disabled. A `return` in `forward` is an accept.
+* **Addresses.** `src-address` and `dst-address` (an address, a prefix, an
+  IPv4 range) and address lists, each with `!`; both on one side must hold.
+  An address list is an address group with its name (an IPv6 list whose name
+  an IPv4 list has gets `-ipv6`); a host name in it is a host name object
+  (`ROUTEROS_FQDN_LIST`); disabled entries are left out; entries with a
+  timeout are kept (`ROUTEROS_LIST_TIMEOUT`). A list that rules, DHCP or PPP
+  fill while the router runs is not known (`ROUTEROS_DYNAMIC_LIST`); an empty
+  one matches nothing (`ROUTEROS_EMPTY_LIST`).
+* Protocols by name or number (with `!`), `dst-port`, `src-port` and `port`
+  (source or destination: two rules) with lists, ranges and `!`;
+  `icmp-options=TYPE:CODE` (`8:0-255` is every code; a type without a code
+  disables the rule); `connection-state` with `!`. `reject-with=tcp-reset` is a
+  reset where the rule matches TCP only. `time` is a schedule, which the
+  targets do not write (`SCHEDULE`). `action=tarpit` is a drop
+  (`ROUTEROS_TARPIT`).
+* **`connection-nat-state=!dstnat`.** The default configuration ends with
+  "drop all from WAN not DSTNATed": a port forward needs no filter rule on
+  RouterOS. FWShift reads the rule as the deny it is, and puts ahead of it one
+  allow rule for each destination NAT rule, for the connections that rule
+  translates (`ROUTEROS_DSTNAT_EXCEPTION`). That is exact only when the rule
+  matches interfaces and states only, every destination NAT rule can be read,
+  and no rule below it blocks part of what they translate; otherwise the rule
+  is written disabled. On a jump or a return the property disables the rule.
+* Never read as "matches everything": layer-7 patterns, content, TLS host,
+  MAC addresses, rate limits, connection limits and rates, `nth`, `random`,
+  marks, routing tables, packet size, TTL and hop limit, DSCP, TCP flags other
+  than `syn`, `ipsec-policy`, address types, bridge ports, and any property
+  the reader does not know. The rule is written disabled and the report names
+  the property.
+* `log=yes` turns on logging at the start of the connection; so does an
+  `action=log` rule just above a rule with the same match, or one that matches
+  everything. The prefix is kept (`routeros.log_prefix`).
+* NAT: `dst-nat` (`to-addresses`, `to-ports`; without `to-addresses` the port
+  of one address), `netmap` of two prefixes of one size, `masquerade`,
+  `src-nat`, `same` (`ROUTEROS_NAT_PORTS`) and an `accept` in `srcnat` (no
+  NAT). `dst-address-type=local` is the router's addresses from `/ip address`
+  (`ROUTEROS_LOCAL_ADDRESS`); `ipsec-policy=out,none` on a source NAT rule is
+  converted without it (`ROUTEROS_NAT_IPSEC_EXEMPT`). `redirect`, an `accept`
+  in `dstnat`, `in-interface` in `srcnat` and IPv6 NAT are not converted.
+  The forward chain sees the translated destination, as on iptables: rules are
+  rewritten to the original one.
+
+**What is written**
+
+* A script for `/import`, RouterOS 6 or 7 (section 10). Every line names its
+  menu (`/ip firewall filter add ...`), so it can be pasted a line at a time.
+  It never writes `input` or `output` and removes nothing.
+* Zones become interface lists (`fws-ZONE`) with the interfaces of the zone
+  as members, or the zone's name where it has none (`INTERFACES_REQUIRED`).
+  Sides with more than one address become address lists (`fws-GROUP`, or
+  `fws-rN-src` for a list of the rule's own); one address, prefix or IPv4
+  range is written in the rule. IPv6 ranges are written as prefixes, host
+  names as entries the router resolves (`ROUTEROS_FQDN`).
+* The rules go into chain `fwshift-forward`, which starts with the accept of
+  established connections and the drop of invalid ones, and ends with the
+  policy's defaults: an accept or drop inside each zone where that differs
+  from the default between zones, then an explicit accept or drop. A rule of
+  the model is a RouterOS rule per protocol (one `protocol` per rule), and a
+  chain of its own (`fwshift-rN`) when that would be more than 16 rules or the
+  services are negated (the chain returns for each excluded service).
+* A rule that cannot be enforced is a comment line starting with
+  `# FWSHIFT disabled`; a rule disabled in the source is written with
+  `disabled=yes`.
+* NAT is written as for iptables, into chains `fwshift-dstnat` and
+  `fwshift-srcnat`, for IPv4. A NAT rule that translates both sides gets its
+  source half matched after the destination translation, which also catches
+  traffic sent to the translated address directly (`NAT_AFTER_DNAT`).
+* Names and comments are quoted, with `"`, `\` and `$` escaped; `?`, control
+  characters and characters beyond ASCII become `_` (`ROUTEROS_TEXT`).
 
 ### Check Point
 
@@ -3397,6 +3553,42 @@ It associates the groups with nothing.
    default rules: the load balancer's health probes and the virtual network
    pass only where a rule lets them (`AZURE_DEFAULTS_OVERRIDDEN`).
 
+### MikroTik RouterOS
+
+The script changes nothing until you switch it on. Its rules go into chains of
+their own, and its last lines add the jumps to them from `forward` (and from
+`dstnat` and `srcnat` for NAT), disabled.
+
+1. Convert with `--zone-map` (or `--interface-map`) so that the interface
+   lists hold interfaces of this router; a member that does not exist stops
+   the import (`INTERFACES_REQUIRED`):
+
+   ```sh
+   fwshift convert policy.xml --to routeros -o fwshift.rsc --report report.txt \
+       --interface-map ethernet1/1=ether1 --interface-map ethernet1/2=bridge
+   ```
+
+2. Copy `fwshift.rsc` to the router's files and load it:
+   `/import file-name=fwshift.rsc verbose=yes`. The script starts with a check
+   that stops it when the chains of an earlier conversion are there. An import
+   stops at the first line the router refuses, and the lines before it stay:
+   nothing changes traffic yet, but take them away (step 5) before you load it
+   again. On RouterOS 6 the `/ipv6` lines need the `ipv6` package.
+3. Look at what was added: `/ip firewall filter print where chain~"fwshift"`,
+   `/interface list print`, `/ip firewall address-list print where list~"fws-"`.
+4. Switch it on in Safe Mode (Ctrl+X): enable the jump
+   (`/ip firewall filter enable [find where comment~"fwshift: enable"]`, the
+   same for `/ipv6` and, for NAT, `/ip firewall nat`), and move it to where it
+   belongs in its chain, for example right after the rules that accept
+   established connections. Chain `fwshift-forward` ends with an explicit
+   accept or drop, so the rules of `forward` after the jump no longer see
+   forwarded traffic: disable or remove them. Leave Safe Mode (Ctrl+X) when
+   all is well; if the session drops, the router undoes the change.
+5. To take a conversion away again, remove what carries its names
+   (`ROUTEROS_LOAD` lists the commands): the rules of the `fwshift-` chains and
+   the jumps to them, the `fws-` address lists, the members of the `fws-`
+   interface lists, and the lists.
+
 ### Check Point
 
 The output is a shell script. It needs `mgmt_cli`, which is on every
@@ -3809,6 +4001,11 @@ the report is the list.)
 | `the count of a template copy loop is not worked out` | Azure template: the same remedy. |
 | `a template with symbolic resource names (languageVersion 2.0) is not read` / `a nested deployment with network security groups in it is not read` | Azure template forms that are not read: the same remedy. |
 | `a Resource Graph answer in the table format` | Azure: ask Resource Graph for objects (`az graph query` gives them; the REST API with `resultFormat` `objectArray`). |
+| `this is the output of 'print'; FWShift reads the output of '/export'` | RouterOS: give the output of `/export` (section 3). |
+| `line N: 'add' before any menu (such as /ip firewall filter)` | RouterOS: a partial export without its menu line; add the menu (`/ip firewall filter`) as the first line. |
+| `line N: cannot read '...'; expected the output of '/export'` / `a quoted string is not closed` / `unknown escape` | RouterOS: a line that is not a command of an export. |
+| `line N: 'set' in /ip firewall filter; FWShift reads the 'add' lines of an export` | RouterOS: a script that changes rules by number; give an export. |
+| `the export says it could not export /ip/firewall/filter (timeout): export again` | RouterOS 7.11 and later write this when a menu times out; export again (`ROUTEROS_EXPORT_ERROR` for other menus). |
 | `the zone and conduit model, ...: unknown key(s) ...` / `... is not a zone of the model` / `service '...' cannot be read` / `the key '...' is given twice` | `fwshift conduits --model`: a mistake in the model file (section 16). Every mistake is an error, so that a typo never makes a check pass. |
 | `conduits: give --model FILE to check against, or --draft FILE to write one` | One of the two, not both. |
 | `the two policies are for different IP versions ...: nothing to compare` | `fwshift compare` of an IPv4-only and an IPv6-only ruleset. |
@@ -3928,7 +4125,7 @@ deliberate: see *IPv4 and IPv6* in section 8.
   and nftables output has been loaded into the real thing (a Linux kernel
   with iptables 1.8.10, nf_tables backend, and nft 1.0.9; filter rules, not
   NAT); nothing has been
-  validated on PAN-OS, FortiOS, ASA, Sophos or pfSense devices, a Check Point
+  validated on PAN-OS, FortiOS, ASA, Sophos, pfSense or MikroTik devices, a Check Point
   management server, a Cisco Secure Firewall Management Center or Device
   Manager, or across versions.
 * Statements about vendor behaviour that the conversion relies on (FortiOS
@@ -3976,6 +4173,14 @@ deliberate: see *IPv4 and IPv6* in section 8.
   a service tag or an application security group cannot be cut to a zone. The
   formats follow Microsoft's REST API specifications, the Azure CLI and the
   documentation; nothing was read from or deployed to a real subscription.
+* RouterOS: forwarded traffic only (the `forward` chains), and IPv4 NAT. The
+  export does not list every interface, so a negated interface covers the ones
+  it shows; address lists filled while the router runs, schedules, marks and
+  the other matches of section 8 disable the rule; a `return` on an interface
+  makes the rules below it disabled. The syntax follows MikroTik's
+  documentation, the schema of the community.routeros Ansible collection and
+  the Terraform provider, and exports published as test data; no output was
+  loaded on a router, and the inputs were written by hand to that grammar.
 * nftables: forwarded traffic only (the forward hook), and IPv4 NAT. Rate
   limits, quotas, meters, sets filled at run time, `fib`, `socket`, marks,
   options and anything else beyond interfaces, addresses, protocols, ports,
@@ -5187,7 +5392,8 @@ After the conversion the output is read back with FWShift's own parser of the
 target, and compared with the policy as it was read (before the audit's
 actions, which are part of what is compared). The zones of the output are
 matched to those of the source by name (exactly, through `--interface-map`,
-without case and punctuation, without the `--target-prefix`). For Azure, the
+without case and punctuation, without the `--target-prefix`, or `fws-` for
+RouterOS). For Azure, the
 zones no group stands for are the template's `outside`, and only pairs with a
 group at one end are compared.
 
@@ -5199,7 +5405,8 @@ opened connection the report does not explain is a defect: report it.
 
 Read back are `asa` (with `--zone-network`: the output names no interfaces or
 routes), `azure`, `fdm`, `fortios`, `iptables`, `ip6tables`, `junos`,
-`nftables`, `nsx`, `sophos` and `watchguard`. The other targets write scripts
+`nftables`, `nsx`, `routeros` (read as if its jumps were switched on), `sophos`
+and `watchguard`. The other targets write scripts
 or parts of a configuration FWShift does not read.
 
 ### Limits

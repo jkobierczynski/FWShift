@@ -1,0 +1,81 @@
+FWShift conversion report
+  source: routeros
+  target: checkpoint
+
+Summary
+  Security rules:     27   exact 15, approximated 0, needs review 12 (6 emitted disabled), skipped 0
+  NAT rules:           3   exact 0, approximated 2, needs review 0, skipped 1
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of /ip firewall filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] TABLE_NOT_CONVERTED: /ip firewall mangle has 1 rules and is not converted (it can mark connections and routes, which the filter rules may test)
+  [needs-review] ROUTEROS_DYNAMIC_LIST: address lists that rules fill while the router runs decide what their rules match; those rules are not converted: /ip scanners
+  [needs-review] CHECKPOINT_SCRIPT: the output is a shell script of mgmt_cli calls. It changes one session and publishes nothing: log in, run it, review the session in SmartConsole, then publish and install the policy yourself. It stops at the first call the server refuses; discard the session before running it again
+  [needs-review] IMPLIED_RULES: Check Point applies implied rules (Global Properties) next to the rulebase, and every ordered layer of the policy package must accept a connection. Neither is part of the conversion: check that they allow no more and no less than intended
+  [needs-review] ZONES_REQUIRED: the rules use these security zones, which must be assigned to the interfaces of the gateway (or renamed with --zone-map): DMZ, LAN, WAN, GUEST. Rules that name a zone and addresses on the same side are sorted into 14 inline layers, one per pair of zones. An interface without a zone only reaches the rules that name no zone
+  [needs-review] INTERZONE_DEFAULT: the source allows traffic that no rule matches. That default is not carried over: every layer written here ends in a drop. Add a final accept rule if it was intended
+  [needs-review] NAT_MANUAL_RULES: 2 NAT rules are written as manual rules at the bottom of the NAT rulebase, below the automatic ones. Manual NAT does not answer ARP for translated addresses: add proxy ARP on the gateway for every translated address that is not routed to it
+  [info] ROUTEROS_ZONES: the interface lists the rules use do not overlap: each is a zone (DMZ: vlan20-dmz, GUEST: vlan30-guest, LAN: bridge-lan, WAN: ether1); an interface in none of them is a zone of its own
+  [info] ROUTEROS_PASSIVE: 2 rules with action log, passthrough or add-*-to-address-list decide nothing and were left out. A log rule directly before a rule with the same match, or one that matches everything, sets the logging of the rules it logs for
+  [info] ROUTEROS_FQDN_LIST: address lists that hold host names, which RouterOS resolves while it runs: converted as host name objects (mirrors)
+  [info] ROUTEROS_BRIDGE: traffic between the ports of one bridge (bridge-lan) does not pass the IP firewall of the source (use-ip-firewall=no); the conversion is of routed traffic
+  [info] FORWARD_POLICY_ACCEPT: RouterOS accepts what no rule of the forward chain decides; the model records that as its default action
+  [info] LAYER_PLACEMENT: the rules are written to the top of access layer 'Network', in order, and end in a cleanup rule; rules the layer held before stay below it and are no longer reached. Choose another layer with --target-layer
+  [info] NAME_COLLISIONS: Check Point predefines several hundred objects (http, https, ssh, ...). If the script stops because a name exists already, convert again with --target-prefix to give every created object a prefix
+  [info] DOMAIN_OBJECTS: host names are written as domain objects, named after the domain with a leading dot; the gateway needs DNS to enforce them: .updates.example.com
+  [info] ANY_ONE_IP_VERSION: 'any address of one IP version' is written as a range object covering that version (All-IPv4, All-IPv6)
+
+Security rules
+  defconf: accept in ipsec policy  ->  needs-review, emitted disabled  (emitted as layer Network_DMZ_to_DMZ, layer Network_LAN_to_DMZ, layer Network_LAN_to_LAN, layer Network_LAN_to_WAN, layer Network_GUEST_to_DMZ, layer Network_GUEST_to_GUEST, layer Network_GUEST_to_WAN, layer Network_WAN_to_DMZ, layer Network_WAN_to_WAN, layer Network_DMZ_to_any, layer Network_LAN_to_any, layer Network_GUEST_to_any, layer Network_WAN_to_any, layer Network_any_to_DMZ, layer Network)
+      [needs-review] UNSUPPORTED_MATCH: not converted: ipsec-policy=in,ipsec (traffic of IPsec tunnels).
+  banned scanners  ->  needs-review, emitted disabled  (emitted as layer Network_DMZ_to_DMZ, layer Network_LAN_to_DMZ, layer Network_LAN_to_LAN, layer Network_LAN_to_WAN, layer Network_GUEST_to_DMZ, layer Network_GUEST_to_GUEST, layer Network_GUEST_to_WAN, layer Network_WAN_to_DMZ, layer Network_WAN_to_WAN, layer Network_DMZ_to_any, layer Network_LAN_to_any, layer Network_GUEST_to_any, layer Network_WAN_to_any, layer Network_any_to_DMZ, layer Network)
+      [needs-review] UNSUPPORTED_MATCH: not converted: address list 'scanners', which rules fill while the router runs. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  web for everyone  ->  needs-review  (emitted as layer Network_DMZ_to_DMZ, layer Network_LAN_to_DMZ, layer Network_GUEST_to_DMZ, layer Network_WAN_to_DMZ, layer Network_any_to_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'dmz-web' because of NAT rule 'publish web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  web for everyone-2  ->  needs-review  (emitted as layer Network_DMZ_to_DMZ, layer Network_LAN_to_DMZ, layer Network_GUEST_to_DMZ, layer Network_WAN_to_DMZ, layer Network_any_to_DMZ)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'dmz-web' because of NAT rule 'publish web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  old partner access  ->  needs-review  (emitted as layer Network_DMZ_to_DMZ, layer Network_LAN_to_DMZ, layer Network_GUEST_to_DMZ, layer Network_WAN_to_DMZ, layer Network_DMZ_to_any, layer Network_LAN_to_any, layer Network_GUEST_to_any, layer Network_WAN_to_any, layer Network_any_to_DMZ, layer Network)
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  nothing but TCP  ->  needs-review  (emitted as layer Network_DMZ_to_DMZ, layer Network_LAN_to_DMZ, layer Network_GUEST_to_DMZ, layer Network_WAN_to_DMZ, layer Network_DMZ_to_any, layer Network_LAN_to_any, layer Network_GUEST_to_any, layer Network_WAN_to_any, layer Network_any_to_DMZ, layer Network)
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  nothing but TCP-2  ->  needs-review  (emitted as layer Network_DMZ_to_DMZ, layer Network_LAN_to_DMZ, layer Network_GUEST_to_DMZ, layer Network_WAN_to_DMZ, layer Network_any_to_DMZ)
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  rest of the DMZ  ->  needs-review, emitted disabled  (emitted as layer Network_DMZ_to_DMZ, layer Network_LAN_to_DMZ, layer Network_GUEST_to_DMZ, layer Network_WAN_to_DMZ, layer Network_any_to_DMZ)
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-2  ->  needs-review, emitted disabled  (emitted as layer Network_DMZ_to_DMZ, layer Network_LAN_to_DMZ, layer Network_GUEST_to_DMZ, layer Network_WAN_to_DMZ, layer Network_any_to_DMZ)
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-3  ->  needs-review, emitted disabled  (emitted as layer Network_DMZ_to_DMZ, layer Network_LAN_to_DMZ, layer Network_GUEST_to_DMZ, layer Network_WAN_to_DMZ, layer Network_any_to_DMZ)
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  office hours for staff  ->  needs-review, emitted disabled  (emitted as layer Network_LAN_to_WAN)
+      [needs-review] SCHEDULE: schedule 'time=8h-18h,mon,tue,wed,thu,fri' is not converted; the rule would apply at all times.
+  defconf: drop all from WAN not DSTNATed  ->  exact  (emitted as layer Network_WAN_to_DMZ, layer Network_WAN_to_WAN, layer Network_WAN_to_any)
+      [info] ROUTEROS_DSTNAT_EXCEPTION: connection-nat-state=!dstnat: the rule does not block connections a destination NAT rule translated. Those are allowed by 2 rules ahead of it (defconf: drop all from WAN not DSTNATed (allows publish web), defconf: drop all from WAN not DSTNATed (allows publish mail))
+  drop everything else not coming from LAN  ->  needs-review  (emitted as layer Network_DMZ_to_DMZ, layer Network_GUEST_to_DMZ, layer Network_GUEST_to_GUEST, layer Network_GUEST_to_WAN, layer Network_WAN_to_DMZ, layer Network_WAN_to_WAN, layer Network_DMZ_to_any, layer Network_GUEST_to_any, layer Network_WAN_to_any)
+      [needs-review] ROUTEROS_NEGATED_INTERFACE: negated input interface (on the rule or the jump to its chain): the export does not list every interface of the router, and the rule covers the zones it does show (DMZ, GUEST, WAN). On the source it also blocks traffic of interfaces the export leaves out
+
+NAT rules
+  publish web  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from WAN only; it is written without zones and applies whatever the zone the traffic comes from
+      [approximated] NAT_ZONES: the rule applied to traffic to WAN only; it is written without zones
+  publish mail  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from WAN only; it is written without zones and applies whatever the zone the traffic comes from
+      [approximated] NAT_ZONES: the rule applied to traffic to WAN only; it is written without zones
+  defconf: masquerade  ->  skipped
+      [approximated] ROUTEROS_NAT_IPSEC_EXEMPT: ipsec-policy=out,none: on the source, traffic that goes into an IPsec tunnel is not translated; the converted rule translates it unless the target exempts it
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface; name the gateway object to hide behind with --target-gateway
+
+Services
+  tcp-80,443,8000-8080  ->  exact  (emitted as tcp-80_443_8000-8080)
+      [info] RENAMED: renamed to 'tcp-80_443_8000-8080' to fit the target's naming rules
+  tcp-0-21,23-65535  ->  exact  (emitted as tcp-0-21_23-65535)
+      [info] RENAMED: renamed to 'tcp-0-21_23-65535' to fit the target's naming rules
+  tcp-80,443  ->  exact  (emitted as tcp-80_443)
+      [info] RENAMED: renamed to 'tcp-80_443' to fit the target's naming rules

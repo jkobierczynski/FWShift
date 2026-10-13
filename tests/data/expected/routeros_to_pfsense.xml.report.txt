@@ -1,0 +1,93 @@
+FWShift conversion report
+  source: routeros
+  target: pfsense
+
+Summary
+  Security rules:     27   exact 8, approximated 3, needs review 16 (15 emitted disabled), skipped 0
+  NAT rules:           3   exact 2, approximated 1, needs review 0, skipped 0
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of /ip firewall filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] TABLE_NOT_CONVERTED: /ip firewall mangle has 1 rules and is not converted (it can mark connections and routes, which the filter rules may test)
+  [needs-review] ROUTEROS_DYNAMIC_LIST: address lists that rules fill while the router runs decide what their rules match; those rules are not converted: /ip scanners
+  [needs-review] PFSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of a pfSense configuration. Under Diagnostics > Backup & Restore, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every rule, every alias, every NAT rule that is there now is gone, with the separators, the rules pfSense linked to port forwards and the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. The NAT area holds 2 port forwards and 0 1:1 rules, and sets outbound NAT to manual mode with the 1 rule of the source. Keep a backup, and look at the rules before anything depends on them: pfSense does not check what it restores, and a rule it cannot resolve is not loaded. Written for pfSense 2.7 and later
+  [needs-review] INTERFACES_REQUIRED: pfSense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: DMZ, GUEST
+  [needs-review] INTERZONE_DEFAULT: the source accepts what no rule matches; a rule that passes everything was added at the end of every interface
+  [info] ROUTEROS_ZONES: the interface lists the rules use do not overlap: each is a zone (DMZ: vlan20-dmz, GUEST: vlan30-guest, LAN: bridge-lan, WAN: ether1); an interface in none of them is a zone of its own
+  [info] ROUTEROS_PASSIVE: 2 rules with action log, passthrough or add-*-to-address-list decide nothing and were left out. A log rule directly before a rule with the same match, or one that matches everything, sets the logging of the rules it logs for
+  [info] ROUTEROS_FQDN_LIST: address lists that hold host names, which RouterOS resolves while it runs: converted as host name objects (mirrors)
+  [info] ROUTEROS_BRIDGE: traffic between the ports of one bridge (bridge-lan) does not pass the IP firewall of the source (use-ip-firewall=no); the conversion is of routed traffic
+  [info] FORWARD_POLICY_ACCEPT: RouterOS accepts what no rule of the forward chain decides; the model records that as its default action
+  [info] SELF_EXCLUDED: on pfSense the rules of an interface are also the rules for traffic to the firewall itself. Rules of the source that pass traffic to any destination are written for any destination but the firewall itself ('not This Firewall'). A rule that names addresses of the firewall still reaches them
+
+Security rules
+  defconf: accept in ipsec policy  ->  needs-review, emitted disabled  (emitted as DMZ, lan, GUEST, wan)
+      [needs-review] UNSUPPORTED_MATCH: not converted: ipsec-policy=in,ipsec (traffic of IPsec tunnels).
+  banned scanners  ->  needs-review, emitted disabled  (emitted as DMZ, lan, GUEST, wan)
+      [needs-review] UNSUPPORTED_MATCH: not converted: address list 'scanners', which rules fill while the router runs. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ssh from the admins  ->  approximated  (emitted as DMZ, lan, GUEST, wan)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  web for everyone  ->  approximated  (emitted as DMZ, lan, GUEST, wan)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  web for everyone-2  ->  approximated  (emitted as DMZ, lan, GUEST, wan)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  ping "echo" only  ->  needs-review, emitted disabled  (emitted as DMZ, lan, GUEST, wan)
+      [needs-review] ICMP_CODE: ICMP type 8 with code 0: a rule of pfSense names types, no codes.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, GUEST, WAN, DMZ with --zone-network.
+  ping "echo" only-2  ->  needs-review, emitted disabled  (emitted as DMZ, lan, GUEST, wan)
+      [needs-review] ICMP_CODE: ICMP type 8 with code 0: a rule of pfSense names types, no codes.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, GUEST, WAN, DMZ with --zone-network.
+  old partner access  ->  needs-review, emitted disabled  (emitted as DMZ, lan, GUEST, wan)
+      [needs-review] SERVICE_NEGATE: a negated service match does not exist in a rule of pfSense.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, GUEST, WAN, DMZ with --zone-network.
+  old partner access-2  ->  needs-review, emitted disabled  (emitted as DMZ, lan, GUEST, wan)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, GUEST, WAN, DMZ with --zone-network.
+  nothing but TCP  ->  needs-review, emitted disabled  (emitted as DMZ, lan, GUEST, wan)
+      [needs-review] SERVICE_NEGATE: a negated service match does not exist in a rule of pfSense. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, GUEST, WAN, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nothing but TCP-2  ->  needs-review, emitted disabled  (emitted as DMZ, lan, GUEST, wan)
+      [needs-review] SERVICE_NEGATE: a negated service match does not exist in a rule of pfSense. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, GUEST, WAN, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ  ->  needs-review, emitted disabled  (emitted as DMZ, lan, GUEST, wan)
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, GUEST, WAN, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-2  ->  needs-review, emitted disabled  (emitted as DMZ, lan, GUEST, wan)
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NEGATE: a negated service match does not exist in a rule of pfSense. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, GUEST, WAN, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-3  ->  needs-review, emitted disabled  (emitted as DMZ, lan, GUEST, wan)
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, GUEST, WAN, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  guest DNS, either port  ->  needs-review, emitted disabled  (emitted as GUEST)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind DMZ, LAN, GUEST, WAN with --zone-network.
+  guest DNS, either port-2  ->  needs-review, emitted disabled  (emitted as GUEST)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind DMZ, LAN, GUEST, WAN with --zone-network.
+  guests to the internet  ->  needs-review, emitted disabled  (emitted as GUEST)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind DMZ, LAN, GUEST, WAN with --zone-network.
+  office hours for staff  ->  needs-review, emitted disabled  (emitted as lan)
+      [needs-review] SCHEDULE: schedule 'time=8h-18h,mon,tue,wed,thu,fri' is not converted; the rule would apply at all times.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind DMZ, LAN, GUEST, WAN with --zone-network.
+  defconf: drop all from WAN not DSTNATed  ->  exact  (emitted as wan)
+      [info] ROUTEROS_DSTNAT_EXCEPTION: connection-nat-state=!dstnat: the rule does not block connections a destination NAT rule translated. Those are allowed by 2 rules ahead of it (defconf: drop all from WAN not DSTNATed (allows publish web), defconf: drop all from WAN not DSTNATed (allows publish mail))
+  drop everything else not coming from LAN  ->  needs-review  (emitted as DMZ, GUEST, wan)
+      [needs-review] ROUTEROS_NEGATED_INTERFACE: negated input interface (on the rule or the jump to its chain): the export does not list every interface of the router, and the rule covers the zones it does show (DMZ, GUEST, WAN). On the source it also blocks traffic of interfaces the export leaves out
+
+NAT rules
+  defconf: masquerade  ->  approximated  (emitted as 1 outbound NAT rule)
+      [approximated] ROUTEROS_NAT_IPSEC_EXEMPT: ipsec-policy=out,none: on the source, traffic that goes into an IPsec tunnel is not translated; the converted rule translates it unless the target exempts it
+
+Addresses
+  updates.example.com  ->  exact  (emitted as updates_example_com)
+      [info] RENAMED: renamed to 'updates_example_com' to fit the target's naming rules
+
+Address groups
+  dmz-web  ->  exact  (emitted as dmz_web)
+      [info] RENAMED: renamed to 'dmz_web' to fit the target's naming rules
+  partners-ipv6  ->  exact  (emitted as partners_ipv6)
+      [info] RENAMED: renamed to 'partners_ipv6' to fit the target's naming rules

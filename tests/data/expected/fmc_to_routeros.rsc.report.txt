@@ -1,0 +1,52 @@
+FWShift conversion report
+  source: fmc (Edge)
+  target: routeros
+
+Summary
+  Security rules:     22   exact 16, approximated 3, needs review 2 (2 emitted disabled), skipped 1
+  NAT rules:           7   exact 2, approximated 5, needs review 0, skipped 0
+  Addresses:          16   exact 16, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           24   exact 24, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] ROUTEROS_LOAD: load the script with '/import file-name=FILE verbose=yes'. It stops at its first lines when objects of an earlier conversion are on the router, and at the first line the router refuses (lines before it stay; on RouterOS 6 the /ipv6 lines need the ipv6 package). Nothing changes traffic until the disabled jump rules at its end are enabled: enable them in Safe Mode, and move each to where it belongs in its chain (in forward, after the rules that accept established connections). Chain fwshift-forward ends with an explicit drop, so the rules of forward after the jump are no longer reached by forwarded traffic. To take a conversion away again: /ip firewall filter remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ipv6 firewall filter remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ip firewall nat remove [find where chain~"^fwshift-" or jump-target~"^fwshift-"]; /ip firewall address-list remove [find where list~"^fws-"]; /ipv6 firewall address-list remove [find where list~"^fws-"]; /interface list member remove [find where list~"^fws-"]; /interface list remove [find where name~"^fws-"]
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface lists, whose members must be interfaces of the router, or the import stops. Check the members, and map the zones with --zone-map (or the interfaces with --interface-map): dmz, inside, outside
+  [approximated] OBJECT_OVERRIDES: 1 object(s) can have another value on a device than the one that was read (they allow overrides): ot-net. The values of the manager were converted; check them against the device the policy is for
+  [info] ROUTEROS_LOG: rules that log the start of a connection have log=yes: the router logs the first packet of each connection they accept (and every packet a deny rule drops)
+
+Security rules
+  pre-partner-gre  ->  approximated  (emitted as 1 fwshift-forward rule)
+      [approximated] TUNNEL_RULE: tunnel rule of the prefilter policy: it is converted as a rule for the protocol that carries the tunnel, between the tunnel endpoints. What the source did with the connections inside the tunnel is not converted
+  pre-partner-gre-reverse  ->  exact  (emitted as 1 fwshift-forward rule)
+      [info] TUNNEL_RULE: the other direction of tunnel rule 'pre-partner-gre', which matches tunnels from source and destination
+  LAN web  ->  approximated  (emitted as 1 fwshift-forward rule)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (file=Block Malware, intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+  Updates  ->  exact  (emitted as 4 fwshift-forward rules)
+      [info] ROUTEROS_FQDN: 'updates.example.com' is a host name in an address list: the router resolves it and keeps the list up to date
+  Helpdesk RDP  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match CORP\helpdesk is not converted.
+  Staff social media  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Uncategorised web  ->  approximated  (emitted as 1 fwshift-forward rule)
+      [approximated] INTERACTIVE_BLOCK: the source showed web users a page from which they could go on to the site (Interactive Block); it is converted as a rule that blocks
+  Reset the rest from inside  ->  exact  (emitted as 2 fwshift-forward rules)
+      [info] RESET_ACTION: action reset-both becomes a plain reject: a TCP reset can only answer TCP
+  Watch DMZ  ->  skipped
+      [info] MONITOR_RULE: rule with the action Monitor: it logs the traffic and leaves the decision to the rules below it. Nothing to convert
+
+NAT rules
+  nat-1  ->  approximated  (emitted as 1 srcnat)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from inside only; chain srcnat cannot match the input interface, so it applies to traffic from every interface
+  nat-3  ->  approximated  (emitted as 1 dstnat)
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 203.0.113.2
+  nat-4  ->  approximated  (emitted as 1 srcnat)
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: round robin, flat port range, interface (as fallback)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from inside only; chain srcnat cannot match the input interface, so it applies to traffic from every interface
+  nat-mail-srv  ->  approximated  (emitted as 1 dstnat, 1 srcnat)
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: translate DNS replies
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from dmz only; chain srcnat cannot match the input interface, so it applies to traffic from every interface
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as an SNAT rule plus a DNAT rule for the inbound direction
+  nat-dmz-net  ->  approximated  (emitted as 1 srcnat)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from dmz only; chain srcnat cannot match the input interface, so it applies to traffic from every interface

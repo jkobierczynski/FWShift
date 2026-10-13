@@ -8,12 +8,12 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.22.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone) |
-| Tests | 4131, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a Check Point management server, a Cisco Management Center or a Device Manager |
+| Version | 0.23.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on) |
+| Tests | 4345, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a MikroTik router, a Check Point management server, a Cisco Management Center or a Device Manager |
 | Analysis | the audit, the zone matrix, rule usage from hit counters and logs, the zone and conduit model as a gate (`fwshift conduits`), the equivalence check (`fwshift compare`, `convert --compare`) |
-| Next | the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
+| Next | OPNsense (0.24.0) and Forcepoint NGFW (0.25.0); the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
 
 ## Layout
 
@@ -52,6 +52,9 @@ src/fwshift/
         azure.py      Azure JSON (CLI, REST, template, Resource Graph) -> model
                       (a zone per group; the outbound and inbound lists of
                       two groups composed; templates worked out)
+        routeros.py   RouterOS /export -> model (interface lists as zones;
+                      chains flattened with the conditions of nftables.py,
+                      returns taken away exactly; the !dstnat exception)
     emitters/
         panos.py      model -> PAN-OS set commands
         fortios.py    model -> FortiOS CLI configuration
@@ -83,6 +86,8 @@ src/fwshift/
                       address)
         azure.py      model -> an ARM template (a group per zone, each list in
                       blocks per remote zone, with the default of the source)
+        routeros.py   model -> a script for /import (chains of its own, the
+                      jumps to them disabled; NAT through the iptables planner)
     regions.py        sets of connections as boxes (IP version, sources,
                       destinations, services): subtraction, and services back
                       to entries; for AWS, which cannot block
@@ -136,7 +141,7 @@ tests/
                       FortiOS logs (and panos_logged.xml), the two
                       Cisco Secure Firewall samples and the SonicWall,
                       WatchGuard, Barracuda and Juniper samples, the nftables
-                      sample (written by nft itself), the NSX, AWS and Azure samples, the zone model,
+                      sample (written by nft itself), the NSX, AWS, Azure and RouterOS samples, the zone model,
                       and the kernel checks for iptables and nftables
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
                       Check Point, ASA, Sophos and Cisco Secure Firewall output;
@@ -158,6 +163,8 @@ tests/
     test_azure.py     Azure both ways: a judge of groups as Azure decides
                       them (two lists in priority order) and a judge of the
                       emitted template
+    test_routeros.py  RouterOS both ways: a judge that walks filter chains as
+                      the router does, for random exports and for the script
     test_checkpoint.py Check Point both ways, with simulators for an export
                       and for an emitted script
     test_asa.py       Cisco ASA both ways, with a random ASA that judges
@@ -558,6 +565,10 @@ there for an old tag whose tests no longer run on today's tools.
 | Azure: each group a zone, two groups composed | A connection between resources behind two groups passes the outbound list of the one and the inbound list of the other. As one first-match list of the model: each outbound deny rule, and for each outbound allow rule the inbound rules cut to it. Exact where the cuts can be worked out; where they cannot, an allow rule is not converted and a deny rule blocks all it blocked. |
 | Azure: a group per zone, blocks per remote zone | A security rule names addresses, not zones. Each list is cut into a block per remote zone, kept to its networks and ended by that zone's default, so every address of a zone is decided in its block; the zones of the default route come last, and only for their IP versions. |
 | Azure: templates worked out, or refused | An exported or Bicep-built template is a common way to hold groups. Its expressions are worked out where they can be (parameters with defaults, variables, the common functions, copy loops, conditions); a name that cannot be worked out refuses the template, any other field leaves its rule not converted, so nothing goes missing silently. |
+| RouterOS: chains of its own, switched on by one change | An import stops at the first line the router refuses and keeps the lines before it. Rules in `fwshift-forward` that nothing jumps to change no traffic, so a script that stops halfway is harmless; the jumps from `forward`, `dstnat` and `srcnat` come last, disabled, for a person to enable in Safe Mode. The script never writes `input` or `output` and never removes anything. |
+| RouterOS: the chain ends with the policy's default | What falls off a custom chain goes back to `forward`, whose own rules and default accept would then decide it. An explicit accept or drop at the end makes the chain decide everything, as the source did. |
+| RouterOS: interface lists as zones when they do not overlap | The lists are what a RouterOS administrator thinks in (`LAN`, `WAN`). Where they overlap, or a rule names part of one, every interface is a zone and a list its members, which is exact. |
+| RouterOS: `!dstnat` as allow rules for the port forwards ahead of a deny | On RouterOS a port forward needs no filter rule: the default configuration drops what comes from WAN unless destination NAT translated it. The model has no NAT state; one allow rule per destination NAT rule, for what it translates, ahead of the deny, is exact when nothing below blocks that traffic, which is checked. |
 | Azure: an allow rule never says `*` | Microsoft documents `*` as TCP, UDP and ICMP, but the default DenyAll rules suggest it matches more. An allow rule names the three; a blocking rule may say `*`, which then blocks at least as much. |
 | The conduit check reads the matrix | The matrix already holds what a policy can allow between zones, more where it cannot be exact and marked. Checking the model against it inherits that: a check that passes holds for the policy as read; a finding that rests on a marked part is possible, and fails the gate too. |
 | A model file is checked strictly | A gate that passes because of a typo is worse than none: an unknown key, a key twice, a zone or service that cannot be read are errors. |
@@ -618,6 +629,8 @@ policy behaves unexpectedly.
 | NSX: categories run in a fixed order (Ethernet, Emergency, Infrastructure, Environment, Application), policies by sequence number with the default policy last, rules by sequence number; `JUMP_TO_APPLICATION` skips the rest of Environment; the default layer-3 rule decides what no rule matches; a connection is checked at both ends (applied-to); a segment in a group means its workloads. From the Policy API reference, the SDK schema and the Terraform provider, not from a manager | NSX parser and emitter |
 | AWS: a group allows only; the rules of the groups of an interface are one set; a reference to a group means the private addresses of its interfaces; a connection inside the VPC needs the source's outbound and the destination's inbound rules; a network ACL is first match by rule number, ends in `*` deny, is stateless and not applied inside a subnet; the internet gateway translates public addresses for what comes from outside. From the botocore service model and the VPC and EC2 user guides, not from an account | AWS parser and emitter |
 | Azure: a group's two lists are first match by priority (100 to 4096), each ending in three default rules (65000 to 65500); traffic between two groups passes the outbound list of the source's and the inbound list of the destination's; the groups are stateful; `VirtualNetwork` is the virtual network, its peerings and what gateways connect; `AzureLoadBalancer` is 168.63.129.16; `*` is TCP, UDP and ICMP; an interface behind a group of its own and one on its subnet passes both; 2,000 rules and 100 application security groups per group. From the REST API specifications, the Azure CLI and its test recordings, and the documentation, not from a subscription | Azure parser and emitter |
+| RouterOS: rules first match within a chain; a built-in chain accepts what no rule decides (that cannot be changed); falling off a custom chain returns to the caller; `forward` sees the destination after `dstnat` and the source before `srcnat`; the two NAT chains apply independently; `connection-nat-state=!dstnat` is what `dstnat` did not translate; an export omits interfaces with default settings and dynamic entries; a backslash at the end of a line continues it, inside quoted strings too, with `\_` for a space; `:if` and `:error` stop an import. From MikroTik's documentation (read through summaries), the schemas of the community.routeros collection and the Terraform provider, and published exports, not from a router | RouterOS parser and emitter |
+| RouterOS, assumed: `icmp-options=TYPE:0-255` is every code; `dst-port` lists of up to 15 entries; `src-address-list=!name` without quotes; `reject-with=tcp-reset` only where the rule is TCP; protocol numbers of names other than the well-known ones; that an address list entry with a DNS name exports as the name | RouterOS parser and emitter |
 | Check Point matches the access rulebase on the original packet and takes the destination zone after NAT | model, Check Point parser and emitter |
 | A connection sent into an inline layer never returns to the parent layer; a layer without a matching rule applies its implicit cleanup action | Check Point parser |
 | An object with automatic static NAT matches its translated address in the rulebase; with manual NAT the rules name the original address | `_automatic_nat`, `_also_valid` |
@@ -1996,6 +2009,102 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-13: version 0.23.0
+
+The first of three brands asked for after the plan of 2026 (`TODO.md`):
+**MikroTik RouterOS**, 6 and 7, both ways.
+
+**Built**
+
+* `parsers/routeros.py`: the output of `/export` (compact, `terse`,
+  `verbose`; lines continued with a backslash, inside quoted strings too;
+  every escape of the scripting language). The `forward` chains of `/ip` and
+  `/ipv6 firewall filter`, custom chains flattened with the conditions of the
+  nftables parser, and a `return` taken away exactly where addresses,
+  protocols or ports say what returns (`_split_without`: one condition per part
+  in which the two differ). Interface lists as zones when the lists the rules
+  use do not overlap, else interfaces; address lists as groups (host names
+  as host name objects); the default accept; `connection-nat-state=!dstnat`
+  as allow rules for each port forward ahead of the deny, where that is exact;
+  `dst-nat`, `netmap`, `masquerade`, `src-nat`, `same`, no-NAT,
+  `dst-address-type=local`; the router's own chains, raw, mangle, UPnP,
+  bridges, offloading and lists filled at run time reported.
+* `emitters/routeros.py`: a script for `/import` that changes nothing until
+  the disabled jumps at its end are enabled: interface lists and address
+  lists under `fws-`, the rules in `fwshift-forward` (one protocol per rule,
+  or a chain of its own), the defaults at its end, NAT through the iptables
+  planner into `fwshift-dstnat` and `fwshift-srcnat`, a check at the top that
+  stops a second import.
+* `fwshift convert --compare` reads RouterOS output back as if its jumps were
+  on; `--from routeros`, `--to routeros`, detection of an export.
+* `tests/test_routeros.py` (177 tests): a judge that walks RouterOS filter
+  chains (jump, return, the default accept, lists, negation) and shares no code
+  with the parser; the sample (`routeros_sample.rsc`, written and wrapped at 80
+  columns by `tests/tools/make_routeros_sample.py`), 35 golden conversions,
+  its audit and matrix.
+
+**What the work made necessary**
+
+* *A return in the middle of a chain.* `return protocol=tcp dst-port=22
+  src-address-list=!admins` is the usual RouterOS idiom, and differs from the
+  rules below it in three parts at once. Taking it away part by part (the
+  admins; not the admins and not TCP; not the admins, TCP and not port 22)
+  keeps the rules below exact, at the cost of a model rule per part.
+* *The default configuration.* Its forward chain allows everything but what
+  comes from WAN and was not translated by destination NAT. Without reading
+  `!dstnat` the commonest RouterOS policy could not be converted; with allow
+  rules for each port forward ahead of the deny, and a check that nothing
+  below blocks what they translate, it is exact.
+* *Interfaces an export does not show.* An Ethernet port with default
+  settings is in no export unless something names it. A negated interface
+  covers the zones the export shows, and says so; one that would leave none
+  is not converted rather than dropped.
+
+**Review**
+
+*Round 31* by the independent reviewer, with probe scripts.
+
+| | Finding | Fix |
+|---|---|---|
+| high | Parser: `connection-nat-state=!dstnat` on a jump or a return was dropped, so a jump for untranslated traffic applied to port forwards too | the property on anything but a deciding rule makes it not converted |
+| high | Parser: `#error exporting "/ip/firewall/filter" (timeout)` (RouterOS 7.11+) was read as a comment: no rules, default allow, no word | an error for the firewall, interface and address menus; `ROUTEROS_EXPORT_ERROR` for others |
+| medium | Parser: lists filled by raw rules, DHCP servers or PPP profiles were read as static | every `address-list`/`address-lists` that fills a list makes it dynamic |
+| medium | Parser: a negated interface on the jump to a chain (and in NAT) was not reported | carried with the condition; `ROUTEROS_NEGATED_INTERFACE` on the rules and NAT rules it reaches |
+| medium | Parser: the `!dstnat` expansion ignored later rules with `connection-nat-state=dstnat` | only later `!dstnat` rules are passed over |
+| medium | Parser: a verbose export's `connection-state=""` made deny rules not converted | an empty value is an unset property |
+| medium | Emitter: `connection-nat-state=dstnat` written in a NAT rule, which RouterOS NAT does not take: the import would stop there | not written; `NAT_AFTER_DNAT` says what the source half then also matches |
+| low | Emitter: NAT findings named the planner's placeholder zones (`fwsz0`) | the zones |
+| low | Emitter: the check at the top looked at the IPv4 chain only | one check per IP version written |
+| low | Parser: `tcp-flags=syn` without a protocol matched every protocol | kept to TCP |
+| low | Emitter: NAT comments went through the iptables comment cleaner (quotes, backslashes, 200 characters) | written as they are, escaped |
+
+The fixes were not reviewed again; they have tests (`test_r31_*` in
+`test_routeros.py`).
+
+**Verified, and not**
+
+* The tests: 177 in `test_routeros.py`, the suite 4345. The parser against the judge:
+  60 random exports (interface lists or interfaces, address lists, negations,
+  ports, `port=`, ICMP, states, jumps, conditional returns on several parts),
+  400 packets each; the emitter against the judge: 40 random models, both IP
+  versions, and the defaults inside and between zones (10); a round trip
+  through the script and back (20).
+* A mutation check with 45 ways to break the parser and the emitter (5 did not
+  apply to the code as it was): 30 caught at first; tests were added for the
+  other 10, which catch them all (a negation that leaves no interface the
+  export shows, ports with a negated protocol, an ICMP code, an accept of
+  invalid packets, a return in `forward` on an interface, a TCP reset on a
+  rule that matches more than TCP, the translated port of a port forward, "not
+  any", ICMP codes and protocol numbers per IP version in the output).
+* **Not verified**: nothing was loaded on a router, and no export of a real
+  router was read (the inputs were written by hand to the grammar, and the
+  defaults of the default configuration taken from published exports); the
+  check at the top of the script, the escaping of `?` and non-ASCII text,
+  `dst-port` lists longer than 15 and `icmp-options` with a code range are as
+  the documentation and the schemas describe them; the protocol numbers RouterOS
+  gives `ipip`, `ipencap` and `encap` are not known, and those names make a rule
+  not converted.
 
 ### 2026-10-13: version 0.22.0
 

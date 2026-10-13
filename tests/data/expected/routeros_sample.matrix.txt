@@ -1,0 +1,208 @@
+FWShift zone matrix
+  source: routeros
+  security rules: 27 (2 disabled, 1 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 DMZ               LAN               GUEST             WAN               (other zones)
+  DMZ            any~              any~              any~              any~              any~
+  LAN            any~              any~              any~              any~              any~
+  GUEST          any~              any~              any~              any~              any~
+  WAN            any~              any~              any~              any~              any~
+  (other zones)  any~              any~              any~              any~              any~
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+In every conduit
+  rule 'defconf: accept in ipsec policy': 0.0.0.0/0 -> any: any (only with ipsec-policy=in,ipsec (traffic of IPsec tunnels), which is not in the model) ~
+  rule 'banned scanners': 0.0.0.0/0 -> any: any (only with address list 'scanners', which rules fill while the router runs, which is not in the model) ~
+  rule 'ICMPv6 echo': ::/0 -> any: icmp6 type 128
+  rule 'the partners reach the web servers of the LAN by HTTPS and nothing else': partners-ipv6 -> lan6: tcp/443
+
+Conduits
+DMZ -> DMZ (inside the zone)
+  allowed: any ~
+  cleartext or remote administration: telnet (rule 'rest of the DMZ'); ftp (rule 'rest of the DMZ'); rsh/rlogin/rexec (rule 'rest of the DMZ'); netbios (rule 'rest of the DMZ'); smb (rule 'rest of the DMZ'); rdp (rule 'rest of the DMZ'); vnc (rule 'rest of the DMZ'); x11 (rule 'rest of the DMZ')
+  industrial protocols: modbus (rule 'rest of the DMZ'); s7/iso-tsap (rule 'rest of the DMZ'); dnp3 (rule 'rest of the DMZ'); ethernet-ip (rule 'rest of the DMZ'); opc-ua (rule 'rest of the DMZ'); iec-104 (rule 'rest of the DMZ'); profinet (rule 'rest of the DMZ'); niagara-fox (rule 'rest of the DMZ')
+  rule 'ssh from the admins': admins -> dmz-web: tcp/22
+  rule 'web for everyone': admins -> dmz-web: tcp/80, tcp/443, tcp/8000-8080
+  rule 'web for everyone-2': not admins -> dmz-web: tcp/80, tcp/443, tcp/8000-8080
+  rule 'ping "echo" only': admins -> any: icmp type 8 code 0
+  rule 'ping "echo" only-2': not admins -> 0.0.0.0/0: icmp type 8 code 0
+  rule 'rest of the DMZ': admins -> not 172.16.20.0/25: tcp (only with negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10), negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11), which is not in the model) ~
+  rule 'rest of the DMZ-2': 0.0.0.0-192.168.10.49, 192.168.10.60-255.255.255.255 -> not 172.16.20.0/25: any (only with negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10), negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11), which is not in the model) ~
+  rule 'rest of the DMZ-3': 0.0.0.0-192.168.10.49, 192.168.10.60-255.255.255.255 -> not 172.16.20.0/25: any (only with negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10), negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11), which is not in the model) ~
+  by default, what no rule decides: any except icmp6 type 128
+  and the 4 listed under 'In every conduit'
+DMZ -> LAN
+  allowed: any ~
+  by default, what no rule decides: any
+  and the 4 listed under 'In every conduit'
+DMZ -> GUEST
+  allowed: any ~
+  by default, what no rule decides: any
+  and the 4 listed under 'In every conduit'
+DMZ -> WAN
+  allowed: any ~
+  by default, what no rule decides: any
+  and the 4 listed under 'In every conduit'
+DMZ -> (other zones)
+  allowed: any ~
+  by default, what no rule decides: any
+  and the 4 listed under 'In every conduit'
+LAN -> DMZ
+  allowed: any ~
+  cleartext or remote administration: telnet (rule 'rest of the DMZ'); ftp (rule 'rest of the DMZ'); rsh/rlogin/rexec (rule 'rest of the DMZ'); netbios (rule 'rest of the DMZ'); smb (rule 'rest of the DMZ'); rdp (rule 'rest of the DMZ'); vnc (rule 'rest of the DMZ'); x11 (rule 'rest of the DMZ')
+  industrial protocols: modbus (rule 'rest of the DMZ'); s7/iso-tsap (rule 'rest of the DMZ'); dnp3 (rule 'rest of the DMZ'); ethernet-ip (rule 'rest of the DMZ'); opc-ua (rule 'rest of the DMZ'); iec-104 (rule 'rest of the DMZ'); profinet (rule 'rest of the DMZ'); niagara-fox (rule 'rest of the DMZ')
+  rule 'ssh from the admins': admins -> dmz-web: tcp/22
+  rule 'web for everyone': admins -> dmz-web: tcp/80, tcp/443, tcp/8000-8080
+  rule 'web for everyone-2': not admins -> dmz-web: tcp/80, tcp/443, tcp/8000-8080
+  rule 'ping "echo" only': admins -> any: icmp type 8 code 0
+  rule 'ping "echo" only-2': not admins -> 0.0.0.0/0: icmp type 8 code 0
+  rule 'rest of the DMZ': admins -> not 172.16.20.0/25: tcp (only with negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10), negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11), which is not in the model) ~
+  rule 'rest of the DMZ-2': 0.0.0.0-192.168.10.49, 192.168.10.60-255.255.255.255 -> not 172.16.20.0/25: any (only with negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10), negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11), which is not in the model) ~
+  rule 'rest of the DMZ-3': 0.0.0.0-192.168.10.49, 192.168.10.60-255.255.255.255 -> not 172.16.20.0/25: any (only with negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10), negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11), which is not in the model) ~
+  rule 'LAN to the package mirrors': 0.0.0.0/0 -> mirrors: tcp/80, tcp/443 ~
+  by default, what no rule decides: any except icmp6 type 128
+  and the 4 listed under 'In every conduit'
+LAN -> LAN (inside the zone)
+  allowed: any ~
+  rule 'LAN to the package mirrors': 0.0.0.0/0 -> mirrors: tcp/80, tcp/443 ~
+  by default, what no rule decides: any
+  and the 4 listed under 'In every conduit'
+LAN -> GUEST
+  allowed: any ~
+  rule 'LAN to the package mirrors': 0.0.0.0/0 -> mirrors: tcp/80, tcp/443 ~
+  by default, what no rule decides: any
+  and the 4 listed under 'In every conduit'
+LAN -> WAN
+  allowed: any ~
+  rule 'LAN to the package mirrors': 0.0.0.0/0 -> mirrors: tcp/80, tcp/443 ~
+  rule 'office hours for staff': 192.168.10.0/25 -> any: any (schedule time=8h-18h,mon,tue,wed,thu,fri)
+  by default, what no rule decides: any
+  and the 4 listed under 'In every conduit'
+LAN -> (other zones)
+  allowed: any ~
+  rule 'LAN to the package mirrors': 0.0.0.0/0 -> mirrors: tcp/80, tcp/443 ~
+  by default, what no rule decides: any
+  and the 4 listed under 'In every conduit'
+GUEST -> DMZ
+  allowed: any ~
+  cleartext or remote administration: telnet (rule 'rest of the DMZ'); ftp (rule 'rest of the DMZ'); rsh/rlogin/rexec (rule 'rest of the DMZ'); netbios (rule 'rest of the DMZ'); smb (rule 'rest of the DMZ'); rdp (rule 'rest of the DMZ'); vnc (rule 'rest of the DMZ'); x11 (rule 'rest of the DMZ')
+  industrial protocols: modbus (rule 'rest of the DMZ'); s7/iso-tsap (rule 'rest of the DMZ'); dnp3 (rule 'rest of the DMZ'); ethernet-ip (rule 'rest of the DMZ'); opc-ua (rule 'rest of the DMZ'); iec-104 (rule 'rest of the DMZ'); profinet (rule 'rest of the DMZ'); niagara-fox (rule 'rest of the DMZ')
+  rule 'ssh from the admins': admins -> dmz-web: tcp/22
+  rule 'web for everyone': admins -> dmz-web: tcp/80, tcp/443, tcp/8000-8080
+  rule 'web for everyone-2': not admins -> dmz-web: tcp/80, tcp/443, tcp/8000-8080
+  rule 'ping "echo" only': admins -> any: icmp type 8 code 0
+  rule 'ping "echo" only-2': not admins -> 0.0.0.0/0: icmp type 8 code 0
+  rule 'rest of the DMZ': admins -> not 172.16.20.0/25: tcp (only with negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10), negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11), which is not in the model) ~
+  rule 'rest of the DMZ-2': 0.0.0.0-192.168.10.49, 192.168.10.60-255.255.255.255 -> not 172.16.20.0/25: any (only with negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10), negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11), which is not in the model) ~
+  rule 'rest of the DMZ-3': 0.0.0.0-192.168.10.49, 192.168.10.60-255.255.255.255 -> not 172.16.20.0/25: any (only with negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10), negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11), which is not in the model) ~
+  by default, what no rule decides: any except icmp6 type 128
+  and the 4 listed under 'In every conduit'
+GUEST -> LAN
+  allowed: any ~
+  by default, what no rule decides: any except icmp6 type 128
+  and the 4 listed under 'In every conduit'
+GUEST -> GUEST (inside the zone)
+  allowed: any ~
+  by default, what no rule decides: any except icmp6 type 128
+  and the 4 listed under 'In every conduit'
+GUEST -> WAN
+  allowed: any ~
+  cleartext or remote administration: tftp (rule 'guest DNS, either port-2'); netbios (rule 'guest DNS, either port-2'); rdp (rule 'guest DNS, either port-2'); snmp (rule 'guest DNS, either port-2')
+  industrial protocols: dnp3 (rule 'guest DNS, either port-2'); ethernet-ip (rule 'guest DNS, either port-2'); bacnet (rule 'guest DNS, either port-2'); profinet (rule 'guest DNS, either port-2'); fins (rule 'guest DNS, either port-2')
+  rule 'guest DNS, either port': 0.0.0.0/0 -> any: udp/53
+  rule 'guest DNS, either port-2': 0.0.0.0/0 -> any: udp/0-65535 from port 53
+  rule 'guests to the internet': 0.0.0.0/0 -> any: any except tcp/80, tcp/443
+  by default, what no rule decides: any except icmp6 type 128
+  and the 4 listed under 'In every conduit'
+GUEST -> (other zones)
+  allowed: any ~
+  by default, what no rule decides: any except icmp6 type 128
+  and the 4 listed under 'In every conduit'
+WAN -> DMZ
+  allowed: any ~
+  cleartext or remote administration: telnet (rule 'rest of the DMZ'); ftp (rule 'rest of the DMZ'); rsh/rlogin/rexec (rule 'rest of the DMZ'); netbios (rule 'rest of the DMZ'); smb (rule 'rest of the DMZ'); rdp (rule 'rest of the DMZ'); vnc (rule 'rest of the DMZ'); x11 (rule 'rest of the DMZ')
+  industrial protocols: modbus (rule 'rest of the DMZ'); s7/iso-tsap (rule 'rest of the DMZ'); dnp3 (rule 'rest of the DMZ'); ethernet-ip (rule 'rest of the DMZ'); opc-ua (rule 'rest of the DMZ'); iec-104 (rule 'rest of the DMZ'); profinet (rule 'rest of the DMZ'); niagara-fox (rule 'rest of the DMZ')
+  rule 'ssh from the admins': admins -> dmz-web: tcp/22
+  rule 'web for everyone': admins -> dmz-web: tcp/80, tcp/443, tcp/8000-8080
+  rule 'web for everyone-2': not admins -> dmz-web: tcp/80, tcp/443, tcp/8000-8080
+  rule 'ping "echo" only': admins -> any: icmp type 8 code 0
+  rule 'ping "echo" only-2': not admins -> 0.0.0.0/0: icmp type 8 code 0
+  rule 'rest of the DMZ': admins -> not 172.16.20.0/25: tcp (only with negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10), negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11), which is not in the model) ~
+  rule 'rest of the DMZ-2': 0.0.0.0-192.168.10.49, 192.168.10.60-255.255.255.255 -> not 172.16.20.0/25: any (only with negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10), negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11), which is not in the model) ~
+  rule 'rest of the DMZ-3': 0.0.0.0-192.168.10.49, 192.168.10.60-255.255.255.255 -> not 172.16.20.0/25: any (only with negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10), negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11), which is not in the model) ~
+  rule 'defconf: drop all from WAN not DSTNATed (allows publish web)': any -> 203.0.113.3: tcp/8443
+  rule 'defconf: drop all from WAN not DSTNATed (allows publish mail)': any -> 203.0.113.4: tcp/25
+  by default, what no rule decides: any except icmp6 type 128
+  and the 4 listed under 'In every conduit'
+WAN -> LAN
+  allowed: any ~
+  rule 'defconf: drop all from WAN not DSTNATed (allows publish web)': any -> 203.0.113.3: tcp/8443
+  rule 'defconf: drop all from WAN not DSTNATed (allows publish mail)': any -> 203.0.113.4: tcp/25
+  by default, what no rule decides: any except icmp6 type 128
+  and the 4 listed under 'In every conduit'
+WAN -> GUEST
+  allowed: any ~
+  rule 'defconf: drop all from WAN not DSTNATed (allows publish web)': any -> 203.0.113.3: tcp/8443
+  rule 'defconf: drop all from WAN not DSTNATed (allows publish mail)': any -> 203.0.113.4: tcp/25
+  by default, what no rule decides: any except icmp6 type 128
+  and the 4 listed under 'In every conduit'
+WAN -> WAN (inside the zone)
+  allowed: any ~
+  rule 'defconf: drop all from WAN not DSTNATed (allows publish web)': any -> 203.0.113.3: tcp/8443
+  rule 'defconf: drop all from WAN not DSTNATed (allows publish mail)': any -> 203.0.113.4: tcp/25
+  by default, what no rule decides: any except icmp6 type 128
+  and the 4 listed under 'In every conduit'
+WAN -> (other zones)
+  allowed: any ~
+  rule 'defconf: drop all from WAN not DSTNATed (allows publish web)': any -> 203.0.113.3: tcp/8443
+  rule 'defconf: drop all from WAN not DSTNATed (allows publish mail)': any -> 203.0.113.4: tcp/25
+  by default, what no rule decides: any except icmp6 type 128
+  and the 4 listed under 'In every conduit'
+(other zones) -> DMZ
+  allowed: any ~
+  cleartext or remote administration: telnet (rule 'rest of the DMZ'); ftp (rule 'rest of the DMZ'); rsh/rlogin/rexec (rule 'rest of the DMZ'); netbios (rule 'rest of the DMZ'); smb (rule 'rest of the DMZ'); rdp (rule 'rest of the DMZ'); vnc (rule 'rest of the DMZ'); x11 (rule 'rest of the DMZ')
+  industrial protocols: modbus (rule 'rest of the DMZ'); s7/iso-tsap (rule 'rest of the DMZ'); dnp3 (rule 'rest of the DMZ'); ethernet-ip (rule 'rest of the DMZ'); opc-ua (rule 'rest of the DMZ'); iec-104 (rule 'rest of the DMZ'); profinet (rule 'rest of the DMZ'); niagara-fox (rule 'rest of the DMZ')
+  rule 'ssh from the admins': admins -> dmz-web: tcp/22
+  rule 'web for everyone': admins -> dmz-web: tcp/80, tcp/443, tcp/8000-8080
+  rule 'web for everyone-2': not admins -> dmz-web: tcp/80, tcp/443, tcp/8000-8080
+  rule 'ping "echo" only': admins -> any: icmp type 8 code 0
+  rule 'ping "echo" only-2': not admins -> 0.0.0.0/0: icmp type 8 code 0
+  rule 'rest of the DMZ': admins -> not 172.16.20.0/25: tcp (only with negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10), negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11), which is not in the model) ~
+  rule 'rest of the DMZ-2': 0.0.0.0-192.168.10.49, 192.168.10.60-255.255.255.255 -> not 172.16.20.0/25: any (only with negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10), negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11), which is not in the model) ~
+  rule 'rest of the DMZ-3': 0.0.0.0-192.168.10.49, 192.168.10.60-255.255.255.255 -> not 172.16.20.0/25: any (only with negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10), negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11), which is not in the model) ~
+  by default, what no rule decides: any except icmp6 type 128
+  and the 4 listed under 'In every conduit'
+(other zones) -> LAN
+  allowed: any ~
+  by default, what no rule decides: any
+  and the 4 listed under 'In every conduit'
+(other zones) -> GUEST
+  allowed: any ~
+  by default, what no rule decides: any
+  and the 4 listed under 'In every conduit'
+(other zones) -> WAN
+  allowed: any ~
+  by default, what no rule decides: any
+  and the 4 listed under 'In every conduit'
+(other zones) -> (other zones)
+  allowed: any ~
+  by default, what no rule decides: any
+  and the 4 listed under 'In every conduit'
+
+From reading the configuration
+  ROUTEROS_ZONES: the interface lists the rules use do not overlap: each is a zone (DMZ: vlan20-dmz, GUEST: vlan30-guest, LAN: bridge-lan, WAN: ether1); an interface in none of them is a zone of its own
+  HOST_CHAIN_NOT_CONVERTED: chain input of /ip firewall filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  TABLE_NOT_CONVERTED: /ip firewall mangle has 1 rules and is not converted (it can mark connections and routes, which the filter rules may test)
+  ROUTEROS_PASSIVE: 2 rules with action log, passthrough or add-*-to-address-list decide nothing and were left out. A log rule directly before a rule with the same match, or one that matches everything, sets the logging of the rules it logs for
+  ROUTEROS_DYNAMIC_LIST: address lists that rules fill while the router runs decide what their rules match; those rules are not converted: /ip scanners
+  ROUTEROS_FQDN_LIST: address lists that hold host names, which RouterOS resolves while it runs: converted as host name objects (mirrors)
+  ROUTEROS_BRIDGE: traffic between the ports of one bridge (bridge-lan) does not pass the IP firewall of the source (use-ip-firewall=no); the conversion is of routed traffic
+  FORWARD_POLICY_ACCEPT: RouterOS accepts what no rule of the forward chain decides; the model records that as its default action
+
+Notes
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  1 rule(s) never match and are left out; 'fwshift audit' names them.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

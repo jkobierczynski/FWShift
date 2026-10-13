@@ -1,0 +1,31 @@
+FWShift audit
+  source: routeros
+  security rules: 27 (2 disabled), NAT rules: 3
+
+Summary
+  high 2, medium 4, low 11, info 2
+
+Findings in the policy as it was read
+  [high] ANY_ANY_ANY: rule 'defconf: accept in ipsec policy' allows any source to reach any destination on any service, from any zone to any zone
+  [high] DEFAULT_ALLOW: traffic between zones that no rule matches is allowed
+  [medium] ANY_TO_ANY: rule 'ping "echo" only-2' allows its services from any source to any destination, from any zone to zone DMZ
+  [medium] RISKY_SERVICE: rule 'guest DNS, either port-2' allows tftp, netbios, rdp, snmp, from zone GUEST to zone WAN (on the list of the cleartext and remote administration protocols)
+  [medium] ANY_ANY_ANY: rule 'guests to the internet' allows any source to reach any destination on any service, from zone GUEST to zone WAN
+  [medium] ANY_TO_ANY: rule 'ICMPv6 echo' allows its services from any source to any destination, from any zone to any zone
+  [low] ANY_SOURCE: rule 'web for everyone-2' allows any source, from any zone to zone DMZ
+  [low] ANY_DESTINATION: rule 'ping "echo" only' allows its sources to reach any destination, from any zone to zone DMZ
+  [low] ANY_SOURCE: rule 'LAN to the package mirrors' allows any source, from zone LAN to any zone
+  [low] ANY_TO_ANY: rule 'guest DNS, either port' allows its services from any source to any destination, from zone GUEST to zone WAN
+  [low] ANY_TO_ANY: rule 'guest DNS, either port-2' allows its services from any source to any destination, from zone GUEST to zone WAN
+  [low] WIDE_PORTS: rule 'guest DNS, either port-2' allows the ports udp/0-65535, from zone GUEST to zone WAN
+  [low] INDUSTRIAL_SERVICE: rule 'guest DNS, either port-2' allows dnp3, ethernet-ip, bacnet, profinet, fins, from zone GUEST to zone WAN (on the list of the industrial control protocols)
+  [low] ANY_SERVICE: rule 'office hours for staff' allows any service to any destination, from zone LAN to zone WAN
+  [low] ANY_SOURCE: rule 'defconf: drop all from WAN not DSTNATed (allows publish web)' allows any source, from zone WAN to any zone
+  [low] ANY_SOURCE: rule 'defconf: drop all from WAN not DSTNATed (allows publish mail)' allows any source, from zone WAN to any zone
+  [low] REDUNDANT_RULE: rule 'rest of the DMZ-2' never matches: 'nothing but TCP-2' above it already blocks everything it could match
+  [info] DISABLED_RULE: rule 'old partner access' is disabled: remove it, or note why it is kept
+  [info] DISABLED_RULE: rule 'old partner access-2' is disabled: remove it, or note why it is kept
+
+Left out of the order checks
+  1 rule(s) that the model holds only approximately are neither called dead nor used to call another rule dead:
+    'drop everything else not coming from LAN' (ROUTEROS_NEGATED_INTERFACE)

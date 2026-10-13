@@ -24,6 +24,7 @@ what was approximated and what a person has to look at.
 | VMware NSX (distributed firewall) | the JSON of the Policy API: the hierarchical tree, or the list answers of groups, services and security policies | the body of one hierarchical `PATCH /policy/api/v1/infra` |
 | AWS EC2 security groups (and network ACLs) | the JSON of the AWS CLI for one VPC: security groups, network interfaces, subnets, network ACLs, prefix lists | a shell script of AWS CLI calls that creates new security groups |
 | Azure network security groups | the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph: groups, network interfaces, virtual networks, service tags | an ARM template with a group per zone |
+| MikroTik RouterOS (6 and 7) | the output of `/export` | a script for `/import`, switched on by one change |
 
 It also **audits** a policy, of any of these formats: rules that allow too
 much, rules that never match because earlier rules cover them, unused and
@@ -38,7 +39,7 @@ change, or a source and its conversion read back (the **equivalence check**).
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.22).** The converter is tested against synthetic
+> **Status: alpha (0.23).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -49,7 +50,7 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   are sent through them. Generated nftables rulesets are also listed back
 >   by nft, as text and as JSON, and both listings must give the same model.
 > * **PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall,
->   Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX, VMware NSX, AWS and Azure** output has **not been loaded on a
+>   Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX, VMware NSX, AWS, Azure and RouterOS** output has **not been loaded on a
 >   device or management server**. The Check Point input format is taken from the API
 >   documentation, not from a real export, the ASA and FTD syntax from Cisco's
 >   command references, and the Sophos format from the documentation of its
@@ -72,7 +73,9 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   VMware's API reference and the schema of its Python SDK and Terraform
 >   provider; AWS from the service model of the AWS CLI (botocore) and the EC2
 >   documentation; Azure from Microsoft's REST API specifications, the Azure
->   CLI and the documentation. Several conversion rules rest on
+>   CLI and the documentation; RouterOS from MikroTik's documentation, the
+>   schemas of the Ansible collection and the Terraform provider for it, and
+>   exports published as test data. Several conversion rules rest on
 >   vendor behaviour taken from documentation rather than from a lab.
 >
 > Treat the output as a draft for a lab, read the report, and never load it in
@@ -130,8 +133,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.22.0.pyz --version
-python3 fwshift-0.22.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.23.0.pyz --version
+python3 fwshift-0.23.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -260,6 +263,12 @@ fwshift convert running-config.xml --to azure -o nsgs.json --report report.txt \
     --zone-network trust=10.10.0.0/16 --zone-network dmz=10.20.0.0/24 --zone-network untrust=0.0.0.0/0,::/0 \
     --inside-zone dmz
 az deployment group what-if -g rg-net --template-file nsgs.json
+
+# MikroTik RouterOS: the output of /export. To RouterOS, the output is a script
+# for /import whose rules change nothing until the jumps at its end are enabled
+fwshift convert router.rsc --to fortios -o fortigate.conf --report report.txt
+fwshift convert running-config.xml --to routeros -o fwshift.rsc --report report.txt \
+    --interface-map ethernet1/1=ether1 --interface-map ethernet1/2=bridge
 
 # What did the parser read?
 fwshift inspect fgt-backup.conf
@@ -555,6 +564,15 @@ FWShift reads) and does the same for the conversion. See
 | NAT | none (a group does no NAT). Not written: the rules are for what a group sees |
 | Scope | the groups in the export, of any resource group; templates with parameters, variables, copy loops and conditions worked out. Written: an ARM template, associated with nothing |
 
+| | MikroTik RouterOS |
+|---|---|
+| Address objects | addresses, prefixes and IPv4 ranges of a rule; the entries of address lists, host names included. Written: in the rule, or address lists |
+| Address groups | address lists (IPv4 and IPv6 apart); lists the router fills while it runs are not known |
+| Services | protocols by name and number, destination and source ports (`port` either), ICMP and ICMPv6 type and code, negation. Written: one protocol per rule |
+| Security rules | the `forward` chains of `/ip` and `/ipv6`, custom chains flattened (a return taken away exactly where addresses, protocols or ports say it), the default accept; accept, drop, reject, tarpit; `!dstnat` port-forward exceptions; disabled; logging. Written: chain `fwshift-forward`, zones as interface lists, the defaults at its end |
+| NAT | `dst-nat`, `netmap`, `masquerade`, `src-nat`, `same`, no-NAT; the forward chain looked up after destination NAT, brought back to the original destination. Written: chains `fwshift-dstnat` and `fwshift-srcnat`, IPv4 |
+| Scope | one router. Written: a script for `/import` with disabled jumps from the built-in chains |
+
 Not converted, and reported where a rule depends on it: security profiles,
 schedules, user and group matches, URL categories, HIP profiles, application
 filters, wildcard-mask and geography addresses, external dynamic lists,
@@ -586,7 +604,10 @@ API, AWS traffic from inside a VPC to its own public addresses, the network
 ACLs of subnets traffic is routed through and the replies a stateless ACL
 drops (reported), security group VPC associations, Azure Virtual Network
 Manager's admin rules, an interface behind two network security groups
-(reported), VPN gateways between virtual networks, routing, interfaces, VPN,
+(reported), VPN gateways between virtual networks, RouterOS `input` and
+`output` chains, raw and mangle rules, layer-7, content, TLS host and rate
+matches, marks, address lists filled at run time, IPsec policy matches,
+schedules, `redirect` and IPv6 NAT, routing, interfaces, VPN,
 and everything else outside the policy.
 
 ## Roadmap
@@ -596,8 +617,8 @@ and everything else outside the policy.
 * **Firewall brands**, one per release: Sophos Firewall 0.6, Cisco Secure
   Firewall (formerly Firepower) 0.7, pfSense 0.8, SonicWall 0.9, WatchGuard
   0.10, Barracuda 0.11, Juniper SRX 0.12, nftables 0.18, VMware NSX 0.19,
-  AWS security groups 0.20, Azure network security groups 0.21. Then OPNsense
-  and others (see TODO.md).
+  AWS security groups 0.20, Azure network security groups 0.21, MikroTik
+  RouterOS 0.23; next OPNsense 0.24 and Forcepoint NGFW 0.25 (see TODO.md).
 * **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](docs/RULE_USAGE.md)):
   rule identities and hit counters (0.13), Check Point logs (0.14),
   connections without a rule uid and iptables logs (0.15), PAN-OS and FortiOS logs (0.16) and

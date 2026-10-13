@@ -1,0 +1,84 @@
+FWShift conversion report
+  source: routeros
+  target: fmc
+
+Summary
+  Security rules:     27   exact 17, approximated 0, needs review 10 (9 emitted disabled), skipped 0
+  NAT rules:           3   exact 2, approximated 1, needs review 0, skipped 0
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of /ip firewall filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] TABLE_NOT_CONVERTED: /ip firewall mangle has 1 rules and is not converted (it can mark connections and routes, which the filter rules may test)
+  [needs-review] ROUTEROS_DYNAMIC_LIST: address lists that rules fill while the router runs decide what their rules match; those rules are not converted: /ip scanners
+  [needs-review] FMC_LOAD: the output is a Python script that loads the policy into a Management Center through its REST API. It creates the objects, a new access control policy 'FWShift' and, when there are NAT rules, a NAT policy of the same name, and assigns them to no device: nothing is in force until the policies are assigned and deployed. It changes nothing that exists, and stops before it creates anything when a name is taken. Run it with --show and with --dry-run first. The new access control policy uses the default prefilter policy and no intrusion or file policies. The script was written from Cisco's API documentation and has not been run against a Management Center: use it first where a mistake costs nothing
+  [needs-review] ZONES_REQUIRED: the rules name these security zones (rename them with --zone-map): WAN, DMZ, LAN, GUEST. A zone that exists on the Management Center is used as it is; one that does not is created empty, and matches no traffic until the interfaces of the devices are put in it
+  [needs-review] INTRAZONE_DEFAULT: the source allows traffic inside a zone unless a rule denies it; a Cisco Secure Firewall asks its access rules about traffic between the interfaces of a zone as about any other. Check zones with several interfaces
+  [needs-review] INTERZONE_DEFAULT: the source allows traffic between zones that no rule matches; the new access control policy blocks it by default. Add a final rule that allows it if that was intended
+  [info] ROUTEROS_ZONES: the interface lists the rules use do not overlap: each is a zone (DMZ: vlan20-dmz, GUEST: vlan30-guest, LAN: bridge-lan, WAN: ether1); an interface in none of them is a zone of its own
+  [info] ROUTEROS_PASSIVE: 2 rules with action log, passthrough or add-*-to-address-list decide nothing and were left out. A log rule directly before a rule with the same match, or one that matches everything, sets the logging of the rules it logs for
+  [info] ROUTEROS_FQDN_LIST: address lists that hold host names, which RouterOS resolves while it runs: converted as host name objects (mirrors)
+  [info] ROUTEROS_BRIDGE: traffic between the ports of one bridge (bridge-lan) does not pass the IP firewall of the source (use-ip-firewall=no); the conversion is of routed traffic
+  [info] FORWARD_POLICY_ACCEPT: RouterOS accepts what no rule of the forward chain decides; the model records that as its default action
+  [info] FQDN_DNS: FQDN objects need name resolution on the device (a DNS server group in its platform settings)
+
+Security rules
+  defconf: accept in ipsec policy  ->  needs-review, emitted disabled  (emitted as defconf_ accept in ipsec policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: ipsec-policy=in,ipsec (traffic of IPsec tunnels).
+  banned scanners  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: address list 'scanners', which rules fill while the router runs. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  web for everyone-2  ->  exact
+      [info] NEGATION_AS_ADDRESSES: an access rule cannot negate: 'not source admins' is written as the addresses that are left (3 range(s))
+  ping "echo" only-2  ->  exact  (emitted as ping _echo_ only-2)
+      [info] NEGATION_AS_ADDRESSES: an access rule cannot negate: 'not source admins' is written as the addresses that are left (3 range(s))
+  old partner access  ->  needs-review, emitted disabled
+      [needs-review] NEGATION: the service is negated, which an access rule cannot say.
+  nothing but TCP  ->  needs-review, emitted disabled
+      [needs-review] NEGATION: the service is negated, which an access rule cannot say. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nothing but TCP-2  ->  needs-review, emitted disabled
+      [info] NEGATION_AS_ADDRESSES: an access rule cannot negate: 'not source admins' is written as the addresses that are left (3 range(s))
+      [needs-review] NEGATION: the service is negated, which an access rule cannot say. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ  ->  needs-review, emitted disabled
+      [info] NEGATION_AS_ADDRESSES: an access rule cannot negate: 'not destination 172.16.20.0/25' is written as the addresses that are left (3 range(s))
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-2  ->  needs-review, emitted disabled
+      [info] NEGATION_AS_ADDRESSES: an access rule cannot negate: 'not destination 172.16.20.0/25' is written as the addresses that are left (3 range(s))
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] NEGATION: the service is negated, which an access rule cannot say. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-3  ->  needs-review, emitted disabled
+      [info] NEGATION_AS_ADDRESSES: an access rule cannot negate: 'not destination 172.16.20.0/25' is written as the addresses that are left (3 range(s))
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  no other web from guests  ->  exact
+      [info] RESET_ACTION: action reset-client becomes Block with reset, which resets the connection for both sides
+  office hours for staff  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'time=8h-18h,mon,tue,wed,thu,fri' is not converted; the rule would apply at all times.
+  defconf: drop all from WAN not DSTNATed  ->  exact  (emitted as defconf_ drop all from WAN not DSTNATed)
+      [info] ROUTEROS_DSTNAT_EXCEPTION: connection-nat-state=!dstnat: the rule does not block connections a destination NAT rule translated. Those are allowed by 2 rules ahead of it (defconf: drop all from WAN not DSTNATed (allows publish web), defconf: drop all from WAN not DSTNATed (allows publish mail))
+  drop everything else not coming from LAN  ->  needs-review
+      [needs-review] ROUTEROS_NEGATED_INTERFACE: negated input interface (on the rule or the jump to its chain): the export does not list every interface of the router, and the rule covers the zones it does show (DMZ, GUEST, WAN). On the source it also blocks traffic of interfaces the export leaves out
+
+NAT rules
+  defconf: masquerade  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] ROUTEROS_NAT_IPSEC_EXEMPT: ipsec-policy=out,none: on the source, traffic that goes into an IPsec tunnel is not translated; the converted rule translates it unless the target exempts it
+      [info] NAT_IP_VERSION: the rule names no address: it is written for IPv4
+
+Address groups
+  mirrors  ->  exact
+      [info] GROUP_SPLIT: a network group of a Cisco Secure Firewall holds no FQDN objects: group 'mirrors' is written without them, and the rules that use it name 'updates.example.com' themselves
+
+Services
+  tcp-80,443,8000-8080  ->  exact  (emitted as tcp-80_443_8000-8080, tcp-80, tcp-443, tcp-8000-8080)
+      [info] RENAMED: renamed to 'tcp-80_443_8000-8080' to fit the target's naming rules
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-80_443_8000-8080' of 'tcp-80', 'tcp-443', 'tcp-8000-8080'
+  tcp-0-21,23-65535  ->  exact  (emitted as tcp-0-21_23-65535, tcp-1-21, tcp-23-65535)
+      [info] RENAMED: renamed to 'tcp-0-21_23-65535' to fit the target's naming rules
+      [info] PORT_ZERO: port 0 is left out: no connection has it, and a port object starts at port 1
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-0-21_23-65535' of 'tcp-1-21', 'tcp-23-65535'
+  tcp-80,443  ->  exact  (emitted as tcp-80_443, tcp-80, tcp-443)
+      [info] RENAMED: renamed to 'tcp-80_443' to fit the target's naming rules
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-80_443' of 'tcp-80', 'tcp-443'

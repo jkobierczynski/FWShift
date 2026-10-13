@@ -26,6 +26,7 @@ from .emitters import fortios as emit_fortios
 from .emitters import iptables as emit_iptables
 from .emitters import panos as emit_panos
 from .emitters import pfsense as emit_pfsense
+from .emitters import routeros as emit_routeros
 from .emitters import barracuda as emit_barracuda
 from .emitters import junos as emit_junos
 from .emitters import nftables as emit_nftables
@@ -46,6 +47,7 @@ from .parsers import fortios as parse_fortios
 from .parsers import iptables as parse_iptables
 from .parsers import panos as parse_panos
 from .parsers import pfsense as parse_pfsense
+from .parsers import routeros as parse_routeros
 from .parsers import barracuda as parse_barracuda
 from .parsers import junos as parse_junos
 from .parsers import nftables as parse_nftables
@@ -64,6 +66,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "nsx": emit_nsx.emit,
     "aws": emit_aws.emit,
     "azure": emit_azure.emit,
+    "routeros": emit_routeros.emit,
     "checkpoint": emit_checkpoint.emit,
     "asa": emit_asa.emit,
     "sophos": emit_sophos.emit,
@@ -76,7 +79,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "fdm": emit_cisco.emit_fdm,
 }
 VENDORS = ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "pfsense", "sonicwall", "watchguard", "barracuda", "junos",
-           "iptables", "ip6tables", "nftables", "nsx", "aws", "azure")  # fmt: skip
+           "iptables", "ip6tables", "nftables", "nsx", "aws", "azure", "routeros")  # fmt: skip
 
 
 def detect_format(data: bytes) -> str:
@@ -118,6 +121,8 @@ def detect_format(data: bytes) -> str:
         return "aws"
     if parse_azure.looks_like_azure(data):
         return "azure"
+    if parse_routeros.looks_like_routeros(data):
+        return "routeros"
     head = data.lstrip(b"\xef\xbb\xbf \t\r\n")
     if head.startswith(b"<"):
         return "panos"
@@ -174,6 +179,8 @@ def load(
         return parse_aws.parse(data, report)
     if source == "azure":
         return parse_azure.parse(data, report)
+    if source == "routeros":
+        return parse_routeros.parse(data, report)
     raise FwshiftError(f"unknown source format '{source}'")
 
 
@@ -823,7 +830,7 @@ def _run_compare(args: argparse.Namespace) -> int:
     return 3 if result.level() >= weight else 0
 
 
-READ_BACK = ("asa", "azure", "fdm", "fortios", "iptables", "ip6tables", "junos", "nftables", "nsx", "sophos", "watchguard")
+READ_BACK = ("asa", "azure", "fdm", "fortios", "iptables", "ip6tables", "junos", "nftables", "nsx", "routeros", "sophos", "watchguard")
 
 
 def _alignment(source: Policy, back: Policy, options: Options) -> Tuple[Dict[str, str], List[str]]:
@@ -835,7 +842,7 @@ def _alignment(source: Policy, back: Policy, options: Options) -> Tuple[Dict[str
     if not theirs:
         return {}, []
     by_plain: Dict[str, str] = {}
-    prefix = plain(options.object_prefix)
+    prefix = plain(options.object_prefix or ("fws-" if back.vendor == "routeros" else ""))
     for name in theirs:
         key = plain(name)
         by_plain.setdefault(key, name)
@@ -867,7 +874,11 @@ def _compare_output(args: argparse.Namespace, source: Policy, source_report: aud
         return
     back_report = Report()
     try:
-        back = load(output.encode("utf-8"), args.target, back_report)
+        if args.target == "routeros":
+            # The jumps that switch the script on are disabled in it; what is compared is the policy once they are on.
+            back = parse_routeros.parse(output.encode("utf-8"), back_report, activate=True)
+        else:
+            back = load(output.encode("utf-8"), args.target, back_report)
         transform.harden(back, back_report)
     except FwshiftError as error:
         report.note(Severity.REVIEW, "COMPARE_NOT_READ_BACK", f"--compare: the output could not be read back: {str(error)[:200]}")

@@ -60,17 +60,30 @@ each allow rule without the deny rules above it, at both ends), and
 REST API, an ARM template or Resource Graph, read: priorities, the default
 rules, service tags, application security groups, the outbound and inbound
 lists of two groups composed; an ARM template with a group per zone,
-written).
+written), and **0.23.0, MikroTik RouterOS** (the output of `/export`,
+RouterOS 6 and 7, read: the forward chains of `/ip` and `/ipv6`, custom
+chains with returns taken away exactly, interface lists as zones, address
+lists, the default accept and the `!dstnat` exception of the default
+configuration, NAT; a script for `/import` whose chains are switched on by
+one change, written).
 What each rests on and what nobody has checked on a device is in
 the development log.
 
 The brands planned in 2026 are done, and so is the zone and conduit model
 with the equivalence check (0.22.0, under Audit and matrix below).
 
-Not planned yet: OPNsense (planned with pfSense, and left out of 0.8.0: its
-configuration keeps aliases, automatic rules and parts of NAT elsewhere, and
-its rules have other fields; FWShift refuses it with that reason), Huawei USG,
-Forcepoint, Stormshield, MikroTik RouterOS, Google Cloud firewall rules.
+Next, one release each:
+
+- **0.24.0, OPNsense** (planned with pfSense, and left out of 0.8.0: its
+  configuration keeps aliases, automatic rules and parts of NAT elsewhere, and
+  its rules have other fields; FWShift refuses it with that reason until then):
+  `config.xml` of 24.7 to 26.7, the rules of the API and the legacy ones, in
+  the order OPNsense gives them; written for the restore of its areas.
+- **0.25.0, Forcepoint NGFW**: the JSON of the SMC REST API (and its XML
+  export), rules with their Continue and Jump semantics; written as a script
+  of calls to that API.
+
+Not planned yet: Huawei USG, Stormshield, Google Cloud firewall rules.
 
 ## Rule usage
 
@@ -335,7 +348,17 @@ back and compared with the source): items 1, 2, 5 and 10 of the list before.
    refuses (names, descriptions, the 2,000 rules and the address limits);
    check whether `*` matches ESP, AH and other protocols, and what
    `VirtualNetwork` holds across peerings and gateways.
-14. The equivalence check on real changes: two exports of one firewall
+14. RouterOS, on a CHR (RouterOS 7) and a router with RouterOS 6: export it
+   and compare with `routeros_sample.rsc` (how a long comment and a negation
+   are wrapped, whether `print` numbering or `#error exporting` lines appear,
+   protocol numbers such as `ipip`); import `panos_to_routeros.rsc` and
+   `routeros_to_routeros.rsc` with `verbose=yes` and record what the router
+   refuses (the check at the top, `?` and non-ASCII in comments, `dst-port`
+   lists longer than 15, `icmp-options` with a code range, IPv6 ranges); switch
+   the jumps on in Safe Mode and send packets through, the defaults and the
+   `!dstnat` exception above all; check `icmp-options=8` without a code and
+   `reject-with=tcp-reset` on a rule that matches more than TCP.
+15. The equivalence check on real changes: two exports of one firewall
    before and after a change made by hand, compared, and the differences
    checked against what was changed; a conversion loaded on a target, its
    running configuration exported again and compared with the source.

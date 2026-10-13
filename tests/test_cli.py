@@ -304,6 +304,41 @@ CASES = [
     ("nftables_sample.nft", "azure", "nftables_to_azure.json"),
     ("nsx_sample.json", "azure", "nsx_to_azure.json"),
     ("aws_sample.json", "azure", "aws_to_azure.json"),
+    ("routeros_sample.rsc", "routeros", "routeros_to_routeros.rsc"),
+    ("routeros_sample.rsc", "panos", "routeros_to_panos.set"),
+    ("routeros_sample.rsc", "fortios", "routeros_to_fortios.conf"),
+    ("routeros_sample.rsc", "checkpoint", "routeros_to_checkpoint.sh"),
+    ("routeros_sample.rsc", "asa", "routeros_to_asa.cfg"),
+    ("routeros_sample.rsc", "sophos", "routeros_to_sophos.xml"),
+    ("routeros_sample.rsc", "fmc", "routeros_to_fmc.policy.txt"),
+    ("routeros_sample.rsc", "fdm", "routeros_to_fdm.json"),
+    ("routeros_sample.rsc", "pfsense", "routeros_to_pfsense.xml"),
+    ("routeros_sample.rsc", "sonicwall", "routeros_to_sonicwall.cli"),
+    ("routeros_sample.rsc", "watchguard", "routeros_to_watchguard.xml"),
+    ("routeros_sample.rsc", "barracuda", "routeros_to_barracuda.sh"),
+    ("routeros_sample.rsc", "iptables", "routeros_to_iptables.rules"),
+    ("routeros_sample.rsc", "junos", "routeros_to_junos.set.conf"),
+    ("routeros_sample.rsc", "nftables", "routeros_to_nftables.nft"),
+    ("routeros_sample.rsc", "nsx", "routeros_to_nsx.json"),
+    ("routeros_sample.rsc", "aws", "routeros_to_aws.sh"),
+    ("routeros_sample.rsc", "azure", "routeros_to_azure.json"),
+    ("panos_sample.xml", "routeros", "panos_to_routeros.rsc"),
+    ("fortios_sample.conf", "routeros", "fortios_to_routeros.rsc"),
+    ("checkpoint_sample.json", "routeros", "checkpoint_to_routeros.rsc"),
+    ("asa_sample.cfg", "routeros", "asa_to_routeros.rsc"),
+    ("sophos_sample.xml", "routeros", "sophos_to_routeros.rsc"),
+    ("fmc_sample.json", "routeros", "fmc_to_routeros.rsc"),
+    ("fdm_sample.txt", "routeros", "fdm_to_routeros.rsc"),
+    ("pfsense_sample.xml", "routeros", "pfsense_to_routeros.rsc"),
+    ("sonicwall_sample.exp", "routeros", "sonicwall_to_routeros.rsc"),
+    ("watchguard_sample.xml", "routeros", "watchguard_to_routeros.rsc"),
+    ("barracuda_sample.json", "routeros", "barracuda_to_routeros.rsc"),
+    ("iptables_sample.rules", "routeros", "iptables_to_routeros.rsc"),
+    ("junos_sample.conf", "routeros", "junos_to_routeros.rsc"),
+    ("nftables_sample.nft", "routeros", "nftables_to_routeros.rsc"),
+    ("nsx_sample.json", "routeros", "nsx_to_routeros.rsc"),
+    ("aws_sample.json", "routeros", "aws_to_routeros.rsc"),
+    ("azure_sample.json", "routeros", "azure_to_routeros.rsc"),
 ]
 
 
@@ -317,6 +352,7 @@ def test_detect_format() -> None:
     assert detect_format((DATA / "nsx_sample.json").read_bytes()) == "nsx"
     assert detect_format((DATA / "aws_sample.json").read_bytes()) == "aws"
     assert detect_format((DATA / "azure_sample.json").read_bytes()) == "azure"
+    assert detect_format((DATA / "routeros_sample.rsc").read_bytes()) == "routeros"
     assert detect_format(b'\n[\n {"uid": "x", "rulebase": []}]') == "checkpoint"
     assert detect_format(b": Saved\n:\nASA Version 9.12(4)\n!\nhostname fw\n") == "asa"
     assert detect_format(b'<?xml version="1.0" encoding="UTF-8"?>\n<Configuration APIVersion="2000.1">') == "sophos"

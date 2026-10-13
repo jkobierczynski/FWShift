@@ -1,0 +1,348 @@
+set address updates.example.com fqdn updates.example.com
+set address updates.example.com description "host name in a RouterOS address list"
+set address r-192.168.10.50-192.168.10.59 ip-range 192.168.10.50-192.168.10.59
+set address-group admins static r-192.168.10.50-192.168.10.59
+set address-group admins description "RouterOS /ip firewall address-list admins"
+set address h-172.16.20.10 ip-netmask 172.16.20.10
+set address h-172.16.20.11 ip-netmask 172.16.20.11
+set address-group dmz-web static [ h-172.16.20.10 h-172.16.20.11 ]
+set address-group dmz-web description "RouterOS /ip firewall address-list dmz-web"
+set address n-198.51.100.0_24 ip-netmask 198.51.100.0/24
+set address-group partners static n-198.51.100.0_24
+set address-group partners description "RouterOS /ip firewall address-list partners"
+set address h-192.0.2.80 ip-netmask 192.0.2.80
+set address-group mirrors static [ updates.example.com h-192.0.2.80 ]
+set address-group mirrors description "RouterOS /ip firewall address-list mirrors"
+set address n-2001_db8_99___48 ip-netmask 2001:db8:99::/48
+set address-group partners-ipv6 static n-2001_db8_99___48
+set address-group partners-ipv6 description "RouterOS /ipv6 firewall address-list partners"
+set address n-2001_db8_10___64 ip-netmask 2001:db8:10::/64
+set address-group lan6 static n-2001_db8_10___64
+set address-group lan6 description "RouterOS /ipv6 firewall address-list lan6"
+set service tcp-22 protocol tcp port 22
+set service tcp-80_443_8000-8080 protocol tcp port 80,443,8000-8080
+set service tcp-any protocol tcp port 1-65535
+set service tcp-0-21_23-65535 protocol tcp port 0-21,23-65535
+set service tcp-80_443 protocol tcp port 80,443
+set service udp-53 protocol udp port 53
+set service udp-any-from-53 protocol udp port 1-65535
+set service udp-any-from-53 protocol udp source-port 53
+set service tcp-8443 protocol tcp port 8443
+set service tcp-25 protocol tcp port 25
+set service tcp-443 protocol tcp port 443
+set rulebase security rules "defconf_ accept in ipsec policy" from any
+set rulebase security rules "defconf_ accept in ipsec policy" to any
+set rulebase security rules "defconf_ accept in ipsec policy" source 0.0.0.0/0
+set rulebase security rules "defconf_ accept in ipsec policy" destination any
+set rulebase security rules "defconf_ accept in ipsec policy" source-user any
+set rulebase security rules "defconf_ accept in ipsec policy" category any
+set rulebase security rules "defconf_ accept in ipsec policy" application any
+set rulebase security rules "defconf_ accept in ipsec policy" service any
+set rulebase security rules "defconf_ accept in ipsec policy" action allow
+set rulebase security rules "defconf_ accept in ipsec policy" log-end no
+set rulebase security rules "defconf_ accept in ipsec policy" disabled yes
+set rulebase security rules "defconf_ accept in ipsec policy" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "banned scanners" from any
+set rulebase security rules "banned scanners" to any
+set rulebase security rules "banned scanners" source 0.0.0.0/0
+set rulebase security rules "banned scanners" destination any
+set rulebase security rules "banned scanners" source-user any
+set rulebase security rules "banned scanners" category any
+set rulebase security rules "banned scanners" application any
+set rulebase security rules "banned scanners" service any
+set rulebase security rules "banned scanners" action drop
+set rulebase security rules "banned scanners" log-end no
+set rulebase security rules "banned scanners" disabled yes
+set rulebase security rules "banned scanners" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "ssh from the admins" from any
+set rulebase security rules "ssh from the admins" to DMZ
+set rulebase security rules "ssh from the admins" source admins
+set rulebase security rules "ssh from the admins" destination dmz-web
+set rulebase security rules "ssh from the admins" source-user any
+set rulebase security rules "ssh from the admins" category any
+set rulebase security rules "ssh from the admins" application any
+set rulebase security rules "ssh from the admins" service tcp-22
+set rulebase security rules "ssh from the admins" action allow
+set rulebase security rules "ssh from the admins" log-end no
+set rulebase security rules "web for everyone" from any
+set rulebase security rules "web for everyone" to DMZ
+set rulebase security rules "web for everyone" source admins
+set rulebase security rules "web for everyone" destination [ dmz-web 203.0.113.3 ]
+set rulebase security rules "web for everyone" source-user any
+set rulebase security rules "web for everyone" category any
+set rulebase security rules "web for everyone" application any
+set rulebase security rules "web for everyone" service tcp-80_443_8000-8080
+set rulebase security rules "web for everyone" action allow
+set rulebase security rules "web for everyone" log-end no
+set rulebase security rules "web for everyone-2" from any
+set rulebase security rules "web for everyone-2" to DMZ
+set rulebase security rules "web for everyone-2" source admins
+set rulebase security rules "web for everyone-2" destination [ dmz-web 203.0.113.3 ]
+set rulebase security rules "web for everyone-2" source-user any
+set rulebase security rules "web for everyone-2" category any
+set rulebase security rules "web for everyone-2" application any
+set rulebase security rules "web for everyone-2" service tcp-80_443_8000-8080
+set rulebase security rules "web for everyone-2" action allow
+set rulebase security rules "web for everyone-2" negate-source yes
+set rulebase security rules "web for everyone-2" log-end no
+set rulebase security rules "web for everyone-2" description "RouterOS /ip firewall filter rule forward-6.to-dmz-3"
+set rulebase security rules "ping _echo_ only" from any
+set rulebase security rules "ping _echo_ only" to DMZ
+set rulebase security rules "ping _echo_ only" source admins
+set rulebase security rules "ping _echo_ only" destination any
+set rulebase security rules "ping _echo_ only" source-user any
+set rulebase security rules "ping _echo_ only" category any
+set rulebase security rules "ping _echo_ only" application ping
+set rulebase security rules "ping _echo_ only" service application-default
+set rulebase security rules "ping _echo_ only" action allow
+set rulebase security rules "ping _echo_ only" log-end no
+set rulebase security rules "ping _echo_ only-2" from any
+set rulebase security rules "ping _echo_ only-2" to DMZ
+set rulebase security rules "ping _echo_ only-2" source admins
+set rulebase security rules "ping _echo_ only-2" destination 0.0.0.0/0
+set rulebase security rules "ping _echo_ only-2" source-user any
+set rulebase security rules "ping _echo_ only-2" category any
+set rulebase security rules "ping _echo_ only-2" application ping
+set rulebase security rules "ping _echo_ only-2" service application-default
+set rulebase security rules "ping _echo_ only-2" action allow
+set rulebase security rules "ping _echo_ only-2" negate-source yes
+set rulebase security rules "ping _echo_ only-2" log-end no
+set rulebase security rules "ping _echo_ only-2" description "RouterOS /ip firewall filter rule forward-6.to-dmz-4"
+set rulebase security rules "old partner access" from any
+set rulebase security rules "old partner access" to DMZ
+set rulebase security rules "old partner access" source partners
+set rulebase security rules "old partner access" destination any
+set rulebase security rules "old partner access" source-user any
+set rulebase security rules "old partner access" category any
+set rulebase security rules "old partner access" application any
+set rulebase security rules "old partner access" service tcp-any
+set rulebase security rules "old partner access" action allow
+set rulebase security rules "old partner access" log-end no
+set rulebase security rules "old partner access" disabled yes
+set rulebase security rules "old partner access" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "old partner access-2" from any
+set rulebase security rules "old partner access-2" to DMZ
+set rulebase security rules "old partner access-2" source partners
+set rulebase security rules "old partner access-2" destination any
+set rulebase security rules "old partner access-2" source-user any
+set rulebase security rules "old partner access-2" category any
+set rulebase security rules "old partner access-2" application any
+set rulebase security rules "old partner access-2" service tcp-0-21_23-65535
+set rulebase security rules "old partner access-2" action allow
+set rulebase security rules "old partner access-2" log-end no
+set rulebase security rules "old partner access-2" disabled yes
+set rulebase security rules "old partner access-2" description "RouterOS /ip firewall filter rule forward-6.to-dmz-5"
+set rulebase security rules "nothing but TCP" from any
+set rulebase security rules "nothing but TCP" to DMZ
+set rulebase security rules "nothing but TCP" source admins
+set rulebase security rules "nothing but TCP" destination any
+set rulebase security rules "nothing but TCP" source-user any
+set rulebase security rules "nothing but TCP" category any
+set rulebase security rules "nothing but TCP" application any
+set rulebase security rules "nothing but TCP" service tcp-any
+set rulebase security rules "nothing but TCP" action deny
+set rulebase security rules "nothing but TCP" log-end no
+set rulebase security rules "nothing but TCP" disabled yes
+set rulebase security rules "nothing but TCP" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "nothing but TCP-2" from any
+set rulebase security rules "nothing but TCP-2" to DMZ
+set rulebase security rules "nothing but TCP-2" source admins
+set rulebase security rules "nothing but TCP-2" destination 0.0.0.0/0
+set rulebase security rules "nothing but TCP-2" source-user any
+set rulebase security rules "nothing but TCP-2" category any
+set rulebase security rules "nothing but TCP-2" application any
+set rulebase security rules "nothing but TCP-2" service tcp-any
+set rulebase security rules "nothing but TCP-2" action deny
+set rulebase security rules "nothing but TCP-2" negate-source yes
+set rulebase security rules "nothing but TCP-2" log-end no
+set rulebase security rules "nothing but TCP-2" disabled yes
+set rulebase security rules "nothing but TCP-2" description "FWSHIFT: disabled by the converter, see the report. RouterOS /ip firewall filter rule forward-6.to-dmz-6"
+set rulebase security rules "rest of the DMZ" from any
+set rulebase security rules "rest of the DMZ" to DMZ
+set rulebase security rules "rest of the DMZ" source admins
+set rulebase security rules "rest of the DMZ" destination 172.16.20.0/25
+set rulebase security rules "rest of the DMZ" source-user any
+set rulebase security rules "rest of the DMZ" category any
+set rulebase security rules "rest of the DMZ" application any
+set rulebase security rules "rest of the DMZ" service any
+set rulebase security rules "rest of the DMZ" action drop
+set rulebase security rules "rest of the DMZ" negate-destination yes
+set rulebase security rules "rest of the DMZ" log-end no
+set rulebase security rules "rest of the DMZ" disabled yes
+set rulebase security rules "rest of the DMZ" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "rest of the DMZ-2" from any
+set rulebase security rules "rest of the DMZ-2" to DMZ
+set rulebase security rules "rest of the DMZ-2" source [ 0.0.0.0-192.168.10.49 192.168.10.60-255.255.255.255 ]
+set rulebase security rules "rest of the DMZ-2" destination 172.16.20.0/25
+set rulebase security rules "rest of the DMZ-2" source-user any
+set rulebase security rules "rest of the DMZ-2" category any
+set rulebase security rules "rest of the DMZ-2" application any
+set rulebase security rules "rest of the DMZ-2" service tcp-any
+set rulebase security rules "rest of the DMZ-2" action drop
+set rulebase security rules "rest of the DMZ-2" negate-destination yes
+set rulebase security rules "rest of the DMZ-2" log-end no
+set rulebase security rules "rest of the DMZ-2" disabled yes
+set rulebase security rules "rest of the DMZ-2" description "FWSHIFT: disabled by the converter, see the report. RouterOS /ip firewall filter rule forward-6.to-dmz-7"
+set rulebase security rules "rest of the DMZ-3" from any
+set rulebase security rules "rest of the DMZ-3" to DMZ
+set rulebase security rules "rest of the DMZ-3" source [ 0.0.0.0-192.168.10.49 192.168.10.60-255.255.255.255 ]
+set rulebase security rules "rest of the DMZ-3" destination 172.16.20.0/25
+set rulebase security rules "rest of the DMZ-3" source-user any
+set rulebase security rules "rest of the DMZ-3" category any
+set rulebase security rules "rest of the DMZ-3" application any
+set rulebase security rules "rest of the DMZ-3" service tcp-0-21_23-65535
+set rulebase security rules "rest of the DMZ-3" action drop
+set rulebase security rules "rest of the DMZ-3" negate-destination yes
+set rulebase security rules "rest of the DMZ-3" log-end no
+set rulebase security rules "rest of the DMZ-3" disabled yes
+set rulebase security rules "rest of the DMZ-3" description "FWSHIFT: disabled by the converter, see the report. RouterOS /ip firewall filter rule forward-6.to-dmz-7"
+set rulebase security rules "LAN to the package mirrors" from LAN
+set rulebase security rules "LAN to the package mirrors" to any
+set rulebase security rules "LAN to the package mirrors" source 0.0.0.0/0
+set rulebase security rules "LAN to the package mirrors" destination mirrors
+set rulebase security rules "LAN to the package mirrors" source-user any
+set rulebase security rules "LAN to the package mirrors" category any
+set rulebase security rules "LAN to the package mirrors" application any
+set rulebase security rules "LAN to the package mirrors" service tcp-80_443
+set rulebase security rules "LAN to the package mirrors" action allow
+set rulebase security rules "LAN to the package mirrors" log-end no
+set rulebase security rules "no other web from guests" from GUEST
+set rulebase security rules "no other web from guests" to any
+set rulebase security rules "no other web from guests" source 0.0.0.0/0
+set rulebase security rules "no other web from guests" destination any
+set rulebase security rules "no other web from guests" source-user any
+set rulebase security rules "no other web from guests" category any
+set rulebase security rules "no other web from guests" application any
+set rulebase security rules "no other web from guests" service tcp-80_443
+set rulebase security rules "no other web from guests" action reset-client
+set rulebase security rules "no other web from guests" log-end no
+set rulebase security rules "guest DNS_ either port" from GUEST
+set rulebase security rules "guest DNS_ either port" to WAN
+set rulebase security rules "guest DNS_ either port" source 0.0.0.0/0
+set rulebase security rules "guest DNS_ either port" destination any
+set rulebase security rules "guest DNS_ either port" source-user any
+set rulebase security rules "guest DNS_ either port" category any
+set rulebase security rules "guest DNS_ either port" application any
+set rulebase security rules "guest DNS_ either port" service udp-53
+set rulebase security rules "guest DNS_ either port" action allow
+set rulebase security rules "guest DNS_ either port" log-end no
+set rulebase security rules "guest DNS_ either port-2" from GUEST
+set rulebase security rules "guest DNS_ either port-2" to WAN
+set rulebase security rules "guest DNS_ either port-2" source 0.0.0.0/0
+set rulebase security rules "guest DNS_ either port-2" destination any
+set rulebase security rules "guest DNS_ either port-2" source-user any
+set rulebase security rules "guest DNS_ either port-2" category any
+set rulebase security rules "guest DNS_ either port-2" application any
+set rulebase security rules "guest DNS_ either port-2" service udp-any-from-53
+set rulebase security rules "guest DNS_ either port-2" action allow
+set rulebase security rules "guest DNS_ either port-2" log-end no
+set rulebase security rules "guest DNS_ either port-2" description "RouterOS /ip firewall filter rule forward-9"
+set rulebase security rules "guests to the internet" from GUEST
+set rulebase security rules "guests to the internet" to WAN
+set rulebase security rules "guests to the internet" source 0.0.0.0/0
+set rulebase security rules "guests to the internet" destination any
+set rulebase security rules "guests to the internet" source-user any
+set rulebase security rules "guests to the internet" category any
+set rulebase security rules "guests to the internet" application any
+set rulebase security rules "guests to the internet" service any
+set rulebase security rules "guests to the internet" action allow
+set rulebase security rules "guests to the internet" log-start yes
+set rulebase security rules "guests to the internet" log-end no
+set rulebase security rules "office hours for staff" from LAN
+set rulebase security rules "office hours for staff" to WAN
+set rulebase security rules "office hours for staff" source 192.168.10.0/25
+set rulebase security rules "office hours for staff" destination any
+set rulebase security rules "office hours for staff" source-user any
+set rulebase security rules "office hours for staff" category any
+set rulebase security rules "office hours for staff" application any
+set rulebase security rules "office hours for staff" service any
+set rulebase security rules "office hours for staff" action allow
+set rulebase security rules "office hours for staff" log-end no
+set rulebase security rules "office hours for staff" disabled yes
+set rulebase security rules "office hours for staff" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "no guests elsewhere" from GUEST
+set rulebase security rules "no guests elsewhere" to any
+set rulebase security rules "no guests elsewhere" source 0.0.0.0/0
+set rulebase security rules "no guests elsewhere" destination any
+set rulebase security rules "no guests elsewhere" source-user any
+set rulebase security rules "no guests elsewhere" category any
+set rulebase security rules "no guests elsewhere" application any
+set rulebase security rules "no guests elsewhere" service any
+set rulebase security rules "no guests elsewhere" action drop
+set rulebase security rules "no guests elsewhere" log-start yes
+set rulebase security rules "no guests elsewhere" log-end no
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish web_" from WAN
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish web_" to any
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish web_" source any
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish web_" destination 203.0.113.3
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish web_" source-user any
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish web_" category any
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish web_" application any
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish web_" service tcp-8443
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish web_" action allow
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish web_" log-end no
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish web_" description "what RouterOS rule forward-15 does not block: connections that destination NAT rule dstnat-1 translates"
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish mail_" from WAN
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish mail_" to any
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish mail_" source any
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish mail_" destination 203.0.113.4
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish mail_" source-user any
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish mail_" category any
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish mail_" application any
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish mail_" service tcp-25
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish mail_" action allow
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish mail_" log-end no
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed _allows publish mail_" description "what RouterOS rule forward-15 does not block: connections that destination NAT rule dstnat-2 translates"
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed" from WAN
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed" to any
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed" source 0.0.0.0/0
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed" destination any
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed" source-user any
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed" category any
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed" application any
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed" service any
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed" action drop
+set rulebase security rules "defconf_ drop all from WAN not DSTNATed" log-end no
+set rulebase security rules "ICMPv6 echo" from any
+set rulebase security rules "ICMPv6 echo" to any
+set rulebase security rules "ICMPv6 echo" source ::/0
+set rulebase security rules "ICMPv6 echo" destination any
+set rulebase security rules "ICMPv6 echo" source-user any
+set rulebase security rules "ICMPv6 echo" category any
+set rulebase security rules "ICMPv6 echo" application ping6
+set rulebase security rules "ICMPv6 echo" service application-default
+set rulebase security rules "ICMPv6 echo" action allow
+set rulebase security rules "ICMPv6 echo" log-end no
+set rulebase security rules "the partners reach the web servers of the LAN by HTTPS and noth" from any
+set rulebase security rules "the partners reach the web servers of the LAN by HTTPS and noth" to any
+set rulebase security rules "the partners reach the web servers of the LAN by HTTPS and noth" source partners-ipv6
+set rulebase security rules "the partners reach the web servers of the LAN by HTTPS and noth" destination lan6
+set rulebase security rules "the partners reach the web servers of the LAN by HTTPS and noth" source-user any
+set rulebase security rules "the partners reach the web servers of the LAN by HTTPS and noth" category any
+set rulebase security rules "the partners reach the web servers of the LAN by HTTPS and noth" application any
+set rulebase security rules "the partners reach the web servers of the LAN by HTTPS and noth" service tcp-443
+set rulebase security rules "the partners reach the web servers of the LAN by HTTPS and noth" action allow
+set rulebase security rules "the partners reach the web servers of the LAN by HTTPS and noth" log-end no
+set rulebase security rules "drop everything else not coming from LAN" from [ DMZ GUEST WAN ]
+set rulebase security rules "drop everything else not coming from LAN" to any
+set rulebase security rules "drop everything else not coming from LAN" source ::/0
+set rulebase security rules "drop everything else not coming from LAN" destination any
+set rulebase security rules "drop everything else not coming from LAN" source-user any
+set rulebase security rules "drop everything else not coming from LAN" category any
+set rulebase security rules "drop everything else not coming from LAN" application any
+set rulebase security rules "drop everything else not coming from LAN" service any
+set rulebase security rules "drop everything else not coming from LAN" action drop
+set rulebase security rules "drop everything else not coming from LAN" log-end no
+set rulebase nat rules "publish web" from WAN
+set rulebase nat rules "publish web" to WAN
+set rulebase nat rules "publish web" source any
+set rulebase nat rules "publish web" destination 203.0.113.3
+set rulebase nat rules "publish web" service tcp-8443
+set rulebase nat rules "publish web" destination-translation translated-address 172.16.20.10
+set rulebase nat rules "publish web" destination-translation translated-port 443
+set rulebase nat rules "publish mail" from WAN
+set rulebase nat rules "publish mail" to WAN
+set rulebase nat rules "publish mail" source any
+set rulebase nat rules "publish mail" destination 203.0.113.4
+set rulebase nat rules "publish mail" service tcp-25
+set rulebase nat rules "publish mail" destination-translation translated-address 172.16.20.11
