@@ -5,7 +5,7 @@ FWShift zone matrix
 What each zone may reach (rows: from, columns: to)
                 outside_zone      inside_zone       iot
   outside_zone  -                 tcp/5001 +1       -
-  inside_zone   icmp type 3… +3~  -                 -
+  inside_zone   any~              -                 -
   iot           -                 -                 -
   -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
 
@@ -17,12 +17,14 @@ outside_zone -> inside_zone
   rule 'NAS_from_Internet': any -> nas: tcp/5001
   rule 'DNS_answers': any -> any: udp/1024-65535 from port 53
 inside_zone -> outside_zone
-  allowed: icmp type 3 code 3, tcp/80, tcp/443, udp/53 ~
+  allowed: any ~
   rule 'Inside_Outside_web': office-lan -> any: tcp/80, tcp/443, udp/53
   rule 'IoT_telemetry': iot-net -> vendor-cloud: tcp/443 ~
+  rule 'Staff_streaming': any -> any: any (only with an application condition, which is not in the model) ~
   rule 'Guests_by_time': printers -> any: icmp type 3 code 3 (schedule office-hours)
 
 Notes
   1 rule(s) never match and are left out; 'fwshift audit' names them.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
   ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
   The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

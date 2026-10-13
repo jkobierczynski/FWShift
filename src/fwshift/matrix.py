@@ -524,6 +524,7 @@ class _Builder:
         self.industrial = {name: _union([s for spec in specs for s in [_spec_services(spec)] if s])
                            for name, specs in config.industrial_services.items()}  # fmt: skip
         self.both_behind = 0  # while the default inside a zone is placed: the zone both ends have to lie behind
+        self.same_unnamed = ""  # ... a zone the policy does not name, by its name
         self.rest: List[str] = []  # rows for the rest of a zone of the policy, as they come up
         self.found: Dict[Tuple[str, str], Dict[str, _Held]] = {}
         self.unfollowed: List[str] = []
@@ -673,6 +674,8 @@ class _Builder:
                     continue
                 if both and not (behind.get(src, 0) & both and behind.get(dst, 0) & both):
                     continue
+                if self.same_unnamed and not all(z in self.given and self.same_unnamed in self.given[z].behind for z in (src, dst)):
+                    continue  # (inside one zone the policy does not name: both ends behind that one)
                 seen.add((src, dst, nat))
                 out.append((src, dst, nat, unsure))
         return out
@@ -702,19 +705,26 @@ class _Builder:
         for match in audit.matches:
             rule = match.rule
             origin = rule.origin or rule.name
-            if not rule.enabled or _blocks(rule) or origin in self.dead or not match.over:
+            # A rule the model does not hold exactly may match anything in its zones, and may allow it whatever its action.
+            wild = bool(rule.unsupported)
+            if not rule.enabled or (_blocks(rule) and not wild) or (origin in self.dead and not wild) or not match.over:
                 continue
             covers = [cover for earlier in audit._near(match, audit.matches[: match.index])
                       if earlier.covers and _blocks(earlier.rule) and sets.may_meet(earlier, match)
                       for cover in [sets.cover(earlier, match)] if cover is not None]  # fmt: skip
-            left = _rest(sets, list(match.over), covers)
+            over = list(match.over)
+            if wild:
+                over = [(match.zones[0], match.zones[1], match.zones[2], [family], [family], _ALL_SERVICES) for family in self.families]
+            left = _rest(sets, over, covers)
             by_application = rule.applications != [ANY] and rule.services == [APP_DEFAULT]  # said in so many words
             limit = self.limits.get(match.index)
             target_exact = match.dst_over == match.dst_under if limit is None else limit[1]
             exact = (match.src_over == match.src_under and target_exact and not match.loose
                      and not rule.unsupported and (by_application or match.svc_over.minus(match.svc_under).empty()))  # fmt: skip
+            if wild:
+                exact = False
             if left is None:
-                left, exact = list(match.over), False
+                left, exact = over, False
                 self.unfollowed.append(rule.name)
             if limit is not None:
                 left = [(box[0], box[1], box[2], box[3], ends, box[5]) for box in left for ends in [intersect(box[4], limit[0])] if ends]
@@ -787,6 +797,12 @@ class _Builder:
                     self.both_behind = zones.bits([name])
                     add(universe(zones.bits([name]), zones.bits([name]), _SAME))
                     self.both_behind = 0
+            # And inside a zone the policy does not name, where zones given lie behind it: it has the default too.
+            if p.default_intrazone == Action.ALLOW:
+                for name in self.unnamed:
+                    self.both_behind, self.same_unnamed = zones.other, name
+                    add(universe(zones.other, zones.other, _SAME))
+                    self.both_behind, self.same_unnamed = 0, ""
             unbound = [zone for zone in self.spaces if zone not in self.behind]
             if (inside or p.default_intrazone == Action.ALLOW) and unbound:
                 which = "every zone" if p.default_intrazone == Action.ALLOW and len(inside) == len(names) else "zone " + ", ".join(inside)
@@ -888,6 +904,9 @@ class _Builder:
             notes.append(f"An {p.vendor} ruleset is for one IP version, here {p.scope}: the matrix says nothing about the other.")
         if self.dead:
             notes.append(f"{len(self.dead)} rule(s) never match and are left out; 'fwshift audit' names them.")
+        if any(rule.unsupported and rule.enabled for rule in p.rules):
+            notes.append("A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every "
+                         "service, whatever its action, marked ~: what it really does is not known.")  # fmt: skip
         if any(cell.approximate for cell in matrix.cells.values()):
             notes.append("~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a "
                          "rule the parser reported as approximated), the blocking rules above it could not be followed, or the "

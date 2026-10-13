@@ -8,11 +8,12 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.21.0 (alpha) |
+| Version | 0.22.0 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone) |
-| Tests | 3929, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Tests | 4131, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a Check Point management server, a Cisco Management Center or a Device Manager |
-| Next | the zone and conduit model as a gate, with the equivalence check (0.22.0); lab validation of the sample conversions (see `TODO.md`) |
+| Analysis | the audit, the zone matrix, rule usage from hit counters and logs, the zone and conduit model as a gate (`fwshift conduits`), the equivalence check (`fwshift compare`, `convert --compare`) |
+| Next | the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
 
 ## Layout
 
@@ -110,6 +111,12 @@ src/fwshift/
     matrix.py         the zone matrix: what each zone may reach in each other
                       zone, from the sets of the audit; zones of the policy or
                       zones given as networks
+    conduits.py       the zone and conduit model: the file, a policy checked
+                      against it through its matrix, a draft from a policy
+    compare.py        the equivalence check: what two policies allow, per pair
+                      of zones, from above and from below, and every connection
+                      whose verdict differs; labels for applications, users,
+                      categories, schedules and what cannot be read
     appmap.py         application/port table, protocol tables, reserved names
     netutil.py        IP intervals
     xmlread.py        XML from outside: no document type, whatever the encoding
@@ -129,7 +136,7 @@ tests/
                       FortiOS logs (and panos_logged.xml), the two
                       Cisco Secure Firewall samples and the SonicWall,
                       WatchGuard, Barracuda and Juniper samples, the nftables
-                      sample (written by nft itself), the NSX, AWS and Azure samples,
+                      sample (written by nft itself), the NSX, AWS and Azure samples, the zone model,
                       and the kernel checks for iptables and nftables
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
                       Check Point, ASA, Sophos and Cisco Secure Firewall output;
@@ -184,6 +191,12 @@ tests/
                       small world
     test_matrix.py    the zone matrix, against the same walk: every packet
                       that gets through is in it, and nothing else
+    test_conduits.py  the zone and conduit model, against a walk through
+                      packets: what the policy allows beyond the model is found
+    test_compare.py   the equivalence check, against a walk through labelled
+                      packets (applications, users, a dynamic group whose members
+                      only the walk knows): every difference is found, a certain
+                      one is real; iptables and nftables output read back
     test_cli.py       command line, golden files
 docs/MANUAL.md        user manual
 docs/guide.html       field guide: the features on one page, per brand what to
@@ -546,6 +559,11 @@ there for an old tag whose tests no longer run on today's tools.
 | Azure: a group per zone, blocks per remote zone | A security rule names addresses, not zones. Each list is cut into a block per remote zone, kept to its networks and ended by that zone's default, so every address of a zone is decided in its block; the zones of the default route come last, and only for their IP versions. |
 | Azure: templates worked out, or refused | An exported or Bicep-built template is a common way to hold groups. Its expressions are worked out where they can be (parameters with defaults, variables, the common functions, copy loops, conditions); a name that cannot be worked out refuses the template, any other field leaves its rule not converted, so nothing goes missing silently. |
 | Azure: an allow rule never says `*` | Microsoft documents `*` as TCP, UDP and ICMP, but the default DenyAll rules suggest it matches more. An allow rule names the three; a blocking rule may say `*`, which then blocks at least as much. |
+| The conduit check reads the matrix | The matrix already holds what a policy can allow between zones, more where it cannot be exact and marked. Checking the model against it inherits that: a check that passes holds for the policy as read; a finding that rests on a marked part is possible, and fails the gate too. |
+| A model file is checked strictly | A gate that passes because of a typo is worse than none: an unknown key, a key twice, a zone or service that cannot be read are errors. |
+| The equivalence check from above and from below | Two policies are equal where what one surely allows the other cannot not allow. Each policy is a pair of sets of boxes per pair of zones; the differences of the two are exact where both are read exactly, and possible elsewhere, never left out. |
+| Labels for what the sets do not hold | Applications, users, categories, schedules, and objects and rules both policies hold alike but that cannot be read, are labels of a connection. Comparing per combination makes identical policies equal whatever such an object holds, and a change of one rule a difference of that rule. A difference is certain only where it holds whatever the multi-valued labels are, since a connection carries some of them, which is not known. |
+| `convert --compare` reads the output back | The emitter's copy of the model says what it meant to write; FWShift's own parser of the target says what was written. Reading back checks the emitter end to end, for the eleven targets FWShift reads. |
 | iptables: lists become chains | iptables has no objects and a rule matches one address per side. A chain per list keeps a rule with long or negated lists to one jump, instead of a product of lines. |
 | Check Point input is API JSON | There is no configuration file. The API export is documented, versioned and what other tools consume. |
 | Check Point output is a `mgmt_cli` script that stops at the first error and never publishes | The session is the unit of change on a management server: a person reviews it in SmartConsole and publishes or discards. A script that carried on after a refused call would leave a policy with rules missing. |
@@ -1978,6 +1996,103 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-13: version 0.22.0
+
+The zone and conduit model as a gate, and the equivalence check (`TODO.md`,
+*Audit and matrix*).
+
+**Built**
+
+* `fwshift conduits`: a zone and conduit model as a JSON file (zones as
+  networks or as zones of the policy, conduits with their services, what may
+  pass inside a zone, target security levels as documentation), read
+  strictly, and a policy checked against it through its zone matrix:
+  `NO_CONDUIT`, `CONDUIT_EXCEEDED`, `INSIDE_EXCEEDED`, `NOT_IN_MODEL` (high,
+  medium where possible) and `CONDUIT_CLOSED` (low); exit status 3 with
+  `--fail-on`. `--draft` writes a model of what the policy allows today.
+* `fwshift compare`: every connection whose verdict differs between two
+  configurations, of any formats, per pair of zones: opened or closed, for
+  certain or possibly, with the rule that decides it in each. `--zone-map`
+  (several zones may become one), `--zone-network`, `--app-map`, `--fail-on`.
+* `fwshift convert --compare[=FILE]`: the output read back with FWShift's
+  parser of the target (eleven targets) and compared with the policy as it
+  was read; `COMPARE_EQUIVALENT`, `COMPARE_OPENED`, `COMPARE_CLOSED`,
+  `COMPARE_ZONES`, `COMPARE_NOT_READ_BACK` in the report.
+* `compare.py`, `conduits.py`; in the matrix, a rule the model does not hold
+  exactly is shown wherever its zones reach, whatever its action, and the
+  default inside zones the policy does not name is placed; the FortiOS parser
+  reads `edit 0` in a numbered table as a new entry (FortiOS scripts, and
+  FWShift's own output, use it).
+* `tests/test_conduits.py` and `tests/test_compare.py` (202 tests), the
+  model of the samples (`zone_model.json`, written by
+  `tests/tools/make_zone_model.py`), 6 golden results.
+
+**What the work made necessary**
+
+* *Labels.* A rule for an application, a user or a schedule matches only
+  some connections; read from above only, every such rule would be a possible
+  difference between a policy and its copy. Comparing per combination of the
+  labels the rules use makes them exact; an application on its default ports
+  is restricted to those ports by the application map.
+* *What cannot be read is alike in both.* A region, a dynamic group, a rule
+  the model does not hold exactly: the same in both policies, it decides
+  alike, whatever it holds. As labels they keep identical policies equal and
+  keep a difference certain only where it holds whatever they are.
+* *Zones that become one.* With `--zone-map` several zones of the first may be
+  one of the second: the pairs are those of the first, each as the second
+  sees it, so that what was between two zones and is now inside one is
+  compared.
+
+**Review**
+
+*Round 30* by the independent reviewer, with repro scripts and a fuzzer
+against the packet walk of the tests.
+
+| | Finding | Fix |
+|---|---|---|
+| high | Compare: shared unreadable objects read as empty when their labels were not combined (too many) | read as they are (from above, all; from below, nothing) |
+| high | Compare: a dynamic group was "alike" by its filter, whatever the tagged objects; a group with excluded members by its text | the tagged objects are part of the definition; such groups are never alike |
+| high | Compare and conduits: a rule the model does not hold exactly was trusted for its extent and its action (FortiOS negation of one IP version, action ipsec) | it may match anything in its zones and allow or block it, unless alike in both; the matrix shows it wherever its zones reach |
+| high | Conduits: zones of networks without `policy_zones` left the default inside zones of the policy unchecked | possible findings wherever that default may reach beyond the model |
+| medium-high | Compare: zones that become one through `--zone-map` hid what changed between them | the pairs of the first, each as the second sees it |
+| medium | Compare: schedules, URL categories and user groups are compared by name, without a word | said in the result and the notes |
+| medium | Compare: labels that overlap (a user and a group) made "certain" false | certain only where it holds whatever such labels are |
+| medium | Compare: an IPv4-only and an IPv6-only ruleset were "equivalent" (nothing compared) | an error; `convert --compare` says nothing was compared |
+| medium | `convert --compare`: ASA output read back has no interfaces or routes; Azure's `outside` had no networks | ASA only with `--zone-network`; the networks by the zones of the source |
+| low | Compare: addresses in none of the networks given were not compared | compared as `(elsewhere)` |
+| low | Compare: a policy differed possibly from its own copy (any application on its default ports, rules not held exactly) | such rules alike in both are labels |
+| low | Conduits: `CONDUIT_CLOSED` for applications where the policy allows everything, and for source ports a conduit cannot say | not closed |
+| low | The model file: a key twice, `"networks": []`, `sl_t` 0 against the docstring | errors; 0 to 4 documented |
+| low | Text: inside and between of `(other zones)` under one heading; the deciding rule missed for applications on their default ports and for labels | fixed |
+| low | Compare grew with combinations times rules squared (100 s for 400 rules and 100 applications) | above a limit the labels are not combined (1.5 s) |
+| low | `convert --compare` took its snapshot after the audit's actions | before them |
+
+The fixes were not reviewed again; they have tests (the last sections of
+`test_compare.py` and `test_conduits.py`).
+
+**Verified, and not**
+
+* The tests: 202 new tests, the suite 4131. The comparison against a
+  walk through labelled packets (an application on or off its default ports,
+  users, a dynamic group whose members only the walk knows): 60 random pairs
+  of policies in the suite and 1,200 more outside it, every differently
+  decided packet in a reported difference, every packet of a certain
+  difference decided differently; a policy equal to its copy (20); iptables
+  and nftables output read back never differently for certain, and equal
+  where the parser reads every rule back exactly (30). The conduit check
+  against a walk: 60 random policies and models in the suite and 600 more,
+  every packet beyond the model found, no packet through a conduit said to
+  be closed.
+* A mutation check with 39 ways to break the comparison, the conduit check, the
+  matrix and the FortiOS parser: 34 caught at first; one changes nothing (the
+  labels of objects that are not combined are empty anyway); tests were added
+  for the other four (a rule alike in both that allows, two zones neither
+  policy names, an application on ports of its own, the zones the policy does
+  not name in a model).
+* **Not verified**: the comparison of two real exports of one firewall, and of
+  a conversion loaded on a device and exported again; whether the default
+  ports of the application map are those of the vendors' applications.
 
 ### 2026-10-13: version 0.21.0
 

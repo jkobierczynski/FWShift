@@ -31,11 +31,14 @@ duplicate objects, and - from the hit counters of Check Point, PAN-OS and
 FortiOS - allow rules that the counters prove unused. On its own, or before and after a
 conversion. And it draws
 the **zone matrix** of a policy: what each zone may reach in each other zone,
-on which services, through which rules.
+on which services, through which rules; checks a policy against a **zone and
+conduit model** kept as a file (IEC 62443), as a gate for a pipeline; and
+names every connection two policies decide differently - before and after a
+change, or a source and its conversion read back (the **equivalence check**).
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.21).** The converter is tested against synthetic
+> **Status: alpha (0.22).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -127,8 +130,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.21.0.pyz --version
-python3 fwshift-0.21.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.22.0.pyz --version
+python3 fwshift-0.22.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -274,6 +277,16 @@ fwshift convert asa-running.cfg --to panos -o panos.set --report report.txt \
 fwshift matrix running-config.xml
 fwshift matrix running-config.xml --network-zone office@trust=10.10.0.0/16 \
     --network-zone plant@ot=10.30.0.0/16 --network-zone internet@untrust=0.0.0.0/0,::/0
+
+# Does the policy keep to the zone and conduit model? Exit status 3 when not.
+# A first model can be drafted from what the policy allows today.
+fwshift conduits running-config.xml --model plant.json
+fwshift conduits running-config.xml --draft plant.json --network-zone office@trust=10.10.0.0/16 ...
+
+# Which connections did a change open or close? And a conversion?
+fwshift compare before.xml after.xml
+fwshift convert running-config.xml --to iptables -o rules.v4 --report report.txt --compare compare.txt \
+    --zone-network trust=10.10.0.0/16 --zone-network untrust=0.0.0.0/0,::/0
 ```
 
 The [manual](docs/MANUAL.md#3-getting-the-source-configuration) shows how to
@@ -395,6 +408,26 @@ of the policy or networks of your own (`--network-zone`), which is how the
 zones of an IEC 62443 zone and conduit model are laid over a firewall that
 knows only interfaces. Text, JSON or CSV. See
 [section 14 of the manual](docs/MANUAL.md#14-the-zone-matrix).
+
+## Zone and conduit model, and the equivalence check
+
+The model of which zone may reach which, on which services, is a JSON file
+next to the firewall: zones (networks, the zones of the policy they lie
+behind, a target security level) and conduits (from, to, services).
+`fwshift conduits` checks the matrix of a policy against it: what the policy
+allows beyond a conduit, between zones without one, inside a zone beyond what
+it may, or to addresses in no zone, and the conduits the policy keeps closed.
+A finding that rests on what cannot be read exactly is said to be possible,
+and fails the gate too. See [section 16](docs/MANUAL.md#16-the-zone-and-conduit-model).
+
+`fwshift compare` reads two configurations, of any formats, and names every
+connection whose verdict differs, per pair of zones: opened or closed, for
+certain or possibly, with the rule that decides it in each. Applications,
+users, URL categories and schedules are compared as labels of a connection;
+objects and rules both hold alike but that cannot be read decide alike.
+`fwshift convert --compare` reads the output back (for the eleven targets
+FWShift reads) and does the same for the conversion. See
+[section 17](docs/MANUAL.md#17-the-equivalence-check).
 
 ## What is converted
 
@@ -563,16 +596,17 @@ and everything else outside the policy.
 * **Firewall brands**, one per release: Sophos Firewall 0.6, Cisco Secure
   Firewall (formerly Firepower) 0.7, pfSense 0.8, SonicWall 0.9, WatchGuard
   0.10, Barracuda 0.11, Juniper SRX 0.12, nftables 0.18, VMware NSX 0.19,
-  AWS security groups 0.20, Azure network security groups 0.21. Next: the zone
-  and conduit model 0.22 (below); then OPNsense and others (see TODO.md).
+  AWS security groups 0.20, Azure network security groups 0.21. Then OPNsense
+  and others (see TODO.md).
 * **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](docs/RULE_USAGE.md)):
   rule identities and hit counters (0.13), Check Point logs (0.14),
   connections without a rule uid and iptables logs (0.15), PAN-OS and FortiOS logs (0.16) and
   narrower rules proposed from the use (0.17), all done, as fwanalyser did for Check
   Point.
-* Audit and matrix: a zone and conduit model as a file to check a policy
-  against, with an equivalence check as a command (0.22), the matrix before
-  and after a conversion, zone ranks.
+* Audit and matrix: the zone and conduit model as a file to check a policy
+  against, the equivalence check as a command and of a conversion (0.22,
+  done); next the networks behind a zone from the source, NAT in the
+  comparison, findings as SARIF, zone ranks.
 * Validation of the output on lab devices of every platform.
 
 ## Licence

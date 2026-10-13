@@ -16,6 +16,7 @@ How FortiOS behaviour is mapped onto the neutral model:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -113,6 +114,9 @@ def split_line(line: str) -> List[str]:
     return out
 
 
+_NUMBERED = re.compile(r"(policy|policy6|snat-map|proxy-policy|multicast-policy|local-in-policy|shaping-policy)$")
+
+
 def parse_tree(text: str, warnings: Optional[List[str]] = None) -> Block:
     """Build the tree of ``config``/``edit`` blocks.
 
@@ -122,6 +126,7 @@ def parse_tree(text: str, warnings: Optional[List[str]] = None) -> Block:
     """
     root = Block()
     stack: List[Tuple[str, Block]] = [("root", root)]
+    tables: Dict[int, str] = {}  # config table -> its name
     pending: List[str] = []
     is_open = False
     opened_at = 0
@@ -151,9 +156,17 @@ def parse_tree(text: str, warnings: Optional[List[str]] = None) -> Block:
             continue
         verb, block = words[0], stack[-1][1]
         if verb == "config" and len(words) > 1:
-            stack.append(("config", block.children.setdefault(" ".join(words[1:]), Block())))
+            table = block.children.setdefault(" ".join(words[1:]), Block())
+            tables[id(table)] = " ".join(words[1:])
+            stack.append(("config", table))
         elif verb == "edit" and len(words) > 1:
-            stack.append(("edit", block.entries.setdefault(words[1], Block())))
+            key = words[1]
+            if key == "0" and stack[-1][0] == "config" and _NUMBERED.search(tables.get(id(block), "")):
+                # 'edit 0' in a table of numbered entries (a script, or FWShift's own output) makes a new entry with the
+                # next free number.
+                numbers = [int(k) for k in block.entries if k.isdigit()]
+                key = str(max(numbers + [0]) + 1)
+            stack.append(("edit", block.entries.setdefault(key, Block())))
         elif verb == "set" and len(words) > 1:
             block.settings[words[1]] = words[2:]
         elif verb == "append" and len(words) > 1:

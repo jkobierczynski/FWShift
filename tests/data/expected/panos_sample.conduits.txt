@@ -1,0 +1,44 @@
+FWShift zone and conduit check
+  model: zone_model.json (Example plant: office, DMZ and the filling line), 4 zones, 6 conduits
+  policy: panos_sample.xml (panos, vsys1)
+
+Result: the policy allows what the model does not, in 6 place(s) (1 possible).
+  findings: high 5, medium 1, low 1, info 0
+
+Findings
+  high    INSIDE_EXCEEDED   control -> control: by default allows any except tcp/102, tcp/502 beyond what zone control lets pass inside
+  high    NO_CONDUIT        dmz -> internet: rule 'Allow-DNS' allows applications dns on their default ports; the model has no conduit from dmz to internet
+  high    NOT_IN_MODEL      office -> (dmz: other addresses): rule 'Not-From-Guests' allows applications ping on their default ports; (dmz: other addresses) is in no zone of the model
+  high    CONDUIT_EXCEEDED  office -> control: rule 'Engineering to PLCs' allows app:modbus beyond conduit 'engineering'
+  high    CONDUIT_EXCEEDED  office -> dmz: rule 'App-Server-Ports' allows tcp/80, tcp/443, tcp/8080, tcp/8443, tcp/9000-9010 beyond conduit 'admin'
+  medium  NO_CONDUIT        dmz -> internet: rule 'Tagged-Servers-Updates' allows applications ssl on their default ports; the model has no conduit from dmz to internet (at most this: part of it is not read exactly)
+  low     CONDUIT_CLOSED    control -> dmz: conduit 'historian': the policy allows none of it: tcp/443 (traffic the model expects is blocked)
+
+Conduits
+  office-web: office -> internet
+    model: tcp/80, tcp/443, app:ssl, app:web-browsing
+    policy allows: tcp/80, tcp/443, app:ssl, app:web-browsing
+  office-dns: office -> internet
+    model: udp/53, tcp/53, app:dns
+    policy allows: tcp/53, udp/53, app:dns
+  published: internet -> dmz
+    model: tcp/443, tcp/25, app:ssl, app:smtp
+    policy allows: tcp/25, tcp/443, app:smtp, app:ssl
+  admin: office -> dmz
+    model: tcp/22, icmp/8, app:ssh, app:ping
+    policy allows: icmp type 8, tcp/22, app:ping, app:ssh
+  engineering: office -> control (SL-T 3)
+    model: tcp/102
+    policy allows: tcp/102
+  historian: control -> dmz (SL-T 3)
+    model: tcp/443
+    policy allows: nothing of it
+    closed by the policy: tcp/443
+
+Inside these zones the traffic is not checked (no 'inside' in the model): internet, office
+
+Notes
+  possible: the matrix shows at most this where part of a rule (an object, the blocking rules above it, NAT) cannot be read exactly; the check counts it, so that a check that passes holds for the policy as FWShift reads it.
+  Directions: 'from' opens the connection; the replies of a connection the policy allows are not checked separately.
+  Security levels (sl_t) and descriptions are documentation: the check does not weigh them.
+  matrix: ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.

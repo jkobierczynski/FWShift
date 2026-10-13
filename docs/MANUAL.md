@@ -5,8 +5,10 @@ Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
 or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX, Linux iptables, Linux nftables, the VMware NSX
 distributed firewall, AWS security groups and Azure network security groups, and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
-rules that never match, loose ends; and show what each zone may reach in each
-other zone. This manual covers version 0.21.
+rules that never match, loose ends; show what each zone may reach in each
+other zone; check a policy against a zone and conduit model kept as a file;
+and say which connections two policies decide differently.
+This manual covers version 0.22.
 
 **Contents**
 
@@ -25,6 +27,8 @@ other zone. This manual covers version 0.21.
 13. [Auditing a policy](#13-auditing-a-policy)
 14. [The zone matrix](#14-the-zone-matrix)
 15. [Rule usage from logs](#15-rule-usage-from-logs)
+16. [The zone and conduit model](#16-the-zone-and-conduit-model)
+17. [The equivalence check](#17-the-equivalence-check)
 
 ---
 
@@ -53,7 +57,12 @@ FWShift converts the **policy**. It does not convert interfaces, routing, VPN,
 users, security profiles, or system settings, and it is not a substitute for
 testing the result.
 
-> **Status.** Version 0.21 is tested against synthetic configurations. iptables
+Around the conversion it can audit a policy (section 13), show what each zone
+may reach (section 14), check a policy against a zone and conduit model kept
+as a file (section 16), and name every connection two policies decide
+differently, including a source and its conversion read back (section 17).
+
+> **Status.** Version 0.22 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). Output for PAN-OS, FortiOS, Check Point,
 > Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS and Azure has
@@ -89,8 +98,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.21.0.pyz --version
-python3 fwshift-0.21.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.22.0.pyz --version
+python3 fwshift-0.22.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -810,6 +819,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
 | `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS and Azure: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on Azure every network security group) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
+| `--compare[=FILE]` | Read the output back (for the targets FWShift reads: `asa`, `azure`, `fdm`, `fortios`, `iptables`, `ip6tables`, `junos`, `nftables`, `nsx`, `sophos`, `watchguard`) and compare it with the policy as it was read: every connection the two decide differently is in the report (`COMPARE_OPENED`, `COMPARE_CLOSED`, section 17). With `FILE` the whole comparison is written there. Give `--zone-network` for every zone, so that only connections that can happen are compared. |
 | `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates; the script can be given another name when it is run (`--name`). NSX: the name of the security policy. Azure: the name of the one network security group written when no zone has networks. Default `FWShift`. |
 
 **Adapting the policy**
@@ -877,6 +887,51 @@ through which rules (section 14). Nothing is converted.
 | `--network-zone NAME[@ZONE]=NETWORK[,NETWORK...]` | A zone of your own, given as networks. Repeatable. The matrix is then between these zones. `@ZONE` names the zone (or zones, separated by commas) of the policy the networks lie behind. |
 | `--audit-config FILE` | The configuration file of the audit: its lists of risky and industrial services and applications are used. |
 
+### `fwshift conduits`
+
+```
+fwshift conduits INPUT [--from ...] [--vsys ...] [--device-group ...] [--vdom ...] [--layer ...]
+                       [--policy ...] [--nat-policy ...] [--interface-address ...]
+                       (--model FILE | --draft FILE [--network-zone NAME[@ZONE]=NETWORK[,NETWORK...]])
+                       [-o FILE] [--json] [--fail-on LEVEL] [--audit-config FILE] [--app-map FILE]
+```
+
+Checks a policy against a zone and conduit model (section 16), or writes a
+model of what the policy allows today, as a start for one. Nothing is converted.
+
+| Option | Meaning |
+|---|---|
+| `--model FILE` | The zone and conduit model to check against (JSON, section 16). |
+| `--draft FILE` | Write a model of what the policy allows today instead. Review it before it becomes the model. |
+| `--network-zone NAME[@ZONE]=NETWORK[,NETWORK...]` | With `--draft`: a zone of the model as networks, as for `fwshift matrix`. Repeatable. |
+| `-o FILE` | Where the result goes. Default: standard output. |
+| `--json` | The result as JSON. |
+| `--fail-on LEVEL` | Exit with status 3 when a finding of this level or higher is found: `info`, `low`, `medium` (default), `high`, or `none`. |
+| `--audit-config FILE` | The configuration file of the audit: its lists of risky and industrial services are used by the matrix. |
+| `--app-map FILE` | The application map (section 9): the default ports of applications. |
+
+### `fwshift compare`
+
+```
+fwshift compare FIRST SECOND [--from FORMAT] [--from-second FORMAT] [--vsys ...] [--device-group ...] [--vdom ...]
+                             [--layer ...] [--policy ...] [--nat-policy ...]
+                             [--zone-map FIRST=SECOND] [--zone-network ZONE=NET[,NET]] [--app-map FILE]
+                             [-o FILE] [--json] [--fail-on LEVEL]
+```
+
+Every connection whose verdict differs between two configurations, of any
+formats (section 17): a policy before and after a change, or a source and its
+conversion read back.
+
+| Option | Meaning |
+|---|---|
+| `--from FORMAT`, `--from-second FORMAT` | The format of the first and of the second. Default: detected. The other source options apply to both. |
+| `--zone-map FIRST=SECOND` | A zone of the first as the second names it. Several may become one. Repeatable. |
+| `--zone-network ZONE=NET[,NET]` | The networks behind a zone, by the name the first gives it: only connections that can happen are compared. Repeatable. |
+| `--app-map FILE` | The application map (section 9): the default ports of applications. |
+| `-o FILE`, `--json` | Where the result goes, and as JSON. |
+| `--fail-on LEVEL` | Exit with status 3 when a difference of this weight or more is found: `low` (any difference, the default), `medium` (opened possibly, or closed for certain), `high` (opened for certain), or `none`. |
+
 ### `fwshift inspect`
 
 ```
@@ -932,7 +987,7 @@ is `--gateway` for them.
 | 0 | Done. For a conversion: converted; the report may still hold findings. |
 | 1 | Error: the input could not be read or an option is wrong. A message starting with `fwshift: error:` says why. |
 | 2 | `--strict` was given and something needs review. (An invalid command line also ends with 2.) |
-| 3 | `--audit-fail-on` was given and the audit reported a finding of that level or higher (in a conversion: before or after it) that was not accepted and whose rule was not disabled. Status 2 comes first. |
+| 3 | `--audit-fail-on` was given and the audit reported a finding of that level or higher (in a conversion: before or after it) that was not accepted and whose rule was not disabled. Status 2 comes first. `fwshift conduits`: a finding of the `--fail-on` level or higher. `fwshift compare`: a difference of the `--fail-on` weight or more. |
 
 ## 6. The report
 
@@ -1197,6 +1252,16 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `PRUNED` | I | `--prune-unused` left out this many objects. |
 | `HIT_COUNTERS` | I | With `--hits` (or a configuration that carries hit counts): which counters were read, how many rules they counted, and the rules they count that the policy does not have (section 13). |
 | `USAGE_STORE` | I | With `--usage-store`: the window that was used, and how many connections of it were attributed to a rule of the policy (section 15). |
+
+Notes of `convert --compare` (section 17):
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `COMPARE_EQUIVALENT` | I | The output read back decides every connection as the policy that was read. |
+| `COMPARE_OPENED` | R | The output read back allows connections the policy does not, for certain or possibly; the first of them are listed (all of them with `--compare FILE`). Most come from what the report already says (an application written as its ports lets other applications through on them); anything else is a defect to report. |
+| `COMPARE_CLOSED` | A | The output read back blocks connections the policy allows: what the target cannot say, written narrower (section 8), and rules that are not written. |
+| `COMPARE_ZONES` | I | Zones of the source the output does not name; they are compared as zones the output does not name either. |
+| `COMPARE_NOT_READ_BACK` | R | Nothing was compared: FWShift does not read the target's format, the output could not be read, an ASA output was given no `--zone-network`, or the two have no IP version in common. |
 
 Notes that only an iptables source or target raises:
 
@@ -3744,6 +3809,10 @@ the report is the list.)
 | `the count of a template copy loop is not worked out` | Azure template: the same remedy. |
 | `a template with symbolic resource names (languageVersion 2.0) is not read` / `a nested deployment with network security groups in it is not read` | Azure template forms that are not read: the same remedy. |
 | `a Resource Graph answer in the table format` | Azure: ask Resource Graph for objects (`az graph query` gives them; the REST API with `resultFormat` `objectArray`). |
+| `the zone and conduit model, ...: unknown key(s) ...` / `... is not a zone of the model` / `service '...' cannot be read` / `the key '...' is given twice` | `fwshift conduits --model`: a mistake in the model file (section 16). Every mistake is an error, so that a typo never makes a check pass. |
+| `conduits: give --model FILE to check against, or --draft FILE to write one` | One of the two, not both. |
+| `the two policies are for different IP versions ...: nothing to compare` | `fwshift compare` of an IPv4-only and an IPv6-only ruleset. |
+| `no pair of zones with addresses to compare` | `fwshift compare`: the networks given leave no connection to compare. |
 | `the base chains combine to more than 50000 rules` | nftables: several base chains at the forward hook whose rules multiply when they are combined. Not converted. |
 | `not valid JSON` / `no Management API response found` | The file is not the JSON output of `show access-rulebase`. Use `--format json`. |
 | `the export holds several access layers; choose one with --layer: ...` | Name one of the listed layers. Inline layers are found by themselves. |
@@ -4444,6 +4513,10 @@ program or a spreadsheet (a line per rule and conduit). A rule that is in
 every conduit with the same content (a rule for any zone, in a policy with
 many zones) is listed once, under *In every conduit*; JSON and CSV repeat it.
 
+To check the matrix against the model of which zone may reach which, kept as
+a file, see section 16; to see which connections a change or a conversion
+opened or closed, section 17.
+
 ### What a cell says
 
 A cell holds every service that the policy allows from **some** address of
@@ -4565,6 +4638,9 @@ fwshift matrix running-config.xml \
 * Applications are names. `app:ssl` and `tcp/443` in one cell are not merged.
 * A rule that falls into more than 4096 pieces under the blocking rules above
   it is shown as written and marked `~`.
+* A rule the model does not hold exactly (its findings say why) is shown
+  wherever its zones reach, on every service, whatever its action, marked
+  `~`: what it really does is not known (since 0.22).
 * A policy of 2000 rules and 30 zones takes about a second. A rule for any
   zone is in every cell: a thousand such rules on a firewall with fifty
   zones take ten seconds, a gigabyte of memory, and 280 MB as JSON. The text
@@ -4916,3 +4992,224 @@ so a later version can read it.
   document them and as published parsers show them; no log of a real
   gateway was used. IPv6 logs and logs of
   implied rules were not seen anywhere.
+
+## 16. The zone and conduit model
+
+The matrix (section 14) shows what a policy lets each zone reach. A zone and
+conduit model says what it *should* let through: the zones of a site, and
+the conduits between them with the services each carries, as IEC 62443-3-2
+asks to document them. Kept as a file next to the firewall, it is checked
+against the policy on every change; in a pipeline the check is a gate, as
+`--audit-fail-on` is for the audit.
+
+```sh
+fwshift conduits running-config.xml --model plant.json
+```
+
+```
+Result: the policy allows what the model does not, in 6 place(s) (1 possible).
+  findings: high 5, medium 1, low 1, info 0
+
+Findings
+  high    INSIDE_EXCEEDED   control -> control: by default allows any except tcp/102, tcp/502 beyond what zone control lets pass inside
+  high    NO_CONDUIT        dmz -> internet: rule 'Allow-DNS' allows applications dns on their default ports; the model has no conduit from dmz to internet
+  high    CONDUIT_EXCEEDED  office -> control: rule 'Engineering to PLCs' allows app:modbus beyond conduit 'engineering'
+  ...
+  low     CONDUIT_CLOSED    control -> dmz: conduit 'historian': the policy allows none of it: tcp/443 (traffic the model expects is blocked)
+
+Conduits
+  engineering: office -> control (SL-T 3)
+    model: tcp/102
+    policy allows: tcp/102
+  historian: control -> dmz (SL-T 3)
+    model: tcp/443
+    policy allows: nothing of it
+    closed by the policy: tcp/443
+```
+
+### The file
+
+JSON, one object (`tests/data/zone_model.json` is an example):
+
+```json
+{
+  "fwshift": "zone-conduit-model", "version": 1, "name": "Plant 1",
+  "zones": [
+    {"name": "office", "networks": ["10.10.0.0/16"], "policy_zones": ["trust"], "sl_t": 1},
+    {"name": "internet", "networks": ["0.0.0.0/0", "::/0"], "policy_zones": ["untrust"]},
+    {"name": "control", "networks": ["10.30.0.0/16"], "policy_zones": ["ot"], "sl_t": 3, "inside": ["tcp/102", "tcp/502"]}
+  ],
+  "conduits": [
+    {"name": "engineering", "from": "office", "to": "control", "services": ["tcp/102"], "sl_t": 3,
+     "description": "the engineering station programs the PLCs"}
+  ]
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `zones[].name` | The zone of the model. |
+| `zones[].networks` | The networks of the zone. Either every zone has networks or none has. Of two networks, one inside the other, the smaller one decides; `0.0.0.0/0` and `::/0` take in every address no other zone has. |
+| `zones[].policy_zones` | With networks: the zones of the policy they lie behind (as `--network-zone NAME@ZONE` says for the matrix). Without networks: the zones of the policy this zone of the model stands for (default: its own name); `*` stands for the zones the policy does not name. |
+| `zones[].inside` | What may pass between two addresses of the zone. Without it, traffic inside the zone is not checked; `[]` allows nothing. |
+| `conduits[].from`, `to` | The zone that opens the connection and the one it opens it to. The replies of a connection are not checked separately. |
+| `conduits[].services` | What the conduit carries: `any`, `tcp/443`, `udp/161-162`, `tcp` (every port), `icmp`, `icmp/8`, `icmp/3/4`, `icmp6/128`, `ip/47`, `esp`, `app:NAME` (an application as the policy names it), `svc:NAME` (a service of the source FWShift cannot read, by name). Source ports are not said: any. |
+| `conduits[].both_ways` | `true`: the conduit holds the other way round as well. |
+| `name`, `description`, `sl_t` | Documentation: the target security level (0 to 4) and the descriptions are kept and shown, not weighed. |
+
+Every mistake in the file is an error: an unknown key, a key given twice, a
+zone a conduit names that is not there, a service that cannot be read. A typo
+never makes a check pass.
+
+An application on its default ports (from the application map, section 9)
+lies within a conduit that has those ports; a conduit with `app:NAME` takes
+the application on whatever ports the policy gives it.
+
+### What is checked
+
+The check reads the matrix of the policy, by the zones and networks of the
+model. Every connection the matrix shows between two zones must lie within a
+conduit between them, and between two addresses of one zone within its
+`inside`, where that is given.
+
+| Code | Level | Meaning |
+|---|---|---|
+| `NO_CONDUIT` | high | The policy allows connections between two zones the model has no conduit for. |
+| `CONDUIT_EXCEEDED` | high | The policy allows more between two zones than their conduits carry; the services beyond are listed. |
+| `INSIDE_EXCEEDED` | high | The policy allows more inside a zone than its `inside` says. |
+| `NOT_IN_MODEL` | high | The policy allows connections to or from addresses (or zones of the policy) in no zone of the model: `(elsewhere)`, a row `(ZONE: other addresses)` of the matrix, a zone of the policy no zone of the model stands for. |
+| `CONDUIT_CLOSED` | low | A conduit, or part of it, the policy lets nothing through: traffic the model expects is blocked. |
+
+A finding that rests on a part of the policy that is not read exactly (a
+host name, a dynamic group, a rule the model does not hold exactly, which the
+matrix shows wherever its zones reach) is *possible*, and its level is
+medium. With networks and without `policy_zones`, what the policy lets pass
+inside a zone of its own by default cannot be placed: where it may reach
+beyond the model, that is a possible finding too. `--fail-on medium` (the
+default) fails on possible findings as well, so that a check that passes
+holds for the policy as FWShift reads it.
+
+### A draft to start from
+
+```sh
+fwshift conduits running-config.xml --draft plant.json \
+    --network-zone office@trust=10.10.0.0/16 --network-zone internet@untrust=0.0.0.0/0,::/0 \
+    --network-zone dmz@dmz=10.20.0.0/24 --network-zone control@ot=10.30.0.0/16
+```
+
+writes a model that holds what the policy allows today: a conduit per pair
+of zones, with the rules it came from in its description, and the inside of
+each zone. It describes the policy, not what the zones need: go through it,
+keep what the zones need, and the check then shows what the policy allows
+beyond. Rows of the matrix that are no zone (`(elsewhere)`, `(other zones)`)
+are left out and named in its description.
+
+### Limits
+
+* The check is as good as the matrix: what the policy can allow for some pair
+  of addresses of two zones, read from the configuration. Routing, implicit
+  rules of the platform and NAT that fails are not in it.
+* Security levels are documentation. Whether a conduit's countermeasures meet
+  them is not something a rulebase tells.
+* The replies of a connection, and connections opened the other way, are
+  checked by the conduit of their own direction.
+
+## 17. The equivalence check
+
+`fwshift compare` names every connection two policies decide differently:
+before and after a change, two firewalls that should do the same, or a source
+and its conversion read back. `fwshift convert --compare` does the latter by
+itself.
+
+```sh
+fwshift compare before.xml after.xml --zone-network trust=10.10.0.0/16 --zone-network dmz=10.20.0.0/24 \
+    --zone-network untrust=0.0.0.0/0,::/0
+fwshift convert running-config.xml --to iptables -o rules.v4 --report report.txt --compare compare.txt \
+    --zone-network trust=10.10.0.0/16 --zone-network dmz=10.20.0.0/24 --zone-network untrust=0.0.0.0/0,::/0
+```
+
+```
+Connections whose verdict differs (16 pairs of zones compared): 14 opened, certain, 1 opened, possible, ...
+
+trust -> trust (inside the zone)
+  closed, certain
+    10.10.0.0/16 -> 10.10.0.0/16: any
+    first policy: the default allows; second policy: the default blocks
+
+trust -> untrust
+  opened, certain (for other applications)
+    10.10.0.0/16 -> 192.0.2.53-192.0.2.54: tcp/53, udp/53
+    first policy: the default blocks (unless 'Block-Region' (blocks) matches); second policy: rule 'Allow-Web-Out' allows
+```
+
+*Opened*: the second allows it, the first does not; *closed*: the other way
+round. Each difference says, for a connection of it, which rule decides it in
+each policy.
+
+### How it compares
+
+For every pair of zones, each policy is read as two sets of connections: what
+it might allow and what it surely allows (the sets of the audit, section 13).
+A connection the second surely allows and the first cannot is opened *for
+certain*; one the second might allow and the first does not surely allow is
+opened *possibly*. Where something cannot be read exactly, the difference is
+possible, never left out.
+
+* **Applications, users, URL categories and schedules** are labels of a
+  connection: the policies are compared for every combination of the labels
+  the rules use. An application is on its default ports or not (from the
+  application map; not in it, what differs is possible only); a connection
+  may carry several users, categories or schedules at once, so a difference
+  for them is certain only where it holds whatever they are. They are
+  compared by name: what a user group, a custom URL category or a schedule
+  holds is not in the model, and the result says so.
+* **What cannot be read but is alike in both** (a region, a dynamic group and
+  all tagged objects, a host name, a service FWShift cannot read, a rule the
+  model does not hold exactly) decides alike in both: identical policies are
+  equal whatever they hold. A group whose members depend on more than the
+  model has (excluded members) is never taken as alike.
+* **A rule the model does not hold exactly** (its findings say why) may match
+  anything in its zones and allow or block it, unless both policies hold it
+  alike.
+* **Zones** are compared by name. `--zone-map` gives a zone of the first as the
+  second names it; several may become one, and what was between them is then
+  inside one zone of the second. Zones neither names are `(other zones)`,
+  which a rule for any zone reaches. With `--zone-network` (by the names of
+  the first) only connections that can happen are compared; addresses in none
+  of the networks are `(elsewhere)`.
+* An IPv4-only and an IPv6-only ruleset (iptables, nftables) restrict the
+  comparison to their IP version; two of different versions have nothing to
+  compare.
+
+### convert --compare
+
+After the conversion the output is read back with FWShift's own parser of the
+target, and compared with the policy as it was read (before the audit's
+actions, which are part of what is compared). The zones of the output are
+matched to those of the source by name (exactly, through `--interface-map`,
+without case and punctuation, without the `--target-prefix`). For Azure, the
+zones no group stands for are the template's `outside`, and only pairs with a
+group at one end are compared.
+
+Most differences are what the report already says, now as connections: an
+application written as its ports lets other applications through on them
+(opened, for other applications); traffic inside a zone the target blocks by
+default (closed); what a target cannot say, written narrower (closed). An
+opened connection the report does not explain is a defect: report it.
+
+Read back are `asa` (with `--zone-network`: the output names no interfaces or
+routes), `azure`, `fdm`, `fortios`, `iptables`, `ip6tables`, `junos`,
+`nftables`, `nsx`, `sophos` and `watchguard`. The other targets write scripts
+or parts of a configuration FWShift does not read.
+
+### Limits
+
+* NAT rules are not compared; the rules are, as the model holds them (for a
+  source that matches after destination NAT, with the addresses before it as
+  well).
+* The read-back is as good as FWShift's parser of the target: what it cannot
+  read exactly (the chains of a negation in iptables output, for instance)
+  makes differences possible.
+* With very many combinations of labels, or pieces, for one pair of zones,
+  the labels are not combined, or a set is taken whole: what depends on it is
+  possible only, and the result names the pairs.

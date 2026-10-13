@@ -6,8 +6,8 @@ What each zone may reach (rows: from, columns: to)
                  WAN               LAN               DMZ               GUEST             (other zones)
   WAN            icmp type 3 +8~   icmp type 3 +8~   icmp type 3 +8~   icmp type 3 +8~   icmp type 3 +8~
   LAN            any               any               any               any               any
-  DMZ            icmp type 8 +5~   icmp type 8 +5~   icmp type 8 +5~   icmp type 8 +5~   icmp type 8 +5~
-  GUEST          tcp/53 +5~        tcp/53 +5~        tcp/53 +5~        tcp/53 +5~        tcp/53 +5~
+  DMZ            any~              any~              any~              any~              any~
+  GUEST          any~              any~              any~              any~              any~
   (other zones)  -                 -                 -                 -                 -
   -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
 
@@ -98,60 +98,60 @@ LAN -> (other zones)
   rule 'Default allow LAN to any rule': LAN net -> 0.0.0.0/0: any
   rule 'Default allow LAN IPv6 to any rule': LAN net IPv6 -> ::/0: any
 DMZ -> WAN
-  allowed: icmp type 8, tcp/25, tcp/80, tcp/443, tcp/8080-8090, udp/514 ~
+  allowed: any ~
   rule 'Ping from the inside': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
   rule 'Servers fetch their updates': DmzServers IPv4 -> Updates: tcp/80, tcp/443, tcp/8080-8090 ~
-  rule 'Mail out, not to the inside': 192.168.20.25 -> not Private: tcp/25 (only with negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10), negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11), which is not in the model) ~
+  rule 'Mail out, not to the inside': 192.168.20.25 -> not Private: any (only with negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10), negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11), which is not in the model) ~
   rule 'Syslog to the collector': DMZ net -> 192.168.10.5: udp/514 (schedule OfficeHours)
 DMZ -> LAN
-  allowed: icmp type 8, tcp/25, tcp/80, tcp/443, tcp/8080-8090, udp/514 ~
+  allowed: any ~
   rule 'Ping from the inside': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
   rule 'Servers fetch their updates': DmzServers IPv4 -> Updates: tcp/80, tcp/443, tcp/8080-8090 ~
-  rule 'Mail out, not to the inside': 192.168.20.25 -> not Private: tcp/25 (only with negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10), negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11), which is not in the model) ~
+  rule 'Mail out, not to the inside': 192.168.20.25 -> not Private: any (only with negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10), negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11), which is not in the model) ~
   rule 'Syslog to the collector': DMZ net -> 192.168.10.5: udp/514 (schedule OfficeHours)
 DMZ -> DMZ (inside the zone)
-  allowed: icmp type 8, tcp/25, tcp/80, tcp/443, tcp/8080-8090, udp/514 ~
+  allowed: any ~
   rule 'Ping from the inside': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
   rule 'Servers fetch their updates': DmzServers IPv4 -> Updates: tcp/80, tcp/443, tcp/8080-8090 ~
-  rule 'Mail out, not to the inside': 192.168.20.25 -> not Private: tcp/25 (only with negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10), negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11), which is not in the model) ~
+  rule 'Mail out, not to the inside': 192.168.20.25 -> not Private: any (only with negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10), negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11), which is not in the model) ~
   rule 'Syslog to the collector': DMZ net -> 192.168.10.5: udp/514 (schedule OfficeHours)
 DMZ -> GUEST
-  allowed: icmp type 8, tcp/25, tcp/80, tcp/443, tcp/8080-8090, udp/514 ~
+  allowed: any ~
   rule 'Ping from the inside': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
   rule 'Servers fetch their updates': DmzServers IPv4 -> Updates: tcp/80, tcp/443, tcp/8080-8090 ~
-  rule 'Mail out, not to the inside': 192.168.20.25 -> not Private: tcp/25 (only with negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10), negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11), which is not in the model) ~
+  rule 'Mail out, not to the inside': 192.168.20.25 -> not Private: any (only with negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10), negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11), which is not in the model) ~
   rule 'Syslog to the collector': DMZ net -> 192.168.10.5: udp/514 (schedule OfficeHours)
 DMZ -> (other zones)
-  allowed: icmp type 8, tcp/25, tcp/80, tcp/443, tcp/8080-8090, udp/514 ~
+  allowed: any ~
   rule 'Ping from the inside': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
   rule 'Servers fetch their updates': DmzServers IPv4 -> Updates: tcp/80, tcp/443, tcp/8080-8090 ~
-  rule 'Mail out, not to the inside': 192.168.20.25 -> not Private: tcp/25 (only with negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10), negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11), which is not in the model) ~
+  rule 'Mail out, not to the inside': 192.168.20.25 -> not Private: any (only with negated destination that does not name the same on both sides of NAT rule 'Web server HTTPS' (198.51.100.10, 192.168.20.10), negated destination that does not name the same on both sides of NAT rule 'Application ports' (198.51.100.10, 192.168.20.11), which is not in the model) ~
   rule 'Syslog to the collector': DMZ net -> 192.168.10.5: udp/514 (schedule OfficeHours)
 GUEST -> WAN
-  allowed: tcp/53, tcp/80, tcp/443, tcp/8080-8090, udp/53, udp/5060-5061 ~
+  allowed: any ~
   rule 'DNS from the firewall': any -> This Firewall, This Firewall IPv6: tcp/53, udp/53
   rule 'Guests browse': GUEST net -> 0.0.0.0/0: tcp/80, tcp/443, tcp/8080-8090
-  rule 'Phones of the guests': GUEST net -> 203.0.113.40: udp/5060-5061 (only with it matches a mark set by another rule (tagged) 'VOICE', which is not in the model) ~
+  rule 'Phones of the guests': GUEST net -> 203.0.113.40: any (only with it matches a mark set by another rule (tagged) 'VOICE', which is not in the model) ~
 GUEST -> LAN
-  allowed: tcp/53, tcp/80, tcp/443, tcp/8080-8090, udp/53, udp/5060-5061 ~
+  allowed: any ~
   rule 'DNS from the firewall': any -> This Firewall, This Firewall IPv6: tcp/53, udp/53
   rule 'Guests browse': GUEST net -> 0.0.0.0/0: tcp/80, tcp/443, tcp/8080-8090
-  rule 'Phones of the guests': GUEST net -> 203.0.113.40: udp/5060-5061 (only with it matches a mark set by another rule (tagged) 'VOICE', which is not in the model) ~
+  rule 'Phones of the guests': GUEST net -> 203.0.113.40: any (only with it matches a mark set by another rule (tagged) 'VOICE', which is not in the model) ~
 GUEST -> DMZ
-  allowed: tcp/53, tcp/80, tcp/443, tcp/8080-8090, udp/53, udp/5060-5061 ~
+  allowed: any ~
   rule 'DNS from the firewall': any -> This Firewall, This Firewall IPv6: tcp/53, udp/53
   rule 'Guests browse': GUEST net -> 0.0.0.0/0: tcp/80, tcp/443, tcp/8080-8090
-  rule 'Phones of the guests': GUEST net -> 203.0.113.40: udp/5060-5061 (only with it matches a mark set by another rule (tagged) 'VOICE', which is not in the model) ~
+  rule 'Phones of the guests': GUEST net -> 203.0.113.40: any (only with it matches a mark set by another rule (tagged) 'VOICE', which is not in the model) ~
 GUEST -> GUEST (inside the zone)
-  allowed: tcp/53, tcp/80, tcp/443, tcp/8080-8090, udp/53, udp/5060-5061 ~
+  allowed: any ~
   rule 'DNS from the firewall': any -> This Firewall, This Firewall IPv6: tcp/53, udp/53
   rule 'Guests browse': GUEST net -> 0.0.0.0/0: tcp/80, tcp/443, tcp/8080-8090
-  rule 'Phones of the guests': GUEST net -> 203.0.113.40: udp/5060-5061 (only with it matches a mark set by another rule (tagged) 'VOICE', which is not in the model) ~
+  rule 'Phones of the guests': GUEST net -> 203.0.113.40: any (only with it matches a mark set by another rule (tagged) 'VOICE', which is not in the model) ~
 GUEST -> (other zones)
-  allowed: tcp/53, tcp/80, tcp/443, tcp/8080-8090, udp/53, udp/5060-5061 ~
+  allowed: any ~
   rule 'DNS from the firewall': any -> This Firewall, This Firewall IPv6: tcp/53, udp/53
   rule 'Guests browse': GUEST net -> 0.0.0.0/0: tcp/80, tcp/443, tcp/8080-8090
-  rule 'Phones of the guests': GUEST net -> 203.0.113.40: udp/5060-5061 (only with it matches a mark set by another rule (tagged) 'VOICE', which is not in the model) ~
+  rule 'Phones of the guests': GUEST net -> 203.0.113.40: any (only with it matches a mark set by another rule (tagged) 'VOICE', which is not in the model) ~
 
 From reading the configuration
   FLOATING_LAST_MATCH: 1 floating rule is not 'quick': such a rule decides only where no rule of an interface matched, and of several the last one. In the converted policy it stands behind the rules of the interfaces, the last one first: 'Telnet unless a rule says otherwise'
@@ -161,5 +161,6 @@ From reading the configuration
 
 Notes
   (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
   ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
   The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

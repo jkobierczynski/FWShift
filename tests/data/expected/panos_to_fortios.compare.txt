@@ -1,0 +1,119 @@
+FWShift comparison of a conversion
+first:  the source
+second: the output read back
+
+Connections whose verdict differs (16 pairs of zones compared): 13 opened, certain, 7 opened, possible, 3 closed, certain, 4 closed, possible
+  opened: the second policy allows it, the first does not; closed: the other way round
+  certain: it holds whatever the policies cannot read; possible: it may (see the notes)
+
+trust -> trust (inside the zone)
+  closed, certain
+    10.10.0.0/16 -> 10.10.0.0/16: any
+    first policy: the default allows; second policy: the default blocks
+
+trust -> untrust
+  opened, certain (for other applications)
+    10.10.0.0/16 -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more: tcp/80, tcp/443
+    10.10.0.0/16 -> 192.0.2.53-192.0.2.54: tcp/53, udp/53
+    first policy: the default blocks (unless 'Block-Region' (blocks) matches); second policy: rule 'Allow-Web-Out' allows
+  opened, certain (for application dns on other ports)
+    10.10.0.0/16 -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more: tcp/80, tcp/443
+    first policy: the default blocks (unless 'Block-Region' (blocks) matches); second policy: rule 'Allow-Web-Out' allows
+  opened, certain (for application ssl on other ports)
+    10.10.0.0/16 -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more: tcp/80
+    10.10.0.0/16 -> 192.0.2.53-192.0.2.54: tcp/53, udp/53
+    first policy: the default blocks (unless 'Block-Region' (blocks) matches); second policy: rule 'Allow-Web-Out' allows
+  opened, certain (for application web-browsing on other ports)
+    10.10.0.0/16 -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more: tcp/443
+    10.10.0.0/16 -> 192.0.2.53-192.0.2.54: tcp/53, udp/53
+    first policy: the default blocks (unless 'Block-Region' (blocks) matches); second policy: rule 'Allow-Web-Out' allows
+  opened, possible (for application bittorrent on other ports; or application bittorrent on its default ports)
+    10.10.0.0/16 -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more: tcp/80, tcp/443
+    10.10.0.0/16 -> 192.0.2.53-192.0.2.54: tcp/53, udp/53
+    first policy: rule 'Block-Torrents' blocks; second policy: rule 'Allow-Web-Out' allows
+
+trust -> dmz
+  opened, certain (for other applications)
+    10.10.0.0-10.10.199.255, 10.10.201.0-10.10.255.255 -> 10.20.0.10, 10.20.0.25: icmp type 8
+    first policy: the default blocks; second policy: rule 'Not-From-Guests' allows
+  opened, certain (for application ssh on other ports)
+    10.10.0.0-10.10.199.255, 10.10.201.0-10.10.255.255 -> 10.20.0.10, 10.20.0.25: icmp type 8
+    first policy: the default blocks; second policy: rule 'Not-From-Guests' allows
+  opened, possible (for other applications)
+    10.10.0.0-10.10.199.255, 10.10.201.0-10.10.255.255 -> 10.20.0.0-10.20.0.9, 10.20.0.11-10.20.0.24, 10.20.0.26-10.20.0.255, 203.0.113.0/24: icmp type 8
+    10.10.0.0/16 -> 10.20.0.0-10.20.0.9, 10.20.0.11-10.20.0.255, 203.0.113.0/24: tcp/80, tcp/443, tcp/8080, tcp/8443, tcp/9000-9010
+    first policy: the default blocks; second policy: the default blocks (unless 'App-Server-Ports' (allows) matches)
+  opened, possible (for application ping on its default ports)
+    10.10.0.0-10.10.199.255, 10.10.201.0-10.10.255.255 -> 10.20.0.0-10.20.0.9, 10.20.0.11-10.20.0.24, 10.20.0.26-10.20.0.255, 203.0.113.0/24: icmp type 8
+    first policy: the default blocks; second policy: the default blocks (unless 'Not-From-Guests' (allows) matches)
+  opened, possible (for application ping on other ports)
+    10.10.0.0/16 -> 10.20.0.0-10.20.0.9, 10.20.0.11-10.20.0.255, 203.0.113.0/24: tcp/80, tcp/443, tcp/8080, tcp/8443, tcp/9000-9010
+    first policy: the default blocks; second policy: the default blocks (unless 'App-Server-Ports' (allows) matches)
+  opened, possible (for application ssh on other ports)
+    10.10.0.0-10.10.199.255, 10.10.201.0-10.10.255.255 -> 10.20.0.0-10.20.0.9, 10.20.0.11-10.20.0.24, 10.20.0.26-10.20.0.255, 203.0.113.0/24: icmp type 8
+    10.10.0.0/16 -> 10.20.0.0-10.20.0.9, 10.20.0.11-10.20.0.255, 203.0.113.0/24: tcp/80, tcp/443, tcp/8080, tcp/8443, tcp/9000-9010
+    first policy: the default blocks; second policy: the default blocks (unless 'App-Server-Ports' (allows) matches)
+  closed, possible (for application ssh on its default ports; users example\netadmins)
+    10.10.5.10-10.10.5.20 -> 10.20.0.10, 10.20.0.25: tcp/22
+    first policy: rule 'Admin-SSH' allows; second policy: the default blocks
+
+trust -> ot
+  opened, certain (for other applications)
+    10.10.7.15 -> 10.30.1.0/24: tcp/102, tcp/502
+    first policy: the default blocks; second policy: rule 'Engineering to PLCs' allows
+  opened, certain (for application modbus on other ports)
+    10.10.7.15 -> 10.30.1.0/24: tcp/102
+    first policy: the default blocks; second policy: rule 'Engineering to PLCs' allows
+  opened, certain (for application siemens-s7 on other ports)
+    10.10.7.15 -> 10.30.1.0/24: tcp/502
+    first policy: the default blocks; second policy: rule 'Engineering to PLCs' allows
+
+untrust -> untrust (inside the zone)
+  closed, possible
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-198.51.100.199 and 2 more: any
+    any -> any: any
+    first policy: the default allows (unless 'Block-Region' (blocks) matches); second policy: the default blocks
+
+untrust -> dmz
+  opened, certain (for other applications; or application ssl)
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 10.20.0.10: tcp/443
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 10.20.0.25: tcp/25
+    first policy: the default blocks; second policy: rule 'Inbound-Web' allows
+  opened, certain (for application smtp on its default ports)
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 10.20.0.25: tcp/25
+    first policy: the default blocks; second policy: rule 'Inbound-Mail' allows
+  opened, certain (for application smtp on other ports)
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 10.20.0.10: tcp/443
+    first policy: the default blocks; second policy: rule 'Inbound-Web' allows
+  opened, possible (for other applications; or application ssl)
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 10.20.0.0-10.20.0.24, 10.20.0.26-10.20.0.255, 203.0.113.0/24: tcp/25
+    first policy: the default blocks; second policy: the default blocks (unless 'Inbound-Mail' (allows) matches)
+  opened, possible (for application smtp on its default ports)
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 10.20.0.0-10.20.0.24, 10.20.0.26-10.20.0.255, 203.0.113.0-203.0.113.24, 203.0.113.26-203.0.113.255: tcp/25
+    first policy: the default blocks; second policy: the default blocks (unless 'Inbound-Mail' (allows) matches)
+  closed, certain (for application ssl)
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 203.0.113.10: tcp/443
+    first policy: rule 'Inbound-Web' allows; second policy: the default blocks
+  closed, possible (for application smtp on its default ports)
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 203.0.113.25: tcp/25
+    first policy: rule 'Inbound-Mail' allows; second policy: the default blocks (unless 'Inbound-Mail' (allows) matches)
+
+dmz -> untrust
+  opened, certain (for other applications; or application ssl on other ports)
+    10.20.0.0/24, 203.0.113.0/24 -> 192.0.2.53-192.0.2.54: tcp/53, udp/53
+    first policy: the default blocks (unless 'Block-Region' (blocks) matches); second policy: rule 'Allow-DNS' allows
+  closed, possible (for application ssl on its default ports)
+    10.20.0.0/24, 203.0.113.0/24 -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-198.51.100.199 and 2 more: tcp/443
+    first policy: the default blocks (unless 'Block-Region' (blocks), 'Tagged-Servers-Updates' (allows) matches); second policy: the default blocks
+
+ot -> ot (inside the zone)
+  closed, certain
+    10.30.0.0/16 -> 10.30.0.0/16: any
+    first policy: the default allows; second policy: the default blocks
+
+Notes
+  trust -> untrust: the default ports of application(s) bittorrent are not in the application map (--app-map): what differs on or off them is possible only.
+  The users of the rules are compared by name: what a user group, a custom URL category or a schedule holds is not in the model. Where the two define one of the same name differently, connections may differ that are not shown.
+  The NAT rules are not compared; the rules are, as the model holds them (for a source that matches after destination NAT, with the addresses before it as well).
+  (elsewhere): addresses in none of the networks given, compared as a zone neither policy names; where they lie behind a zone, give them to it.
+  Compared from the configurations: what the platforms do around the rules (routing, implicit rules, NAT that fails) is not in it.

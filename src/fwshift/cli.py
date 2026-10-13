@@ -11,10 +11,11 @@ import copy
 import dataclasses
 import functools
 import json
+import os
 import sys
 from typing import Callable, Dict, List, Optional, Sequence, Set, TextIO, Tuple
 
-from . import __version__, audit, hits, matrix, narrow, transform, usage
+from . import __version__, audit, compare, conduits, hits, matrix, narrow, transform, usage
 from .appmap import load_app_map
 from .emitters import asa as emit_asa
 from .emitters import aws as emit_aws
@@ -460,6 +461,10 @@ def build_parser() -> argparse.ArgumentParser:
         "addresses get security groups (Azure: only it gets a network security group). Repeatable",
     )  # fmt: skip
     conv.add_argument("--app-map", metavar="FILE", help="JSON file: application name -> list of port specs")
+    conv.add_argument("--compare", nargs="?", const="", metavar="FILE",
+                      help="read the output back (for the targets FWShift reads: asa, azure, fdm, fortios, iptables, ip6tables, junos, "
+                      "nftables, nsx, sophos, watchguard) and report every connection whose verdict differs from the source; with "
+                      "FILE, the whole comparison is written there")  # fmt: skip
     conv.add_argument("--prune-unused", action="store_true", help="leave out objects no rule uses")
     target = conv.add_mutually_exclusive_group()
     target.add_argument("--target-vsys", metavar="NAME", help="PAN-OS target: write into this virtual system")
@@ -523,6 +528,42 @@ def build_parser() -> argparse.ArgumentParser:
                      help="a zone of your own, as networks; repeatable. With it the matrix is between these zones (and "
                      "'elsewhere'), not between the zones of the policy. @ZONE names the zone of the policy the networks lie behind")  # fmt: skip
     mat.add_argument("--audit-config", metavar="FILE", help="JSON file of the audit: its lists of risky and industrial services are used")
+
+    cond = commands.add_parser("conduits", help="check a configuration against a zone and conduit model (IEC 62443), or draft a "
+                               "model from what it allows")  # fmt: skip
+    _source_options(cond)
+    cond.add_argument("--model", metavar="FILE", help="the zone and conduit model to check against (JSON, see the manual)")
+    cond.add_argument("--draft", metavar="FILE", help="write a model of what the configuration allows today, as a start for one")
+    cond.add_argument("--network-zone", action="append", default=[], metavar="NAME[@ZONE]=NETWORK[,NETWORK...]",
+                      help="--draft: a zone of the model as networks, as for fwshift matrix; repeatable")
+    cond.add_argument("-o", "--output", help="write the result here (default: standard output)")
+    cond.add_argument("--json", action="store_true", help="write the result as JSON")
+    cond.add_argument("--fail-on", default="medium", metavar="LEVEL",
+                      help="exit with status 3 when a finding of this level or higher is found: info, low, medium (default), high")
+    cond.add_argument("--audit-config", metavar="FILE", help="JSON file of the audit: its lists of risky and industrial services are used")
+    cond.add_argument("--app-map", metavar="FILE", help="JSON file: application name -> list of port specs (the default ports of applications)")
+
+    cmp = commands.add_parser("compare", help="every connection whose verdict differs between two configurations (the equivalence check)")
+    cmp.add_argument("first", help="the first configuration (before)")
+    cmp.add_argument("second", help="the second configuration (after)")
+    cmp.add_argument("--from", dest="source", choices=VENDORS, help="format of the first (default: detected)")
+    cmp.add_argument("--from-second", choices=VENDORS, help="format of the second (default: detected)")
+    for option, text in (("--vsys", "PAN-OS: virtual system to read"), ("--device-group", "Panorama: device group to read"),
+                         ("--vdom", "FortiOS: VDOM to read"), ("--layer", "Check Point: access layer to read"),
+                         ("--policy", "Management Center (fmc): access control policy to read"),
+                         ("--nat-policy", "Management Center (fmc): NAT policy to read")):  # fmt: skip
+        cmp.add_argument(option, default="", help=text + " (of both)")
+    cmp.add_argument("--zone-map", action="append", default=[], metavar="FIRST=SECOND",
+                     help="a zone of the first as the second names it (several may become one); repeatable")
+    cmp.add_argument("--zone-network", action="append", default=[], metavar="ZONE=NET[,NET]",
+                     help="the networks behind a zone, named as the first configuration names it: only connections that can happen "
+                     "are compared; repeatable")
+    cmp.add_argument("--app-map", metavar="FILE", help="JSON file: application name -> list of port specs (the default ports of applications)")
+    cmp.add_argument("-o", "--output", help="write the result here (default: standard output)")
+    cmp.add_argument("--json", action="store_true", help="write the result as JSON")
+    cmp.add_argument("--fail-on", default="low", metavar="LEVEL",
+                     help="exit with status 3 when a difference of this weight or more is found: low (any difference, the default), "
+                     "medium (opened possibly, or closed for certain), high (opened for certain), none")  # fmt: skip
 
     use = commands.add_parser("usage", help="which rules, objects and services the firewall's logs show used (Check Point, PAN-OS, FortiOS, iptables, nftables)")
     _source_options(use)
@@ -601,6 +642,10 @@ def _run_convert(args: argparse.Namespace) -> int:
         raise FwshiftError("--to json writes the model as it was read; audit the configuration with 'fwshift audit'")
     config = _audit_config(args) if auditing else audit.AuditConfig()
     audited: Optional[audit.AuditResult] = None
+    # For --compare: the policy as it was read (the audit's actions and the conversion are what is compared), and what the
+    # parser said of it (not the emitter's findings).
+    original = copy.deepcopy(policy) if args.compare is not None else None
+    reading = audit.Reading.of(report)
     if auditing:
         transform.harden(policy, report)
         for line in _hit_counters(args, policy):
@@ -613,6 +658,8 @@ def _run_convert(args: argparse.Namespace) -> int:
         _audit_apply(policy, audited, config, report, _trial(args.target, options))
     kept: List[Policy] = []
     output = convert(policy, args.target, report, dataclasses.replace(options, written=kept))
+    if original is not None:
+        _compare_output(args, original, reading, output, report, options)
     if audited is not None:
         _audit_after(policy, audited, config, report, kept[-1] if kept else None)
     if args.output and args.target == "sophos" and args.output.lower().endswith(".tar"):
@@ -705,6 +752,183 @@ def _run_matrix(args: argparse.Namespace) -> int:
     else:
         _print(sys.stdout, text)
     return 0
+
+
+def _run_conduits(args: argparse.Namespace) -> int:
+    if bool(args.model) == bool(args.draft):
+        raise FwshiftError("conduits: give --model FILE to check against, or --draft FILE to write one")
+    if args.network_zone and not args.draft:
+        raise FwshiftError("conduits: --network-zone is for --draft; a model gives its networks itself")
+    fail_on = None if args.fail_on.lower() == "none" else audit.level_of(args.fail_on, "--fail-on")
+    config = audit.AuditConfig()
+    if args.audit_config:
+        config = audit.load_config(_read(args.audit_config).decode("utf-8", errors="replace"), args.audit_config)
+    model = conduits.load_model(_read(args.model).decode("utf-8-sig", errors="replace"), args.model) if args.model else None
+    data = _read(args.input)
+    source = args.source or detect_format(data)
+    report = Report()
+    policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy,
+                  args.interface_address)  # fmt: skip
+    transform.harden(policy, report)
+    if model is None:
+        found = matrix.build(policy, config, report, matrix.parse_networks(args.network_zone))
+        drafted = conduits.draft(found, os.path.basename(args.input))
+        _write(args.draft, json.dumps(drafted, indent=2, ensure_ascii=False) + "\n")
+        text = (f"fwshift: a draft of {len(drafted['zones'])} zones and {len(drafted['conduits'])} conduits written to {args.draft}: "
+                "review it\n")  # fmt: skip
+        if args.output:
+            _write(args.output, text)
+        else:
+            _print(sys.stdout, text)
+        return 0
+    result = conduits.check(policy, model, config, report, app_ports=load_app_map(args.app_map) if args.app_map else None)
+    if args.json:
+        text = json.dumps({"source": source, "model_file": args.model, **result.to_dict()}, indent=2, ensure_ascii=False) + "\n"
+    else:
+        head = (f"FWShift zone and conduit check\n  model: {args.model}" + (f" ({model.name})" if model.name else "")
+                + f", {len(model.zones)} zones, {len(model.conduits)} conduits\n  policy: {args.input} ({source}"
+                + (f", {policy.scope}" if policy.scope else "") + ")\n\n")  # fmt: skip
+        text = head + result.to_text()
+    if args.output:
+        _write(args.output, text)
+    else:
+        _print(sys.stdout, text)
+    return 3 if result.fails(fail_on) else 0
+
+
+_WEIGHTS = {"none": 4, "low": 1, "medium": 2, "high": 3}
+
+
+def _run_compare(args: argparse.Namespace) -> int:
+    weight = _WEIGHTS.get(args.fail_on.lower())
+    if weight is None:
+        raise FwshiftError(f"--fail-on expects low, medium, high or none, got '{args.fail_on[:20]}'")
+    loaded = []
+    for path, given in ((args.first, args.source), (args.second, args.from_second)):
+        data = _read(path)
+        source = given or detect_format(data)
+        report = Report()
+        policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy)
+        transform.harden(policy, report)
+        loaded.append((path, source, policy, report))
+    (first, first_source, a, ra), (second, second_source, b, rb) = loaded
+    result = compare.compare(a, b, f"{first} ({first_source})", f"{second} ({second_source})", (ra, rb),
+                             compare.parse_zone_map(args.zone_map), _networks(args.zone_network),
+                             app_ports=load_app_map(args.app_map) if args.app_map else None)  # fmt: skip
+    text = (json.dumps(result.to_dict(), indent=2, ensure_ascii=False) + "\n") if args.json else "FWShift comparison\n" + result.to_text()
+    if args.output:
+        _write(args.output, text)
+    else:
+        _print(sys.stdout, text)
+    return 3 if result.level() >= weight else 0
+
+
+READ_BACK = ("asa", "azure", "fdm", "fortios", "iptables", "ip6tables", "junos", "nftables", "nsx", "sophos", "watchguard")
+
+
+def _alignment(source: Policy, back: Policy, options: Options) -> Tuple[Dict[str, str], List[str]]:
+    """The zones of the source as the output read back names them: (map, zones not found there)."""
+    def plain(text: str) -> str:
+        return "".join(letter for letter in text.lower() if letter.isalnum())
+
+    theirs = list(dict.fromkeys(list(back.zones) + [z for r in back.rules for z in r.src_zones + r.dst_zones if z != ANY]))
+    if not theirs:
+        return {}, []
+    by_plain: Dict[str, str] = {}
+    prefix = plain(options.object_prefix)
+    for name in theirs:
+        key = plain(name)
+        by_plain.setdefault(key, name)
+        if prefix and key.startswith(prefix):
+            by_plain.setdefault(key[len(prefix):], name)
+    out: Dict[str, str] = {}
+    missing: List[str] = []
+    ours = list(dict.fromkeys(options.zone_map.get(z, z) for z in list(source.zones) + [z for r in source.rules for z in r.src_zones + r.dst_zones]
+                              if z != ANY))  # fmt: skip
+    for zone in ours:
+        for candidate in (zone, options.interface_map.get(zone, "")):
+            if candidate in theirs:
+                out[zone] = candidate
+                break
+            if candidate and plain(candidate) in by_plain:
+                out[zone] = by_plain[plain(candidate)]
+                break
+        else:
+            missing.append(zone)
+    return out, missing
+
+
+def _compare_output(args: argparse.Namespace, source: Policy, source_report: audit.Reading, output: str, report: Report,
+                    options: Options) -> None:  # fmt: skip
+    """Read the output back and compare it with the policy it came from; what differs goes into the report."""
+    if args.target not in READ_BACK:
+        report.note(Severity.REVIEW, "COMPARE_NOT_READ_BACK",
+                    f"--compare: FWShift does not read {args.target} output back (it reads {', '.join(READ_BACK)}); nothing was compared")  # fmt: skip
+        return
+    back_report = Report()
+    try:
+        back = load(output.encode("utf-8"), args.target, back_report)
+        transform.harden(back, back_report)
+    except FwshiftError as error:
+        report.note(Severity.REVIEW, "COMPARE_NOT_READ_BACK", f"--compare: the output could not be read back: {str(error)[:200]}")
+        return
+    if args.target == "asa" and not options.zone_networks:
+        report.note(Severity.REVIEW, "COMPARE_NOT_READ_BACK", "--compare: ASA output names no interfaces or routes, so the zones its "
+                    "access lists lead to are not known when it is read back: give the networks of the zones with --zone-network")  # fmt: skip
+        return
+    mapped, missing = _alignment(source, back, options)
+    raw = list(dict.fromkeys(list(source.zones) + [z for r in source.rules for z in r.src_zones + r.dst_zones if z != ANY]))
+    zone_map = {zone: mapped.get(options.zone_map.get(zone, zone), options.zone_map.get(zone, zone)) for zone in raw}
+    # --zone-network names the zones as the target does (after --zone-map); the comparison by the zones of the source.
+    networks: Dict[str, List[str]] = {}
+    for zone in raw:
+        target = options.zone_map.get(zone, zone)
+        if target in options.zone_networks:
+            networks[zone] = list(options.zone_networks[target])
+    targets = {options.zone_map.get(zone, zone) for zone in raw}
+    networks.update({zone: list(nets) for zone, nets in options.zone_networks.items() if zone not in targets and zone not in networks})
+    pairs = None
+    if back.vendor == "azure" and "outside" in back.zones:
+        # Between two zones no group stands for, nothing of the template decides: not compared.
+        groups = {zone for zone in back.zones if zone != "outside"}
+        for zone in raw:
+            if options.zone_map.get(zone, zone) not in mapped:
+                zone_map[zone] = "outside"
+        names = list(dict.fromkeys(raw + list(networks) + [zone for zone in back.zones if zone not in zone_map.values()]))
+        names += [compare.OTHER, compare.ELSEWHERE]
+        pairs = [(a, b) for a in names for b in names if zone_map.get(a, a) in groups or zone_map.get(b, b) in groups]
+        missing = []
+    try:
+        result = compare.compare(source, back, "the source", "the output read back", (source_report, back_report), zone_map, networks,
+                                 pairs, options.app_ports)  # fmt: skip
+    except FwshiftError as error:
+        report.note(Severity.REVIEW, "COMPARE_NOT_READ_BACK", f"--compare: nothing was compared: {error}")
+        return
+    if args.compare:
+        _write(args.compare, "FWShift comparison of a conversion\n" + result.to_text())
+    where = f" (all of it: {args.compare})" if args.compare else ""
+    if missing:
+        report.note(Severity.INFO, "COMPARE_ZONES", "--compare: zones of the source the output does not name (compared as zones it does "
+                    "not name either): " + ", ".join(missing[:12]))  # fmt: skip
+    if result.equal:
+        restricted = [note for note in result.notes if "only that is compared" in note]
+        report.note(Severity.INFO, "COMPARE_EQUIVALENT", "--compare: the output read back: " + result.summary()
+                    + (" " + " ".join(restricted) if restricted else ""))  # fmt: skip
+        return
+    counts = result.counts()
+    opened = [d for d in result.differences if d.opened]
+    closed = [d for d in result.differences if not d.opened]
+    def lines(found: List[compare.Difference]) -> str:
+        return "; ".join(f"{d.src} -> {d.dst}" + (f" ({d.condition})" if d.condition else "") + ": " + d.lines(2)[0] for d in found[:6]) \
+            + (f"; and {len(found) - 6} more" if len(found) > 6 else "")
+    if opened:
+        report.note(Severity.REVIEW, "COMPARE_OPENED",
+                    f"--compare: the output read back allows connections the source does not ({counts['opened, certain']} for certain, "
+                    f"{counts['opened, possible']} possibly){where}: " + lines(opened))  # fmt: skip
+    if closed:
+        report.note(Severity.APPROX, "COMPARE_CLOSED",
+                    f"--compare: the output read back blocks connections the source allows ({counts['closed, certain']} for certain, "
+                    f"{counts['closed, possible']} possibly){where}: " + lines(closed))  # fmt: skip
 
 
 def _offset(text: Optional[str]) -> Optional[int]:
@@ -824,6 +1048,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return _run_matrix(args)
         if args.command == "usage":
             return _run_usage(args)
+        if args.command == "conduits":
+            return _run_conduits(args)
+        if args.command == "compare":
+            return _run_compare(args)
         return _run_inspect(args)
     except FwshiftError as exc:
         _print(sys.stderr, f"fwshift: error: {exc}\n")

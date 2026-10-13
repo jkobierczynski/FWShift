@@ -64,8 +64,8 @@ written).
 What each rests on and what nobody has checked on a device is in
 the development log.
 
-The brands planned in 2026 are done. Next is the zone and conduit model
-(0.22.0, under Audit and matrix below).
+The brands planned in 2026 are done, and so is the zone and conduit model
+with the equivalence check (0.22.0, under Audit and matrix below).
 
 Not planned yet: OPNsense (planned with pfSense, and left out of 0.8.0: its
 configuration keeps aliases, automatic rules and parts of NAT elsewhere, and
@@ -114,41 +114,38 @@ are in [docs/RULE_USAGE.md](docs/RULE_USAGE.md). One release per step;
 
 ## Audit and matrix
 
-Planned after the brands above (0.22.0): **a zone and conduit model as a
-gate**, with **the equivalence check** (items 2 and 5 below) — the model of
-which zone may reach which, kept as a file next to the firewall (the form of
-an IEC 62443 zone and conduit model), checked against a policy with an exit
-status for a pipeline; and the flows whose verdict a conversion or a change
-altered, from the audit's set arithmetic.
+Done in 0.22.0: **the zone and conduit model as a gate** (`fwshift conduits`:
+a JSON model of zones and conduits, a policy checked against it through its
+matrix, a draft from a policy, exit status 3) and **the equivalence check**
+(`fwshift compare` of two configurations; `convert --compare`, the output read
+back and compared with the source): items 1, 2, 5 and 10 of the list before.
 
-1. **The matrix before and after a conversion**, and of two configurations
-   against each other: which conduits a conversion opened or closed. The
-   pieces are there (`matrix.build` on the emitter's copy of the policy).
-2. **A zone and conduit model as a file** (which zone may reach which, on
-   which services) that a policy is checked against, with an exit status for
-   a pipeline: the matrix as a gate, as `--audit-fail-on` is for the audit.
-   This is the form in which an IEC 62443 zone model can be kept next to the
-   firewall it is enforced on.
-3. **The networks behind a zone from the source**, where the source knows
+1. **The networks behind a zone from the source**, where the source knows
    them (interface addresses and routes of FortiOS, PAN-OS and ASA), so that
    `--network-zone NAME@ZONE=...` and `--zone-network` are only needed where
    the configuration does not tell.
-4. **Ports of applications in the matrix**: an entry `app:ssl` could show the
+2. **NAT in the comparison**: compare the NAT rules too, and the rules of a
+   source that matches after destination NAT with the connection as it
+   arrives, so that a published service is compared as a client sees it.
+3. **More targets read back** for `convert --compare`: PAN-OS set commands,
+   the Check Point script, SonicWall commands, the AWS and Barracuda scripts,
+   the pfSense areas (with the interfaces of the configuration they go into);
+   the ASA output with the interfaces and routes of the source.
+4. **What labels hold**: schedules, custom URL categories and user groups are
+   compared by name; read their definitions where the source has them.
+5. **Ports of applications in the matrix**: an entry `app:ssl` could show the
    ports of the application map next to the name.
-5. **Equivalence check as a command**: evaluate the source and the converted
-   policy against each other and report every flow whose verdict changed. The
-   simulators in the tests are the start of it, and so is the audit's set
-   arithmetic: the difference of two policies is a set of boxes.
 6. **Zone ranks** from a configuration file, so that "any source" from the
    Internet weighs more than from the server network.
-7. **Hit counts** where a source exports them: allowed but never used. Now
-   part of *Rule usage* above (0.13.0).
-8. **Findings and matrix as SARIF, CSV or HTML**, for ticketing and
-   code-scanning tools and for a report someone signs.
-9. **NAT audit beyond shadowing**: overlapping translations, a published
+7. **Findings, matrix, conduit check and comparison as SARIF, CSV or HTML**,
+   for ticketing and code-scanning tools and for a report someone signs.
+8. **NAT audit beyond shadowing**: overlapping translations, a published
    service without a rule that allows it, a rule for a published address
    whose NAT rule is gone.
-10. The matrix on the output read back, for the targets FWShift can read.
+9. **The conduit model, further**: security levels weighed against what a
+   conduit carries (cleartext and remote administration into a zone of a high
+   level), conduits of a site spread over several firewalls (one model, the
+   policies of each), and a check of the replies a stateless target needs.
 
 ## Conversion
 
@@ -338,6 +335,10 @@ altered, from the audit's set arithmetic.
    refuses (names, descriptions, the 2,000 rules and the address limits);
    check whether `*` matches ESP, AH and other protocols, and what
    `VirtualNetwork` holds across peerings and gateways.
+14. The equivalence check on real changes: two exports of one firewall
+   before and after a change made by hand, compared, and the differences
+   checked against what was changed; a conversion loaded on a target, its
+   running configuration exported again and compared with the source.
 
 ## Project
 

@@ -4,22 +4,23 @@ FWShift zone matrix
 
 What each zone may reach (rows: from, columns: to)
                  (other zones)
-  (other zones)  icmp tcp/22 +9~
+  (other zones)  any~
   -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
 
 Conduits
 (other zones) -> (other zones)
-  allowed: icmp, tcp/22, tcp/53, tcp/443, tcp/502, tcp/3306, tcp/8443, udp/53, udp/123, icmp6, svc:FTP ~
+  allowed: any ~
   industrial protocols: modbus (rule 'Engineering to PLCs')
   rule 'DNS to resolvers': LAN -> 192.0.2.53: tcp/53, udp/53
   rule 'NTP': any -> 192.0.2.123: udp/123
+  rule 'LAN block the rest': LAN -> any: any (only with follows a conditional jump to the application rules (rule 'LAN to the application rules'), which cannot be expressed, which is not in the model) ~
   rule 'Inbound web': any -> Web servers: tcp/443, tcp/8443 ~
   rule 'Web to app': Web servers -> App servers: tcp/8443
-  rule 'App to DB': App servers -> DB servers: tcp/3306 (only with direction IN only: NSX checks the other end of the connection against the rules below it, which one rule cannot say, which is not in the model) ~
+  rule 'App to DB': App servers -> DB servers: any (only with direction IN only: NSX checks the other end of the connection against the rules below it, which one rule cannot say, which is not in the model) ~
   rule 'Admins SSH': Admins -> DMZ: tcp/22
   rule 'Engineering to PLCs': 10.10.7.15 -> OT cell: tcp/502 ~
   rule 'FTP to partner': LAN -> 198.51.100.40: service 'FTP' (not read) ~
-  rule 'TLS out': LAN -> any: tcp/443 (only with context profile SSL (layer 7: applications, domain names), which the model has no place for, which is not in the model) ~
+  rule 'TLS out': LAN -> any: any (only with context profile SSL (layer 7: applications, domain names), which the model has no place for, which is not in the model) ~
   rule 'Ping over IPv6': ::/0 -> any: icmp, icmp6
 
 From reading the configuration
@@ -28,6 +29,7 @@ From reading the configuration
 
 Notes
   The policy names no zones, so the matrix has one cell. Give zones as networks with --network-zone NAME=NETWORK[,NETWORK...] to see who reaches whom.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
   ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
   svc:NAME: a service of the source that could not be read (an application or category of the vendor, a service without ports). The rule allows that, whatever it is.
   The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

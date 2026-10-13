@@ -218,6 +218,8 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
     <ul>
       <li><a href="#audit">Audit</a></li>
       <li><a href="#matrix">Zone matrix</a></li>
+      <li><a href="#conduits">Zone and conduit model</a></li>
+      <li><a href="#compare">Equivalence check</a></li>
       <li><a href="#usage">Rule usage from logs</a></li>
       <li><a href="#narrow">Narrower rules</a></li>
       <li><a href="#reference">Quick reference</a></li>
@@ -227,7 +229,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
 
 <main id="top">
 <header class="mast">
-  <div class="eyebrow">Field guide · version 0.21</div>
+  <div class="eyebrow">Field guide · version 0.22</div>
   <h1>FWShift, feature by feature</h1>
   <p class="lead">FWShift converts firewall policies between seventeen platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
   <div class="facts">
@@ -317,11 +319,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
   <h2><span class="num">2</span>Install and run</h2>
   <p>Each release has three packages: the project as a zip, a single file that runs with any Python 3.9 or newer, and a wheel for <code>pip</code>. Nothing else needs installing.</p>
   <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># one file, nothing to install</span>
-python3 fwshift-0.21.0.pyz --version
-python3 fwshift-0.21.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.22.0.pyz --version
+python3 fwshift-0.22.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 
 <span class="c"># or with pip</span>
-pip install fwshift-0.21.0-py3-none-any.whl
+pip install fwshift-0.22.0-py3-none-any.whl
 fwshift convert running-config.xml --to fortios -o fortigate.conf</pre></div>
   <p>The input may be <code>-</code> for standard input. The source format is detected (XML root elements, JSON keys, CLI keywords); give <code>--from</code> when detection could be ambiguous, for example <code>--from ip6tables</code>.</p>
 </section>
@@ -355,7 +357,7 @@ findings while reading:
 <!-- ============================================================ COMMANDS -->
 <section class="part" id="commands">
   <h2><span class="num">4</span>Commands</h2>
-  <p class="intro">Five commands share the source options. Only <code>convert</code> writes a configuration; the others read and report.</p>
+  <p class="intro">Seven commands share the source options. Only <code>convert</code> writes a configuration; the others read and report.</p>
 
   <div class="grid2">
     <div class="card"><h5>convert</h5><p>Writes the policy for a target, with the report.</p><p><code>fwshift convert INPUT --to FORMAT</code></p></div>
@@ -363,6 +365,8 @@ findings while reading:
     <div class="card"><h5>audit</h5><p>Finds rules that allow too much, never match, or are unused.</p><p><code>fwshift audit INPUT</code></p></div>
     <div class="card"><h5>matrix</h5><p>What each zone may reach in every other zone.</p><p><code>fwshift matrix INPUT</code></p></div>
     <div class="card"><h5>usage</h5><p>Which rules, objects and services the logs show used.</p><p><code>fwshift usage INPUT --logs FILE</code></p></div>
+    <div class="card"><h5>conduits</h5><p>Checks the policy against a zone and conduit model, or drafts one.</p><p><code>fwshift conduits INPUT --model FILE</code></p></div>
+    <div class="card"><h5>compare</h5><p>Every connection two configurations decide differently.</p><p><code>fwshift compare FIRST SECOND</code></p></div>
   </div>
 
   <h3>Source options</h3>
@@ -387,6 +391,7 @@ findings while reading:
       <tr><td><code>--zone-map SRC=DST</code></td><td>Rename a zone or interface. For iptables, nftables and ASA, this is how a zone becomes an interface.</td></tr>
       <tr><td><code>--interface-map SRC=DST</code></td><td>Map a source interface to a target interface: FortiOS zone members, interface NAT, Sophos/SonicWall/FDM NAT interfaces, Barracuda source interfaces.</td></tr>
       <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, Barracuda, NSX, AWS, Azure; SonicWall object zones).</td></tr>
+      <tr><td><code>--compare[=FILE]</code></td><td>Reads the output back (eleven targets) and reports every connection it decides differently from the source (section 13).</td></tr>
       <tr><td><code>--inside-zone ZONE</code></td><td>AWS and Azure: a zone inside the VPC or the virtual network; only its addresses get security groups.</td></tr>
       <tr><td><code>--app-map FILE</code></td><td>JSON of extra application-to-port mappings.</td></tr>
       <tr><td><code>--target-vsys</code>, <code>--target-device-group</code>, <code>--target-shared</code></td><td>Where PAN-OS output goes.</td></tr>
@@ -1161,9 +1166,52 @@ trust -> ot
   </ul>
 </section>
 
+<!-- ============================================================ CONDUITS -->
+<section class="part" id="conduits">
+  <h2><span class="num">12</span>Zone and conduit model</h2>
+  <p>The model of which zone may reach which, on which services, kept as a JSON file next to the firewall (the zones and conduits of IEC 62443-3-2). <code>fwshift conduits</code> checks the matrix of a policy against it; exit status 3 makes it a gate in a pipeline.</p>
+  <div class="codebox"><span class="label">example</span><button class="copy" type="button">Copy</button><pre><span class="p">$ </span>fwshift conduits tests/data/panos_sample.xml --model tests/data/zone_model.json
+Result: the policy allows what the model does not, in 6 place(s) (1 possible).
+  findings: high 5, medium 1, low 1, info 0
+
+Findings
+  high    NO_CONDUIT        dmz -> internet: rule 'Allow-DNS' allows applications dns on their default ports; the model has no conduit from dmz to internet
+  high    CONDUIT_EXCEEDED  office -> control: rule 'Engineering to PLCs' allows app:modbus beyond conduit 'engineering'
+  low     CONDUIT_CLOSED    control -> dmz: conduit 'historian': the policy allows none of it: tcp/443 (traffic the model expects is blocked)</pre></div>
+  <div class="codebox"><span class="label">zone_model.json (part)</span><button class="copy" type="button">Copy</button><pre>{"fwshift": "zone-conduit-model", "version": 1,
+ "zones": [{"name": "office", "networks": ["10.10.0.0/16"], "policy_zones": ["trust"], "sl_t": 1},
+           {"name": "control", "networks": ["10.30.0.0/16"], "policy_zones": ["ot"], "sl_t": 3, "inside": ["tcp/102", "tcp/502"]}],
+ "conduits": [{"name": "engineering", "from": "office", "to": "control", "services": ["tcp/102"]}]}</pre></div>
+  <ul class="prose">
+    <li>Zones are networks (with the zones of the policy they lie behind) or zones of the policy. Services: <code>tcp/443</code>, <code>udp/161-162</code>, <code>icmp/8</code>, <code>ip/47</code>, <code>esp</code>, <code>app:NAME</code>, <code>svc:NAME</code>, <code>any</code>.</li>
+    <li>Findings: <code>NO_CONDUIT</code>, <code>CONDUIT_EXCEEDED</code>, <code>INSIDE_EXCEEDED</code>, <code>NOT_IN_MODEL</code> (high; medium when possible) and <code>CONDUIT_CLOSED</code> (low). <code>--fail-on medium</code> is the default.</li>
+    <li><code>--draft FILE</code> writes a model of what the policy allows today: a start to review, not a model.</li>
+    <li>Every mistake in the file is an error, so that a typo never makes the check pass. Security levels are documentation.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ COMPARE -->
+<section class="part" id="compare">
+  <h2><span class="num">13</span>Equivalence check</h2>
+  <p>Every connection two configurations decide differently, per pair of zones: before and after a change, or a source and its conversion read back (<code>convert --compare</code>).</p>
+  <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift compare before.xml after.xml --zone-network trust=10.10.0.0/16 --zone-network untrust=0.0.0.0/0,::/0
+fwshift convert running-config.xml --to iptables -o rules.v4 --report report.txt --compare compare.txt \
+    --zone-network trust=10.10.0.0/16 --zone-network untrust=0.0.0.0/0,::/0</pre></div>
+  <div class="codebox"><span class="label">compare.txt (part)</span><button class="copy" type="button">Copy</button><pre>trust -> untrust
+  opened, certain (for other applications)
+    10.10.0.0/16 -> 192.0.2.53-192.0.2.54: tcp/53, udp/53
+    first policy: the default blocks (unless 'Block-Region' (blocks) matches); second policy: rule 'Allow-Web-Out' allows</pre></div>
+  <ul class="prose">
+    <li><b>opened</b>: the second allows it, the first does not; <b>closed</b>: the other way round. <b>certain</b> where both are read exactly; <b>possible</b> where not, never left out.</li>
+    <li>Applications, users, URL categories and schedules are labels of a connection; what both policies hold alike but cannot be read (a region, a dynamic group, a rule not held exactly) decides alike.</li>
+    <li><code>--zone-map</code> renames zones of the first (several may become one); <code>--zone-network</code> keeps the comparison to connections that can happen.</li>
+    <li><code>convert --compare</code> reads back asa (with networks), azure, fdm, fortios, iptables, ip6tables, junos, nftables, nsx, sophos and watchguard output. NAT rules are not compared.</li>
+  </ul>
+</section>
+
 <!-- ============================================================ USAGE -->
 <section class="part" id="usage">
-  <h2><span class="num">12</span>Rule usage from logs</h2>
+  <h2><span class="num">14</span>Rule usage from logs</h2>
   <p>The audit knows what a policy allows; the logs know what was used. <code>fwshift usage</code> reads firewall logs into a store, attributes each connection to a rule, counts which objects and services inside the rule were used, and only calls a rule unused when the logs can prove it.</p>
   <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift usage checkpoint.json --logs gw-edge-2026-09.log --store usage.db
 fwshift usage checkpoint.json --logs gw-edge-2026-10.log --store usage.db --html usage.html
@@ -1221,7 +1269,7 @@ fwshift usage rules.v4 --logs kern.log --log-year 2026 --log-offset +02:00 --unc
 
 <!-- ============================================================ NARROW -->
 <section class="part" id="narrow">
-  <h2><span class="num">13</span>Narrower rules</h2>
+  <h2><span class="num">15</span>Narrower rules</h2>
   <p>A used allow rule whose connections used at most 10% of a cell (threshold <code>wider_than_traffic</code>) gets <code>WIDER_THAN_TRAFFIC</code> with a narrower rule: the same rule with its sources, destinations and services cut to what was used. A proposal is never wider than its rule and holds every connection the logs show, possible ones included.</p>
   <div class="codebox"><span class="label">usage report</span><button class="copy" type="button">Copy</button><pre>  [low] WIDER_THAN_TRAFFIC: rule 'LAN web' had 90 connection(s) from 2026-07-03 to 2026-09-30, which used of its
         sources less than 0.01% of what they hold ('10.10.4.20/32'); ...
@@ -1242,7 +1290,7 @@ fwshift usage rules.v4 --logs kern.log --log-year 2026 --unchanged-since 2026-01
 
 <!-- ============================================================ REFERENCE -->
 <section class="part" id="reference">
-  <h2><span class="num">14</span>Quick reference</h2>
+  <h2><span class="num">16</span>Quick reference</h2>
   <h3>Before you load anything</h3>
   <div class="tablewrap"><table>
     <thead><tr><th>Target</th><th>Replaces or overwrites</th><th>Do first</th></tr></thead>

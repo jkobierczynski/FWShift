@@ -1,0 +1,159 @@
+FWShift comparison of a conversion
+first:  the source
+second: the output read back
+
+Connections whose verdict differs (32 pairs of zones compared): 20 opened, certain, 2 opened, possible, 5 closed, certain, 3 closed, possible
+  opened: the second policy allows it, the first does not; closed: the other way round
+  certain: it holds whatever the policies cannot read; possible: it may (see the notes)
+
+trust -> trust (inside the zone)
+  closed, certain
+    10.10.0.0/16 -> 10.10.0.0/16: any except icmp, tcp, udp, ip/50 (esp), ip/51 (ah)
+    first policy: the default allows; second policy: the default blocks
+
+trust -> untrust
+  opened, certain (for other applications)
+    10.10.0.0/16 -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more: tcp/80, tcp/443
+    10.10.0.0/16 -> 192.0.2.53-192.0.2.54: tcp/53, udp/53
+    first policy: the default blocks (unless 'Block-Region' (blocks) matches); second policy: rule 'trust:Allow-Web-Out-out+untrust:Allow-Web-Out-in' allows
+  opened, certain (for application dns on other ports)
+    10.10.0.0/16 -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more: tcp/80, tcp/443
+    first policy: the default blocks (unless 'Block-Region' (blocks) matches); second policy: rule 'trust:Allow-Web-Out-out+untrust:Allow-Web-Out-in' allows
+  opened, certain (for application ssl on other ports)
+    10.10.0.0/16 -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more: tcp/80
+    10.10.0.0/16 -> 192.0.2.53-192.0.2.54: tcp/53, udp/53
+    first policy: the default blocks (unless 'Block-Region' (blocks) matches); second policy: rule 'trust:Allow-Web-Out-out+untrust:Allow-Web-Out-in' allows
+  opened, certain (for application web-browsing on other ports)
+    10.10.0.0/16 -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more: tcp/443
+    10.10.0.0/16 -> 192.0.2.53-192.0.2.54: tcp/53, udp/53
+    first policy: the default blocks (unless 'Block-Region' (blocks) matches); second policy: rule 'trust:Allow-Web-Out-out+untrust:Allow-Web-Out-in' allows
+  opened, possible (for application bittorrent on other ports; or application bittorrent on its default ports)
+    10.10.0.0/16 -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more: tcp/80, tcp/443
+    10.10.0.0/16 -> 192.0.2.53-192.0.2.54: tcp/53, udp/53
+    first policy: rule 'Block-Torrents' blocks; second policy: rule 'trust:Allow-Web-Out-out+untrust:Allow-Web-Out-in' allows
+
+trust -> dmz
+  closed, certain (for application ping on its default ports)
+    10.10.0.0-10.10.199.255, 10.10.201.0-10.10.255.255 -> 10.20.0.10, 10.20.0.25: icmp type 8
+    first policy: rule 'Not-From-Guests' allows; second policy: rule 'trust:fwshift-zone-dmz-out to dmz' blocks
+  closed, possible (for application ssh on its default ports; users example\netadmins)
+    10.10.5.10-10.10.5.20 -> 10.20.0.10, 10.20.0.25: tcp/22
+    first policy: rule 'Admin-SSH' allows; second policy: rule 'trust:fwshift-zone-dmz-out to dmz' blocks
+
+trust -> ot
+  opened, certain (for other applications)
+    10.10.7.15 -> 10.30.1.0/24: tcp/102, tcp/502
+    first policy: the default blocks; second policy: rule 'trust:Engineering-to-PLCs-out+ot:Engineering-to-PLCs-in' allows
+  opened, certain (for application modbus on other ports)
+    10.10.7.15 -> 10.30.1.0/24: tcp/102
+    first policy: the default blocks; second policy: rule 'trust:Engineering-to-PLCs-out+ot:Engineering-to-PLCs-in' allows
+  opened, certain (for application siemens-s7 on other ports)
+    10.10.7.15 -> 10.30.1.0/24: tcp/502
+    first policy: the default blocks; second policy: rule 'trust:Engineering-to-PLCs-out+ot:Engineering-to-PLCs-in' allows
+
+trust -> outside
+  opened, certain
+    10.10.0.0/16 -> 0.0.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255, 203.0.114.0-255.255.255.255: tcp/80, tcp/443
+    10.10.0.0/16 -> 10.10.0.0/16: icmp, tcp, udp, ip/50 (esp), ip/51 (ah)
+    10.10.0.0/16 -> 10.20.0.10: tcp/80, tcp/443, tcp/8080, tcp/8443, tcp/9000-9010
+    10.10.0.0/16 -> 192.0.2.53-192.0.2.54: tcp/53, udp/53
+    10.10.7.15 -> 10.30.1.0/24: tcp/102, tcp/502
+    first policy: the default blocks; second policy: rule 'trust:fwshift-zone-trust-out' allows
+
+untrust -> untrust (inside the zone)
+  opened, certain
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 198.51.100.200: icmp, tcp, udp, ip/50 (esp), ip/51 (ah)
+    first policy: rule 'Block-Region' blocks; second policy: rule 'untrust:fwshift-default-out+untrust:fwshift-default-in' allows
+  opened, possible
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-198.51.100.199 and 2 more: icmp, tcp, udp, ip/50 (esp), ip/51 (ah)
+    any -> any: tcp, udp, ip/50 (esp), ip/51 (ah)
+    first policy: the default allows (unless 'Block-Region' (blocks) matches); second policy: rule 'untrust:fwshift-default-out+untrust:fwshift-default-in' allows
+  closed, possible
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-198.51.100.199 and 2 more: any except icmp, tcp, udp, ip/50 (esp), ip/51 (ah)
+    any -> any: any except tcp, udp, ip/50 (esp), ip/51 (ah)
+    first policy: the default allows (unless 'Block-Region' (blocks) matches); second policy: the default blocks
+
+untrust -> dmz
+  opened, certain (for other applications; or application ssl)
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 10.20.0.10: tcp/443
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 10.20.0.25: tcp/25
+    first policy: the default blocks; second policy: rule 'untrust:Inbound-Web-out+dmz:Inbound-Web-in' allows
+  opened, certain (for application smtp on its default ports)
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 10.20.0.25: tcp/25
+    first policy: the default blocks; second policy: rule 'untrust:Inbound-Mail-out+dmz:Inbound-Mail-in' allows
+  opened, certain (for application smtp on other ports)
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 10.20.0.10: tcp/443
+    first policy: the default blocks; second policy: rule 'untrust:Inbound-Web-out+dmz:Inbound-Web-in' allows
+  closed, certain (for application smtp on its default ports)
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 203.0.113.25: tcp/25
+    first policy: rule 'Inbound-Mail' allows; second policy: rule 'untrust:fwshift-zone-dmz-out to dmz' blocks
+  closed, certain (for application ssl)
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 203.0.113.10: tcp/443
+    first policy: rule 'Inbound-Web' allows; second policy: rule 'untrust:fwshift-zone-dmz-out to dmz' blocks
+
+untrust -> outside
+  opened, certain
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more: icmp, tcp, udp, ip/50 (esp), ip/51 (ah)
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 10.20.0.10: tcp/443
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 10.20.0.25: tcp/25
+    any -> any: tcp, udp, ip/50 (esp), ip/51 (ah)
+    first policy: the default blocks; second policy: rule 'untrust:Inbound-Web-out' allows
+
+dmz -> untrust
+  opened, certain (for other applications; or application ssl on other ports)
+    10.20.0.0/24, 203.0.113.0/24 -> 192.0.2.53-192.0.2.54: tcp/53, udp/53
+    first policy: the default blocks (unless 'Block-Region' (blocks) matches); second policy: rule 'dmz:Allow-DNS-out+untrust:Allow-DNS-in-3' allows
+  closed, possible (for application ssl on its default ports)
+    10.20.0.0/24, 203.0.113.0/24 -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-198.51.100.199 and 2 more: tcp/443
+    first policy: the default blocks (unless 'Block-Region' (blocks), 'Tagged-Servers-Updates' (allows) matches); second policy: rule 'dmz:fwshift-default-out to untrust' blocks
+
+dmz -> outside
+  opened, certain
+    10.20.0.0/24, 203.0.113.0/24 -> 192.0.2.53-192.0.2.54: tcp/53, udp/53
+    first policy: the default blocks; second policy: rule 'dmz:Allow-DNS-out' allows
+
+ot -> ot (inside the zone)
+  closed, certain
+    10.30.0.0/16 -> 10.30.0.0/16: any except icmp, tcp, udp, ip/50 (esp), ip/51 (ah)
+    first policy: the default allows; second policy: the default blocks
+
+ot -> outside
+  opened, certain
+    10.30.0.0/16 -> 10.30.0.0/16: icmp, tcp, udp, ip/50 (esp), ip/51 (ah)
+    first policy: the default blocks; second policy: rule 'ot:fwshift-zone-ot-out' allows
+
+outside -> trust
+  opened, certain
+    10.10.0.0/16 -> 10.10.0.0/16: icmp, tcp, udp, ip/50 (esp), ip/51 (ah)
+    first policy: the default blocks; second policy: rule 'trust:fwshift-zone-trust-in' allows
+
+outside -> untrust
+  opened, certain
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more: icmp, tcp, udp, ip/50 (esp), ip/51 (ah)
+    10.10.0.0/16 -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more: tcp/80, tcp/443
+    10.10.0.0/16 -> 192.0.2.53-192.0.2.54: tcp/53, udp/53
+    10.20.0.0/24, 203.0.113.0/24 -> 192.0.2.53-192.0.2.54: tcp/53, udp/53
+    168.63.129.16 -> 0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more: icmp, tcp, udp
+    any -> any: tcp, udp, ip/50 (esp), ip/51 (ah)
+    first policy: the default blocks (unless 'Block-Region' (blocks) matches); second policy: rule 'untrust:Allow-Web-Out-in' allows
+
+outside -> dmz
+  opened, certain
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 10.20.0.10: tcp/443
+    0.0.0.0-10.9.255.255, 10.11.0.0-10.19.255.255, 10.20.1.0-10.29.255.255, 10.31.0.0-203.0.112.255 and 1 more -> 10.20.0.25: tcp/25
+    10.10.0.0/16 -> 10.20.0.10: tcp/80, tcp/443, tcp/8080, tcp/8443, tcp/9000-9010
+    first policy: the default blocks; second policy: rule 'dmz:App-Server-Ports-in' allows
+
+outside -> ot
+  opened, certain
+    10.10.7.15 -> 10.30.1.0/24: tcp/102, tcp/502
+    10.30.0.0/16 -> 10.30.0.0/16: icmp, tcp, udp, ip/50 (esp), ip/51 (ah)
+    first policy: the default blocks; second policy: rule 'ot:Engineering-to-PLCs-in' allows
+
+Notes
+  No networks were given for zone(s) outside: every address is compared there.
+  trust -> untrust: the default ports of application(s) bittorrent are not in the application map (--app-map): what differs on or off them is possible only.
+  The users of the rules are compared by name: what a user group, a custom URL category or a schedule holds is not in the model. Where the two define one of the same name differently, connections may differ that are not shown.
+  The NAT rules are not compared; the rules are, as the model holds them (for a source that matches after destination NAT, with the addresses before it as well).
+  (other zones): zones neither policy names, which a rule for 'any' zone reaches.
+  Compared from the configurations: what the platforms do around the rules (routing, implicit rules, NAT that fails) is not in it.

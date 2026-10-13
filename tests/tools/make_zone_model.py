@@ -1,0 +1,50 @@
+# FWShift - multi-vendor firewall policy converter
+# Copyright (C) 2026 Jurgen Kobierczynski
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Write tests/data/zone_model.json: a made-up zone and conduit model for the zones of panos_sample.xml.
+
+Documentation and private addresses only; not the model of any real plant.
+
+    python3 tests/tools/make_zone_model.py
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any, Dict
+
+
+def model() -> Dict[str, Any]:
+    return {
+        "fwshift": "zone-conduit-model",
+        "version": 1,
+        "name": "Example plant: office, DMZ and the filling line",
+        "description": "Made up for the tests of FWShift.",
+        "zones": [
+            {"name": "office", "networks": ["10.10.0.0/16"], "policy_zones": ["trust"], "sl_t": 1, "description": "office clients"},
+            {"name": "internet", "networks": ["0.0.0.0/0", "::/0"], "policy_zones": ["untrust"], "sl_t": 0},
+            {"name": "dmz", "networks": ["10.20.0.0/24", "203.0.113.0/24"], "policy_zones": ["dmz"], "sl_t": 2},
+            {"name": "control", "networks": ["10.30.0.0/16"], "policy_zones": ["ot"], "sl_t": 3, "inside": ["tcp/102", "tcp/502"],
+             "description": "PLCs and HMIs of the filling line"},
+        ],
+        "conduits": [
+            {"name": "office-web", "from": "office", "to": "internet", "services": ["tcp/80", "tcp/443", "app:ssl", "app:web-browsing"]},
+            {"name": "office-dns", "from": "office", "to": "internet", "services": ["udp/53", "tcp/53", "app:dns"]},
+            {"name": "published", "from": "internet", "to": "dmz", "services": ["tcp/443", "tcp/25", "app:ssl", "app:smtp"]},
+            {"name": "admin", "from": "office", "to": "dmz", "services": ["tcp/22", "icmp/8", "app:ssh", "app:ping"]},
+            {"name": "engineering", "from": "office", "to": "control", "services": ["tcp/102"], "sl_t": 3,
+             "description": "the engineering station programs the PLCs (S7)"},
+            {"name": "historian", "from": "control", "to": "dmz", "services": ["tcp/443"], "sl_t": 3},
+        ],
+    }
+
+
+def main() -> None:
+    data = Path(__file__).resolve().parent.parent / "data"
+    (data / "zone_model.json").write_text(json.dumps(model(), indent=2) + "\n", encoding="utf-8")
+
+
+if __name__ == "__main__":
+    main()

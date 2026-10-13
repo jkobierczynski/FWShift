@@ -4,64 +4,65 @@ FWShift zone matrix
 
 What each zone may reach (rows: from, columns: to)
                  port1             port2             (other zones)
-  port1          icmp tcp/22 +4~   icmp tcp/22 +4~   icmp tcp/22 +4~
-  port2          icmp tcp/22 +4~   icmp tcp/22 +4~   icmp tcp/22 +4~
-  (other zones)  icmp tcp/80 +3~   icmp tcp/80 +3~   icmp tcp/80 +3~
+  port1          any~              any~              any~
+  port2          any~              any~              any~
+  (other zones)  any~              any~              any~
   -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
 
 In every conduit
   rule 'LAN-2-INTERNET': Office-LAN -> 0.0.0.0/0: tcp/80, tcp/443
-  rule 'WEB-IN': 0.0.0.0/0 -> Public-Web: tcp/80, tcp/443 (only with action Dst NAT: how the API spells its target list is not known, so the translation is not read, which is not in the model) ~
+  rule 'WEB-IN': 0.0.0.0/0 -> Public-Web: any (only with action Dst NAT: how the API spells its target list is not known, so the translation is not read, which is not in the model) ~
   rule 'SERVER-SYNC': DMZ-Servers -> Office-LAN: tcp/80, tcp/443, tcp/8080
   rule 'SERVER-SYNC (back)': Office-LAN -> DMZ-Servers: tcp/80, tcp/443, tcp/8080
   rule 'PING-ALL': Office-LAN -> 0.0.0.0/0: icmp ~
   rule 'UPDATES': DMZ-Servers -> Updates (IPv4): tcp/80, tcp/443 ~
   rule 'V6-WEB': ::/0 -> V6-Servers: tcp/80, tcp/443
+  rule 'TO-LAB': Office-LAN -> 0.0.0.0/0: any (only with action Cascade: the rules of the rule list it hands traffic to are not read, and they decide that traffic, which is not in the model) ~
   rule 'ODD': Office-LAN -> 0.0.0.0/0: tcp/1000-2000 from port 1024-65535 (schedule {"type": "recurring", "name": "Work-Hours"})
 
 Conduits
 port1 -> port1 (inside the zone)
-  allowed: icmp, tcp/22, tcp/80, tcp/443, tcp/8080, tcp/1000-2000 from port 1024-65535 ~
+  allowed: any ~
   industrial protocols: niagara-fox (rule 'ODD')
   rule 'ADMIN-SSH (port1)': Admin-Hosts (port1) -> DMZ-Servers: tcp/22
-  and the 8 listed under 'In every conduit'
+  and the 9 listed under 'In every conduit'
 port1 -> port2
-  allowed: icmp, tcp/22, tcp/80, tcp/443, tcp/8080, tcp/1000-2000 from port 1024-65535 ~
+  allowed: any ~
   industrial protocols: niagara-fox (rule 'ODD')
   rule 'ADMIN-SSH (port1)': Admin-Hosts (port1) -> DMZ-Servers: tcp/22
-  and the 8 listed under 'In every conduit'
+  and the 9 listed under 'In every conduit'
 port1 -> (other zones)
-  allowed: icmp, tcp/22, tcp/80, tcp/443, tcp/8080, tcp/1000-2000 from port 1024-65535 ~
+  allowed: any ~
   industrial protocols: niagara-fox (rule 'ODD')
   rule 'ADMIN-SSH (port1)': Admin-Hosts (port1) -> DMZ-Servers: tcp/22
-  and the 8 listed under 'In every conduit'
+  and the 9 listed under 'In every conduit'
 port2 -> port1
-  allowed: icmp, tcp/22, tcp/80, tcp/443, tcp/8080, tcp/1000-2000 from port 1024-65535 ~
+  allowed: any ~
   industrial protocols: niagara-fox (rule 'ODD')
   rule 'ADMIN-SSH (port2)': Admin-Hosts (port2) -> DMZ-Servers: tcp/22
-  and the 8 listed under 'In every conduit'
+  and the 9 listed under 'In every conduit'
 port2 -> port2 (inside the zone)
-  allowed: icmp, tcp/22, tcp/80, tcp/443, tcp/8080, tcp/1000-2000 from port 1024-65535 ~
+  allowed: any ~
   industrial protocols: niagara-fox (rule 'ODD')
   rule 'ADMIN-SSH (port2)': Admin-Hosts (port2) -> DMZ-Servers: tcp/22
-  and the 8 listed under 'In every conduit'
+  and the 9 listed under 'In every conduit'
 port2 -> (other zones)
-  allowed: icmp, tcp/22, tcp/80, tcp/443, tcp/8080, tcp/1000-2000 from port 1024-65535 ~
+  allowed: any ~
   industrial protocols: niagara-fox (rule 'ODD')
   rule 'ADMIN-SSH (port2)': Admin-Hosts (port2) -> DMZ-Servers: tcp/22
-  and the 8 listed under 'In every conduit'
+  and the 9 listed under 'In every conduit'
 (other zones) -> port1
-  allowed: icmp, tcp/80, tcp/443, tcp/8080, tcp/1000-2000 from port 1024-65535 ~
+  allowed: any ~
   industrial protocols: niagara-fox (rule 'ODD')
-  and the 8 listed under 'In every conduit'
+  and the 9 listed under 'In every conduit'
 (other zones) -> port2
-  allowed: icmp, tcp/80, tcp/443, tcp/8080, tcp/1000-2000 from port 1024-65535 ~
+  allowed: any ~
   industrial protocols: niagara-fox (rule 'ODD')
-  and the 8 listed under 'In every conduit'
+  and the 9 listed under 'In every conduit'
 (other zones) -> (other zones)
-  allowed: icmp, tcp/80, tcp/443, tcp/8080, tcp/1000-2000 from port 1024-65535 ~
+  allowed: any ~
   industrial protocols: niagara-fox (rule 'ODD')
-  and the 8 listed under 'In every conduit'
+  and the 9 listed under 'In every conduit'
 
 From reading the configuration
   BARRACUDA_FORMAT: read 15 forwarding rules, 10 network objects and 8 service objects from 19 answers of the REST API. Barracuda documents that API by examples only: the keys read are those its examples and published tools show, and a key of a rule, an object or an entry this parser does not know makes it unusable
@@ -71,5 +72,6 @@ From reading the configuration
 Notes
   (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
   1 rule(s) never match and are left out; 'fwshift audit' names them.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
   ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
   The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.
