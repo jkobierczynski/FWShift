@@ -1,0 +1,724 @@
+{
+  "resource_type": "Infra",
+  "children": [
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "NTP.services",
+        "display_name": "NTP.services",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "UDP",
+            "destination_ports": [
+              "123"
+            ],
+            "source_ports": [],
+            "id": "NTP.services-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "app-8443",
+        "display_name": "app-8443",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "8443"
+            ],
+            "source_ports": [],
+            "id": "app-8443-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "Web_all",
+        "display_name": "Web all",
+        "service_entries": [
+          {
+            "resource_type": "NestedServiceServiceEntry",
+            "id": "nested-1",
+            "nested_service_path": "/infra/services/HTTPS"
+          },
+          {
+            "resource_type": "NestedServiceServiceEntry",
+            "id": "nested-2",
+            "nested_service_path": "/infra/services/app-8443"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "MySQL-2",
+        "display_name": "MySQL",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "3306"
+            ],
+            "source_ports": [],
+            "id": "MySQL-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "Modbus",
+        "display_name": "Modbus",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "502"
+            ],
+            "source_ports": [],
+            "id": "Modbus-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "FTP-2",
+        "display_name": "FTP",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "21"
+            ],
+            "source_ports": [],
+            "id": "FTP-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildResourceReference",
+      "id": "default",
+      "target_type": "Domain",
+      "children": [
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "Quarantine",
+            "display_name": "Quarantine",
+            "expression": [
+              {
+                "id": "c",
+                "key": "Tag",
+                "member_type": "VirtualMachine",
+                "operator": "EQUALS",
+                "resource_type": "Condition",
+                "value": "security|quarantine"
+              }
+            ],
+            "description": "NSX membership: VirtualMachine Tag EQUALS security|quarantine"
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "LAN",
+            "display_name": "LAN",
+            "expression": [
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "10.10.0.0/16"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "Guests",
+            "display_name": "Guests",
+            "expression": [
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "10.10.200.0/24"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "Web_servers",
+            "display_name": "Web servers",
+            "expression": [
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "10.20.0.10",
+                  "10.20.0.11"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "App_servers",
+            "display_name": "App servers",
+            "expression": [
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "10.20.1.0/24"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "DMZ",
+            "display_name": "DMZ",
+            "expression": [
+              {
+                "resource_type": "PathExpression",
+                "paths": [
+                  "/infra/domains/default/groups/Web_servers",
+                  "/infra/domains/default/groups/App_servers"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "DB_servers",
+            "display_name": "DB servers",
+            "expression": [
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "10.20.2.0/24"
+                ]
+              },
+              {
+                "resource_type": "ConjunctionOperator",
+                "conjunction_operator": "OR"
+              },
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "2001:db8:20:2::/64"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "Admins",
+            "display_name": "Admins",
+            "expression": [
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "10.10.5.10-10.10.5.20"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "OT_cell",
+            "display_name": "OT cell",
+            "expression": [
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "10.30.1.0/24"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resource_type": "ChildSecurityPolicy",
+          "SecurityPolicy": {
+            "resource_type": "SecurityPolicy",
+            "id": "FWShift",
+            "display_name": "FWShift",
+            "category": "Application",
+            "sequence_number": 1,
+            "stateful": true,
+            "scope": [
+              "ANY"
+            ],
+            "description": "Generated by FWShift - review the conversion report before loading this.",
+            "rules": [
+              {
+                "resource_type": "Rule",
+                "id": "Block_quarantined",
+                "display_name": "Block quarantined",
+                "sequence_number": 10,
+                "source_groups": [
+                  "/infra/domains/default/groups/Quarantine"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "ANY"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "DROP",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": false,
+                "tag": "Block_quarantined"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "DNS_to_resolvers",
+                "display_name": "DNS to resolvers",
+                "sequence_number": 20,
+                "source_groups": [
+                  "/infra/domains/default/groups/LAN"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "192.0.2.53"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/DNS",
+                  "/infra/services/DNS-UDP"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": false,
+                "tag": "DNS_to_resolvers"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "NTP",
+                "display_name": "NTP",
+                "sequence_number": 30,
+                "source_groups": [
+                  "ANY"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "192.0.2.123"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/NTP.services"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": false,
+                "tag": "NTP"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Guests_stay_out",
+                "display_name": "Guests stay out",
+                "sequence_number": 40,
+                "source_groups": [
+                  "/infra/domains/default/groups/Guests"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "10.0.0.0/8"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "DROP",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": false,
+                "tag": "Guests_stay_out"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "LAN_block_the_rest",
+                "display_name": "LAN block the rest",
+                "sequence_number": 50,
+                "source_groups": [
+                  "/infra/domains/default/groups/LAN"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "ANY"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/SSH"
+                ],
+                "action": "DROP",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "LAN_block_the_rest",
+                "notes": "FWSHIFT disabled, see the report: not converted: follows a conditional jump to the application rules (rule 'LAN to the application rules'), which cannot be expressed"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Inbound_web",
+                "display_name": "Inbound web",
+                "sequence_number": 60,
+                "source_groups": [
+                  "ANY"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/Web_servers"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/Web_all"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "/infra/domains/default/groups/DMZ"
+                ],
+                "logged": true,
+                "disabled": false,
+                "tag": "Inbound_web"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Web_to_app",
+                "display_name": "Web to app",
+                "sequence_number": 70,
+                "source_groups": [
+                  "/infra/domains/default/groups/Web_servers"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/App_servers"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/app-8443"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "/infra/domains/default/groups/DMZ"
+                ],
+                "logged": false,
+                "disabled": false,
+                "tag": "Web_to_app"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "App_to_DB",
+                "display_name": "App to DB",
+                "sequence_number": 80,
+                "source_groups": [
+                  "/infra/domains/default/groups/App_servers"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/DB_servers"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/MySQL-2"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "/infra/domains/default/groups/DMZ"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "App_to_DB",
+                "notes": "FWSHIFT disabled, see the report: not converted: direction IN only: NSX checks the other end of the connection against the rules below it, which one rule cannot say"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Admins_SSH",
+                "display_name": "Admins SSH",
+                "sequence_number": 90,
+                "source_groups": [
+                  "/infra/domains/default/groups/Admins"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/DMZ"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/SSH"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": false,
+                "tag": "Admins_SSH"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Others_no_SSH",
+                "display_name": "Others no SSH",
+                "sequence_number": 100,
+                "source_groups": [
+                  "/infra/domains/default/groups/Admins"
+                ],
+                "sources_excluded": true,
+                "destination_groups": [
+                  "/infra/domains/default/groups/DMZ"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/SSH"
+                ],
+                "action": "REJECT",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": false,
+                "tag": "Others_no_SSH"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Engineering_to_PLCs",
+                "display_name": "Engineering to PLCs",
+                "sequence_number": 110,
+                "source_groups": [
+                  "10.10.7.15"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/OT_cell"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/Modbus"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": false,
+                "tag": "Engineering_to_PLCs"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "FTP_to_partner",
+                "display_name": "FTP to partner",
+                "sequence_number": 120,
+                "source_groups": [
+                  "/infra/domains/default/groups/LAN"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "198.51.100.40"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/FTP-2"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": false,
+                "tag": "FTP_to_partner"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "TLS_out",
+                "display_name": "TLS out",
+                "sequence_number": 130,
+                "source_groups": [
+                  "/infra/domains/default/groups/LAN"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "ANY"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/HTTPS"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "TLS_out",
+                "notes": "FWSHIFT disabled, see the report: not converted: context profile SSL (layer 7: applications, domain names), which the model has no place for"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Ping_over_IPv6",
+                "display_name": "Ping over IPv6",
+                "sequence_number": 140,
+                "source_groups": [
+                  "::/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "ANY"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/ICMP-ALL"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": false,
+                "tag": "Ping_over_IPv6"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Old_rule",
+                "display_name": "Old rule",
+                "sequence_number": 150,
+                "source_groups": [
+                  "/infra/domains/default/groups/LAN"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/DB_servers"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/MySQL-2"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "Old_rule",
+                "notes": "disabled in the source"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "fwshift-default-deny",
+                "display_name": "fwshift-default-deny",
+                "sequence_number": 160,
+                "source_groups": [
+                  "ANY"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "ANY"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "DROP",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": false,
+                "notes": "FWShift: what no rule above allows is dropped, as the source policy does"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

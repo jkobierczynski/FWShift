@@ -1,0 +1,804 @@
+{
+  "resource_type": "Infra",
+  "children": [
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "SSH-2",
+        "display_name": "SSH",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "22"
+            ],
+            "source_ports": [],
+            "id": "SSH-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "HTTP_S",
+        "display_name": "HTTP+S",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "80",
+              "443"
+            ],
+            "source_ports": [],
+            "id": "HTTP_S-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "Web-Group_entries",
+        "display_name": "Web-Group entries",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "8080"
+            ],
+            "source_ports": [],
+            "id": "Web-Group_entries-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "Web-Group",
+        "display_name": "Web-Group",
+        "service_entries": [
+          {
+            "resource_type": "NestedServiceServiceEntry",
+            "id": "nested-1",
+            "nested_service_path": "/infra/services/HTTP_S"
+          },
+          {
+            "resource_type": "NestedServiceServiceEntry",
+            "id": "nested-2",
+            "nested_service_path": "/infra/services/Web-Group_entries"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "DNS-2",
+        "display_name": "DNS",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "53"
+            ],
+            "source_ports": [],
+            "id": "DNS-1"
+          },
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "UDP",
+            "destination_ports": [
+              "53"
+            ],
+            "source_ports": [],
+            "id": "DNS-2"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "Ping",
+        "display_name": "Ping",
+        "service_entries": [
+          {
+            "resource_type": "ICMPTypeServiceEntry",
+            "protocol": "ICMPv4",
+            "id": "Ping-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "GRE",
+        "display_name": "GRE",
+        "service_entries": [
+          {
+            "resource_type": "IPProtocolServiceEntry",
+            "protocol_number": 47,
+            "id": "GRE-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "Odd-Ports",
+        "display_name": "Odd-Ports",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "1000-2000"
+            ],
+            "source_ports": [
+              "1024-65535"
+            ],
+            "id": "Odd-Ports-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildResourceReference",
+      "id": "default",
+      "target_type": "Domain",
+      "children": [
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "Blocked-Nets_IPv4",
+            "display_name": "Blocked-Nets (IPv4)",
+            "expression": [
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "198.51.100.0/24"
+                ]
+              }
+            ],
+            "description": "the addresses of 'Blocked-Nets' of IPv4"
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "Blocked-Nets_IPv6",
+            "display_name": "Blocked-Nets (IPv6)",
+            "expression": [
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "2001:db8:bad::/48"
+                ]
+              }
+            ],
+            "description": "the addresses of 'Blocked-Nets' of IPv6"
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "DMZ-Servers",
+            "display_name": "DMZ-Servers",
+            "expression": [
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "10.20.0.16-10.20.0.255"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "Office-LAN",
+            "display_name": "Office-LAN",
+            "expression": [
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "10.10.0.0/16"
+                ]
+              }
+            ],
+            "description": "the office"
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "Public-Web",
+            "display_name": "Public-Web",
+            "expression": [
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "203.0.113.10"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "Server-Group",
+            "display_name": "Server-Group",
+            "expression": [
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "10.20.0.80",
+                  "10.20.0.25"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "Updates_IPv4",
+            "display_name": "Updates (IPv4)",
+            "expression": [],
+            "description": "the addresses of 'Updates' of IPv4"
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "V6-Servers",
+            "display_name": "V6-Servers",
+            "expression": [
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "2001:db8:20::/64"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "Mail-Server",
+            "display_name": "Mail-Server",
+            "expression": [
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "10.20.0.25"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resource_type": "ChildSecurityPolicy",
+          "SecurityPolicy": {
+            "resource_type": "SecurityPolicy",
+            "id": "FWShift",
+            "display_name": "FWShift",
+            "category": "Application",
+            "sequence_number": 1,
+            "stateful": true,
+            "scope": [
+              "ANY"
+            ],
+            "description": "Generated by FWShift - review the conversion report before loading this.",
+            "rules": [
+              {
+                "resource_type": "Rule",
+                "id": "BLOCK-BAD",
+                "display_name": "BLOCK-BAD",
+                "sequence_number": 10,
+                "source_groups": [
+                  "/infra/domains/default/groups/Blocked-Nets_IPv4"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "DROP",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": false,
+                "tag": "BLOCK-BAD",
+                "notes": "known bad networks"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "BLOCK-BAD-V6",
+                "display_name": "BLOCK-BAD-V6",
+                "sequence_number": 20,
+                "source_groups": [
+                  "/infra/domains/default/groups/Blocked-Nets_IPv6"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "::/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "DROP",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": false,
+                "tag": "BLOCK-BAD-V6"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "ADMIN-SSH_port2",
+                "display_name": "ADMIN-SSH (port2)",
+                "sequence_number": 30,
+                "source_groups": [
+                  "10.10.5.10/31"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/DMZ-Servers"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/SSH-2"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "ADMIN-SSH__port2_",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone port2, and a rule of the distributed firewall names no zone: give the networks behind port2 with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "ADMIN-SSH_port1",
+                "display_name": "ADMIN-SSH (port1)",
+                "sequence_number": 40,
+                "source_groups": [
+                  "192.0.2.50"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/DMZ-Servers"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/SSH-2"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "ADMIN-SSH__port1_",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone port1, and a rule of the distributed firewall names no zone: give the networks behind port1 with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "LAN-2-INTERNET",
+                "display_name": "LAN-2-INTERNET",
+                "sequence_number": 50,
+                "source_groups": [
+                  "/infra/domains/default/groups/Office-LAN"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/HTTP_S"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": false,
+                "tag": "LAN-2-INTERNET"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "WEB-IN",
+                "display_name": "WEB-IN",
+                "sequence_number": 60,
+                "source_groups": [
+                  "0.0.0.0/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/Public-Web"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/HTTP_S"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "WEB-IN",
+                "notes": "FWSHIFT disabled, see the report: not converted: action Dst NAT: how the API spells its target list is not known, so the translation is not read"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "SERVER-SYNC",
+                "display_name": "SERVER-SYNC",
+                "sequence_number": 70,
+                "source_groups": [
+                  "/infra/domains/default/groups/DMZ-Servers"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/Office-LAN"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/Web-Group"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": false,
+                "tag": "SERVER-SYNC"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "SERVER-SYNC_back",
+                "display_name": "SERVER-SYNC (back)",
+                "sequence_number": 80,
+                "source_groups": [
+                  "/infra/domains/default/groups/Office-LAN"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/DMZ-Servers"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/Web-Group"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": false,
+                "tag": "SERVER-SYNC__back_"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "DNS-OUT",
+                "display_name": "DNS-OUT",
+                "sequence_number": 90,
+                "source_groups": [
+                  "/infra/domains/default/groups/Server-Group"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/DNS-2"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "DNS-OUT",
+                "notes": "disabled in the source"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "PING-ALL",
+                "display_name": "PING-ALL",
+                "sequence_number": 100,
+                "source_groups": [
+                  "/infra/domains/default/groups/Office-LAN"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/Ping"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": false,
+                "tag": "PING-ALL"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "UPDATES",
+                "display_name": "UPDATES",
+                "sequence_number": 110,
+                "source_groups": [
+                  "/infra/domains/default/groups/DMZ-Servers"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/Updates_IPv4"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/HTTP_S"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "UPDATES",
+                "notes": "FWSHIFT disabled, see the report: host name object updates.example.com (IPv4): a group of NSX holds addresses; a domain name needs a context profile, which is not written"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "V6-WEB",
+                "display_name": "V6-WEB",
+                "sequence_number": 120,
+                "source_groups": [
+                  "::/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/V6-Servers"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/HTTP_S"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": false,
+                "tag": "V6-WEB"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "DENY-LAN-DMZ",
+                "display_name": "DENY-LAN-DMZ",
+                "sequence_number": 130,
+                "source_groups": [
+                  "/infra/domains/default/groups/Office-LAN"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/DMZ-Servers"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "REJECT",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": false,
+                "tag": "DENY-LAN-DMZ"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "GRE-LAB",
+                "display_name": "GRE-LAB",
+                "sequence_number": 140,
+                "source_groups": [
+                  "/infra/domains/default/groups/Office-LAN"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/Mail-Server"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/GRE"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": false,
+                "tag": "GRE-LAB"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "TO-LAB",
+                "display_name": "TO-LAB",
+                "sequence_number": 150,
+                "source_groups": [
+                  "/infra/domains/default/groups/Office-LAN"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "DROP",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "TO-LAB",
+                "notes": "FWSHIFT disabled, see the report: not converted: action Cascade: the rules of the rule list it hands traffic to are not read, and they decide that traffic"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "ODD",
+                "display_name": "ODD",
+                "sequence_number": 160,
+                "source_groups": [
+                  "/infra/domains/default/groups/Office-LAN"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/Odd-Ports"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "ODD",
+                "notes": "FWSHIFT disabled, see the report: schedule '{\"type\": \"recurring\", \"name\": \"Work-Hours\"}' is not converted; the rule would apply at all times"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "BLOCKALL",
+                "display_name": "BLOCKALL",
+                "sequence_number": 170,
+                "source_groups": [
+                  "0.0.0.0/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "DROP",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": false,
+                "tag": "BLOCKALL"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "fwshift-default-deny",
+                "display_name": "fwshift-default-deny",
+                "sequence_number": 180,
+                "source_groups": [
+                  "ANY"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "ANY"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "DROP",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": false,
+                "notes": "FWShift: what no rule above allows is dropped, as the source policy does"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

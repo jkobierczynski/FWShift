@@ -1,0 +1,73 @@
+FWShift conversion report
+  source: iptables (IPv4)
+  target: nsx
+
+Summary
+  Security rules:     15   exact 0, approximated 2, needs review 13 (12 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain INPUT (3 rules, policy DROP) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] NSX_LOAD: the output is the body of one hierarchical PATCH of the Policy API: curl -X PATCH -H 'Content-Type: application/json' --data @FILE https://MANAGER/policy/api/v1/infra. It creates or updates the services, the groups and one security policy of category Application (sequence number 1: give it the place you want), and leaves everything else alone, except objects of the same id, which it changes: give --target-prefix to keep the new ones apart. There is no dry run: load it on a lab manager first
+  [needs-review] NSX_DEFAULT_DENY: the source denies what no rule allows: the policy ends in fwshift-default-deny, which drops every connection no rule above it allows, for all workloads. It ends the Application category: policies after it and the default layer-3 rule are never reached
+  [info] PASSIVE_TARGETS: 1 FORWARD rule with target LOG decides nothing and was left out; a LOG rule directly before a rule with the same match sets its logging
+
+Security rules
+  Block bad host  ->  needs-review  (emitted as rule Block_bad_host)
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+  Guests stay in  ->  approximated  (emitted as rule Guests_stay_in)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone eth1; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone eth0; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  LAN web  ->  needs-review, emitted disabled  (emitted as rule LAN_web)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the distributed firewall names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a rule of the distributed firewall names no zone: give the networks behind eth0 with --zone-network.
+  LAN DNS  ->  needs-review, emitted disabled  (emitted as rule LAN_DNS)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the distributed firewall names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a rule of the distributed firewall names no zone: give the networks behind eth0 with --zone-network.
+  LAN DNS-2  ->  needs-review, emitted disabled  (emitted as rule LAN_DNS-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the distributed firewall names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a rule of the distributed firewall names no zone: give the networks behind eth0 with --zone-network.
+  Inbound web  ->  needs-review, emitted disabled  (emitted as rule Inbound_web)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth0, and a rule of the distributed firewall names no zone: give the networks behind eth0 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of the distributed firewall names no zone: give the networks behind eth2 with --zone-network.
+  Inbound mail  ->  needs-review, emitted disabled  (emitted as rule Inbound_mail)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth0, and a rule of the distributed firewall names no zone: give the networks behind eth0 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of the distributed firewall names no zone: give the networks behind eth2 with --zone-network.
+  Admins SSH  ->  needs-review, emitted disabled  (emitted as rule Admins_SSH)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the distributed firewall names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of the distributed firewall names no zone: give the networks behind eth2 with --zone-network.
+  Admins RDP  ->  needs-review, emitted disabled  (emitted as rule Admins_RDP)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the distributed firewall names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of the distributed firewall names no zone: give the networks behind eth2 with --zone-network.
+  SCADA to PLCs  ->  needs-review, emitted disabled  (emitted as rule SCADA_to_PLCs)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the distributed firewall names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth3, and a rule of the distributed firewall names no zone: give the networks behind eth3 with --zone-network.
+  OT no internet  ->  approximated  (emitted as rule OT_no_internet)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone eth3; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone eth0; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  DMZ updates  ->  needs-review, emitted disabled  (emitted as rule DMZ_updates)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth2, and a rule of the distributed firewall names no zone: give the networks behind eth2 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a rule of the distributed firewall names no zone: give the networks behind eth0 with --zone-network.
+  Rate limited mail  ->  needs-review, emitted disabled  (emitted as rule Rate_limited_mail)
+      [needs-review] UNSUPPORTED_MATCH: not converted: match module 'limit'.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the distributed firewall names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a rule of the distributed firewall names no zone: give the networks behind eth0 with --zone-network.
+  Ping the DMZ  ->  needs-review, emitted disabled  (emitted as rule Ping_the_DMZ)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the distributed firewall names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth2, and a rule of the distributed firewall names no zone: give the networks behind eth2 with --zone-network.
+  Partner tunnel  ->  needs-review, emitted disabled  (emitted as rule Partner_tunnel)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone eth1, and a rule of the distributed firewall names no zone: give the networks behind eth1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone eth0, and a rule of the distributed firewall names no zone: give the networks behind eth0 with --zone-network.
+
+NAT rules
+  Web DNAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  Mail DNAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  No NAT to partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  DMZ out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  LAN out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees

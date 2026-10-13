@@ -45,21 +45,22 @@ target, written), **0.11.0, Barracuda CloudGen Firewall** (saved answers
 of its REST API, read; a script of calls to that API, written; the
 configuration backup is not readable), **0.12.0, Juniper SRX**
 (`display set` or the configuration in braces, read; set commands for
-`load set`, written), and **0.18.0, nftables** (`nft list ruleset`, text or
+`load set`, written), **0.18.0, nftables** (`nft list ruleset`, text or
 JSON, read: every base chain at the forward hook, sets, maps, NAT; one table
-for `nft -f`, written; checked against the kernel with real packets).
+for `nft -f`, written; checked against the kernel with real packets), and
+**0.19.0, VMware NSX distributed firewall** (the JSON of the Policy API,
+read: categories, jump to Application, the default rule, groups by address,
+path, segment or membership criteria, applied-to and direction as far as they
+decide; the body of one hierarchical `PATCH`, written).
 What each rests on and what nobody has checked on a device is in
 the development log.
 
 Planned next, one release each (2026-10-13):
 
-1. **0.19.0, VMware NSX distributed firewall**: the policies and groups of
-   the NSX Policy API, read and written (calls of that API). Security groups
-   by membership criteria, applied-to, categories.
-2. **0.20.0, AWS security groups** (and network ACLs where they decide):
+1. **0.20.0, AWS security groups** (and network ACLs where they decide):
    the answers of `aws ec2 describe-security-groups`, read; the calls that
    create them, written. Stateful allow lists without order and without deny.
-3. **0.21.0, Azure network security groups**: the JSON of an NSG (Azure CLI
+2. **0.21.0, Azure network security groups**: the JSON of an NSG (Azure CLI
    or Resource Graph), read and written. Priorities, service tags,
    application security groups, the default rules.
 
@@ -223,6 +224,12 @@ altered, from the audit's set arithmetic.
 15. Static NAT between address sets of different size is reported for ASA and
     Cisco Secure Firewall targets, which wrap around, and not for PAN-OS,
     where the commit fails.
+16. NSX: the gateway firewall of Tier-0 and Tier-1 gateways, and its NAT;
+    context profiles (layer-7 applications, FQDNs) as App-IDs where the
+    target has them; the members of dynamic groups fetched (`.../groups/ID/
+    members/ip-addresses`) by a script the manual names; the distributed
+    firewall's logs for `fwshift usage`; one policy per category written,
+    instead of one policy of category Application.
 
 ## Validation
 
@@ -288,6 +295,13 @@ altered, from the audit's set arithmetic.
    two sides of destination NAT; the plain in-order reference for the audit.
    They were run from the reviewer's scratch directory and are not in the
    repository.
+11. NSX, on an NSX Manager 4.x in a lab: export a policy with the call of
+   the manual and compare it with `nsx_sample.json` (whether rules come
+   inline or as children, the ids of the default policy and rule, the system
+   services); send `panos_to_nsx.json` and `nsx_to_nsx.json` with `PATCH` and
+   record what it refuses (`profiles`, ids of service entries, ids with
+   `-`); check what a segment in a group matches, and that a connection is
+   checked at both ends.
 
 ## Project
 

@@ -1,0 +1,34 @@
+FWShift conversion report
+  source: nsx
+  target: nsx
+
+Summary
+  Security rules:     15   exact 11, approximated 0, needs review 4 (3 emitted disabled), skipped 0
+  Address groups:      9   exact 8, approximated 0, needs review 1, skipped 0
+  Services:           10   exact 9, approximated 1, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] DYNAMIC_MEMBERSHIP: groups whose members NSX finds itself (tags, names, virtual machines, segment ports) are kept as dynamic groups: only an NSX target writes them again; other targets write their rules disabled. Export the members (GET .../groups/ID/members/ip-addresses) and make them address groups to convert those rules
+  [needs-review] NSX_LOAD: the output is the body of one hierarchical PATCH of the Policy API: curl -X PATCH -H 'Content-Type: application/json' --data @FILE https://MANAGER/policy/api/v1/infra. It creates or updates the services, the groups and one security policy of category Application (sequence number 1: give it the place you want), and leaves everything else alone, except objects of the same id, which it changes: give --target-prefix to keep the new ones apart. There is no dry run: load it on a lab manager first
+  [needs-review] NSX_DEFAULT_DENY: the source denies what no rule allows: the policy ends in fwshift-default-deny, which drops every connection no rule above it allows, for all workloads. It ends the Application category: policies after it and the default layer-3 rule are never reached
+  [info] LAYER2_NOT_CONVERTED: 1 rules of the Ethernet category (layer 2, before every layer-3 rule) are not converted
+
+Security rules
+  LAN block the rest  ->  needs-review, emitted disabled  (emitted as rule LAN_block_the_rest)
+      [needs-review] UNSUPPORTED_MATCH: not converted: follows a conditional jump to the application rules (rule 'LAN to the application rules'), which cannot be expressed. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Inbound web  ->  needs-review  (emitted as rule Inbound_web)
+      [needs-review] APPLIED_TO_ONE_END: applied to DMZ, which holds its destinations and not its sources: where its sources are workloads of NSX, NSX checks that end against the rules below this one, and may drop what this rule allows. The converted rule allows it at both ends
+  App to DB  ->  needs-review, emitted disabled  (emitted as rule App_to_DB)
+      [needs-review] APPLIED_TO_ONE_END: applied to DMZ, which holds its sources and not its destinations: where its destinations are workloads of NSX, NSX checks that end against the rules below this one, and may drop what this rule allows. The converted rule allows it at both ends
+      [needs-review] UNSUPPORTED_MATCH: not converted: direction IN only: NSX checks the other end of the connection against the rules below it, which one rule cannot say.
+  TLS out  ->  needs-review, emitted disabled  (emitted as rule TLS_out)
+      [needs-review] UNSUPPORTED_MATCH: not converted: context profile SSL (layer 7: applications, domain names), which the model has no place for.
+
+Address groups
+  OT cell  ->  needs-review
+      [needs-review] SEGMENT_AS_SUBNET: a segment in the group stands for its subnet here. NSX means the workloads attached to it: the subnet also holds the gateway and other addresses that are not members
+
+Services
+  FTP  ->  approximated
+      [approximated] ALG_SERVICE: application level gateway FTP: converted as its port. NSX also lets through the connections the protocol opens (an FTP data connection, RPC ports); a target without such a helper does not

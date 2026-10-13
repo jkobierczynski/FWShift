@@ -210,6 +210,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <li><a href="#junos">Juniper SRX</a></li>
       <li><a href="#iptables">iptables</a></li>
       <li><a href="#nftables">nftables</a></li>
+      <li><a href="#nsx">VMware NSX</a></li>
     </ul>
     <h4>Analysis</h4>
     <ul>
@@ -224,7 +225,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
 
 <main id="top">
 <header class="mast">
-  <div class="eyebrow">Field guide · version 0.18</div>
+  <div class="eyebrow">Field guide · version 0.19</div>
   <h1>FWShift, feature by feature</h1>
   <p class="lead">FWShift converts firewall policies between thirteen platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
   <div class="facts">
@@ -301,6 +302,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <tr><td>Juniper SRX</td><td><code>junos</code></td><td><code>display set</code> or braces</td><td><code>set</code> commands</td></tr>
       <tr><td>iptables / ip6tables</td><td><code>iptables</code>, <code>ip6tables</code></td><td><code>iptables-save</code></td><td><code>iptables-restore</code> file</td></tr>
       <tr><td>nftables</td><td><code>nftables</code></td><td><code>nft list ruleset</code>, text or JSON</td><td>one table for <code>nft -f</code></td></tr>
+      <tr><td>VMware NSX (distributed firewall)</td><td><code>nsx</code></td><td>Policy API JSON (hierarchical or lists)</td><td>body of one <code>PATCH</code></td></tr>
       <tr><td>Neutral model</td><td><code>json</code> (target only)</td><td>—</td><td>the model, with source IDs, targets, hits</td></tr>
     </tbody>
   </table></div>
@@ -311,11 +313,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
   <h2><span class="num">2</span>Install and run</h2>
   <p>Each release has three packages: the project as a zip, a single file that runs with any Python 3.9 or newer, and a wheel for <code>pip</code>. Nothing else needs installing.</p>
   <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># one file, nothing to install</span>
-python3 fwshift-0.18.0.pyz --version
-python3 fwshift-0.18.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.19.0.pyz --version
+python3 fwshift-0.19.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 
 <span class="c"># or with pip</span>
-pip install fwshift-0.18.0-py3-none-any.whl
+pip install fwshift-0.19.0-py3-none-any.whl
 fwshift convert running-config.xml --to fortios -o fortigate.conf</pre></div>
   <p>The input may be <code>-</code> for standard input. The source format is detected (XML root elements, JSON keys, CLI keywords); give <code>--from</code> when detection could be ambiguous, for example <code>--from ip6tables</code>.</p>
 </section>
@@ -377,10 +379,10 @@ findings while reading:
   <div class="tablewrap"><table>
     <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense sonicwall watchguard barracuda junos iptables ip6tables nftables json</code>.</td></tr>
+      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx json</code>.</td></tr>
       <tr><td><code>--zone-map SRC=DST</code></td><td>Rename a zone or interface. For iptables, nftables and ASA, this is how a zone becomes an interface.</td></tr>
       <tr><td><code>--interface-map SRC=DST</code></td><td>Map a source interface to a target interface: FortiOS zone members, interface NAT, Sophos/SonicWall/FDM NAT interfaces, Barracuda source interfaces.</td></tr>
-      <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, Barracuda; SonicWall object zones).</td></tr>
+      <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, Barracuda, NSX; SonicWall object zones).</td></tr>
       <tr><td><code>--app-map FILE</code></td><td>JSON of extra application-to-port mappings.</td></tr>
       <tr><td><code>--target-vsys</code>, <code>--target-device-group</code>, <code>--target-shared</code></td><td>Where PAN-OS output goes.</td></tr>
       <tr><td><code>--target-vdom</code>, <code>--policy-id-start N</code></td><td>FortiOS VDOM wrapper; first policy ID (0 lets the FortiGate pick).</td></tr>
@@ -552,6 +554,7 @@ m add nat-rule package Standard position bottom original-destination web-public 
     <a href="#junos"><b>Juniper SRX</b><span>display set</span></a>
     <a href="#iptables"><b>iptables</b><span>iptables-save</span></a>
     <a href="#nftables"><b>nftables</b><span>nft list ruleset</span></a>
+    <a href="#nsx"><b>VMware NSX</b><span>Policy API → PATCH</span></a>
   </div>
 
   <div class="filterbar">
@@ -957,6 +960,39 @@ table inet fwshift {
 	}
 }</pre></div>
   </article>
+  <!-- nsx -->
+  <article class="brand" id="nsx">
+    <h3>VMware NSX</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>Policy API JSON</span></span><span class="port"><i>OUT</i><span>body of one PATCH</span></span><span class="port"><i>ID</i><span>nsx</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>The distributed firewall, from the Policy API (NSX-T 3.x, NSX 4.x). One call gives the whole tree; the list answers of groups, services and security policies (with their rules), saved into one JSON array, are read too. The gateway firewall is counted and not converted.</p>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>curl -sS -u admin 'https://MANAGER/policy/api/v1/infra?type_filter=Domain;Group;SecurityPolicy;Rule;Service;ServiceEntry;Segment' &gt; nsx.json
+fwshift convert nsx.json --to fortios -o fortigate.conf --report report.txt</pre></div>
+    <h4 class="sub">Options</h4>
+    <p><code>--zone-network</code> for every zone (the distributed firewall has no zones), <code>--target-prefix</code> (ids of the new objects), <code>--target-policy</code> (name of the policy, default <code>FWShift</code>).</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to nsx -o nsx-body.json --target-prefix mig- \
+    --zone-network trust=10.10.0.0/16 --zone-network dmz=10.20.0.0/24 --zone-network untrust=0.0.0.0/0,::/0
+curl -sS -u admin -H 'Content-Type: application/json' -X PATCH --data @nsx-body.json \
+    https://MANAGER/policy/api/v1/infra      <span class="c"># on a lab manager first: there is no dry run</span></pre></div>
+    <div class="callout"><b>Where the policy lands.</b> One security policy of category Application, sequence number 1: move it where it belongs (<code>NSX_LOAD</code>). If the source denies by default, it ends in <code>fwshift-default-deny</code>, which drops what no rule above allows for every workload, so policies after it are never reached (<code>NSX_DEFAULT_DENY</code>).</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Categories run in a fixed order, Ethernet is not converted; <code>JUMP_TO_APPLICATION</code> skips the rest of Environment. Policies or rules with the same sequence number run in an order NSX does not define (<code>EQUAL_SEQUENCE</code>). The default layer-3 rule allows unless changed (<code>DEFAULT_ALLOW</code>); without it in the export, the converted policy denies (<code>DEFAULT_RULE_MISSING</code>).</li>
+      <li>Groups NSX fills itself (tags, names, virtual machines) stay dynamic groups, which only NSX writes again; other targets disable their rules (<code>DYNAMIC_MEMBERSHIP</code>). A segment stands for its subnet (<code>SEGMENT_AS_SUBNET</code>).</li>
+      <li>NSX checks a connection at both ends. An allow rule applied to one end only (<code>APPLIED_TO_ONE_END</code>) or for one direction (<code>DIRECTION</code>) does not decide alone; applied to neither end, it is written disabled.</li>
+      <li>Context profiles (layer-7 applications, FQDNs) disable the rule; ALG services become their port (<code>ALG_SERVICE</code>); EtherType services are not converted.</li>
+      <li>To NSX: zones become the networks of <code>--zone-network</code> (<code>ZONE_BY_NETWORKS</code>), and an allow rule whose zone has none is written disabled; host name objects disable the rule (<code>FQDN_NOT_SUPPORTED</code>); NAT is not written (<code>NAT_NOT_CONVERTED</code>): it belongs on the gateway, and the rules name the translated addresses.</li>
+    </ul>
+    <div class="codebox"><span class="label">output · nsx (one rule)</span><button class="copy" type="button">Copy</button><pre>{
+  "resource_type": "Rule", "id": "Inbound-Web", "sequence_number": 30,
+  "source_groups": ["0.0.0.0-10.9.255.255", "10.11.0.0-10.19.255.255", "10.20.1.0-255.255.255.255", "::/0"],
+  "destination_groups": ["10.20.0.10"],
+  "services": ["/infra/services/mig-service-https"],
+  "action": "ALLOW", "direction": "IN_OUT", "ip_protocol": "IPV4_IPV6",
+  "scope": ["ANY"], "logged": true, "disabled": false
+}</pre></div>
+  </article>
   <p id="nowatch" hidden>No watch item matches that filter.</p>
 </section>
 
@@ -1140,6 +1176,7 @@ fwshift usage rules.v4 --logs kern.log --log-year 2026 --unchanged-since 2026-01
     <tbody>
       <tr><td>iptables</td><td>Whole tables, unless <code>--noflush</code></td><td><code>iptables-restore --test</code>; an empty FORWARD chain</td></tr>
       <tr><td>nftables</td><td>Table <code>inet fwshift</code> only</td><td><code>nft -c -f</code>; look at the other forward chains</td></tr>
+      <tr><td>NSX</td><td>Services, groups and the policy of the same id</td><td><code>--target-prefix</code>; a lab manager (no dry run)</td></tr>
       <tr><td>pfSense</td><td>Each restored area (Aliases, NAT, Rules)</td><td>A full backup</td></tr>
       <tr><td>ASA</td><td>Interface <code>access-group</code> bindings; <code>global_access</code> on every interface</td><td>Read the <code>access-group</code> lines</td></tr>
       <tr><td>FortiOS</td><td>Objects of the same name; central NAT changes existing NAT</td><td>A lab device for <code>central-nat enable</code></td></tr>

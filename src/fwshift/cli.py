@@ -26,6 +26,7 @@ from .emitters import pfsense as emit_pfsense
 from .emitters import barracuda as emit_barracuda
 from .emitters import junos as emit_junos
 from .emitters import nftables as emit_nftables
+from .emitters import nsx as emit_nsx
 from .emitters import sonicwall as emit_sonicwall
 from .emitters import sophos as emit_sophos
 from .emitters import watchguard as emit_watchguard
@@ -43,6 +44,7 @@ from .parsers import pfsense as parse_pfsense
 from .parsers import barracuda as parse_barracuda
 from .parsers import junos as parse_junos
 from .parsers import nftables as parse_nftables
+from .parsers import nsx as parse_nsx
 from .parsers import sonicwall as parse_sonicwall
 from .parsers import sophos as parse_sophos
 from .parsers import watchguard as parse_watchguard
@@ -54,6 +56,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "iptables": emit_iptables.emit,
     "ip6tables": emit_iptables.emit_v6,
     "nftables": emit_nftables.emit,
+    "nsx": emit_nsx.emit,
     "checkpoint": emit_checkpoint.emit,
     "asa": emit_asa.emit,
     "sophos": emit_sophos.emit,
@@ -66,13 +69,14 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "fdm": emit_cisco.emit_fdm,
 }
 VENDORS = ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "pfsense", "sonicwall", "watchguard", "barracuda", "junos",
-           "iptables", "ip6tables", "nftables")  # fmt: skip
+           "iptables", "ip6tables", "nftables", "nsx")  # fmt: skip
 
 
 def detect_format(data: bytes) -> str:
     """A Sophos export is a tar archive or XML that starts with <Configuration>, other XML is PAN-OS; JSON is what a
     Cisco manager or the Check Point API returns, told apart by the types of the objects in it; a zip is the export
-    of a Cisco Firewall Device Manager; nft list ruleset output starts with "table" (its JSON with "nftables"),
+    of a Cisco Firewall Device Manager; nft list ruleset output starts with "table" (its JSON with "nftables"), JSON of the NSX Policy API has the
+    resource types of NSX,
     iptables-save output starts with a table, an ASA configuration has lines
     only an ASA writes; anything else is taken as FortiOS."""
     if parse_cisco.is_zip(data):
@@ -101,6 +105,8 @@ def detect_format(data: bytes) -> str:
         return "barracuda"
     if parse_nftables.looks_like_nftables(data):
         return "nftables"
+    if parse_nsx.looks_like_nsx(data):
+        return "nsx"
     head = data.lstrip(b"\xef\xbb\xbf \t\r\n")
     if head.startswith(b"<"):
         return "panos"
@@ -151,6 +157,8 @@ def load(
         return parse_iptables.parse(data, report, family=6 if source == "ip6tables" else 0)
     if source == "nftables":
         return parse_nftables.parse(data, report)
+    if source == "nsx":
+        return parse_nsx.parse(data, report)
     raise FwshiftError(f"unknown source format '{source}'")
 
 
@@ -410,8 +418,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="fwshift",
         description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall "
-        "(Management Center and Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX, iptables "
-        "and nftables, with a lossiness report.",
+        "(Management Center and Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX, iptables, "
+        "nftables and VMware NSX, with a lossiness report.",
     )
     parser.add_argument("--version", action="version", version=f"fwshift {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -429,7 +437,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conv.add_argument(
         "--zone-network", action="append", default=[], metavar="ZONE=NET[,NET]",
-        help="ASA, pfSense and Barracuda targets: the networks behind a zone, so that rules for other zones can leave them out. Give them "
+        help="ASA, pfSense, Barracuda and NSX targets: the networks behind a zone, so that rules for other zones can leave them out. Give them "
         "for every zone; 0.0.0.0/0,::/0 for the zone with the default route",
     )  # fmt: skip
     conv.add_argument("--app-map", metavar="FILE", help="JSON file: application name -> list of port specs")

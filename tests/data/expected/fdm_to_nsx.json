@@ -1,0 +1,483 @@
+{
+  "resource_type": "Infra",
+  "children": [
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "HTTP-2",
+        "display_name": "HTTP",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "80"
+            ],
+            "source_ports": [],
+            "id": "HTTP-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "HTTPS-2",
+        "display_name": "HTTPS",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "443"
+            ],
+            "source_ports": [],
+            "id": "HTTPS-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "web",
+        "display_name": "web",
+        "service_entries": [
+          {
+            "resource_type": "NestedServiceServiceEntry",
+            "id": "nested-1",
+            "nested_service_path": "/infra/services/HTTP-2"
+          },
+          {
+            "resource_type": "NestedServiceServiceEntry",
+            "id": "nested-2",
+            "nested_service_path": "/infra/services/HTTPS-2"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "DNS_over_UDP",
+        "display_name": "DNS_over_UDP",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "UDP",
+            "destination_ports": [
+              "53"
+            ],
+            "source_ports": [],
+            "id": "DNS_over_UDP-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "nas-web",
+        "display_name": "nas-web",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "5001"
+            ],
+            "source_ports": [],
+            "id": "nas-web-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "rdp-2",
+        "display_name": "rdp",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "3389"
+            ],
+            "source_ports": [],
+            "id": "rdp-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "echo-request",
+        "display_name": "echo-request",
+        "service_entries": [
+          {
+            "resource_type": "ICMPTypeServiceEntry",
+            "protocol": "ICMPv4",
+            "icmp_type": 8,
+            "id": "echo-request-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "gre",
+        "display_name": "gre",
+        "service_entries": [
+          {
+            "resource_type": "IPProtocolServiceEntry",
+            "protocol_number": 47,
+            "id": "gre-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "udp-src-53-dst-1024-65535",
+        "display_name": "udp-src-53-dst-1024-65535",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "UDP",
+            "destination_ports": [
+              "1024-65535"
+            ],
+            "source_ports": [
+              "53"
+            ],
+            "id": "udp-src-53-dst-1024-65535-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "port-unreachable",
+        "display_name": "port-unreachable",
+        "service_entries": [
+          {
+            "resource_type": "ICMPTypeServiceEntry",
+            "protocol": "ICMPv4",
+            "icmp_type": 3,
+            "icmp_code": 3,
+            "id": "port-unreachable-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildResourceReference",
+      "id": "default",
+      "target_type": "Domain",
+      "children": [
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "vendor-cloud",
+            "display_name": "vendor-cloud",
+            "expression": []
+          }
+        },
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "office-devices",
+            "display_name": "office-devices",
+            "expression": [
+              {
+                "resource_type": "IPAddressExpression",
+                "ip_addresses": [
+                  "10.40.0.10",
+                  "10.40.0.200-10.40.0.220"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "resource_type": "ChildSecurityPolicy",
+          "SecurityPolicy": {
+            "resource_type": "SecurityPolicy",
+            "id": "FWShift",
+            "display_name": "FWShift",
+            "category": "Application",
+            "sequence_number": 1,
+            "stateful": true,
+            "scope": [
+              "ANY"
+            ],
+            "description": "Generated by FWShift - review the conversion report before loading this.",
+            "rules": [
+              {
+                "resource_type": "Rule",
+                "id": "Block_IoT_to_office",
+                "display_name": "Block_IoT_to_office",
+                "sequence_number": 10,
+                "source_groups": [
+                  "10.41.0.0/24"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "10.40.0.0/24"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "DROP",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": false,
+                "tag": "Block_IoT_to_office"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Inside_Outside_web",
+                "display_name": "Inside_Outside_web",
+                "sequence_number": 20,
+                "source_groups": [
+                  "10.40.0.0/24"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "ANY"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/web",
+                  "/infra/services/DNS_over_UDP"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "Inside_Outside_web",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone inside_zone, and a rule of the distributed firewall names no zone: give the networks behind inside_zone with --zone-network; the destination of the rule is in zone outside_zone, and a rule of the distributed firewall names no zone: give the networks behind outside_zone with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "IoT_telemetry",
+                "display_name": "IoT_telemetry",
+                "sequence_number": 30,
+                "source_groups": [
+                  "10.41.0.0/24"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/vendor-cloud"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/HTTPS-2"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "IoT_telemetry",
+                "notes": "FWSHIFT disabled, see the report: host name object vendor-cloud: a group of NSX holds addresses; a domain name needs a context profile, which is not written; the source of the rule is in zone inside_zone, and a rule of the distributed firewall names no zone: give the networks behind inside_zone with --zone-network; the destination 'vendor-cloud' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "NAS_from_Internet",
+                "display_name": "NAS_from_Internet",
+                "sequence_number": 40,
+                "source_groups": [
+                  "ANY"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "10.40.0.10"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/nas-web"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "NAS_from_Internet",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone outside_zone, and a rule of the distributed firewall names no zone: give the networks behind outside_zone with --zone-network; the destination of the rule is in zone inside_zone, and a rule of the distributed firewall names no zone: give the networks behind inside_zone with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Head_office_v6",
+                "display_name": "Head_office_v6",
+                "sequence_number": 50,
+                "source_groups": [
+                  "2001:db8:1::/48"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/office-devices"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/rdp-2",
+                  "/infra/services/echo-request",
+                  "/infra/services/gre"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "Head_office_v6",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone outside_zone, and a rule of the distributed firewall names no zone: give the networks behind outside_zone with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "DNS_answers",
+                "display_name": "DNS_answers",
+                "sequence_number": 60,
+                "source_groups": [
+                  "ANY"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "ANY"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/udp-src-53-dst-1024-65535"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "DNS_answers",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone outside_zone, and a rule of the distributed firewall names no zone: give the networks behind outside_zone with --zone-network; the destination of the rule is in zone inside_zone, and a rule of the distributed firewall names no zone: give the networks behind inside_zone with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Staff_streaming",
+                "display_name": "Staff_streaming",
+                "sequence_number": 70,
+                "source_groups": [
+                  "ANY"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "ANY"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "DROP",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "Staff_streaming",
+                "notes": "FWSHIFT disabled, see the report: not converted: an application condition"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Guests_by_time",
+                "display_name": "Guests_by_time",
+                "sequence_number": 80,
+                "source_groups": [
+                  "10.40.0.200-10.40.0.220"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "ANY"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/port-unreachable"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "Guests_by_time",
+                "notes": "FWSHIFT disabled, see the report: schedule 'office-hours' is not converted; the rule would apply at all times; the source of the rule is in zone inside_zone, and a rule of the distributed firewall names no zone: give the networks behind inside_zone with --zone-network; the destination of the rule is in zone outside_zone, and a rule of the distributed firewall names no zone: give the networks behind outside_zone with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "fwshift-default-deny",
+                "display_name": "fwshift-default-deny",
+                "sequence_number": 90,
+                "source_groups": [
+                  "ANY"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "ANY"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "DROP",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": false,
+                "notes": "FWShift: what no rule above allows is dropped, as the source policy does"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

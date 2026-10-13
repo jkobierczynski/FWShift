@@ -8,11 +8,11 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.18.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`) |
-| Tests | 3530, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, a Check Point management server, a Cisco Management Center or a Device Manager |
-| Next | brands 0.19.0 to 0.21.0: VMware NSX, AWS security groups, Azure NSG; then the zone and conduit model as a gate (0.22.0); lab validation of the sample conversions (see `TODO.md`) |
+| Version | 0.19.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`) |
+| Tests | 3625, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, a Check Point management server, a Cisco Management Center or a Device Manager |
+| Next | brands 0.20.0 and 0.21.0: AWS security groups, Azure NSG; then the zone and conduit model as a gate (0.22.0); lab validation of the sample conversions (see `TODO.md`) |
 
 ## Layout
 
@@ -42,6 +42,9 @@ src/fwshift/
         nftables.py   nft list ruleset, text or JSON -> model (every base chain
                       at the forward hook combined; chains, sets and maps
                       flattened)
+        nsx.py        NSX Policy API JSON -> model (categories, sequence
+                      numbers, jump to Application, default rule; applied-to,
+                      direction and IP version as far as they decide)
     emitters/
         panos.py      model -> PAN-OS set commands
         fortios.py    model -> FortiOS CLI configuration
@@ -66,6 +69,8 @@ src/fwshift/
         iptables.py   model -> iptables-restore / ip6tables-restore file
         nftables.py   model -> one table for nft -f (anonymous sets; NAT
                       through the iptables planner)
+        nsx.py        model -> the body of one hierarchical PATCH (services,
+                      groups, one security policy; zones as networks)
     transform.py      passes shared by the emitters: hardening of names,
                       references, placeholders, names, application lowering,
                       NAT destination rewriting, NAT order, pruning
@@ -110,8 +115,8 @@ tests/
                       FortiOS logs (and panos_logged.xml), the two
                       Cisco Secure Firewall samples and the SonicWall,
                       WatchGuard, Barracuda and Juniper samples, the nftables
-                      sample (written by nft itself), and the kernel checks
-                      for iptables and nftables
+                      sample (written by nft itself), the NSX sample, and the
+                      kernel checks for iptables and nftables
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
                       Check Point, ASA, Sophos and Cisco Secure Firewall output;
                       a pfSense that judges packets from its configuration;
@@ -125,6 +130,8 @@ tests/
     test_iptables.py  iptables both ways, a packet simulator, cross-format NAT
     test_nftables.py  nftables both ways, against a walk through the chains as
                       the kernel runs them; with nft, listings of the kernel
+    test_nsx.py       NSX both ways, against a judge of Policy API JSON that
+                      shares no code with the parser
     test_checkpoint.py Check Point both ways, with simulators for an export
                       and for an emitted script
     test_asa.py       Cisco ASA both ways, with a random ASA that judges
@@ -509,6 +516,9 @@ there for an old tag whose tests no longer run on today's tools.
 | iptables: `FORWARD` and `nat` only | The other platforms filter what passes through them; `INPUT` and `OUTPUT` protect the host itself and have no counterpart. Writing them would also lock people out of the host they load the file on. |
 | nftables: one table, replaced whole | `table` / `delete table` / `table { ... }` in one file is one transaction: the table is replaced at once and nothing else is touched. `flush ruleset` would wipe firewalld, Docker and libvirt too. |
 | nftables: base chains combined into one list | The kernel runs every base chain at a hook; the model has one rulebase. A rule that accepts is followed by the next chain's rules under it, which is exact and keeps the order of logging. |
+| NSX: one hierarchical `PATCH` | One call creates services, groups and the policy together, or none of them; a `PATCH` changes only what it names. A policy of category Application with sequence number 1 lands where a person can see and move it. |
+| NSX: zones as the networks behind them | The distributed firewall has no zones and runs at every workload. A rule between zones is written for the networks of `--zone-network`, as for Barracuda; an allow rule whose zones have none is written disabled. |
+| NSX: applied-to and direction read only as far as they decide | NSX checks a connection at both ends. An allow rule that applies to one end, or to one direction, does not decide alone what the other end does; it is flagged or written disabled rather than read as allowing everywhere. |
 | iptables: lists become chains | iptables has no objects and a rule matches one address per side. A chain per list keeps a rule with long or negated lists to one jump, instead of a product of lines. |
 | Check Point input is API JSON | There is no configuration file. The API export is documented, versioned and what other tools consume. |
 | Check Point output is a `mgmt_cli` script that stops at the first error and never publishes | The session is the unit of change on a management server: a person reviews it in SmartConsole and publishes or discards. A script that carried on after a refused call would leave a policy with rules missing. |
@@ -560,6 +570,7 @@ policy behaves unexpectedly.
 | A PAN-OS NAT rule needs one destination zone; `any` is not accepted | PAN-OS emitter (`--target-nat-zone`) |
 | iptables NAT: `FORWARD` sees destinations after `PREROUTING`; `POSTROUTING` cannot match the input interface; `iptables-restore --noflush` adds to existing chains. (The filter-table syntax and semantics the emitter and parser rely on are checked against a kernel, see Testing.) | iptables parser and emitter |
 | nftables: every base chain at a hook sees a packet in the order of its priority, whatever table; accept ends one base chain, drop is final; a family without a base chain is not filtered; the forward hook sees addresses after prerouting DNAT. (Checked against the kernel, see Testing.) Printed forms of nft 0.9.3 to 1.1.6 taken from their sources | nftables parser and emitter |
+| NSX: categories run in a fixed order (Ethernet, Emergency, Infrastructure, Environment, Application), policies by sequence number with the default policy last, rules by sequence number; `JUMP_TO_APPLICATION` skips the rest of Environment; the default layer-3 rule decides what no rule matches; a connection is checked at both ends (applied-to); a segment in a group means its workloads. From the Policy API reference, the SDK schema and the Terraform provider, not from a manager | NSX parser and emitter |
 | Check Point matches the access rulebase on the original packet and takes the destination zone after NAT | model, Check Point parser and emitter |
 | A connection sent into an inline layer never returns to the parent layer; a layer without a matching rule applies its implicit cleanup action | Check Point parser |
 | An object with automatic static NAT matches its translated address in the rulebase; with manual NAT the rules name the original address | `_automatic_nat`, `_also_valid` |
@@ -1938,6 +1949,105 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-13: version 0.19.0
+
+The second of four brands planned one release each (`TODO.md`): **VMware NSX**,
+its distributed firewall, read and written.
+
+**Built**
+
+* `parsers/nsx.py`: the JSON of the Policy API, either the hierarchical
+  answer of `GET /policy/api/v1/infra` (Child wrappers, domains, rules inline
+  or as children) or the list answers of groups, services, security policies
+  and rules, alone or several in one array; the communication maps of NSX-T
+  2.4 as well.
+* Policies in the order NSX runs them: category (Ethernet left out and
+  counted, Emergency, Infrastructure, Environment, Application), sequence
+  number (or the old `precedence`), the default policy last in its category;
+  rules by sequence number. `JUMP_TO_APPLICATION` skips the rest of
+  Environment, across policies; a jump with conditions or a scope flags what
+  it may skip. The default layer-3 rule is the default of the model.
+* Groups: addresses, networks and ranges, nested groups by path, segments as
+  their subnets, AND and OR of expressions; groups NSX fills itself (tags,
+  names, virtual machines) as dynamic groups that keep their expression.
+  Services: L4 port sets, ICMP, IP protocols, IGMP, ALGs as their ports,
+  nested services, and the system services by their id.
+* What decides in NSX and has no place in the model is read as far as it
+  decides: applied-to (both ends covered, one end, none), direction, IP
+  version (a rule per version, or a literal of that version), profiles,
+  stateless policies, connectivity preference. Missing fields are never any.
+* `emitters/nsx.py`: the body of one hierarchical `PATCH`: services (at most
+  15 ports per entry), groups per IP version, one security policy of category
+  Application named by `--target-policy`, rules numbered in the order of the
+  model; zones as the networks of `--zone-network`; a last rule that denies
+  when the source does; NSX to NSX, dynamic groups, applied-to and IP version
+  written back. NAT is not written (it belongs on the gateway); the rules name
+  the translated addresses.
+* `tests/test_nsx.py` (64 tests), the sample (`nsx_sample.json`, written by
+  `tests/tools/make_nsx_sample.py`), 60 golden conversions, the matrix and the
+  audit of the sample.
+
+**What the platform made necessary**
+
+* *Two ends.* NSX checks a connection where it leaves and where it arrives.
+  Rules that apply to one workload, or to one direction, do not decide alone;
+  they are read only where both ends agree, and flagged otherwise.
+* *Names are not identifiers.* Display names repeat, and can be `any` or look
+  like an address; ids are what rules refer to, by path. Names are made unique
+  and renamed where the model would read them as a keyword or an address.
+* *System objects are shared.* The system services must be referred to, not
+  written again: a body that names `HTTP` would change it for every policy.
+
+**Sources**
+
+The research notes of this release (read as data, never run or imported):
+the schema of VMware's Policy API Python SDK 4.2 (`model_client.py`, parsed
+with `ast`), the Terraform provider for NSX-T and VMware's Ansible modules,
+the OpenStack NSX library, and the API reference read through summaries. No
+answer of a real manager was available: the sample is written by hand from
+that schema.
+
+**Review**
+
+*Round 27* by the independent reviewer, with repro scripts of its own.
+
+| | Finding | Fix |
+|---|---|---|
+| critical | A group or service named `any` became "any"; a group named like an address took over that address in other rules | renamed (`RENAMED`), as the other parsers do |
+| high | `JUMP_TO_APPLICATION` skipped only the rest of its own policy; a jump with conditions or a rule scope was read as unconditional | the rest of Environment is skipped across policies; a conditional jump flags what it may skip |
+| high | Emitter: an FQDN inside a nested group was left out of the group, and the rule stayed enabled | the rule is written disabled (`FQDN_NOT_SUPPORTED`) |
+| high | A rule for one IP version between dynamic groups lost the version; NSX to NSX it allowed the other version | the version is kept and written back as `ip_protocol` |
+| high | An allow rule applied to one end only was converted unflagged | `APPLIED_TO_ONE_END`; applied-to written back NSX to NSX |
+| medium | Missing `action`, sources, destinations or services read as allow any; rules without a type or an id lost | never any: the rule is unsupported; rules without a type are rules; de-duplication only by id or path |
+| medium | Several default rules: the last one won; a default rule in an ordinary policy became the default | defaults only in default policies, the global one preferred, a note when there are several |
+| medium | Malformed input crashed with other errors than `ParseError` | wrapped, with type checks |
+| medium | Emitter: dynamic groups kept paths to groups by their old ids | rewritten to the ids written |
+| medium | Generated services took the ids of system services | system ids reserved |
+| medium | `precedence` of communication maps ignored | read |
+| low | Missing or misleading notes (equal sequence numbers in a policy, gateway rules, a non-numeric ICMP type read as 0, `--zone-network` help) | added, corrected, the ICMP type unsupported |
+| low | Applied-to joined by commas; a group loop check that never fired; `NSX_LOAD` without `--target-prefix` | a separator no name holds; the check fixed; the note names the option |
+
+The fixes were not reviewed again; they have tests (the last section of
+`test_nsx.py`). One question of the reviewer was settled in the parser: the
+default policy comes last in its category whatever its sequence number.
+
+**Verified, and not**
+
+* The tests: `tests/test_nsx.py` holds 64 tests, the suite 3625. A judge of
+  Policy API JSON (categories, sequence numbers, jump, default rule, groups,
+  services), sharing no code with the parser: 150 random policies against the
+  parsed model; 40 random models emitted and judged with zones as networks;
+  a round trip NSX to NSX that keeps every decision.
+* A mutation check with 23 ways to break the parser and the emitter: 22
+  caught at first; a test for the last (the place of the default policy) was
+  added, and catches it.
+* **Not verified**: nothing has been sent to an NSX Manager, nor read from
+  one. Whether a manager accepts the body as written (ids, `profiles`, the
+  entries of a service), the exact answer of a full export, which system
+  services exist beyond the common ones, and whether a segment in a group
+  means its subnet or only its workloads are taken from the schema and the
+  documentation.
 
 ### 2026-10-13: version 0.18.0
 

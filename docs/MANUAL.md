@@ -2,10 +2,11 @@
 
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
 Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
-or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX, Linux iptables and Linux nftables, and tells you,
+or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX, Linux iptables, Linux nftables and the VMware NSX
+distributed firewall, and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; and show what each zone may reach in each
-other zone. This manual covers version 0.18.
+other zone. This manual covers version 0.19.
 
 **Contents**
 
@@ -52,10 +53,10 @@ FWShift converts the **policy**. It does not convert interfaces, routing, VPN,
 users, security profiles, or system settings, and it is not a substitute for
 testing the result.
 
-> **Status.** Version 0.18 is tested against synthetic configurations. iptables
+> **Status.** Version 0.19 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). Output for PAN-OS, FortiOS, Check Point,
-> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda and Juniper SRX has
+> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX and NSX has
 > not been loaded on a device or management server yet; the Check Point input format follows the
 > API documentation, the ASA and FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
@@ -88,8 +89,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.18.0.pyz --version
-python3 fwshift-0.18.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.19.0.pyz --version
+python3 fwshift-0.19.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -166,6 +167,26 @@ load it and list the result. FWShift converts the base chains of type
 chains they jump to, and the `nat` chains at `prerouting` and `postrouting`;
 section 8 says what happens to the rest. Tables of iptables-nft are better
 converted from `iptables-nft-save` (`IPTABLES_NFT`).
+
+**VMware NSX (distributed firewall).** FWShift reads the JSON of the NSX
+Policy API (NSX-T 3.x, NSX 4.x). Either one call with the whole tree:
+
+```sh
+curl -sS -u admin 'https://MANAGER/policy/api/v1/infra?type_filter=Domain;Group;SecurityPolicy;Rule;Service;ServiceEntry;Segment' -o nsx.json
+```
+
+or the list answers, saved one per call and put together in one JSON array
+(`jq -s . *.json > nsx.json`): `/policy/api/v1/infra/domains/default/security-policies`,
+the rules of each (`.../security-policies/ID/rules`), `.../domains/default/groups`,
+`/policy/api/v1/infra/services` and `/policy/api/v1/infra/segments`. Follow
+`cursor` until an answer has none: a list holds 1000 objects at most. Include
+the services and the default policy (`default-layer3-section`): the services
+NSX predefines are referred to by their id, and the default rule says what no
+rule matches. Groups whose members NSX finds itself (by tag, name, virtual
+machine) give no addresses; their members are in
+`.../groups/ID/members/ip-addresses` (section 8). The legacy communication
+maps of NSX-T 2.4 are read as well; the Manager API (`/api/v1/firewall/sections`)
+is not.
 
 **Cisco ASA.** FWShift reads the running configuration as the ASA prints it:
 
@@ -676,7 +697,7 @@ fwshift convert INPUT --to FORMAT [options]
 
 `FORMAT` is one of `panos`, `fortios`, `checkpoint`, `asa`, `fmc`, `fdm`,
 `sophos`, `pfsense`, `sonicwall`, `watchguard`, `barracuda`, `junos`,
-`iptables`, `ip6tables`, `nftables` and `json` (the neutral model; see `--to json` below).
+`iptables`, `ip6tables`, `nftables`, `nsx` and `json` (the neutral model; see `--to json` below).
 
 `INPUT` is a file, or `-` for standard input.
 
@@ -684,7 +705,7 @@ fwshift convert INPUT --to FORMAT [options]
 
 | Option | Meaning |
 |---|---|
-| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
@@ -715,6 +736,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to pfsense` | A configuration file with the areas Aliases, NAT and Firewall Rules, for *Diagnostics > Backup & Restore* of pfSense 2.7 or later. Each restore of an area **replaces** that area (section 10). |
 | `--to iptables` | A file for `iptables-restore`: the IPv4 half of the policy. |
 | `--to ip6tables` | A file for `ip6tables-restore`: the IPv6 half. |
+| `--to nsx` | The body of one `PATCH /policy/api/v1/infra` of the VMware NSX Policy API: services, groups and one security policy with the rules (section 10). |
 | `--to nftables` | A ruleset for `nft -f`: one table, `inet fwshift`, with the forward hook for both IP versions and the IPv4 NAT chains. Loading it replaces that table and nothing else (section 10). |
 | `--to json` | The neutral model as JSON, for inspection or other tools. It is the model as it was read: the audit options cannot be combined with it. Each rule carries what the source calls it (`source_ids`: the uid of a Check Point rule, the name and uuid of a PAN-OS rule, the policy ID and uuid of a FortiOS policy), the devices it is installed on where the source limits that (`targets`), and its hit count where the input has one (`hits`). |
 | `--target-vsys NAME` | PAN-OS: prefix commands with `vsys NAME`. Default: a single-vsys firewall, no prefix. |
@@ -1146,6 +1168,32 @@ Notes that only an nftables source or target raises (an nftables source also rai
 | `ONE_IP_VERSION` | R | Target: the source policy is for one IP version (an iptables ruleset, or an nftables ruleset with chains for one version). Table `inet fwshift` sees both: its policy decides the other version too. |
 | `LOG_STATEMENTS` | I | Target: rules that log the start of a connection got a `log` statement: a kernel log line for the first packet of each connection an allow rule accepts, and for every packet a deny rule drops. |
 | `LOGGING_AT_END` | I | Target: rules that log only the end of a connection on the source got no `log` statement; an nftables rule logs packets. Connection ends are in the conntrack events (`conntrack -E`, ulogd). |
+
+Findings and notes that only an NSX source or target raises (an NSX target also raises `ZONE_BY_NETWORKS`,
+`ZONE_NETWORK_MISSING` and `ZONE_WIDENED`, as for Barracuda):
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `DEFAULT_RULE_MISSING` | R | Source: the export holds no default layer-3 rule (policy `default-layer3-section`). NSX allows what no rule matches unless the default was changed; the converted policy denies it. Export the default policy with the others. |
+| `DEFAULT_ALLOW` | R | Source: the default layer-3 rule allows what no rule matches (the NSX default), and so does the model. On a target that denies by default, the converted policy allows everything no rule names. |
+| `DEFAULT_RULES` | R | Source: default rules in more than one policy (a project's or a VPC's next to the global one). The global one is the default of the model; the others are not converted. |
+| `LAYER2_NOT_CONVERTED` | I or R | Source: rules of the Ethernet category (layer 2) are not converted; R when some of them block traffic, by MAC address or ether type, before every layer-3 rule. |
+| `EQUAL_SEQUENCE` | R | Source: policies of one category, or rules of one policy, with the same sequence number. NSX runs them in an order it does not define; they were read in the order of the export. |
+| `STATELESS_POLICY` | R | Source: policies that are not stateful check every packet on its own. The converted rules are connection-based: an allow rule also admits the replies. |
+| `DYNAMIC_MEMBERSHIP` | R | Source: groups whose members NSX finds itself (tags, names, virtual machines, segment ports, MAC addresses). They are kept as dynamic groups, which only an NSX target writes again; other targets write their rules disabled. Export the members (`GET .../groups/ID/members/ip-addresses`) and make them groups of addresses. |
+| `SEGMENT_AS_SUBNET` | R | Source (on the group): a segment in the group stands for its subnet. NSX means the workloads attached to it: the subnet also holds the gateway and other addresses that are not members. |
+| `ALG_SERVICE` | A | Source (on the service): an application level gateway (FTP, TFTP, RPC, Oracle TNS) is converted as its port. NSX also lets through the connections the protocol opens; a target without such a helper does not. |
+| `APPLIED_TO` | A | Source (on a blocking rule): the rule is applied to some workloads only (`scope`); the converted rule blocks its traffic wherever it is, which is more. |
+| `APPLIED_TO_ONE_END` | R | Source (on an allow rule): the rule is applied to a group that holds its sources and not its destinations, or the other way round. Where the other end is a workload of NSX, NSX checks it against the rules below this one and may drop what this rule allows; the converted rule allows it at both ends. An allow rule applied to neither end is written disabled. |
+| `DIRECTION` | A | Source (on a blocking rule): the rule is for one direction only (`IN` or `OUT`); the converted rule blocks the connection whichever end checks it. An allow rule for one direction is written disabled: NSX checks the other end against the rules below it. |
+| `RULE_WITHOUT_EFFECT` | I | Source: rules for one IP version (`ip_protocol`) whose sources or destinations hold no address of it match nothing and were left out. (The same code names permit entries of an ASA, above.) |
+| `RULES_WITHOUT_POLICY` | R | Source: rules name a security policy that is not in the export. They are not converted; export the policy. |
+| `GATEWAY_POLICY_NOT_CONVERTED` | R | Source: gateway firewall policies (Tier-0 and Tier-1 gateways) are not converted; only the distributed firewall is. |
+| `NSX_LOAD` | R | Target: how the body is loaded (one `PATCH /policy/api/v1/infra`, section 10), where the new policy lands, and that objects of the same id are changed. |
+| `NSX_DEFAULT_DENY` | R | Target: the source denies what no rule allows, so the policy ends in `fwshift-default-deny`, which drops every connection no rule above it allows, for all workloads. Policies after it and the default layer-3 rule are never reached. |
+| `ZONE_DYNAMIC` | R, disabled | Target (on the rule): a rule between zones names a group NSX fills itself; it cannot be cut down to the networks of the zones. |
+| `SERVICE_SCTP` | R, disabled | Target (on the rule): SCTP ports. A service of NSX matches TCP and UDP ports only (SCTP as a whole is written as IP protocol 132). |
+| `ADDRESS_NOT_WRITTEN`, `LIST_TOO_LONG` | R, disabled | Target (on the rule): an address that cannot be written, or more than 128 entries in a list of a rule. |
 
 Notes that only a Cisco ASA source or target raises:
 
@@ -1718,6 +1766,79 @@ The second column matters too:
   as the comment.
 * NAT is written as for iptables, in nft syntax (`dnat ip to`, `snat ip to`,
   `masquerade`), for IPv4.
+
+### VMware NSX
+
+**What is read**
+
+* The security policies of the distributed firewall, in the order NSX runs
+  them: the categories Emergency, Infrastructure, Environment, Application,
+  then policies without a category; in a category, policies by their sequence
+  number, the default policy last; in a policy, rules by theirs. The Ethernet
+  category (layer 2) is reported, not converted (`LAYER2_NOT_CONVERTED`).
+  Allow rules of a policy without a category are written disabled: whether NSX
+  reaches them before its default rule is not documented.
+* The default layer-3 rule (policy `default-layer3-section`) is the default
+  action of the model. Without it in the export, the model denies
+  (`DEFAULT_RULE_MISSING`); NSX allows unless told otherwise.
+* The distributed firewall has no zones: every rule is from any zone to any
+  zone. Where a rule is enforced (applied-to, `scope`; the policy's wins over
+  the rule's) is not where its traffic goes. An allow rule applied to a group
+  that holds both its sources and its destinations is converted as it is; to a
+  group that holds one end, with a finding (`APPLIED_TO_ONE_END`); to neither,
+  disabled. A blocking rule is converted for all workloads (`APPLIED_TO`).
+* NSX checks a connection between two of its workloads at both ends. A rule
+  for one direction only (`IN`, `OUT`) is checked at one end; NSX checks the
+  other end against the rules below it. An allow rule for one direction is
+  written disabled; a blocking one blocks at both ends (`DIRECTION`).
+* `JUMP_TO_APPLICATION` (category Environment): a jump of every packet skips
+  the remaining environment rules, of every environment policy. A rule after a
+  conditional jump is written disabled.
+* Groups: addresses (`IPAddressExpression`), other groups by path, addresses
+  written in a rule, and segments, as their subnet (`SEGMENT_AS_SUBNET`).
+  Membership by tag, name, virtual machine, segment port or MAC address needs
+  the inventory of NSX: the group is kept as a dynamic group, which an NSX
+  target writes again and other targets cannot (`DYNAMIC_MEMBERSHIP`). Groups
+  joined by AND of addresses, and identity groups, are not converted.
+* A rule for one IP version (`ip_protocol`) keeps to it: an "any" side becomes
+  `0.0.0.0/0` or `::/0`, a group of both versions its addresses of the one.
+* Services: ports (`L4PortSetServiceEntry`), ICMP and ICMPv6 types, IP
+  protocols, IGMP, nested services (a service group), and application level
+  gateways as their port (`ALG_SERVICE`). The services NSX predefines keep
+  their id as their name. Ether types are not converted.
+* Context profiles (`profiles`: App IDs, domain names) are layer 7: a rule
+  with one is written disabled. A policy's `connectivity_preference` adds the
+  rules NSX adds: two drop rules for an allow-list policy; the allow rules of a
+  deny-list policy are written disabled. A stateless policy is reported
+  (`STATELESS_POLICY`).
+* Names: a group or a service called `any`, or a group whose name is an
+  address, is renamed (`RENAMED`).
+
+**What is written**
+
+* The body of one `PATCH /policy/api/v1/infra` (section 10): the services
+  (at most 15 ports per entry, a range counting as two), the groups (one IP
+  version per address expression, nested groups by path) and one security
+  policy of category Application with the rules in order, numbered 10, 20, ...
+* Zones become the networks behind them (`--zone-network`), as for Barracuda:
+  an allow rule is kept to them, a blocking rule leaves out the networks of
+  the other zones, and without networks an allow rule is written disabled
+  (`ZONE_NETWORK_MISSING`) and a blocking rule blocks in every zone
+  (`ZONE_WIDENED`). Addresses worked out like that, or a negation that had to
+  be worked out with them, are written in the rule, as NSX allows.
+* Negation is written as `sources_excluded` and `destinations_excluded`. A
+  negated service has no equivalent: the rule is written disabled.
+* A rule that cannot be enforced is written with `disabled: true` and the
+  reason in its notes. A host name object disables the rule (a group of NSX
+  holds addresses; a domain name needs a context profile).
+* From an NSX source, dynamic groups are written again as they were, with
+  their nested groups under their new ids; rules keep their applied-to and
+  their IP version; the predefined services are referred to, not written.
+* The gateways translate before the distributed firewall sees a connection:
+  rules are written for the translated addresses. NAT is not written.
+* A source that denies by default gets a last drop rule (`NSX_DEFAULT_DENY`).
+* Logging (start or end) becomes `logged`; the rule's name is its log label
+  (`tag`, 32 characters), which `dfwpktlogs.log` carries.
 
 ### Check Point
 
@@ -2805,6 +2926,43 @@ twice.
 5. Forwarding itself (`net.ipv4.ip_forward`, `net.ipv6.conf.all.forwarding`)
    is a setting of the host.
 
+### VMware NSX
+
+The output is the body of one call of the hierarchical Policy API: services,
+groups (in domain `default`) and one security policy of category Application,
+named by `--target-policy` (default `FWShift`), with the rules in their order.
+
+1. Convert with `--zone-network` for every zone the rules name: the
+   distributed firewall has no zones, so a rule between zones is written for
+   the networks behind them (an allow rule whose zones have none is written
+   disabled). `--target-prefix` keeps the new objects apart from existing ones
+   of the same id.
+
+   ```sh
+   fwshift convert policy.xml --to nsx -o nsx-body.json --target-prefix mig- \
+       --zone-network trust=10.10.0.0/16 --zone-network dmz=10.20.0.0/24 --zone-network untrust=0.0.0.0/0,::/0
+   ```
+
+2. Load it on a lab manager first: there is no dry run.
+
+   ```sh
+   curl -sS -u admin -H 'Content-Type: application/json' -X PATCH --data @nsx-body.json \
+       https://MANAGER/policy/api/v1/infra
+   ```
+
+   A PATCH creates or changes the objects it names, whole, and leaves
+   everything else alone.
+3. The policy has sequence number 1 in its category. Move it where it belongs
+   in the UI, or with `POST .../security-policies/ID?action=revise&operation=insert_after&anchor_path=...`.
+4. A source that denies by default gets a last rule `fwshift-default-deny`
+   (`NSX_DEFAULT_DENY`): it drops everything no rule above it allows, for all
+   workloads, including what policies after it in the Application category
+   would allow. Change the default layer-3 rule to drop instead, and remove
+   that rule, if that suits the installation better.
+5. NAT is not written: on NSX it belongs on the Tier-0 or Tier-1 gateway. The
+   rules name the addresses NAT translates to, which is what the distributed
+   firewall sees.
+
 ### Check Point
 
 The output is a shell script. It needs `mgmt_cli`, which is on every
@@ -3206,6 +3364,8 @@ the report is the list.)
 | `'add rule' is a command; FWShift reads the ruleset as 'nft list ruleset' ... prints it` | An nftables script of commands. Load it with `nft -f` and give FWShift the output of `nft list ruleset`. |
 | `include is not followed` | An nftables input file that includes others. Give FWShift the output of `nft list ruleset`, which holds everything that was loaded. |
 | `$NAME is not defined` | An nftables input file that uses a variable it does not define (it may be in an included file). The same remedy. |
+| `no security policies found; expected the answers of the NSX Policy API` | The JSON holds no security policy of NSX: save the policies (and their rules) with the others (section 3). |
+| `groups, services or JSON nested deeper than can be followed` | NSX: a chain of nested groups or services thousands deep, or JSON nested as deep. Not converted. |
 | `the base chains combine to more than 50000 rules` | nftables: several base chains at the forward hook whose rules multiply when they are combined. Not converted. |
 | `not valid JSON` / `no Management API response found` | The file is not the JSON output of `show access-rulebase`. Use `--format json`. |
 | `the export holds several access layers; choose one with --layer: ...` | Name one of the listed layers. Inline layers are found by themselves. |
@@ -3341,6 +3501,12 @@ deliberate: see *IPv4 and IPv6* in section 8.
 * iptables: only forwarded traffic is converted. Matches beyond interfaces,
   addresses, protocols, ports, ICMP types and connection state disable the
   rule. IPv6 NAT is not read.
+* NSX: the distributed firewall only (not the gateway firewall, not NAT, not
+  layer 2), from the Policy API. Membership NSX works out itself (tags,
+  virtual machines) is kept for an NSX target only; context profiles, rules for
+  one direction and allow rules applied to neither end are written disabled.
+  The formats follow VMware's Policy SDK 4.2 and Terraform provider; no export
+  of a real manager was read, and no output was loaded on one.
 * nftables: forwarded traffic only (the forward hook), and IPv4 NAT. Rate
   limits, quotas, meters, sets filled at run time, `fib`, `socket`, marks,
   options and anything else beyond interfaces, addresses, protocols, ports,

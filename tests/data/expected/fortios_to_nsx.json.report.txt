@@ -1,0 +1,86 @@
+FWShift conversion report
+  source: fortios
+  target: nsx
+
+Summary
+  Security rules:     14   exact 0, approximated 1, needs review 13 (13 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NSX_LOAD: the output is the body of one hierarchical PATCH of the Policy API: curl -X PATCH -H 'Content-Type: application/json' --data @FILE https://MANAGER/policy/api/v1/infra. It creates or updates the services, the groups and one security policy of category Application (sequence number 1: give it the place you want), and leaves everything else alone, except objects of the same id, which it changes: give --target-prefix to keep the new ones apart. There is no dry run: load it on a lab manager first
+  [needs-review] NSX_DEFAULT_DENY: the source denies what no rule allows: the policy ends in fwshift-default-deny, which drops every connection no rule above it allows, for all workloads. It ends the Application category: policies after it and the default layer-3 rule are never reached
+
+Security rules
+  LAN to Internet  ->  needs-review, emitted disabled  (emitted as rule LAN_to_Internet)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of the distributed firewall names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of the distributed firewall names no zone: give the networks behind wan1 with --zone-network.
+  LAN basics  ->  needs-review, emitted disabled  (emitted as rule LAN_basics)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of the distributed firewall names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of the distributed firewall names no zone: give the networks behind wan1 with --zone-network.
+  Inbound web  ->  needs-review, emitted disabled  (emitted as rule Inbound_web)
+      [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination 'vip-web' with post-NAT '10.20.0.10' because of NAT rule 'vip-web', which translates only some of the services of this rule: for the others the rule now names '10.20.0.10', sent there directly, and no longer 'vip-web'
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone wan1, and a rule of the distributed firewall names no zone: give the networks behind wan1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the distributed firewall names no zone: give the networks behind dmz with --zone-network.
+  Inbound mail  ->  needs-review, emitted disabled  (emitted as rule Inbound_mail)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'vip-mail' with post-NAT '10.20.0.25' because of NAT rule 'vip-mail'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone wan1, and a rule of the distributed firewall names no zone: give the networks behind wan1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the distributed firewall names no zone: give the networks behind dmz with --zone-network.
+  Admins to DMZ  ->  needs-review, emitted disabled  (emitted as rule Admins_to_DMZ)
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of the distributed firewall names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the distributed firewall names no zone: give the networks behind dmz with --zone-network.
+  Block geo  ->  needs-review, emitted disabled  (emitted as rule Block_geo)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: the destination 'geo-blocked' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ out via pool  ->  needs-review, emitted disabled  (emitted as rule DMZ_out_via_pool)
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates.example.com: a group of NSX holds addresses; a domain name needs a context profile, which is not written.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and a rule of the distributed firewall names no zone: give the networks behind dmz with --zone-network.
+      [needs-review] ZONE_DYNAMIC: the destination 'updates.example.com' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks.
+  SCADA to PLCs  ->  needs-review, emitted disabled  (emitted as rule SCADA_to_PLCs)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of the distributed firewall names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone ot, and a rule of the distributed firewall names no zone: give the networks behind ot with --zone-network.
+  OT no internet  ->  approximated  (emitted as rule OT_no_internet)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone ot; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone wan1; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Partner tunnel  ->  needs-review, emitted disabled  (emitted as rule Partner_tunnel)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of the distributed firewall names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of the distributed firewall names no zone: give the networks behind wan1 with --zone-network.
+  LAN v6 out  ->  needs-review, emitted disabled  (emitted as rule LAN_v6_out)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of the distributed firewall names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of the distributed firewall names no zone: give the networks behind wan1 with --zone-network.
+  policy-12  ->  needs-review, emitted disabled  (emitted as rule policy-12)
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of the distributed firewall names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the distributed firewall names no zone: give the networks behind dmz with --zone-network.
+  Not web  ->  needs-review, emitted disabled  (emitted as rule Not_web)
+      [needs-review] SERVICE_NEGATE: a negated service cannot be written: a rule of NSX has no negation of services.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and a rule of the distributed firewall names no zone: give the networks behind dmz with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of the distributed firewall names no zone: give the networks behind wan1 with --zone-network.
+  Timestamp probes  ->  needs-review, emitted disabled  (emitted as rule Timestamp_probes)
+      [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of the distributed firewall names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the distributed firewall names no zone: give the networks behind dmz with --zone-network.
+
+NAT rules
+  vip-web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  vip-mail  ->  skipped
+      [approximated] VIP_REVERSE_NAT: FortiOS also source-translates sessions the mapped host opens (to the external IP) when the outgoing policy has NAT enabled; that reverse direction is not converted
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  snat-1  ->  skipped
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  snat-2  ->  skipped
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  snat-7  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+
+Addresses
+  geo-blocked  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: FortiOS address type 'geography' cannot be converted

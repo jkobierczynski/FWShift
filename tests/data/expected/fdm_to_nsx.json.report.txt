@@ -1,0 +1,55 @@
+FWShift conversion report
+  source: fdm (FTD 7.2.5-208 on Cisco Firepower 1010 Threat Defense)
+  target: nsx
+
+Summary
+  Security rules:      8   exact 0, approximated 1, needs review 7 (7 emitted disabled), skipped 0
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NSX_LOAD: the output is the body of one hierarchical PATCH of the Policy API: curl -X PATCH -H 'Content-Type: application/json' --data @FILE https://MANAGER/policy/api/v1/infra. It creates or updates the services, the groups and one security policy of category Application (sequence number 1: give it the place you want), and leaves everything else alone, except objects of the same id, which it changes: give --target-prefix to keep the new ones apart. There is no dry run: load it on a lab manager first
+  [needs-review] NSX_DEFAULT_DENY: the source denies what no rule allows: the policy ends in fwshift-default-deny, which drops every connection no rule above it allows, for all workloads. It ends the Application category: policies after it and the default layer-3 rule are never reached
+
+Security rules
+  Block_IoT_to_office  ->  approximated  (emitted as rule Block_IoT_to_office)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone inside_zone; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone inside_zone; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Inside_Outside_web  ->  needs-review, emitted disabled  (emitted as rule Inside_Outside_web)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside_zone, and a rule of the distributed firewall names no zone: give the networks behind inside_zone with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside_zone, and a rule of the distributed firewall names no zone: give the networks behind outside_zone with --zone-network.
+  IoT_telemetry  ->  needs-review, emitted disabled  (emitted as rule IoT_telemetry)
+      [needs-review] FQDN_NOT_SUPPORTED: host name object vendor-cloud: a group of NSX holds addresses; a domain name needs a context profile, which is not written.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside_zone, and a rule of the distributed firewall names no zone: give the networks behind inside_zone with --zone-network.
+      [needs-review] ZONE_DYNAMIC: the destination 'vendor-cloud' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks.
+  NAS_from_Internet  ->  needs-review, emitted disabled  (emitted as rule NAS_from_Internet)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside_zone, and a rule of the distributed firewall names no zone: give the networks behind outside_zone with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone inside_zone, and a rule of the distributed firewall names no zone: give the networks behind inside_zone with --zone-network.
+  Head_office_v6  ->  needs-review, emitted disabled  (emitted as rule Head_office_v6)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside_zone, and a rule of the distributed firewall names no zone: give the networks behind outside_zone with --zone-network.
+  DNS_answers  ->  needs-review, emitted disabled  (emitted as rule DNS_answers)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside_zone, and a rule of the distributed firewall names no zone: give the networks behind outside_zone with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone inside_zone, and a rule of the distributed firewall names no zone: give the networks behind inside_zone with --zone-network.
+  Staff_streaming  ->  needs-review, emitted disabled  (emitted as rule Staff_streaming)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone inside_zone; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone outside_zone; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests_by_time  ->  needs-review, emitted disabled  (emitted as rule Guests_by_time)
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside_zone, and a rule of the distributed firewall names no zone: give the networks behind inside_zone with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside_zone, and a rule of the distributed firewall names no zone: give the networks behind outside_zone with --zone-network.
+
+NAT rules
+  NAS_published  ->  skipped
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 192.0.2.2
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  nas_static  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  InsideOutsideNatRule  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  IoT_out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees

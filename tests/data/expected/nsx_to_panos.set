@@ -1,0 +1,203 @@
+set address Quarantine ip-netmask 0.0.0.0/32
+set address Quarantine description "FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically"
+set address n-10.10.0.0_16 ip-netmask 10.10.0.0/16
+set address-group LAN static n-10.10.0.0_16
+set address n-10.10.200.0_24 ip-netmask 10.10.200.0/24
+set address-group Guests static n-10.10.200.0_24
+set address h-10.20.0.10 ip-netmask 10.20.0.10
+set address h-10.20.0.11 ip-netmask 10.20.0.11
+set address-group "Web servers" static [ h-10.20.0.10 h-10.20.0.11 ]
+set address n-10.20.1.0_24 ip-netmask 10.20.1.0/24
+set address-group "App servers" static n-10.20.1.0_24
+set address-group DMZ static [ "Web servers" "App servers" ]
+set address n-10.20.2.0_24 ip-netmask 10.20.2.0/24
+set address n-2001_db8_20_2___64 ip-netmask 2001:db8:20:2::/64
+set address-group "DB servers" static [ n-10.20.2.0_24 n-2001_db8_20_2___64 ]
+set address r-10.10.5.10-10.10.5.20 ip-range 10.10.5.10-10.10.5.20
+set address-group Admins static r-10.10.5.10-10.10.5.20
+set address n-10.30.1.0_24 ip-netmask 10.30.1.0/24
+set address-group "OT cell" static n-10.30.1.0_24
+set service DNS protocol tcp port 53
+set service DNS-UDP protocol udp port 53
+set service NTP.services protocol udp port 123
+set service SSH protocol tcp port 22
+set service HTTPS protocol tcp port 443
+set service app-8443 protocol tcp port 8443
+set service MySQL protocol tcp port 3306
+set service Modbus protocol tcp port 502
+set service FTP protocol tcp port 21
+set service-group "Web all" members [ HTTPS app-8443 ]
+set rulebase security rules "Block quarantined" from any
+set rulebase security rules "Block quarantined" to any
+set rulebase security rules "Block quarantined" source Quarantine
+set rulebase security rules "Block quarantined" destination any
+set rulebase security rules "Block quarantined" source-user any
+set rulebase security rules "Block quarantined" category any
+set rulebase security rules "Block quarantined" application any
+set rulebase security rules "Block quarantined" service any
+set rulebase security rules "Block quarantined" action drop
+set rulebase security rules "Block quarantined" log-start yes
+set rulebase security rules "Block quarantined" log-end yes
+set rulebase security rules "Block quarantined" disabled yes
+set rulebase security rules "Block quarantined" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "DNS to resolvers" from any
+set rulebase security rules "DNS to resolvers" to any
+set rulebase security rules "DNS to resolvers" source LAN
+set rulebase security rules "DNS to resolvers" destination 192.0.2.53
+set rulebase security rules "DNS to resolvers" source-user any
+set rulebase security rules "DNS to resolvers" category any
+set rulebase security rules "DNS to resolvers" application any
+set rulebase security rules "DNS to resolvers" service [ DNS DNS-UDP ]
+set rulebase security rules "DNS to resolvers" action allow
+set rulebase security rules "DNS to resolvers" log-end no
+set rulebase security rules NTP from any
+set rulebase security rules NTP to any
+set rulebase security rules NTP source any
+set rulebase security rules NTP destination 192.0.2.123
+set rulebase security rules NTP source-user any
+set rulebase security rules NTP category any
+set rulebase security rules NTP application any
+set rulebase security rules NTP service NTP.services
+set rulebase security rules NTP action allow
+set rulebase security rules NTP log-end no
+set rulebase security rules "Guests stay out" from any
+set rulebase security rules "Guests stay out" to any
+set rulebase security rules "Guests stay out" source Guests
+set rulebase security rules "Guests stay out" destination 10.0.0.0/8
+set rulebase security rules "Guests stay out" source-user any
+set rulebase security rules "Guests stay out" category any
+set rulebase security rules "Guests stay out" application any
+set rulebase security rules "Guests stay out" service any
+set rulebase security rules "Guests stay out" action drop
+set rulebase security rules "Guests stay out" log-end no
+set rulebase security rules "LAN block the rest" from any
+set rulebase security rules "LAN block the rest" to any
+set rulebase security rules "LAN block the rest" source LAN
+set rulebase security rules "LAN block the rest" destination any
+set rulebase security rules "LAN block the rest" source-user any
+set rulebase security rules "LAN block the rest" category any
+set rulebase security rules "LAN block the rest" application any
+set rulebase security rules "LAN block the rest" service SSH
+set rulebase security rules "LAN block the rest" action drop
+set rulebase security rules "LAN block the rest" log-end no
+set rulebase security rules "LAN block the rest" disabled yes
+set rulebase security rules "LAN block the rest" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Inbound web" from any
+set rulebase security rules "Inbound web" to any
+set rulebase security rules "Inbound web" source any
+set rulebase security rules "Inbound web" destination "Web servers"
+set rulebase security rules "Inbound web" source-user any
+set rulebase security rules "Inbound web" category any
+set rulebase security rules "Inbound web" application any
+set rulebase security rules "Inbound web" service "Web all"
+set rulebase security rules "Inbound web" action allow
+set rulebase security rules "Inbound web" log-start yes
+set rulebase security rules "Inbound web" log-end yes
+set rulebase security rules "Web to app" from any
+set rulebase security rules "Web to app" to any
+set rulebase security rules "Web to app" source "Web servers"
+set rulebase security rules "Web to app" destination "App servers"
+set rulebase security rules "Web to app" source-user any
+set rulebase security rules "Web to app" category any
+set rulebase security rules "Web to app" application any
+set rulebase security rules "Web to app" service app-8443
+set rulebase security rules "Web to app" action allow
+set rulebase security rules "Web to app" log-end no
+set rulebase security rules "App to DB" from any
+set rulebase security rules "App to DB" to any
+set rulebase security rules "App to DB" source "App servers"
+set rulebase security rules "App to DB" destination "DB servers"
+set rulebase security rules "App to DB" source-user any
+set rulebase security rules "App to DB" category any
+set rulebase security rules "App to DB" application any
+set rulebase security rules "App to DB" service MySQL
+set rulebase security rules "App to DB" action allow
+set rulebase security rules "App to DB" log-end no
+set rulebase security rules "App to DB" disabled yes
+set rulebase security rules "App to DB" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Admins SSH" from any
+set rulebase security rules "Admins SSH" to any
+set rulebase security rules "Admins SSH" source Admins
+set rulebase security rules "Admins SSH" destination DMZ
+set rulebase security rules "Admins SSH" source-user any
+set rulebase security rules "Admins SSH" category any
+set rulebase security rules "Admins SSH" application any
+set rulebase security rules "Admins SSH" service SSH
+set rulebase security rules "Admins SSH" action allow
+set rulebase security rules "Admins SSH" log-end no
+set rulebase security rules "Others no SSH" from any
+set rulebase security rules "Others no SSH" to any
+set rulebase security rules "Others no SSH" source Admins
+set rulebase security rules "Others no SSH" destination DMZ
+set rulebase security rules "Others no SSH" source-user any
+set rulebase security rules "Others no SSH" category any
+set rulebase security rules "Others no SSH" application any
+set rulebase security rules "Others no SSH" service SSH
+set rulebase security rules "Others no SSH" action deny
+set rulebase security rules "Others no SSH" negate-source yes
+set rulebase security rules "Others no SSH" log-end no
+set rulebase security rules "Engineering to PLCs" from any
+set rulebase security rules "Engineering to PLCs" to any
+set rulebase security rules "Engineering to PLCs" source 10.10.7.15
+set rulebase security rules "Engineering to PLCs" destination "OT cell"
+set rulebase security rules "Engineering to PLCs" source-user any
+set rulebase security rules "Engineering to PLCs" category any
+set rulebase security rules "Engineering to PLCs" application any
+set rulebase security rules "Engineering to PLCs" service Modbus
+set rulebase security rules "Engineering to PLCs" action allow
+set rulebase security rules "Engineering to PLCs" log-end no
+set rulebase security rules "FTP to partner" from any
+set rulebase security rules "FTP to partner" to any
+set rulebase security rules "FTP to partner" source LAN
+set rulebase security rules "FTP to partner" destination 198.51.100.40
+set rulebase security rules "FTP to partner" source-user any
+set rulebase security rules "FTP to partner" category any
+set rulebase security rules "FTP to partner" application any
+set rulebase security rules "FTP to partner" service FTP
+set rulebase security rules "FTP to partner" action allow
+set rulebase security rules "FTP to partner" log-end no
+set rulebase security rules "TLS out" from any
+set rulebase security rules "TLS out" to any
+set rulebase security rules "TLS out" source LAN
+set rulebase security rules "TLS out" destination any
+set rulebase security rules "TLS out" source-user any
+set rulebase security rules "TLS out" category any
+set rulebase security rules "TLS out" application any
+set rulebase security rules "TLS out" service HTTPS
+set rulebase security rules "TLS out" action allow
+set rulebase security rules "TLS out" log-end no
+set rulebase security rules "TLS out" disabled yes
+set rulebase security rules "TLS out" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Ping over IPv6" from any
+set rulebase security rules "Ping over IPv6" to any
+set rulebase security rules "Ping over IPv6" source ::/0
+set rulebase security rules "Ping over IPv6" destination any
+set rulebase security rules "Ping over IPv6" source-user any
+set rulebase security rules "Ping over IPv6" category any
+set rulebase security rules "Ping over IPv6" application [ icmp ping ipv6-icmp ping6 ]
+set rulebase security rules "Ping over IPv6" service application-default
+set rulebase security rules "Ping over IPv6" action allow
+set rulebase security rules "Ping over IPv6" log-end no
+set rulebase security rules "Old rule" from any
+set rulebase security rules "Old rule" to any
+set rulebase security rules "Old rule" source LAN
+set rulebase security rules "Old rule" destination "DB servers"
+set rulebase security rules "Old rule" source-user any
+set rulebase security rules "Old rule" category any
+set rulebase security rules "Old rule" application any
+set rulebase security rules "Old rule" service MySQL
+set rulebase security rules "Old rule" action allow
+set rulebase security rules "Old rule" log-end no
+set rulebase security rules "Old rule" disabled yes
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."

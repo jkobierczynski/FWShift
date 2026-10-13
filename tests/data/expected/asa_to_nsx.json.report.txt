@@ -1,0 +1,74 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: nsx
+
+Summary
+  Security rules:     18   exact 0, approximated 3, needs review 15 (15 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NSX_LOAD: the output is the body of one hierarchical PATCH of the Policy API: curl -X PATCH -H 'Content-Type: application/json' --data @FILE https://MANAGER/policy/api/v1/infra. It creates or updates the services, the groups and one security policy of category Application (sequence number 1: give it the place you want), and leaves everything else alone, except objects of the same id, which it changes: give --target-prefix to keep the new ones apart. There is no dry run: load it on a lab manager first
+  [needs-review] NSX_DEFAULT_DENY: the source denies what no rule allows: the policy ends in fwshift-default-deny, which drops every connection no rule above it allows, for all workloads. It ends the Application category: policies after it and the default layer-3 rule are never reached
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+
+Security rules
+  outside_access_in-1  ->  needs-review, emitted disabled  (emitted as rule outside_access_in-1)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of the distributed firewall names no zone: give the networks behind outside with --zone-network.
+  outside_access_in-2  ->  needs-review, emitted disabled  (emitted as rule outside_access_in-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of the distributed firewall names no zone: give the networks behind outside with --zone-network.
+  outside_access_in-3  ->  needs-review, emitted disabled  (emitted as rule outside_access_in-3)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of the distributed firewall names no zone: give the networks behind outside with --zone-network.
+  outside_access_in-4  ->  approximated  (emitted as rule outside_access_in-4)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone outside; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  inside_access_in-1  ->  needs-review, emitted disabled  (emitted as rule inside_access_in-1)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside, and a rule of the distributed firewall names no zone: give the networks behind inside with --zone-network.
+  inside_access_in-2  ->  needs-review, emitted disabled  (emitted as rule inside_access_in-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside, and a rule of the distributed firewall names no zone: give the networks behind inside with --zone-network.
+  inside_access_in-3  ->  needs-review, emitted disabled  (emitted as rule inside_access_in-3)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside, and a rule of the distributed firewall names no zone: give the networks behind inside with --zone-network.
+  inside_access_in-4  ->  needs-review, emitted disabled  (emitted as rule inside_access_in-4)
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates: a group of NSX holds addresses; a domain name needs a context profile, which is not written.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside, and a rule of the distributed firewall names no zone: give the networks behind inside with --zone-network.
+  inside_access_in-5  ->  needs-review, emitted disabled  (emitted as rule inside_access_in-5)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside, and a rule of the distributed firewall names no zone: give the networks behind inside with --zone-network.
+  inside_access_in-6  ->  needs-review, emitted disabled  (emitted as rule inside_access_in-6)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside, and a rule of the distributed firewall names no zone: give the networks behind inside with --zone-network.
+  inside_access_in-7  ->  needs-review, emitted disabled  (emitted as rule inside_access_in-7)
+      [needs-review] USER_MATCH: source user match LOCAL\alice is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside, and a rule of the distributed firewall names no zone: give the networks behind inside with --zone-network.
+  inside_access_in-8  ->  approximated  (emitted as rule inside_access_in-8)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone inside; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  inside_access_in-9  ->  needs-review, emitted disabled  (emitted as rule inside_access_in-9)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside, and a rule of the distributed firewall names no zone: give the networks behind inside with --zone-network.
+  dmz_access_in-1  ->  needs-review, emitted disabled  (emitted as rule dmz_access_in-1)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and a rule of the distributed firewall names no zone: give the networks behind dmz with --zone-network.
+  dmz_access_in-2  ->  needs-review, emitted disabled  (emitted as rule dmz_access_in-2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and a rule of the distributed firewall names no zone: give the networks behind dmz with --zone-network.
+  dmz_access_in-3  ->  approximated  (emitted as rule dmz_access_in-3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  dmz_access_in-4  ->  needs-review, emitted disabled  (emitted as rule dmz_access_in-4)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and a rule of the distributed firewall names no zone: give the networks behind dmz with --zone-network.
+  implicit-guest  ->  needs-review, emitted disabled  (emitted as rule implicit-guest)
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone guest, and a rule of the distributed firewall names no zone: give the networks behind guest with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of the distributed firewall names no zone: give the networks behind outside with --zone-network.
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  nat-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  nat-mail-srv  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  nat-inside-net  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  nat-after-auto-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees

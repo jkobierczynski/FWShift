@@ -1,0 +1,96 @@
+FWShift conversion report
+  source: panos (vsys1)
+  target: nsx
+
+Summary
+  Security rules:     14   exact 0, approximated 2, needs review 12 (12 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          16   exact 14, approximated 0, needs review 2, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:            5   exact 5, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NSX_LOAD: the output is the body of one hierarchical PATCH of the Policy API: curl -X PATCH -H 'Content-Type: application/json' --data @FILE https://MANAGER/policy/api/v1/infra. It creates or updates the services, the groups and one security policy of category Application (sequence number 1: give it the place you want), and leaves everything else alone, except objects of the same id, which it changes: give --target-prefix to keep the new ones apart. There is no dry run: load it on a lab manager first
+  [needs-review] NSX_DEFAULT_DENY: the source denies what no rule allows: the policy ends in fwshift-default-deny, which drops every connection no rule above it allows, for all workloads. It ends the Application category: policies after it and the default layer-3 rule are never reached
+  [needs-review] INTRAZONE_DEFAULT: the source treats traffic inside a zone and between zones differently when no rule matches; the distributed firewall has no zones, and the default of traffic between zones was written
+
+Security rules
+  Allow-Web-Out  ->  needs-review, emitted disabled  (emitted as rule Allow-Web-Out)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (group=default-profiles); attach equivalent inspection on the target
+      [approximated] APP_TO_PORTS: applications web-browsing, ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of the distributed firewall names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of the distributed firewall names no zone: give the networks behind untrust with --zone-network.
+  Allow-DNS  ->  needs-review, emitted disabled  (emitted as rule Allow-DNS)
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, dmz, and a rule of the distributed firewall names no zone: give the networks behind trust, dmz with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of the distributed firewall names no zone: give the networks behind untrust with --zone-network.
+  Inbound-Web  ->  needs-review, emitted disabled  (emitted as rule Inbound-Web)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web-public' with post-NAT 'web-1' because of NAT rule 'Inbound-Web-DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Inbound-Web-DNAT' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] APP_FILTER_DROPPED: application match ssl dropped; the rule now matches everything on its services
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone untrust, and a rule of the distributed firewall names no zone: give the networks behind untrust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the distributed firewall names no zone: give the networks behind dmz with --zone-network.
+  Inbound-Mail  ->  needs-review, emitted disabled  (emitted as rule Inbound-Mail)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'mail-public' with post-NAT 'mail-1' because of NAT rule 'Mail-Static'; check that this rule is meant to cover the translated traffic
+      [approximated] APP_TO_PORTS: applications smtp reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone untrust, and a rule of the distributed firewall names no zone: give the networks behind untrust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the distributed firewall names no zone: give the networks behind dmz with --zone-network.
+  Admin-SSH  ->  needs-review, emitted disabled  (emitted as rule Admin-SSH)
+      [approximated] APP_TO_PORTS: applications ssh reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] USER_MATCH: source user match example\netadmins is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of the distributed firewall names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the distributed firewall names no zone: give the networks behind dmz with --zone-network.
+  Engineering to PLCs  ->  needs-review, emitted disabled  (emitted as rule Engineering_to_PLCs)
+      [approximated] APP_TO_PORTS: applications modbus, siemens-s7 reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of the distributed firewall names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone ot, and a rule of the distributed firewall names no zone: give the networks behind ot with --zone-network.
+  Block-OT-Outbound  ->  approximated  (emitted as rule Block-OT-Outbound)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone ot; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone untrust; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Block-Torrents  ->  needs-review, emitted disabled  (emitted as rule Block-Torrents)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone trust; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone untrust; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) bittorrent; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block-Region  ->  needs-review, emitted disabled  (emitted as rule Block-Region)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'KP': not defined in the input. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: the destination 'KP' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  App-Server-Ports  ->  needs-review, emitted disabled  (emitted as rule App-Server-Ports)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of the distributed firewall names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the distributed firewall names no zone: give the networks behind dmz with --zone-network.
+  Tagged-Servers-Updates  ->  needs-review, emitted disabled  (emitted as rule Tagged-Servers-Updates)
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'tagged-servers': dynamic address group, members are not known statically.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates.example.com: a group of NSX holds addresses; a domain name needs a context profile, which is not written.
+      [needs-review] ZONE_DYNAMIC: the source 'tagged-servers' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks.
+      [needs-review] ZONE_DYNAMIC: the destination 'updates.example.com' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks.
+  Not-From-Guests  ->  needs-review, emitted disabled  (emitted as rule Not-From-Guests)
+      [approximated] APP_TO_PORTS: applications ping reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of the distributed firewall names no zone: give the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the distributed firewall names no zone: give the networks behind dmz with --zone-network.
+  DMZ-Intrazone  ->  approximated  (emitted as rule DMZ-Intrazone)
+      [approximated] RULE_TYPE: intrazone rule: written as a rule for every pair of its zones, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone dmz; a rule of the distributed firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Old-Rule  ->  needs-review, emitted disabled  (emitted as rule Old-Rule)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'odd-hosts': wildcard mask 10.20.1.2/0.0.254.0.
+      [needs-review] ZONE_DYNAMIC: the source 'odd-hosts' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of the distributed firewall names no zone: give the networks behind untrust with --zone-network.
+
+NAT rules
+  No-NAT-Partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  Inbound-Web-DNAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  Mail-Static  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  DMZ-Out-Pool  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+  Outbound-PAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: NAT of NSX is on the Tier-0 and Tier-1 gateways, outside the distributed firewall. Set it up there; the rules were written for the addresses it translates to, which is what the distributed firewall sees
+
+Addresses
+  odd-hosts  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard mask 10.20.1.2/0.0.254.0 cannot be converted
+  KP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'Block-Region' but not an address object in the input (a region, an external list or a missing object); emitted as a placeholder that matches nothing

@@ -1,0 +1,721 @@
+{
+  "resource_type": "Infra",
+  "children": [
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "SSH-2",
+        "display_name": "SSH",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "22"
+            ],
+            "source_ports": [],
+            "id": "SSH-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "HTTP-2",
+        "display_name": "HTTP",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "80"
+            ],
+            "source_ports": [],
+            "id": "HTTP-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "HTTPS-2",
+        "display_name": "HTTPS",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "443"
+            ],
+            "source_ports": [],
+            "id": "HTTPS-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "HTTPS_Alt",
+        "display_name": "HTTPS Alt",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "8443"
+            ],
+            "source_ports": [],
+            "id": "HTTPS_Alt-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "Web_Services",
+        "display_name": "Web Services",
+        "service_entries": [
+          {
+            "resource_type": "NestedServiceServiceEntry",
+            "id": "nested-1",
+            "nested_service_path": "/infra/services/HTTP-2"
+          },
+          {
+            "resource_type": "NestedServiceServiceEntry",
+            "id": "nested-2",
+            "nested_service_path": "/infra/services/HTTPS-2"
+          },
+          {
+            "resource_type": "NestedServiceServiceEntry",
+            "id": "nested-3",
+            "nested_service_path": "/infra/services/HTTPS_Alt"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "GRE_Tunnel",
+        "display_name": "GRE Tunnel",
+        "service_entries": [
+          {
+            "resource_type": "IPProtocolServiceEntry",
+            "protocol_number": 47,
+            "id": "GRE_Tunnel-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "SMTP_Alt",
+        "display_name": "SMTP Alt",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "TCP",
+            "destination_ports": [
+              "2525"
+            ],
+            "source_ports": [],
+            "id": "SMTP_Alt-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "Media",
+        "display_name": "Media",
+        "service_entries": [
+          {
+            "resource_type": "L4PortSetServiceEntry",
+            "l4_protocol": "UDP",
+            "destination_ports": [
+              "16384-16484"
+            ],
+            "source_ports": [],
+            "id": "Media-1"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildService",
+      "Service": {
+        "resource_type": "Service",
+        "id": "Echo_Object",
+        "display_name": "Echo Object",
+        "description": "FWSHIFT PLACEHOLDER: ICMP type and code of a service object: how the export stores them is not known",
+        "service_entries": [
+          {
+            "resource_type": "IPProtocolServiceEntry",
+            "id": "placeholder",
+            "protocol_number": 255
+          }
+        ]
+      }
+    },
+    {
+      "resource_type": "ChildResourceReference",
+      "id": "default",
+      "target_type": "Domain",
+      "children": [
+        {
+          "resource_type": "ChildGroup",
+          "Group": {
+            "resource_type": "Group",
+            "id": "Update_Site",
+            "display_name": "Update Site",
+            "expression": []
+          }
+        },
+        {
+          "resource_type": "ChildSecurityPolicy",
+          "SecurityPolicy": {
+            "resource_type": "SecurityPolicy",
+            "id": "FWShift",
+            "display_name": "FWShift",
+            "category": "Application",
+            "sequence_number": 1,
+            "stateful": true,
+            "scope": [
+              "ANY"
+            ],
+            "description": "Generated by FWShift - review the conversion report before loading this.",
+            "rules": [
+              {
+                "resource_type": "Rule",
+                "id": "LAN_to_WAN_1",
+                "display_name": "LAN to WAN #1",
+                "sequence_number": 10,
+                "source_groups": [
+                  "0.0.0.0/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "192.0.2.66",
+                  "203.0.113.0/25"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "REJECT",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": false,
+                "tag": "LAN_to_WAN__1",
+                "notes": "nothing to the bad networks"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Admins_out_by_SSH",
+                "display_name": "Admins out by SSH",
+                "sequence_number": 20,
+                "source_groups": [
+                  "10.10.5.10-10.10.5.20"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/SSH-2"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "Admins_out_by_SSH",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone LAN, and a rule of the distributed firewall names no zone: give the networks behind LAN with --zone-network; the destination of the rule is in zone WAN, and a rule of the distributed firewall names no zone: give the networks behind WAN with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "LAN_to_WAN_3",
+                "display_name": "LAN to WAN #3",
+                "sequence_number": 30,
+                "source_groups": [
+                  "0.0.0.0/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/Web_Services"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "LAN_to_WAN__3",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone LAN, and a rule of the distributed firewall names no zone: give the networks behind LAN with --zone-network; the destination of the rule is in zone WAN, and a rule of the distributed firewall names no zone: give the networks behind WAN with --zone-network | browsing"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "LAN_to_WAN_4",
+                "display_name": "LAN to WAN #4",
+                "sequence_number": 40,
+                "source_groups": [
+                  "0.0.0.0/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/GRE_Tunnel"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "LAN_to_WAN__4",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone LAN, and a rule of the distributed firewall names no zone: give the networks behind LAN with --zone-network; the destination of the rule is in zone WAN, and a rule of the distributed firewall names no zone: give the networks behind WAN with --zone-network | tunnels to partners"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "LAN_to_WAN_5",
+                "display_name": "LAN to WAN #5",
+                "sequence_number": 50,
+                "source_groups": [
+                  "0.0.0.0/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "LAN_to_WAN__5",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone LAN, and a rule of the distributed firewall names no zone: give the networks behind LAN with --zone-network; the destination of the rule is in zone WAN, and a rule of the distributed firewall names no zone: give the networks behind WAN with --zone-network | Auto added default rule"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Web_server_from_the_internet",
+                "display_name": "Web server from the internet",
+                "sequence_number": 60,
+                "source_groups": [
+                  "0.0.0.0/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "10.20.0.10"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/HTTPS-2"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "Web_server_from_the_internet",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone WAN, and a rule of the distributed firewall names no zone: give the networks behind WAN with --zone-network; the destination of the rule is in zone DMZ, and a rule of the distributed firewall names no zone: give the networks behind DMZ with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Mail_from_partners",
+                "display_name": "Mail from partners",
+                "sequence_number": 70,
+                "source_groups": [
+                  "192.0.2.66",
+                  "192.0.2.128/26",
+                  "203.0.113.0/25"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "10.20.0.25"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/SMTP_Alt"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "Mail_from_partners",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone WAN, and a rule of the distributed firewall names no zone: give the networks behind WAN with --zone-network; the destination of the rule is in zone DMZ, and a rule of the distributed firewall names no zone: give the networks behind DMZ with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "WAN_to_DMZ_3",
+                "display_name": "WAN to DMZ #3",
+                "sequence_number": 80,
+                "source_groups": [
+                  "0.0.0.0/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "REJECT",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": false,
+                "tag": "WAN_to_DMZ__3"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "WAN_to_LAN_1",
+                "display_name": "WAN to LAN #1",
+                "sequence_number": 90,
+                "source_groups": [
+                  "0.0.0.0/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "REJECT",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": false,
+                "tag": "WAN_to_LAN__1"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Web_server_to_the_database",
+                "display_name": "Web server to the database",
+                "sequence_number": 100,
+                "source_groups": [
+                  "10.20.0.10"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "10.30.0.5"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/Media"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "Web_server_to_the_database",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone DMZ, and a rule of the distributed firewall names no zone: give the networks behind DMZ with --zone-network; the destination of the rule is in zone Servers, and a rule of the distributed firewall names no zone: give the networks behind Servers with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Mail_server_pings_the_LAN",
+                "display_name": "Mail server pings the LAN",
+                "sequence_number": 110,
+                "source_groups": [
+                  "10.20.0.25"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/Echo_Object"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "Mail_server_pings_the_LAN",
+                "notes": "FWSHIFT disabled, see the report: references 'Echo Object': ICMP type and code of a service object: how the export stores them is not known; the source of the rule is in zone DMZ, and a rule of the distributed firewall names no zone: give the networks behind DMZ with --zone-network; the destination of the rule is in zone LAN, and a rule of the distributed firewall names no zone: give the networks behind LAN with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Administrators_to_the_DMZ",
+                "display_name": "Administrators to the DMZ",
+                "sequence_number": 120,
+                "source_groups": [
+                  "0.0.0.0/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "0.0.0.0/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "Administrators_to_the_DMZ",
+                "notes": "FWSHIFT disabled, see the report: source user match Admins is not converted; the source of the rule is in zone LAN, and a rule of the distributed firewall names no zone: give the networks behind LAN with --zone-network; the destination of the rule is in zone DMZ, and a rule of the distributed firewall names no zone: give the networks behind DMZ with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "Updates_in_working_hours",
+                "display_name": "Updates in working hours",
+                "sequence_number": 130,
+                "source_groups": [
+                  "0.0.0.0/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "/infra/domains/default/groups/Update_Site"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "/infra/services/HTTPS-2"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "Updates_in_working_hours",
+                "notes": "FWSHIFT disabled, see the report: schedule 'Work Hours' is not converted; the rule would apply at all times; host name object Update Site: a group of NSX holds addresses; a domain name needs a context profile, which is not written; the source of the rule is in zone Servers, and a rule of the distributed firewall names no zone: give the networks behind Servers with --zone-network; the destination 'Update Site' holds members NSX finds itself; with the zones of the rule it cannot be cut down to their networks"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "IPv6_out",
+                "display_name": "IPv6 out",
+                "sequence_number": 140,
+                "source_groups": [
+                  "::/0"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "::/0"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": true,
+                "disabled": true,
+                "tag": "IPv6_out",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone LAN, and a rule of the distributed firewall names no zone: give the networks behind LAN with --zone-network; the destination of the rule is in zone WAN, and a rule of the distributed firewall names no zone: give the networks behind WAN with --zone-network"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "default_LAN_to_DMZ",
+                "display_name": "default LAN to DMZ",
+                "sequence_number": 150,
+                "source_groups": [
+                  "ANY"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "ANY"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "default_LAN_to_DMZ",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone LAN, and a rule of the distributed firewall names no zone: give the networks behind LAN with --zone-network; the destination of the rule is in zone DMZ, and a rule of the distributed firewall names no zone: give the networks behind DMZ with --zone-network | the default access rule of SonicOS from LAN to DMZ"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "default_DMZ_to_WAN",
+                "display_name": "default DMZ to WAN",
+                "sequence_number": 160,
+                "source_groups": [
+                  "ANY"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "ANY"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "default_DMZ_to_WAN",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone DMZ, and a rule of the distributed firewall names no zone: give the networks behind DMZ with --zone-network; the destination of the rule is in zone WAN, and a rule of the distributed firewall names no zone: give the networks behind WAN with --zone-network | the default access rule of SonicOS from DMZ to WAN"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "default_Servers_to_WAN",
+                "display_name": "default Servers to WAN",
+                "sequence_number": 170,
+                "source_groups": [
+                  "ANY"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "ANY"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "default_Servers_to_WAN",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone Servers, and a rule of the distributed firewall names no zone: give the networks behind Servers with --zone-network; the destination of the rule is in zone WAN, and a rule of the distributed firewall names no zone: give the networks behind WAN with --zone-network | the default access rule of SonicOS from Servers to WAN"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "default_Servers_to_DMZ",
+                "display_name": "default Servers to DMZ",
+                "sequence_number": 180,
+                "source_groups": [
+                  "ANY"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "ANY"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "ALLOW",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": true,
+                "tag": "default_Servers_to_DMZ",
+                "notes": "FWSHIFT disabled, see the report: the source of the rule is in zone Servers, and a rule of the distributed firewall names no zone: give the networks behind Servers with --zone-network; the destination of the rule is in zone DMZ, and a rule of the distributed firewall names no zone: give the networks behind DMZ with --zone-network | the default access rule of SonicOS from Servers to DMZ"
+              },
+              {
+                "resource_type": "Rule",
+                "id": "fwshift-default-deny",
+                "display_name": "fwshift-default-deny",
+                "sequence_number": 190,
+                "source_groups": [
+                  "ANY"
+                ],
+                "sources_excluded": false,
+                "destination_groups": [
+                  "ANY"
+                ],
+                "destinations_excluded": false,
+                "services": [
+                  "ANY"
+                ],
+                "action": "DROP",
+                "direction": "IN_OUT",
+                "ip_protocol": "IPV4_IPV6",
+                "scope": [
+                  "ANY"
+                ],
+                "logged": false,
+                "disabled": false,
+                "notes": "FWShift: what no rule above allows is dropped, as the source policy does"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
