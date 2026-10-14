@@ -97,7 +97,12 @@ defaults, `nat server` before it and `nat-policy` after it; commands for the
 system view, written), and **0.30.0, Stormshield SNS** (the ConfigFiles of a
 firewall as the `.tgz` decbackup makes of a backup, read: interfaces, objects,
 the active filter slot after the global one; a script of serverd commands that
-writes one filter slot, written).
+writes one filter slot, written), and **0.31.0, Cisco Meraki MX** (the answers
+of the Dashboard API for one network, read: VLANs with their static routes as
+zones, policy objects and groups, the outbound table, layer 7 rules of ports and
+address ranges, port forwarding, 1:1 and 1:many NAT with their allowed remote
+addresses, NAT exceptions and passthrough mode with the inbound table; a curl
+script that backs up and puts the outbound and NAT tables, written).
 What each rests on and what nobody has checked on a device is in
 the development log.
 
@@ -109,10 +114,15 @@ export shows its format), the engine (aliases resolved per engine, zones with
 their interfaces, element-based and default NAT), IPv6 NAT, and reading the
 output back for `convert --compare`.
 
-Next, one release each, in this order:
-
-* **0.31.0, Cisco Meraki MX**: the layer 3 firewall rules of the Dashboard
-  API, VLANs, 1:1 NAT and port forwarding.
+Still open for Meraki: the inbound table as a target (for NAT exceptions and
+IPv6 from the internet); group policies with layer 3 rules of their own, the
+cellular failover and site-to-site VPN tables; uplinks other than internet1
+for 1:1 and 1:many NAT from other sources; port forwarding on both uplinks;
+checking against a Dashboard whether hairpin traffic to a routed subnet passes
+the outbound table, whether layer 7 port and address rules act on traffic NAT
+lets in, how `VLAN(n).k` and `VLAN(n).*` treat IPv6, whether the uplink `both`
+means wan1 and wan2 only, and whether IPv4 inbound rules can exist without NAT
+exceptions; reading the script back for `convert --compare`.
 
 Still open for Stormshield: the NAT rules of a slot (their syntax in the file),
 and the serverd outputs (`CONFIG FILTER EXPLICIT ... output=xml`, `CONFIG OBJECT

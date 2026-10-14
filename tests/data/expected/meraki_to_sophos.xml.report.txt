@@ -1,0 +1,87 @@
+FWShift conversion report
+  source: meraki
+  target: sophos
+
+Summary
+  Security rules:     20   exact 16, approximated 0, needs review 3 (1 emitted disabled), skipped 1
+  NAT rules:           4   exact 0, approximated 3, needs review 1, skipped 0
+  Addresses:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_VLAN_IPV6: VLAN objects read with the IPv6 prefixes of the VLAN as well: VLAN(10)
+  [needs-review] MERAKI_CELLULAR: the rules of cellular failover act only on the cellular uplink, after the outbound table: not converted: cellularFirewallRules: 1 rules
+  [needs-review] MERAKI_VPN: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted: vpnFirewallRules: 1 rules
+  [needs-review] MERAKI_GROUP_POLICY: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and the rules here may not be what those get: servers-restricted
+  [needs-review] SOPHOS_LOAD: the output is an Entities.xml. Put it in a tar archive under that name (or let FWShift do it: give -o a name that ends in .tar) and import it under Backup & firmware > Import export. Rules are added below the rules the firewall has: a firewall rule or NAT rule that is there already, such as the default source NAT rule of a new firewall, comes first. An import can stop at the first object the firewall does not take: compare the number of rules and objects with this report, on a firewall that is not in production
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): vlan10-office, vlan20-servers, vlan30-ot-cell, internet. Zones are not created: an import would overwrite the device access of a zone that exists
+  [needs-review] INTRAZONE_DEFAULT: the source allows traffic inside a zone unless a rule denies it; Sophos Firewall drops traffic between the interfaces of a zone unless a rule allows it. Check zones with several interfaces
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] MERAKI_SOURCE: 3 LAN zones (vlan10-office, vlan20-servers, vlan30-ot-cell) and internet; traffic inside one VLAN passes (it does not pass the MX); the outbound table, first match, ends in its fixed default rule that allows the rest; from the internet only what NAT rules allow passes
+  [info] MERAKI_FQDN: host names in destinations: the MX learns their addresses from the DNS answers it sees; a domain without a subdomain stands for its subdomains too: updates.example.com
+  [info] MERAKI_SERVICES: services of the MX itself that answer on the WAN (firewalledServices): not converted: ICMP
+  [info] EXISTING_OBJECTS: an import overwrites what the firewall has under the same name: a host, a service or a rule that is in this output replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 3 rule(s) match IPv4 and IPv6 traffic and were written twice: Sophos Firewall keeps a rulebase per IP version. The name of the IPv6 rule ends in _v6
+
+Security rules
+  inside a VLAN  ->  exact  (emitted as inside a VLAN, inside a VLAN_v6, inside a VLAN_2, inside a VLAN_v6_2, inside a VLAN_3, inside a VLAN_v6_3)
+      [info] RULE_SPLIT: intrazone rule written as 3 rules, one per zone pair
+  layer 7 rule 2  ->  needs-review  (emitted as layer 7 rule 2, layer 7 rule 2_v6)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+  layer 7 rule 3  ->  needs-review
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+  bad ports  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination port '1024-5000,5004' cannot be read (one range, or a list of single ports).
+  layer 7 rule 1  ->  skipped
+      [needs-review] MERAKI_L7: layer 7 rule of applicationCategory: applications, categories, host names and countries have no ports or addresses; what it blocks after the layer 3 rules is not converted
+
+NAT rules
+  NAT vpn-portal  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from internet only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  NAT mail  ->  approximated  (emitted as NAT mail, NAT mail-in)
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a source NAT rule plus rule 'NAT mail-in' for the inbound direction
+  NAT scada-view  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from internet only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  NAT to the uplink  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from vlan10-office, vlan20-servers, vlan30-ot-cell only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [needs-review] NAT_ZONES: the rule applied to traffic to internet only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface, so that it now translates traffic towards every other zone as well. Name the interfaces with --interface-map, or put a rule without translation above it for the traffic that must keep its addresses
+
+Address groups
+  zone vlan10-office  ->  exact  (emitted as zone vlan10-office, zone vlan10-office_v6)
+      [info] GROUP_SPLIT: Sophos Firewall keeps IPv4 hosts, IPv6 hosts and host names in groups of their own: written as 'zone vlan10-office', 'zone vlan10-office_v6'
+  zone internet  ->  exact  (emitted as zone internet, zone internet_v6)
+      [info] GROUP_SPLIT: Sophos Firewall keeps IPv4 hosts, IPv6 hosts and host names in groups of their own: written as 'zone internet', 'zone internet_v6'
+  VLAN(10)  ->  exact  (emitted as VLAN_10_, VLAN_10__v6)
+      [info] RENAMED: renamed to 'VLAN_10_' to fit the target's naming rules
+      [info] GROUP_SPLIT: Sophos Firewall keeps IPv4 hosts, IPv6 hosts and host names in groups of their own: written as 'VLAN_10_', 'VLAN_10__v6'
+  VLAN(30)  ->  exact  (emitted as VLAN_30_)
+      [info] RENAMED: renamed to 'VLAN_30_' to fit the target's naming rules
+  VLAN(20)  ->  exact  (emitted as VLAN_20_)
+      [info] RENAMED: renamed to 'VLAN_20_' to fit the target's naming rules
+
+Services
+  tcp/23  ->  exact  (emitted as tcp_23)
+      [info] RENAMED: renamed to 'tcp_23' to fit the target's naming rules
+  udp/23  ->  exact  (emitted as udp_23)
+      [info] RENAMED: renamed to 'udp_23' to fit the target's naming rules
+  tcp/80,443  ->  exact  (emitted as tcp_80_443)
+      [info] RENAMED: renamed to 'tcp_80_443' to fit the target's naming rules
+  tcp/4840  ->  exact  (emitted as tcp_4840)
+      [info] RENAMED: renamed to 'tcp_4840' to fit the target's naming rules
+  tcp/102  ->  exact  (emitted as tcp_102)
+      [info] RENAMED: renamed to 'tcp_102' to fit the target's naming rules
+  tcp/443  ->  exact  (emitted as tcp_443)
+      [info] RENAMED: renamed to 'tcp_443' to fit the target's naming rules
+  udp/53  ->  exact  (emitted as udp_53)
+      [info] RENAMED: renamed to 'udp_53' to fit the target's naming rules
+  icmp  ->  exact  (emitted as icmp_2)
+      [info] RENAMED: renamed to 'icmp_2' to fit the target's naming rules
+  tcp/50000-50100  ->  exact  (emitted as tcp_50000-50100)
+      [info] RENAMED: renamed to 'tcp_50000-50100' to fit the target's naming rules
+  tcp/8443  ->  exact  (emitted as tcp_8443)
+      [info] RENAMED: renamed to 'tcp_8443' to fit the target's naming rules
+  tcp/25  ->  exact  (emitted as tcp_25)
+      [info] RENAMED: renamed to 'tcp_25' to fit the target's naming rules
+  tcp/9443  ->  exact  (emitted as tcp_9443)
+      [info] RENAMED: renamed to 'tcp_9443' to fit the target's naming rules

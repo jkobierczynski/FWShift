@@ -1,0 +1,119 @@
+FWShift conversion report
+  source: forcepoint (Branch Policy)
+  target: meraki
+
+Summary
+  Security rules:     32   exact 5, approximated 4, needs review 11 (4 emitted disabled), skipped 12
+  NAT rules:           5   exact 0, approximated 1, needs review 0, skipped 4
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FORCEPOINT_ELEMENT_NAT: element-based NAT (NAT set on an element) and the default NAT of the engine are not in the policy, and not read: they translate after the NAT rules, and an element with static NAT also matches its public address in the access rules
+  [needs-review] MERAKI_INSIDE: no --inside-zone: every zone was taken as a LAN of the MX; rules from a zone that is the internet are then written as outbound rules, which the MX never matches for traffic from the internet
+  [needs-review] MERAKI_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one VLAN the MX passes everything: Internal, External
+  [needs-review] MERAKI_LOAD: the output is a shell script for the Dashboard API (section 10): it backs up and replaces the outbound table; DRY_RUN=1 writes the bodies only. The fixed default rule of the MX (allow) stays at the end
+  [info] CONTINUE_RULE: Continue rules decide nothing: they set defaults (logging, inspection, timeouts) for the rules below them that match the same traffic. Their logging was given to those rules: 'lan defaults'
+  [info] NONE_CELL: rules with a cell set to NONE, which the engine ignores; converted disabled: 'unfinished'
+  [info] AUTOMATIC_RULES: the automatic rules of the engine (at the insert point for them) are for traffic to and from the engine itself, and are not converted
+  [info] SOURCE_VPN_NONE: rules that match traffic that comes through no VPN (Source VPN: not via VPN); converted for all traffic, as the model has no VPNs: 'ping out'
+  [info] NETWORK_BROADCAST: networks without 'broadcast' in groups: Forcepoint documents the option for rule cells, and in a group they were taken whole: grp-inside
+  [info] FORCEPOINT_ZONES: zones are bound to interfaces on the engine, which the input does not hold: the zones of the policy have no interfaces here
+  [info] FORCEPOINT_AUTOMATIC: what the engine does by itself is not converted: antispoofing (from its routing), the automatic rules for its own traffic, and replies of allowed connections, which the model allows with them
+  [info] MERAKI_DEFAULT_DENY: the source blocks what no rule matches: the outbound table ends in a rule that blocks everything, before the fixed default rule of the MX
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have syslogEnabled
+
+Security rules
+  Rule @900.0  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: source '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  dns to resolver  ->  needs-review  (emitted as 2 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  allow web  ->  needs-review  (emitted as 3 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  admins in  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  others out  ->  exact  (emitted as 1 rules of the outbound table)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  refuse admins 8443  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] REJECT_AS_DENY: action reset-client: written as deny
+  old block  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the MX cannot be disabled
+  internal zone out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Internal, and the MX names no zone: give the networks behind Internal with --zone-network.
+  not to dmz  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  updates by name  ->  skipped
+      [needs-review] ZONE_DYNAMIC: 'updates.example.com (names)' holds members only its platform knows.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  zone or web host out  ->  needs-review, emitted disabled
+      [info] RULE_SPLIT: the cells hold zones, addresses, users or applications side by side (ORed): the rule is 2 rules, one per combination
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Internal, and the MX names no zone: give the networks behind Internal with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and the MX names no zone: give the networks behind External with --zone-network.
+  zone or web host out (2)  ->  skipped
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and the MX names no zone: give the networks behind External with --zone-network.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  vpn only  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches traffic of VPNs only (Source VPN).
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  ping out  ->  skipped
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  no social  ->  needs-review, emitted disabled
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) Facebook; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  helpdesk to dmz  ->  skipped
+      [needs-review] USER_MATCH: source user match helpdesk is not converted.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  unfinished  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the MX cannot be disabled
+  office web  ->  skipped
+      [needs-review] SCHEDULE: schedule 'Office hours' is not converted; the rule would apply at all times.
+      [needs-review] SCHEDULE: schedule Office hours is not converted.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  limited guests  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [approximated] CONNECTION_LIMIT: the rule limits concurrent connections (src_limit 50): connections beyond it are refused or discarded, which is not converted
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  block list  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: it has a block list (it discards what the dynamic block list holds, and lets the rest go on). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  gre to isp  ->  skipped
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  lan but admins  ->  skipped
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  Rule @902.0  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] REJECT_AS_DENY: action reset-client: written as deny
+  v6 web  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  v6 ping  ->  skipped
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  v6 mail  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  v6 guests  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] REJECT_AS_DENY: action reset-client: written as deny
+  Rule @952.0  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] REJECT_AS_DENY: action reset-client: written as deny
+
+NAT rules
+  publish web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's
+  no nat inside  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's
+  lan out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's
+  mail static  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's
+  guests hide  ->  approximated  (emitted as what the MX does by itself: the LAN goes out with the address of the uplink)
+      [info] NAT_ENGINE: the NAT rule applies on engine 'fw-branch' only
+      [approximated] NAT_INTERFACE_ALIAS: the source is translated to $$ Default NAT Address, the address of an interface of the engine: converted as the address of the interface the traffic leaves by

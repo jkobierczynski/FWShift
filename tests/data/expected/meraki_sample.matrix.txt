@@ -1,0 +1,227 @@
+FWShift zone matrix
+  source: meraki
+  security rules: 19 (0 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+                  vlan10-office     vlan20-servers    vlan30-ot-cell    internet          (other zones)
+  vlan10-office   any~              any~              any~              any~              any~
+  vlan20-servers  any~              any~              any~              any~              any~
+  vlan30-ot-cell  any~              any~              any~              any~              any~
+  internet        -                 icmp type 8 +3    -                 any               -
+  (other zones)   -                 -                 -                 -                 any
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+vlan10-office -> vlan10-office (inside the zone)
+  allowed: any ~
+  industrial protocols: opc-ua (rule 'historian'); s7/iso-tsap (rule 'eng ws to plc')
+  rule 'inside a VLAN': any -> any: any
+  rule 'office to servers web': VLAN(10) -> 10.10.20.0/24: tcp/80, tcp/443
+  rule 'historian': 10.10.20.15 -> VLAN(30), 172.16.40.0/24: tcp/4840
+  rule 'eng ws to plc': eng-ws -> plcs: tcp/102
+  rule 'dns to servers': any -> 10.10.20.53: udp/53
+  rule 'ping servers': VLAN(10) -> VLAN(20): icmp
+  rule 'office ipv6 out': 2001:db8:10::/64 -> any: any
+  rule 'passive ftp': 10.10.10.0/24 -> 10.10.20.21: tcp/50000-50100
+  rule 'bad ports': 10.10.10.0/24 -> any: any (only with destination port '1024-5000,5004' cannot be read (one range, or a list of single ports), which is not in the model) ~
+  rule 'Default rule': any -> any: any
+vlan10-office -> vlan20-servers
+  allowed: any ~
+  industrial protocols: opc-ua (rule 'historian'); s7/iso-tsap (rule 'eng ws to plc')
+  rule 'office to servers web': VLAN(10) -> 10.10.20.0/24: tcp/80, tcp/443
+  rule 'historian': 10.10.20.15 -> VLAN(30), 172.16.40.0/24: tcp/4840
+  rule 'eng ws to plc': eng-ws -> plcs: tcp/102
+  rule 'dns to servers': any -> 10.10.20.53: udp/53
+  rule 'ping servers': VLAN(10) -> VLAN(20): icmp
+  rule 'office ipv6 out': 2001:db8:10::/64 -> any: any
+  rule 'passive ftp': 10.10.10.0/24 -> 10.10.20.21: tcp/50000-50100
+  rule 'bad ports': 10.10.10.0/24 -> any: any (only with destination port '1024-5000,5004' cannot be read (one range, or a list of single ports), which is not in the model) ~
+  rule 'Default rule': any -> any: any
+vlan10-office -> vlan30-ot-cell
+  allowed: any ~
+  industrial protocols: opc-ua (rule 'historian'); s7/iso-tsap (rule 'eng ws to plc')
+  rule 'office to servers web': VLAN(10) -> 10.10.20.0/24: tcp/80, tcp/443
+  rule 'historian': 10.10.20.15 -> VLAN(30), 172.16.40.0/24: tcp/4840
+  rule 'eng ws to plc': eng-ws -> plcs: tcp/102
+  rule 'dns to servers': any -> 10.10.20.53: udp/53
+  rule 'ping servers': VLAN(10) -> VLAN(20): icmp
+  rule 'office ipv6 out': 2001:db8:10::/64 -> any: any
+  rule 'passive ftp': 10.10.10.0/24 -> 10.10.20.21: tcp/50000-50100
+  rule 'bad ports': 10.10.10.0/24 -> any: any (only with destination port '1024-5000,5004' cannot be read (one range, or a list of single ports), which is not in the model) ~
+  rule 'Default rule': any -> any: any
+vlan10-office -> internet
+  allowed: any ~
+  industrial protocols: opc-ua (rule 'historian'); s7/iso-tsap (rule 'eng ws to plc')
+  rule 'office to servers web': VLAN(10) -> 10.10.20.0/24: tcp/80, tcp/443
+  rule 'historian': 10.10.20.15 -> VLAN(30), 172.16.40.0/24: tcp/4840
+  rule 'eng ws to plc': eng-ws -> plcs: tcp/102
+  rule 'dns to servers': any -> 10.10.20.53: udp/53
+  rule 'ping servers': VLAN(10) -> VLAN(20): icmp
+  rule 'office ipv6 out': 2001:db8:10::/64 -> any: any
+  rule 'passive ftp': 10.10.10.0/24 -> 10.10.20.21: tcp/50000-50100
+  rule 'bad ports': 10.10.10.0/24 -> any: any (only with destination port '1024-5000,5004' cannot be read (one range, or a list of single ports), which is not in the model) ~
+  rule 'Default rule': any -> any: any
+vlan10-office -> (other zones)
+  allowed: any ~
+  industrial protocols: opc-ua (rule 'historian'); s7/iso-tsap (rule 'eng ws to plc')
+  rule 'office to servers web': VLAN(10) -> 10.10.20.0/24: tcp/80, tcp/443
+  rule 'historian': 10.10.20.15 -> VLAN(30), 172.16.40.0/24: tcp/4840
+  rule 'eng ws to plc': eng-ws -> plcs: tcp/102
+  rule 'dns to servers': any -> 10.10.20.53: udp/53
+  rule 'ping servers': VLAN(10) -> VLAN(20): icmp
+  rule 'office ipv6 out': 2001:db8:10::/64 -> any: any
+  rule 'passive ftp': 10.10.10.0/24 -> 10.10.20.21: tcp/50000-50100
+  rule 'bad ports': 10.10.10.0/24 -> any: any (only with destination port '1024-5000,5004' cannot be read (one range, or a list of single ports), which is not in the model) ~
+  rule 'Default rule': any -> any: any
+vlan20-servers -> vlan10-office
+  allowed: any ~
+  industrial protocols: opc-ua (rule 'historian'); s7/iso-tsap (rule 'eng ws to plc')
+  rule 'office to servers web': VLAN(10) -> 10.10.20.0/24: tcp/80, tcp/443
+  rule 'historian': 10.10.20.15 -> VLAN(30), 172.16.40.0/24: tcp/4840
+  rule 'eng ws to plc': eng-ws -> plcs: tcp/102
+  rule 'dns to servers': any -> 10.10.20.53: udp/53
+  rule 'ping servers': VLAN(10) -> VLAN(20): icmp
+  rule 'office ipv6 out': 2001:db8:10::/64 -> any: any
+  rule 'passive ftp': 10.10.10.0/24 -> 10.10.20.21: tcp/50000-50100
+  rule 'bad ports': 10.10.10.0/24 -> any: any (only with destination port '1024-5000,5004' cannot be read (one range, or a list of single ports), which is not in the model) ~
+  rule 'Default rule': any -> any: any
+vlan20-servers -> vlan20-servers (inside the zone)
+  allowed: any ~
+  industrial protocols: opc-ua (rule 'historian'); s7/iso-tsap (rule 'eng ws to plc')
+  rule 'inside a VLAN': any -> any: any
+  rule 'office to servers web': VLAN(10) -> 10.10.20.0/24: tcp/80, tcp/443
+  rule 'historian': 10.10.20.15 -> VLAN(30), 172.16.40.0/24: tcp/4840
+  rule 'eng ws to plc': eng-ws -> plcs: tcp/102
+  rule 'dns to servers': any -> 10.10.20.53: udp/53
+  rule 'ping servers': VLAN(10) -> VLAN(20): icmp
+  rule 'office ipv6 out': 2001:db8:10::/64 -> any: any
+  rule 'passive ftp': 10.10.10.0/24 -> 10.10.20.21: tcp/50000-50100
+  rule 'bad ports': 10.10.10.0/24 -> any: any (only with destination port '1024-5000,5004' cannot be read (one range, or a list of single ports), which is not in the model) ~
+  rule 'Default rule': any -> any: any
+vlan20-servers -> vlan30-ot-cell
+  allowed: any ~
+  industrial protocols: opc-ua (rule 'historian'); s7/iso-tsap (rule 'eng ws to plc')
+  rule 'office to servers web': VLAN(10) -> 10.10.20.0/24: tcp/80, tcp/443
+  rule 'historian': 10.10.20.15 -> VLAN(30), 172.16.40.0/24: tcp/4840
+  rule 'eng ws to plc': eng-ws -> plcs: tcp/102
+  rule 'dns to servers': any -> 10.10.20.53: udp/53
+  rule 'ping servers': VLAN(10) -> VLAN(20): icmp
+  rule 'office ipv6 out': 2001:db8:10::/64 -> any: any
+  rule 'passive ftp': 10.10.10.0/24 -> 10.10.20.21: tcp/50000-50100
+  rule 'bad ports': 10.10.10.0/24 -> any: any (only with destination port '1024-5000,5004' cannot be read (one range, or a list of single ports), which is not in the model) ~
+  rule 'Default rule': any -> any: any
+vlan20-servers -> internet
+  allowed: any ~
+  industrial protocols: opc-ua (rule 'historian'); s7/iso-tsap (rule 'eng ws to plc')
+  rule 'office to servers web': VLAN(10) -> 10.10.20.0/24: tcp/80, tcp/443
+  rule 'historian': 10.10.20.15 -> VLAN(30), 172.16.40.0/24: tcp/4840
+  rule 'eng ws to plc': eng-ws -> plcs: tcp/102
+  rule 'dns to servers': any -> 10.10.20.53: udp/53
+  rule 'ping servers': VLAN(10) -> VLAN(20): icmp
+  rule 'office ipv6 out': 2001:db8:10::/64 -> any: any
+  rule 'passive ftp': 10.10.10.0/24 -> 10.10.20.21: tcp/50000-50100
+  rule 'bad ports': 10.10.10.0/24 -> any: any (only with destination port '1024-5000,5004' cannot be read (one range, or a list of single ports), which is not in the model) ~
+  rule 'Default rule': any -> any: any
+vlan20-servers -> (other zones)
+  allowed: any ~
+  industrial protocols: opc-ua (rule 'historian'); s7/iso-tsap (rule 'eng ws to plc')
+  rule 'office to servers web': VLAN(10) -> 10.10.20.0/24: tcp/80, tcp/443
+  rule 'historian': 10.10.20.15 -> VLAN(30), 172.16.40.0/24: tcp/4840
+  rule 'eng ws to plc': eng-ws -> plcs: tcp/102
+  rule 'dns to servers': any -> 10.10.20.53: udp/53
+  rule 'ping servers': VLAN(10) -> VLAN(20): icmp
+  rule 'office ipv6 out': 2001:db8:10::/64 -> any: any
+  rule 'passive ftp': 10.10.10.0/24 -> 10.10.20.21: tcp/50000-50100
+  rule 'bad ports': 10.10.10.0/24 -> any: any (only with destination port '1024-5000,5004' cannot be read (one range, or a list of single ports), which is not in the model) ~
+  rule 'Default rule': any -> any: any
+vlan30-ot-cell -> vlan10-office
+  allowed: any ~
+  industrial protocols: opc-ua (rule 'historian'); s7/iso-tsap (rule 'eng ws to plc')
+  rule 'office to servers web': VLAN(10) -> 10.10.20.0/24: tcp/80, tcp/443
+  rule 'historian': 10.10.20.15 -> VLAN(30), 172.16.40.0/24: tcp/4840
+  rule 'eng ws to plc': eng-ws -> plcs: tcp/102
+  rule 'dns to servers': any -> 10.10.20.53: udp/53
+  rule 'ping servers': VLAN(10) -> VLAN(20): icmp
+  rule 'office ipv6 out': 2001:db8:10::/64 -> any: any
+  rule 'passive ftp': 10.10.10.0/24 -> 10.10.20.21: tcp/50000-50100
+  rule 'bad ports': 10.10.10.0/24 -> any: any (only with destination port '1024-5000,5004' cannot be read (one range, or a list of single ports), which is not in the model) ~
+  rule 'Default rule': any -> any: any
+vlan30-ot-cell -> vlan20-servers
+  allowed: any ~
+  industrial protocols: opc-ua (rule 'historian'); s7/iso-tsap (rule 'eng ws to plc')
+  rule 'office to servers web': VLAN(10) -> 10.10.20.0/24: tcp/80, tcp/443
+  rule 'historian': 10.10.20.15 -> VLAN(30), 172.16.40.0/24: tcp/4840
+  rule 'eng ws to plc': eng-ws -> plcs: tcp/102
+  rule 'dns to servers': any -> 10.10.20.53: udp/53
+  rule 'ping servers': VLAN(10) -> VLAN(20): icmp
+  rule 'office ipv6 out': 2001:db8:10::/64 -> any: any
+  rule 'passive ftp': 10.10.10.0/24 -> 10.10.20.21: tcp/50000-50100
+  rule 'bad ports': 10.10.10.0/24 -> any: any (only with destination port '1024-5000,5004' cannot be read (one range, or a list of single ports), which is not in the model) ~
+  rule 'Default rule': any -> any: any
+vlan30-ot-cell -> vlan30-ot-cell (inside the zone)
+  allowed: any ~
+  industrial protocols: opc-ua (rule 'historian'); s7/iso-tsap (rule 'eng ws to plc')
+  rule 'inside a VLAN': any -> any: any
+  rule 'office to servers web': VLAN(10) -> 10.10.20.0/24: tcp/80, tcp/443
+  rule 'historian': 10.10.20.15 -> VLAN(30), 172.16.40.0/24: tcp/4840
+  rule 'eng ws to plc': eng-ws -> plcs: tcp/102
+  rule 'dns to servers': any -> 10.10.20.53: udp/53
+  rule 'ping servers': VLAN(10) -> VLAN(20): icmp
+  rule 'office ipv6 out': 2001:db8:10::/64 -> any: any
+  rule 'passive ftp': 10.10.10.0/24 -> 10.10.20.21: tcp/50000-50100
+  rule 'bad ports': 10.10.10.0/24 -> any: any (only with destination port '1024-5000,5004' cannot be read (one range, or a list of single ports), which is not in the model) ~
+  rule 'Default rule': any -> any: any
+vlan30-ot-cell -> internet
+  allowed: any ~
+  industrial protocols: opc-ua (rule 'historian'); s7/iso-tsap (rule 'eng ws to plc')
+  rule 'office to servers web': VLAN(10) -> 10.10.20.0/24: tcp/80, tcp/443
+  rule 'historian': 10.10.20.15 -> VLAN(30), 172.16.40.0/24: tcp/4840
+  rule 'eng ws to plc': eng-ws -> plcs: tcp/102
+  rule 'dns to servers': any -> 10.10.20.53: udp/53
+  rule 'ping servers': VLAN(10) -> VLAN(20): icmp
+  rule 'office ipv6 out': 2001:db8:10::/64 -> any: any
+  rule 'passive ftp': 10.10.10.0/24 -> 10.10.20.21: tcp/50000-50100
+  rule 'bad ports': 10.10.10.0/24 -> any: any (only with destination port '1024-5000,5004' cannot be read (one range, or a list of single ports), which is not in the model) ~
+  rule 'Default rule': any -> any: any
+vlan30-ot-cell -> (other zones)
+  allowed: any ~
+  industrial protocols: opc-ua (rule 'historian'); s7/iso-tsap (rule 'eng ws to plc')
+  rule 'office to servers web': VLAN(10) -> 10.10.20.0/24: tcp/80, tcp/443
+  rule 'historian': 10.10.20.15 -> VLAN(30), 172.16.40.0/24: tcp/4840
+  rule 'eng ws to plc': eng-ws -> plcs: tcp/102
+  rule 'dns to servers': any -> 10.10.20.53: udp/53
+  rule 'ping servers': VLAN(10) -> VLAN(20): icmp
+  rule 'office ipv6 out': 2001:db8:10::/64 -> any: any
+  rule 'passive ftp': 10.10.10.0/24 -> 10.10.20.21: tcp/50000-50100
+  rule 'bad ports': 10.10.10.0/24 -> any: any (only with destination port '1024-5000,5004' cannot be read (one range, or a list of single ports), which is not in the model) ~
+  rule 'Default rule': any -> any: any
+internet -> vlan20-servers
+  allowed: icmp type 8, tcp/25, tcp/8443, tcp/9443
+  rule 'vpn-portal': 198.51.100.0/24 -> 203.0.113.2: tcp/8443
+  rule 'mail (1)': any -> 203.0.113.25: tcp/25
+  rule 'mail (2)': 192.0.2.0/24 -> 203.0.113.25: icmp type 8
+  rule 'scada-view': 192.0.2.10 -> 203.0.113.30: tcp/9443
+internet -> internet (inside the zone)
+  allowed: any
+  by default, what no rule decides: any
+(other zones) -> (other zones)
+  allowed: any
+  by default, what no rule decides: any
+
+Not in the matrix
+  1 rule(s) of the source could not be read; what they allow is not shown: 'layer 7 rule 1'
+
+From reading the configuration
+  MERAKI_SOURCE: 3 LAN zones (vlan10-office, vlan20-servers, vlan30-ot-cell) and internet; traffic inside one VLAN passes (it does not pass the MX); the outbound table, first match, ends in its fixed default rule that allows the rest; from the internet only what NAT rules allow passes
+  MERAKI_VLAN_IPV6: VLAN objects read with the IPv6 prefixes of the VLAN as well: VLAN(10)
+  MERAKI_FQDN: host names in destinations: the MX learns their addresses from the DNS answers it sees; a domain without a subdomain stands for its subdomains too: updates.example.com
+  MERAKI_CELLULAR: the rules of cellular failover act only on the cellular uplink, after the outbound table: not converted: cellularFirewallRules: 1 rules
+  MERAKI_VPN: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted: vpnFirewallRules: 1 rules
+  MERAKI_GROUP_POLICY: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and the rules here may not be what those get: servers-restricted
+  MERAKI_SERVICES: services of the MX itself that answer on the WAN (firewalledServices): not converted: ICMP
+
+Notes
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

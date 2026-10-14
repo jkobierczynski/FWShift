@@ -1,14 +1,14 @@
 # FWShift user manual
 
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
-Check Point, Cisco ASA, Cisco IOS and IOS XE routers, Huawei USG, Stormshield SNS, Cisco Secure Firewall (managed by a Management Center
+Check Point, Cisco ASA, Cisco IOS and IOS XE routers, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall (managed by a Management Center
 or by its Device Manager), Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX, Linux iptables, Linux nftables, the VMware NSX
 distributed firewall, AWS security groups, Azure network security groups, Google Cloud firewall rules and network firewall policies (these three also as the resources of a Terraform state or plan, and as Terraform configuration), MikroTik RouterOS and Forcepoint NGFW (through its Security Management Center), and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; show what each zone may reach in each
 other zone; check a policy against a zone and conduit model kept as a file;
 and say which connections two policies decide differently.
-This manual covers version 0.30.
+This manual covers version 0.31.
 
 **Contents**
 
@@ -62,10 +62,10 @@ may reach (section 14), check a policy against a zone and conduit model kept
 as a file (section 16), and name every connection two policies decide
 differently, including a source and its conversion read back (section 17).
 
-> **Status.** Version 0.30 is tested against synthetic configurations. iptables
+> **Status.** Version 0.31 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). Output for PAN-OS, FortiOS, Check Point,
-> Cisco ASA, Cisco IOS, Huawei USG, Stormshield SNS, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS, Azure, Google Cloud, RouterOS and Forcepoint has
+> Cisco ASA, Cisco IOS, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS, Azure, Google Cloud, RouterOS and Forcepoint has
 > not been loaded on a device or management server yet, and the Terraform output has not been applied with Terraform; the Check Point input format follows the
 > API documentation, the ASA and FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
@@ -87,6 +87,8 @@ differently, including a source and its conversion read back (section 17).
 > command reference could not be read, and the indentation of `display current-configuration` is assumed.
 > Stormshield's configuration files are read as its own tools and their test data show them (the syntax of a rule
 > line is not published), and its serverd commands from its command reference; nothing was run on a firewall.
+> The Dashboard API of Cisco Meraki is read and written as its OpenAPI specification, Meraki's documentation and the
+> SDK, Terraform provider and Ansible modules Cisco publishes show it; no call was made to a Dashboard.
 > Use FWShift to produce a draft for a lab, and follow *Using it safely* in the README.
 
 ## 2. Installation
@@ -109,8 +111,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.30.0.pyz --version
-python3 fwshift-0.30.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.31.0.pyz --version
+python3 fwshift-0.31.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -373,6 +375,41 @@ The zones of the converted policy are the security zones; `local` is the firewal
 (`HUAWEI_LOCAL_RULE`). The `policy interzone` configuration of older USGs (USG2000, USG5000, USG5500) and packet
 filters between zones (`firewall interzone`, as on a router) are refused. Of a firewall with virtual systems the root
 system is read, up to the first `switch vsys` (`HUAWEI_VSYS`).
+
+**Cisco Meraki MX.** FWShift reads the answers of the Dashboard API (v1) for one network of an MX, gathered in one
+JSON file under the names of their endpoints. The commands below fetch them with curl and put them together with jq;
+the API key stays in the environment:
+
+```sh
+export MERAKI_API_KEY='...'                 # never write it into a file
+B="${MERAKI_BASE:-https://api.meraki.com/api/v1}"
+ORG=100001                                  # from: curl ... "$B/organizations"
+NET=N_100000000000000001                    # from: curl ... "$B/organizations/$ORG/networks?productTypes%5B%5D=appliance"
+g() { curl -sSL --fail-with-body -H "Authorization: Bearer $MERAKI_API_KEY" -H 'Accept: application/json' "$B$1"; }
+mkdir meraki-$NET && cd meraki-$NET
+g "/networks/$NET" > network.json
+g "/networks/$NET/appliance/settings" > applianceSettings.json
+g "/networks/$NET/appliance/vlans/settings" > vlansSettings.json
+g "/networks/$NET/appliance/vlans" > vlans.json || rm -f vlans.json          # fails when VLANs are off
+g "/networks/$NET/appliance/singleLan" > singleLan.json || rm -f singleLan.json
+g "/networks/$NET/appliance/staticRoutes" > staticRoutes.json
+for t in l3FirewallRules inboundFirewallRules cellularFirewallRules inboundCellularFirewallRules \
+         l7FirewallRules firewalledServices portForwardingRules oneToOneNatRules oneToManyNatRules; do
+  g "/networks/$NET/appliance/firewall/$t" > "$t.json" || rm -f "$t.json"
+done
+g "/networks/$NET/groupPolicies" > groupPolicies.json
+g "/organizations/$ORG/appliance/vpn/vpnFirewallRules" > vpnFirewallRules.json
+g "/organizations/$ORG/policyObjects?perPage=5000" > policyObjects.json
+g "/organizations/$ORG/policyObjects/groups?perPage=1000" > policyObjectsGroups.json
+g "/organizations/$ORG/appliance/uplink/statuses?networkIds%5B%5D=$NET" > uplinkStatuses.json
+g "/organizations/$ORG/appliance/uplinks/nat/byNetwork?networkIds%5B%5D=$NET" > uplinksNat.json
+jq -n '[inputs | {(input_filename | sub("\\.json$"; "")): .}] | add + {"fwshift": "meraki-mx"}' *.json > ../meraki-$NET.json
+```
+
+Give FWShift `meraki-$NET.json`. The answer of `l3FirewallRules` alone (or its list of rules) is read too, as the
+outbound table with no VLANs, objects or NAT (`MERAKI_TABLE_ALONE`). With other regional clouds set `MERAKI_BASE`
+(`https://api.meraki.cn/api/v1` and the like). A network bound to a configuration template is refused: fetch the
+answers of the template. More than 5,000 policy objects take more than one page (the `Link` header).
 
 **Stormshield SNS.** FWShift reads the configuration files of an SNS firewall (version 4), the folder
 `/usr/Firewall/ConfigFiles`, as a `.tar` or `.tgz`. A backup (`.na`, *Configuration > System > Maintenance > Backup*)
@@ -950,7 +987,7 @@ TCP 502 and TCP 102, not the applications themselves.
 fwshift convert INPUT --to FORMAT [options]
 ```
 
-`FORMAT` is one of `panos`, `fortios`, `checkpoint`, `asa`, `ios`, `huawei`, `stormshield`, `fmc`, `fdm`,
+`FORMAT` is one of `panos`, `fortios`, `checkpoint`, `asa`, `ios`, `huawei`, `stormshield`, `meraki`, `fmc`, `fdm`,
 `sophos`, `pfsense`, `opnsense`, `sonicwall`, `watchguard`, `barracuda`, `junos`,
 `iptables`, `ip6tables`, `nftables`, `nsx`, `aws`, `azure`, `gcp`, `terraform-aws`, `terraform-azure`, `terraform-google`, `routeros`, `forcepoint` and `json` (the neutral model; see `--to json` below).
 
@@ -960,7 +997,7 @@ fwshift convert INPUT --to FORMAT [options]
 
 | Option | Meaning |
 |---|---|
-| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: the JSON of `terraform show -json` or a raw state of Terraform is `terraform-aws`, `terraform-azure` or `terraform-google`, by the resources it holds; JSON that holds the answers of the SMC API for a firewall policy (list answers with `fwshift_list`, or hrefs into `/elements/fw_policy/`), or the XML export of an SMC (`<generic_import_export>`, which is refused), is Forcepoint; JSON of gcloud with objects of the kinds `compute#firewall` or `compute#firewallPolicy` (or firewall rules with `allowed` or `denied`, `IPProtocol` and `network`) is `gcp`; a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<opnsense>` is OPNsense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; JSON with network security groups of Azure (`Microsoft.Network/networkSecurityGroups`, or `securityRules` with priorities) is Azure; a file whose header says `by RouterOS`, or whose first line is a menu such as `/ip firewall filter` or `/interface list`, is RouterOS; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a `.tar` or `.tgz` that holds ConfigFiles (`object`, `Filter/slotinfo` or a filter slot), or a Stormshield backup (`.na`, refused with the command that opens it), is `stormshield`; a file with `security-policy` or `nat-policy` and `firewall zone`, `ip address-set`, `ip service-set`, `nat address-group` or `sysname` lines is `huawei`; a file with lines only IOS writes (`ip access-list standard|extended`, `ipv6 access-list`, ` ip access-group` under an interface, `zone security`, `zone-pair security`, `ip nat inside source`, `access-list 101 permit ...`, `version 15.4`) and none only an ASA writes is `ios`; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: the JSON of `terraform show -json` or a raw state of Terraform is `terraform-aws`, `terraform-azure` or `terraform-google`, by the resources it holds; JSON that holds the answers of the SMC API for a firewall policy (list answers with `fwshift_list`, or hrefs into `/elements/fw_policy/`), or the XML export of an SMC (`<generic_import_export>`, which is refused), is Forcepoint; JSON of gcloud with objects of the kinds `compute#firewall` or `compute#firewallPolicy` (or firewall rules with `allowed` or `denied`, `IPProtocol` and `network`) is `gcp`; a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<opnsense>` is OPNsense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `"fwshift": "meraki-mx"` or `l3FirewallRules`, or rules with `srcCidr`, `destCidr` and `policy`, is `meraki`; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; JSON with network security groups of Azure (`Microsoft.Network/networkSecurityGroups`, or `securityRules` with priorities) is Azure; a file whose header says `by RouterOS`, or whose first line is a menu such as `/ip firewall filter` or `/interface list`, is RouterOS; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a `.tar` or `.tgz` that holds ConfigFiles (`object`, `Filter/slotinfo` or a filter slot), or a Stormshield backup (`.na`, refused with the command that opens it), is `stormshield`; a file with `security-policy` or `nat-policy` and `firewall zone`, `ip address-set`, `ip service-set`, `nat address-group` or `sysname` lines is `huawei`; a file with lines only IOS writes (`ip access-list standard|extended`, `ipv6 access-list`, ` ip access-group` under an interface, `zone security`, `zone-pair security`, `ip nat inside source`, `access-list 101 permit ...`, `version 15.4`) and none only an ASA writes is `ios`; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
@@ -999,6 +1036,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to ios` | Configuration commands for the zone-based policy firewall of IOS and IOS XE: a zone per zone of the source, an access list and an inspect class map per rule, an inspect policy per zone pair in the order of the rules, ending in the default of the source (section 10). The `zone-member security` lines and NAT are comments to move into place. |
 | `--to huawei` | Commands for the system view of a Huawei USG: security zones (`trust`, `untrust` and `dmz` as they are, others new with a priority of their own), address and service sets, the rules of `security-policy` in the order of the source, the defaults, `nat server` and `nat-policy` (section 10). Which interfaces go in which zone is a comment. |
 | `--to stormshield` | A script of serverd commands for an SNS firewall (version 4), to run with `snscli --script`: objects, then the rules in one filter slot (slot 9, or `--target-policy N` or `N:NAME`) that the script empties first and does not make active, then the NAT rules (section 10). The zones are the names of the firewall's interfaces (`--zone-map`). |
+| `--to meraki` | A shell script that puts the rule tables of one Cisco Meraki MX network through the Dashboard API, with curl: the outbound table (`l3FirewallRules`) and the tables of port forwarding, 1:1 NAT and 1:many NAT it has rules for. It backs up each table before it replaces it; `DRY_RUN=1` writes the bodies only (section 10). The zones of the LAN are `--inside-zone` (from a Meraki source the VLANs), their networks `--zone-network`. |
 | `--to gcp` | A shell script of gcloud commands that creates one new global network firewall policy with the rules, associated with no network (section 10). Each rule of the source becomes a rule per IP version, both ingress and egress, at priorities from 1000 in steps of 10; the last rules are the default of the source. Zones become the networks of `--zone-network`, as for NSX. |
 | `--to terraform-google` | Terraform configuration (HCL, hashicorp/google 5 or later): the policy and rules the `gcp` target writes, as a `google_compute_network_firewall_policy` and its `_rule` resources, in the project in the variable `project`; the association with a network is a comment (section 10). |
 | `--to terraform-azure` | Terraform configuration (HCL, hashicorp/azurerm 3 or later): the network security groups the `azure` target writes, as `azurerm_network_security_group` resources with their rules inline, in the resource group in the variable `resource_group_name` (section 10). |
@@ -1026,8 +1064,8 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | Option | Meaning |
 |---|---|
 | `--zone-map SRC=DST` | Use `DST` wherever the source names zone or interface `SRC`. Repeatable. For iptables and ASA this is how a zone becomes an interface name, and the other way round; for pfSense how it becomes an interface (`lan`, `opt1`) or an interface group. |
-| `--zone-network ZONE=NET[,NET...]` | ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure and Google Cloud targets (also `terraform-aws`, `terraform-azure` and `terraform-google`): the networks that lie behind a zone (SonicWall: the zone an address object is created in; Barracuda, NSX, AWS and Google Cloud: both sides of a rule, which names no zone) (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
-| `--inside-zone ZONE` | AWS and Azure targets (also `terraform-aws` and `terraform-azure`): a zone whose networks (`--zone-network`) are inside the VPC or the virtual network. Repeatable. For Azure only those zones get a network security group. Only addresses inside get security groups, and their outbound rules leave the addresses inside to the inbound rules of the destination's group, which keeps them short. Without it every address gets a group (those outside are never attached), and each end says everything. From an AWS source the VPC it was read from is the inside. |
+| `--zone-network ZONE=NET[,NET...]` | ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Google Cloud (also `terraform-aws`, `terraform-azure` and `terraform-google`) and Meraki targets: the networks that lie behind a zone (SonicWall: the zone an address object is created in; Barracuda, NSX, AWS, Google Cloud and Meraki: both sides of a rule, which names no zone) (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
+| `--inside-zone ZONE` | AWS and Azure targets (also `terraform-aws` and `terraform-azure`): a zone whose networks (`--zone-network`) are inside the VPC or the virtual network. Repeatable. For Azure only those zones get a network security group. Only addresses inside get security groups, and their outbound rules leave the addresses inside to the inbound rules of the destination's group, which keeps them short. Without it every address gets a group (those outside are never attached), and each end says everything. From an AWS source the VPC it was read from is the inside. Meraki target: a zone of the LAN of the MX; the other zones are the internet, from which only NAT lets traffic in (section 8). Without it every zone is taken as LAN (`MERAKI_INSIDE`); from a Meraki source the VLANs are. |
 | `--interface-map SRC=DST` | Map a source interface to a target interface: zone members written for FortiOS, source NAT to an interface address on PAN-OS, and the interfaces of a NAT rule on Sophos Firewall, SonicWall and a Device Manager, which match interfaces and not zones (SonicWall: `X1`, `X3:V10`); for a Barracuda target, the interface of the entries of the source of a rule in that zone (`port2`). For those two, map every interface of a zone the NAT rules name (for an iptables or ASA source, whose zones are interfaces, that is the zone name itself); for a Device Manager `DST` is the logical name of the interface (`inside`, `outside`). Repeatable. |
 | `--app-map FILE` | JSON file that adds or overrides application port definitions (section 9). |
 | `--prune-unused` | Leave out objects that no rule or NAT rule uses, directly or through a group. |
@@ -1309,7 +1347,7 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `NEGATION_AS_ADDRESSES` | I | To Sophos: of several negated fields one is an exclusion; the others are written as the addresses that are left, which matches the same traffic. To a Management Center or a Device Manager: every negated address list is written that way, as range objects and the predefined object for the other IP version. |
 | `APP_PORTS` | R, disabled | To Sophos, a Management Center or a Device Manager: the ports of an application hold something a service of the target cannot say (SCTP ports). |
 | `SCHEDULE` | R, disabled | The rule had a schedule; converted without it, it would apply at all times. |
-| `SERVICE_NEGATE` | R, disabled | To PAN-OS, ASA, Barracuda, Huawei or Stormshield: a negated service match does not exist there. On an ASA only a remark is written for the rule: an inactive entry without the negation would say the opposite. |
+| `SERVICE_NEGATE` | R, disabled | To PAN-OS, ASA, Barracuda, Huawei, Stormshield or Meraki: a negated service match does not exist there. On an ASA only a remark is written for the rule: an inactive entry without the negation would say the opposite. |
 | `EGRESS_INTERFACE` | A, or R and disabled | To ASA or pfSense: the rule is for traffic to certain zones, and an access list entry cannot name the interface traffic leaves by. A: the rule names destination addresses and is written for those, by whatever interface they are reached; also on an intrazone rule, which an ASA only serves with `same-security-traffic permit intra-interface`. R, disabled: the rule is for any address; give the networks behind the zones with `--zone-network`, or the rule a destination. |
 | `EGRESS_BY_NETWORKS` | I or A | To ASA or pfSense: with `--zone-network`, the networks given for the other zones were left out of the destination of the entry, which keeps the rule to its zones. A: the networks do not cover every address; what they leave out lies behind no zone that is known, so a permit rule for any address does not cover it and a deny rule does (`ZONE_NETWORK_GAP`). |
 | `EGRESS_NO_ADDRESS` | A or R, skipped | To ASA or pfSense: by the networks given with `--zone-network`, no address of the destination lies behind the zones the rule is for, so it matched nothing and is left out (or, with several source zones, has no entry for some of them). R for a deny rule: if one of the networks is wrong, a deny is missing. |
@@ -1324,7 +1362,7 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `NOT_THIS_IP_VERSION` | I, skipped | To iptables or ip6tables: nothing in the rule can match this IP version. It is in the output for the other one. |
 | `INTERFACE_NAME` | R, disabled | To iptables or ASA: a zone name that cannot be an interface name. Map it with `--zone-map`. |
 | `FQDN_RESOLVED_ONCE` | A | To iptables: a host name is resolved once, when the rules are loaded. |
-| `FQDN_NOT_SUPPORTED` | R, disabled | To nftables: the rule names a host name object. An nftables rule matches addresses; resolve the name into an address object, or into a set a script keeps up to date. |
+| `FQDN_NOT_SUPPORTED` | R, disabled | To Meraki: a host name as a source, or in a rule kept to the networks of zones; an MX takes host names as destinations only. To nftables: the rule names a host name object. An nftables rule matches addresses; resolve the name into an address object, or into a set a script keeps up to date. |
 | `MATCHES_NOTHING` | I, skipped | To nftables: nothing in the rule can match a packet of either IP version (a negated list that holds everything, or "not any service"). |
 | `DROP_BEFORE_ESTABLISHED` | R | iptables or nftables source: a deny that comes before the rule accepting established connections also dropped the replies of connections opened from the other side. The converted rule blocks new connections in its own direction only. |
 | `INLINE_CLEANUP` | I or R | Check Point source: a rule added for the implicit cleanup of an inline layer. R when the export does not show whether the layer drops or accepts and drop was assumed (section 3). |
@@ -1874,6 +1912,39 @@ Findings and notes that only a Forcepoint source or target raises. A Forcepoint 
 | `APP_AND_SERVICE` | R | Target (on the rule): network applications and services in one rule of an SMC source: in one cell they would be ORed. Written disabled. |
 | `NAT_IPV4_ONLY` | A | Target (on the NAT rule): source NAT to the interface address for addresses of both IP versions is written for IPv4 only. |
 | `NAT_PORTS` | A | Target (on the NAT rule): dynamic NAT without port translation is written as dynamic NAT of an SMC, which translates ports as well. |
+
+Findings and notes that only a Cisco Meraki MX source or target raises:
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `MERAKI_SOURCE` | I | Source: the LAN zones (one per VLAN, with the subnets of its static routes) and the zone internet; traffic inside one VLAN passes; the outbound table is read first match and ends in its fixed default rule, which allows; from the internet only what NAT rules allow passes. |
+| `MERAKI_TABLE_ALONE` | R | Source: the answer of one rule table, read as the outbound table: the VLANs, objects and NAT rules are not known, and every address is in the zone internet. Give the bundle of section 3. |
+| `MERAKI_NO_VLANS` | R | Source: neither `vlans` nor `singleLan`: there are no LAN zones and the VLAN objects (`VLAN(10).*`) are not known. |
+| `MERAKI_NO_LAN` | R | Source: no LAN zones, so the rules of the outbound table and its default rule apply to traffic from any zone. |
+| `MERAKI_ROUTE` | R | Source: a static route whose gateway is in no VLAN; its subnet is in no LAN zone. |
+| `MERAKI_FQDN` | I | Source: host names as destinations. The MX learns their addresses from the DNS answers it sees, and a domain without a subdomain stands for its subdomains too. |
+| `MERAKI_VLAN_IPV6` | R | Source: VLAN objects are read with the IPv6 prefixes of the VLAN as well, as far as the answer holds them. |
+| `MERAKI_NO_DEFAULT_RULE` | R | Source: the outbound table does not end in the Default rule (an older export, or an edited one); read with the fixed allow of the MX anyway. |
+| `MERAKI_INBOUND_TABLE` | R | Source: inbound rules without NAT exceptions or passthrough mode: they decide IPv6 from the internet only, and are not converted. |
+| `MERAKI_NAT_EXCEPTION` | I | Source: uplinks with NAT off (NAT exceptions): the LAN is not translated there, and the inbound table decides what comes in instead of the allowed remote addresses of the NAT rules. With NAT off and no inbound table in the input, those NAT rules let in nothing. |
+| `MERAKI_PASSTHROUGH` | R | Source: an MX in passthrough mode: traffic from the internet passes unless the inbound table blocks it; NAT rules are read as they are. |
+| `MERAKI_L7` | R, skipped | Source (on the rule): a layer 7 rule of an application, a category, a host name or countries: no ports or addresses say what it blocks after the outbound table. |
+| `MERAKI_L7_PORTS` | R | Source (on the rule): a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the outbound rules (layer 7 only blocks, after layer 3). |
+| `MERAKI_CELLULAR` | R | Source: the rules for cellular failover act only on the cellular uplink, after the outbound table: not converted. |
+| `MERAKI_VPN` | R | Source: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted. |
+| `MERAKI_GROUP_POLICY` | R | Source: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and what those clients get may differ from the rules read. |
+| `MERAKI_SERVICES` | I | Source: services of the MX itself that answer on the WAN (`firewalledServices`): not converted. |
+| `MERAKI_UNKNOWN_KEYS` | I | Source: answers in the bundle that are not read. |
+| `MERAKI_LOAD` | R | Target: the output is a shell script for the Dashboard API (section 10): it backs up and replaces the outbound table and the NAT tables it has rules for. The fixed default rule of the MX (allow) stays at the end. |
+| `MERAKI_INSIDE` | R | Target: no `--inside-zone`: every zone was taken as the LAN of the MX. Rules from a zone that is the internet are then written as outbound rules, which the MX never matches for traffic from the internet. |
+| `MERAKI_DEFAULT_DENY` | I | Target: the source blocks what no rule matches: the outbound table ends in a rule that blocks everything, before the fixed default rule of the MX. |
+| `MERAKI_INTRAZONE` | I, skipped (R for a rule that blocks) | Target (on the rule): a rule for traffic inside one zone; traffic inside one VLAN does not pass the MX, which does not filter it. On a rule between zones that also names a zone on both sides, that part filters nothing. |
+| `MERAKI_INTRAZONE_DEFAULT` | R | Target: the source blocks traffic inside a zone that no rule matches; inside one VLAN the MX passes everything. |
+| `MERAKI_INBOUND` | R, skipped | Target (on the rule): a rule from the internet. The MX lets traffic from the internet in only by its NAT rules, with the sources of the rules that allow all of it as the allowed remote addresses; this rule goes with no NAT rule, or cannot be written as allowed remote addresses (the reason follows). |
+| `MERAKI_PING_ONLY` | A | Target (on the rule): of ICMP, 1:1 NAT lets in ping only. |
+| `MERAKI_INBOUND_SERVICE` | A | Target (on the rule): a service 1:1 NAT cannot let in (only TCP and UDP ports, ping and any): left out. |
+| `MERAKI_NAT_UPLINK` | R | Target: 1:1 and 1:many NAT, and port forwarding to an address of an uplink whose name is not known, are written for uplink internet1. A public address that is the MX's own WAN address needs port forwarding instead. |
+| `MERAKI_MANY_RULES` | R | Target: more than 600 rules in the outbound table: puts of more than about 900 rules have been seen to time out. |
 
 Findings and notes that only a Stormshield source or target raises:
 
@@ -2917,6 +2988,53 @@ The second column matters too:
 * NAT rules are written as manual rules. Zones are left out of them
   (`NAT_ZONES`); source NAT to "the outgoing interface" needs the gateway
   object (`--target-gateway`).
+
+### Cisco Meraki MX
+
+**What is read**
+
+* The zones: one per VLAN (`vlan10-office`), named by its id and name, holding its subnet, its IPv6 prefixes and the
+  subnets of the static routes whose gateway is in it, or `lan` for a single LAN; and `internet`, everything else.
+  Traffic inside one VLAN does not pass the MX: it is allowed.
+* The outbound table (`l3FirewallRules`), from the LAN zones to any zone, first match, ending in its fixed default
+  rule, which allows. Addresses are lists of addresses and networks (without host bits), `Any`, `VLAN(10).*` (the
+  subnet of the VLAN), `VLAN(10).5` (an address in it), policy objects and groups (`OBJ(...)`, `GRP(...)`) and host
+  names (destinations only). Ports are `Any`, a list of ports or one range. A protocol other than TCP, UDP, ICMP,
+  ICMPv6 and any, a range with other ports, ports with ICMP or any, an object or a VLAN that is not in the input, or
+  a word that cannot be read, makes the rule not converted.
+* Layer 7 rules of a port or an address range (with a port or not) block TCP and UDP to it, before the outbound
+  rules (`MERAKI_L7_PORTS`); the other layer 7 rules are not converted (`MERAKI_L7`).
+* From the internet only NAT lets traffic in: port forwarding (to the address of the uplink in `uplinkStatuses`),
+  1:1 NAT and 1:many NAT become destination NAT and static NAT both ways, and their allowed remote addresses rules
+  from the internet to the translated zone that allow the public address and port as they arrive. Port forwarding
+  and 1:many NAT name one port or one range; `any`, or no ports, is not converted.
+* NAT exceptions (an uplink with NAT off, `uplinksNat`) and passthrough mode: the inbound table decides traffic from
+  the internet, first match, ending in its default rule; the allowed remote addresses of the NAT rules are not in
+  force. With NAT off and no inbound table in the input, NAT rules let in nothing. In passthrough mode the rest passes
+  unless the default rule of the inbound table blocks. Without either, the inbound table decides IPv6 only, and is
+  not read (`MERAKI_INBOUND_TABLE`).
+* The LAN goes out with the address of the uplink, unless NAT is off on every uplink.
+* Not converted: group policies, the cellular failover tables, the site-to-site VPN rules, the services of the MX on
+  its WAN, content filtering and threat protection.
+
+**What is written**
+
+* The outbound table: each rule of the model from a zone of the LAN becomes as many rules of the MX as it takes, in
+  its place: one per protocol, per IP version where a side is not any, per range of ports (single ports together).
+  A rule for some zones only is kept to their networks (`--zone-network`, or from a Meraki source its VLANs). Where
+  the source blocks what no rule matches, a rule that blocks everything comes last (`MERAKI_DEFAULT_DENY`); the fixed
+  default rule of the MX comes after it.
+* What a rule cannot say is not written, and listed at the end of the script: ICMP types, other IP protocols, port 0,
+  host names as sources, negations of a service, users, URL categories, schedules, more than 64 networks on a side.
+* Rules from the internet (a zone not in `--inside-zone`) are the allowed remote addresses of the NAT rules that go
+  with them: destination NAT of one public address and one port or range becomes port forwarding when the address
+  is an uplink's (from a Meraki source by the name of the uplink), and 1:many NAT otherwise; a static translation
+  both ways of one address becomes 1:1 NAT. A rule counts for a NAT rule when it allows all of its ports to the
+  public address and its destination zones hold the translated address; its sources are kept to its zones outside.
+  Allowed remote addresses cannot say a rule that blocks: when one blocks some of that traffic first, the rules
+  after it are left out, and when it comes before every rule that allows, the NAT rule is not written
+  (`NAT_NOT_CONVERTED`). A rule that cannot be written is left out. The MX then lets in no more than the model.
+* Rules for traffic inside one zone are not written (`MERAKI_INTRAZONE`).
 
 ### Stormshield SNS
 
@@ -4477,6 +4595,28 @@ management server and in the SmartConsole installation.
 6. Assign the security zones to the interfaces of the gateway, and add proxy
    ARP for translated addresses (`NAT_MANUAL_RULES`).
 
+### Cisco Meraki MX
+
+The output is a shell script for curl. It writes the bodies of the tables to a folder, backs up each table it will
+replace, and replaces them; each put replaces the whole table.
+
+1. Convert, with the zones of the LAN and their networks:
+
+   ```sh
+   fwshift convert policy.xml --to meraki -o meraki.sh --report report.txt \
+       --inside-zone trust --inside-zone dmz --zone-network trust=10.10.0.0/16 --zone-network dmz=10.20.0.0/24 \
+       --zone-network untrust=0.0.0.0/0,::/0
+   ```
+
+2. Look at the bodies first: `DRY_RUN=1 sh meraki.sh` writes them to a folder (`OUT`, by default `meraki-` and the
+   time) and makes no call; it needs no key.
+3. Run it: `MERAKI_API_KEY=... NETWORK_ID=N_... sh meraki.sh` (another regional cloud with `MERAKI_BASE`). It waits
+   and tries again when the Dashboard asks it to (HTTP 429), and stops at the first other error.
+4. The tables as they were are in `before-*.json`. Each ends in the fixed default rule of the MX: to put one back,
+   remove that last rule (comment `Default rule`) from its rules first, or the MX has it twice.
+5. Check the rules in the Dashboard (*Security & SD-WAN > Configure > Firewall*), and the NAT rules against the
+   uplinks: 1:1 and 1:many NAT are written for internet1 (`MERAKI_NAT_UPLINK`).
+
 ### Stormshield SNS
 
 The output is a script of serverd commands. It creates objects, empties one filter slot and writes the policy there;
@@ -5009,6 +5149,12 @@ the report is the list.)
 | `network firewall policy ...: two rules with one priority ...` / `... a rule without a priority that can be read` | Google Cloud: a policy as Google Cloud never holds it; export it again with `describe`. |
 | `network ...: enforcement order '...' is not one FWShift knows` | Google Cloud: an enforcement order other than `AFTER_CLASSIC_FIREWALL` and `BEFORE_CLASSIC_FIREWALL`. |
 | `instance ...: '...' is not an address` / `... alias range '...' cannot be read` | Google Cloud: an instance list that was edited, or of another format. |
+| `an error answer of the Dashboard API: ...` | Meraki: an answer in the bundle is an error (`{"errors": [...]}`): the key, the organization or the network was wrong when it was fetched. |
+| `the network is bound to a configuration template ...` | Meraki: fetch the answers of the template instead. |
+| `no l3FirewallRules: expected the answers of the Dashboard API for one network ...` | Meraki: the bundle of section 3 lacks the outbound table. |
+| `a rule table with syslogDefaultRule alone ...` | Meraki: the answer of the inbound table alone, or a body the script puts, is not the outbound table as the Dashboard answers it; give the bundle. |
+| `rule N of l3FirewallRules is not a rule ...`, `rule N of inboundFirewallRules is not a rule ...` | Meraki: an answer that was edited, or of another endpoint. |
+| `--inside-zone ZONE: no such zone in the policy` | Meraki target: name a zone of the source (after `--zone-map`). |
 | `a backup of a Stormshield firewall (.na), which is encrypted ...` | Stormshield: open it with `decbackup -i backup.na -o backup.tgz` and give FWShift `backup.tgz` (section 3). |
 | `the archive holds no ConfigFiles ...`, `... the ConfigFiles of more than one firewall ...` | Stormshield: give the `.tgz` of one firewall's ConfigFiles. |
 | `several filter slots and no slotinfo that names the active one ...`, `there is no filter slot NN ...`, `no filter slot is called '...'` | Stormshield: name the slot with `--policy N` or its name. |
@@ -5217,6 +5363,12 @@ deliberate: see *IPv4 and IPv6* in section 8.
   inside are read as connections to the internal one (`GCP_HAIRPIN`). To Google Cloud: one global policy, rules of one
   IP version, 5,000 address ranges on one side; ICMP types and source ports are not written. The formats follow
   Google's API reference and the gcloud documentation; nothing was read from or created in a real project.
+* Cisco Meraki MX: the answers of the Dashboard API for one network. Group policies, the cellular and VPN tables,
+  layer 7 rules other than ports and address ranges, content filtering and threat protection are not converted;
+  the inbound table only with NAT exceptions or in passthrough mode. To Meraki: the outbound table and the NAT tables;
+  from the internet only what NAT lets in, as allowed remote addresses (a rule that blocks part of it first ends what
+  is written); ICMP types and other protocols are not written; the inbound table is not written. The formats follow
+  Meraki's OpenAPI specification and documentation and the tooling Cisco publishes; no call was made to a Dashboard.
 * Stormshield SNS: the ConfigFiles of one firewall (version 4); the implicit rules, the NAT rules of a slot, time
   objects and scheduled slots, users (carried, not converted), inspection profiles, the analysis of application
   protocols, policy routing, QoS, geolocation and reputation, `via`, `decrypt` and `log` rules, and a global `deleg`

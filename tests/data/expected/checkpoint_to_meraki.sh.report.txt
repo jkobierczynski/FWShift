@@ -1,0 +1,107 @@
+FWShift conversion report
+  source: checkpoint (Network)
+  target: meraki
+
+Summary
+  Security rules:     22   exact 4, approximated 0, needs review 8 (1 emitted disabled), skipped 10
+  NAT rules:           9   exact 2, approximated 0, needs review 0, skipped 7
+  Addresses:          16   exact 13, approximated 1, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IMPLIED_RULES: Check Point implied rules (global properties) and the other ordered layers of the policy package are not part of the export; only the rules of one layer were read ('Network')
+  [needs-review] MERAKI_INSIDE: no --inside-zone: every zone was taken as a LAN of the MX; rules from a zone that is the internet are then written as outbound rules, which the MX never matches for traffic from the internet
+  [needs-review] MERAKI_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one VLAN the MX passes everything: InternalZone, ExternalZone
+  [needs-review] MERAKI_LOAD: the output is a shell script for the Dashboard API (section 10): it backs up and replaces the outbound table; DRY_RUN=1 writes the bodies only. The fixed default rule of the MX (allow) stays at the end
+  [info] MERAKI_DEFAULT_DENY: the source blocks what no rule matches: the outbound table ends in a rule that blocks everything, before the fixed default rule of the MX
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have syslogEnabled
+
+Security rules
+  DNS  ->  needs-review  (emitted as 2 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  rule-2  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] DEVICE_TARGET: the rule is installed only on gw-edge; decide whether it belongs on the target firewall
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  Web out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone InternalZone, and the MX names no zone: give the networks behind InternalZone with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone ExternalZone, and the MX names no zone: give the networks behind ExternalZone with --zone-network.
+  Social  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Facebook': object of type 'application-site'.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  Admins  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'netadmins': access role whose networks and users are not in the export (add the output of 'show access-roles details-level full').
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  PLC access  ->  needs-review  (emitted as 2 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  PLC access (plc-operators)  ->  skipped
+      [needs-review] ACCESS_ROLE: access role plc-operators: the rule matches the networks of the role for its users ad_group_PLC-Operators, which are names of Check Point identities (Active Directory, LDAP or internal groups, identity tags; 'known-user': all identified users). Where the target matches users, map them to the users or groups it knows
+      [needs-review] USER_MATCH: source user match ad_group_PLC-Operators is not converted.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  PLC access (vendor-support)  ->  skipped
+      [needs-review] ACCESS_ROLE: access role vendor-support: the rule matches the networks of the role for its users ad_group_Vendor-Support, which are names of Check Point identities (Active Directory, LDAP or internal groups, identity tags; 'known-user': all identified users). Where the target matches users, map them to the users or groups it knows
+      [needs-review] USER_MATCH: source user match ad_group_Vendor-Support is not converted.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  DMZ users  ->  skipped
+      [needs-review] ACCESS_ROLE: access role all-identified: the rule matches the networks of the role for all identified users, written 'known-user' as PAN-OS calls them
+      [needs-review] USER_MATCH: source user match known-user is not converted.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  Updates  ->  skipped
+      [needs-review] SCHEDULE: schedule 'Work-Hours' is not converted; the rule would apply at all times.
+      [needs-review] SCHEDULE: schedule Work-Hours is not converted.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  Old rule  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the MX cannot be disabled
+  Partners  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: VPN community match Partner-VPN.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  IPv6 out  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  Public web  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  DMZ access / Web in  ->  needs-review  (emitted as 2 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  DMZ access / Mail in  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  DMZ access / Ping from LAN  ->  skipped
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  DMZ access (cleanup of DMZ-Layer)  ->  exact  (emitted as 1 rules of the outbound table)
+      [info] INLINE_CLEANUP: added for the implicit cleanup of inline layer 'DMZ-Layer', which is drop
+  Tunnels  ->  skipped
+      [approximated] GATEWAY_OBJECT: matches gateway object gw-edge, which stood for every address of the gateway; only its main address is known, so the converted rule no longer applies to its other addresses
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  No ident  ->  exact  (emitted as 1 rules of the outbound table)
+      [info] REJECT_AS_DENY: action reset-client: written as deny
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's
+  nat-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's
+  nat-3  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's
+  nat-5  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's
+  nat-6  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's. Here: rule Guests stay out blocks some of it first
+  nat-7  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's
+  nat-9  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's
+
+Addresses
+  web-1  ->  exact
+      [info] AUTOMATIC_NAT: the object has automatic static NAT to 203.0.113.10: as on Check Point, rules and groups that name it also match that address, written as 'web-1_valid_address'
+  netadmins  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: access role whose networks and users are not in the export (add the output of 'show access-roles details-level full') cannot be converted
+  lan-without-guests  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: object of type 'group-with-exclusion' cannot be converted
+  gw-edge  ->  approximated
+      [approximated] GATEWAY_OBJECT: a gateway object stands for every address of the gateway; only its main address 198.51.100.1 is in the export
+
+Services
+  Facebook  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: object of type 'application-site': not converted

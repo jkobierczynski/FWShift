@@ -36,6 +36,7 @@ from .emitters import barracuda as emit_barracuda
 from .emitters import huawei as emit_huawei
 from .emitters import ios as emit_ios
 from .emitters import junos as emit_junos
+from .emitters import meraki as emit_meraki
 from .emitters import nftables as emit_nftables
 from .emitters import nsx as emit_nsx
 from .emitters import sonicwall as emit_sonicwall
@@ -63,6 +64,7 @@ from .parsers import barracuda as parse_barracuda
 from .parsers import huawei as parse_huawei
 from .parsers import ios as parse_ios
 from .parsers import junos as parse_junos
+from .parsers import meraki as parse_meraki
 from .parsers import nftables as parse_nftables
 from .parsers import nsx as parse_nsx
 from .parsers import sonicwall as parse_sonicwall
@@ -91,6 +93,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "ios": emit_ios.emit,
     "huawei": emit_huawei.emit,
     "stormshield": emit_stormshield.emit,
+    "meraki": emit_meraki.emit,
     "sophos": emit_sophos.emit,
     "pfsense": emit_pfsense.emit,
     "opnsense": emit_opnsense.emit,
@@ -102,7 +105,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "fmc": emit_cisco.emit_fmc,
     "fdm": emit_cisco.emit_fdm,
 }
-VENDORS = ("panos", "fortios", "checkpoint", "asa", "ios", "huawei", "stormshield", "fmc", "fdm", "sophos", "pfsense", "opnsense", "sonicwall", "watchguard", "barracuda", "junos",
+VENDORS = ("panos", "fortios", "checkpoint", "asa", "ios", "huawei", "stormshield", "meraki", "fmc", "fdm", "sophos", "pfsense", "opnsense", "sonicwall", "watchguard", "barracuda", "junos",
            "iptables", "ip6tables", "nftables", "nsx", "aws", "azure", "terraform-aws", "terraform-azure", "terraform-google", "gcp", "routeros", "forcepoint")  # fmt: skip
 
 
@@ -110,7 +113,7 @@ def detect_format(data: bytes) -> str:
     """A Sophos export is a tar archive or XML that starts with <Configuration>, other XML is PAN-OS; JSON is what a
     Cisco manager or the Check Point API returns, told apart by the types of the objects in it; a zip is the export
     of a Cisco Firewall Device Manager; a tar or tgz that holds ConfigFiles, or a backup (.na), is Stormshield; nft list ruleset output starts with "table" (its JSON with "nftables"), JSON of the NSX Policy API has the
-    resource types of NSX,
+    resource types of NSX, the answers of the Meraki Dashboard API have srcCidr and destCidr or l3FirewallRules,
     iptables-save output starts with a table, a Huawei USG configuration has security-policy and firewall zone lines,
     an IOS configuration has lines only IOS writes (and none only an ASA writes),
     an ASA configuration has lines only an ASA writes; anything else is taken as FortiOS."""
@@ -160,6 +163,8 @@ def detect_format(data: bytes) -> str:
         return "nftables"
     if parse_nsx.looks_like_nsx(data):
         return "nsx"
+    if parse_meraki.looks_like_meraki(data):
+        return "meraki"
     if parse_aws.looks_like_aws(data):
         return "aws"
     if parse_azure.looks_like_azure(data):
@@ -208,6 +213,8 @@ def load(
         return parse_huawei.parse(data, report)
     if source == "stormshield":
         return parse_stormshield.parse(data, report, slot=policy)
+    if source == "meraki":
+        return parse_meraki.parse(data, report)
     if source == "sophos":
         return parse_sophos.parse(data, report)
     if source == "pfsense":
@@ -525,7 +532,7 @@ def _source_options(parser: argparse.ArgumentParser, optional: bool = False) -> 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="fwshift",
-        description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco IOS and IOS XE routers, Huawei USG, Stormshield SNS, Cisco Secure Firewall "
+        description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco IOS and IOS XE routers, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall "
         "(Management Center and Device Manager), Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, iptables, "
         "nftables, VMware NSX, AWS security groups, Azure network security groups, Google Cloud firewall rules (these three also as Terraform), "
         "MikroTik RouterOS and Forcepoint NGFW, "
@@ -547,13 +554,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conv.add_argument(
         "--zone-network", action="append", default=[], metavar="ZONE=NET[,NET]",
-        help="ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure and Google Cloud targets (also as Terraform): the networks behind a zone, so that rules for other zones can leave them out. Give "
+        help="ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Google Cloud (also as Terraform) and Meraki targets: the networks behind a zone, so that rules for other zones can leave them out. Give "
         "them for every zone; 0.0.0.0/0,::/0 for the zone with the default route",
     )  # fmt: skip
     conv.add_argument(
         "--inside-zone", action="append", default=[], metavar="ZONE",
         help="AWS and Azure targets (also terraform-aws and terraform-azure): a zone whose networks (--zone-network) are inside the VPC or virtual network; only its "
-        "addresses get security groups (Azure: only it gets a network security group). Repeatable",
+        "addresses get security groups (Azure: only it gets a network security group). Meraki: a zone of the LAN of the MX; the others are the internet. Repeatable",
     )  # fmt: skip
     conv.add_argument("--app-map", metavar="FILE", help="JSON file: application name -> list of port specs")
     conv.add_argument("--compare", nargs="?", const="", metavar="FILE",

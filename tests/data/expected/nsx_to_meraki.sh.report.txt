@@ -1,0 +1,56 @@
+FWShift conversion report
+  source: nsx
+  target: meraki
+
+Summary
+  Security rules:     15   exact 2, approximated 0, needs review 10 (2 emitted disabled), skipped 3
+  Address groups:      9   exact 8, approximated 0, needs review 1, skipped 0
+  Services:           10   exact 9, approximated 1, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] DYNAMIC_MEMBERSHIP: groups whose members NSX finds itself (tags, names, virtual machines, segment ports) are kept as dynamic groups: only an NSX target writes them again; other targets write their rules disabled. Export the members (GET .../groups/ID/members/ip-addresses) and make them address groups to convert those rules
+  [needs-review] MERAKI_LOAD: the output is a shell script for the Dashboard API (section 10): it backs up and replaces the outbound table; DRY_RUN=1 writes the bodies only. The fixed default rule of the MX (allow) stays at the end
+  [info] LAYER2_NOT_CONVERTED: 1 rules of the Ethernet category (layer 2, before every layer-3 rule) are not converted
+  [info] MERAKI_DEFAULT_DENY: the source blocks what no rule matches: the outbound table ends in a rule that blocks everything, before the fixed default rule of the MX
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have syslogEnabled
+
+Security rules
+  Block quarantined  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Quarantine': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DNS to resolvers  ->  needs-review  (emitted as 2 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  NTP  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  LAN block the rest  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: follows a conditional jump to the application rules (rule 'LAN to the application rules'), which cannot be expressed. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Inbound web  ->  needs-review  (emitted as 2 rules of the outbound table)
+      [needs-review] APPLIED_TO_ONE_END: applied to DMZ, which holds its destinations and not its sources: where its sources are workloads of NSX, NSX checks that end against the rules below this one, and may drop what this rule allows. The converted rule allows it at both ends
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  Web to app  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  App to DB  ->  skipped
+      [needs-review] APPLIED_TO_ONE_END: applied to DMZ, which holds its sources and not its destinations: where its destinations are workloads of NSX, NSX checks that end against the rules below this one, and may drop what this rule allows. The converted rule allows it at both ends
+      [needs-review] UNSUPPORTED_MATCH: not converted: direction IN only: NSX checks the other end of the connection against the rules below it, which one rule cannot say.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  Admins SSH  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  Engineering to PLCs  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  FTP to partner  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  TLS out  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: context profile SSL (layer 7: applications, domain names), which the model has no place for.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  Ping over IPv6  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  Old rule  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the MX cannot be disabled
+
+Address groups
+  OT cell  ->  needs-review
+      [needs-review] SEGMENT_AS_SUBNET: a segment in the group stands for its subnet here. NSX means the workloads attached to it: the subnet also holds the gateway and other addresses that are not members
+
+Services
+  FTP  ->  approximated
+      [approximated] ALG_SERVICE: application level gateway FTP: converted as its port. NSX also lets through the connections the protocol opens (an FTP data connection, RPC ports); a target without such a helper does not

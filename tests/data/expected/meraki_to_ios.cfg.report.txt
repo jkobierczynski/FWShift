@@ -1,0 +1,60 @@
+FWShift conversion report
+  source: meraki
+  target: ios
+
+Summary
+  Security rules:     20   exact 6, approximated 5, needs review 8 (2 emitted disabled), skipped 1
+  NAT rules:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Addresses:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_VLAN_IPV6: VLAN objects read with the IPv6 prefixes of the VLAN as well: VLAN(10)
+  [needs-review] MERAKI_CELLULAR: the rules of cellular failover act only on the cellular uplink, after the outbound table: not converted: cellularFirewallRules: 1 rules
+  [needs-review] MERAKI_VPN: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted: vpnFirewallRules: 1 rules
+  [needs-review] MERAKI_GROUP_POLICY: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and the rules here may not be what those get: servers-restricted
+  [needs-review] IOS_LOAD: the output is configuration commands for the zone-based firewall (section 10): paste them in configuration mode; nothing changes until interfaces are put in the zones (zone-member security, commented at the end). Names start with FWS-: IOS adds to an access list or class map that exists
+  [needs-review] IOS_ZONE_MEMBERS: an interface in a zone passes only what the zone pairs let through, and nothing to an interface in no zone; traffic to and from the router itself (the self zone) is not written. Put every interface that forwards traffic in a zone
+  [needs-review] IOS_ZBFW_NAT: the class maps were written for the inside address of a static translation (the destination after translation), as the zone-based firewall is read to see it. Cisco does not document this; check one translated connection on the router
+  [info] MERAKI_SOURCE: 3 LAN zones (vlan10-office, vlan20-servers, vlan30-ot-cell) and internet; traffic inside one VLAN passes (it does not pass the MX); the outbound table, first match, ends in its fixed default rule that allows the rest; from the internet only what NAT rules allow passes
+  [info] MERAKI_FQDN: host names in destinations: the MX learns their addresses from the DNS answers it sees; a domain without a subdomain stands for its subdomains too: updates.example.com
+  [info] MERAKI_SERVICES: services of the MX itself that answer on the WAN (firewalledServices): not converted: ICMP
+  [info] IOS_INTRAZONE: zone pairs from a zone to itself decide traffic inside a zone (IOS 15.0(1)M and IOS XE); IOS passes it otherwise
+  [info] LOGGING_CONVERTED: rules of the source log; their drop and pass actions log
+
+Security rules
+  inside a VLAN  ->  approximated
+      [approximated] IOS_PASS: protocols other than TCP, UDP and ICMP are let through with pass, which is one way: their replies need a pass from the other zone, which is not written, so the converted rule allows less
+  layer 7 rule 2  ->  needs-review
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+  layer 7 rule 3  ->  needs-review
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+  office to servers web  ->  needs-review
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.10.20.25', the address NAT rule 'NAT mail' translates '203.0.113.25' to. The target looks rules up after that translation, so traffic sent to '203.0.113.25' now matches this rule; on the source it did not
+  historian  ->  exact
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  eng ws to plc  ->  exact
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  block update site  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object fqdn updates.example.com: an access list of IOS names addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ping servers  ->  needs-review
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.10.20.25', the address NAT rule 'NAT mail' translates '203.0.113.25' to. The target looks rules up after that translation, so traffic sent to '203.0.113.25' now matches this rule; on the source it did not
+  office ipv6 out  ->  approximated
+      [approximated] IOS_PASS: protocols other than TCP, UDP and ICMP are let through with pass, which is one way: their replies need a pass from the other zone, which is not written, so the converted rule allows less
+  bad ports  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination port '1024-5000,5004' cannot be read (one range, or a list of single ports).
+  Default rule  ->  approximated
+      [approximated] IOS_PASS: protocols other than TCP, UDP and ICMP are let through with pass, which is one way: their replies need a pass from the other zone, which is not written, so the converted rule allows less
+  vpn-portal  ->  needs-review
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.10.20.30' because of NAT rule 'NAT vpn-portal'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'NAT vpn-portal' also translates the port to 443; the service of this rule still names the pre-NAT port and must be adjusted
+  mail (1)  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.10.20.25' because of NAT rule 'NAT mail'; check that this rule is meant to cover the translated traffic
+  mail (2)  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.10.20.25' because of NAT rule 'NAT mail'; check that this rule is meant to cover the translated traffic
+  scada-view  ->  needs-review
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.30' with post-NAT '10.10.20.40' because of NAT rule 'NAT scada-view'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'NAT scada-view' also translates the port to 443; the service of this rule still names the pre-NAT port and must be adjusted
+  layer 7 rule 1  ->  skipped
+      [needs-review] MERAKI_L7: layer 7 rule of applicationCategory: applications, categories, host names and countries have no ports or addresses; what it blocks after the layer 3 rules is not converted

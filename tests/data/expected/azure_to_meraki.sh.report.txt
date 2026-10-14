@@ -1,0 +1,387 @@
+FWShift conversion report
+  source: azure
+  target: meraki
+
+Summary
+  Security rules:    116   exact 0, approximated 35, needs review 81 (66 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_DYNAMIC: service tags and application security groups whose addresses only Azure knows: Internet, VirtualNetwork. They are dynamic groups, which only an Azure target writes again; add the service tags (az network list-service-tags) and the network interfaces to the export to convert them for other targets
+  [needs-review] MERAKI_INSIDE: no --inside-zone: every zone was taken as a LAN of the MX; rules from a zone that is the internet are then written as outbound rules, which the MX never matches for traffic from the internet
+  [needs-review] MERAKI_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one VLAN the MX passes everything: nsg-web, nsg-app, nsg-db, outside
+  [needs-review] MERAKI_LOAD: the output is a shell script for the Dashboard API (section 10): it backs up and replaces the outbound table; DRY_RUN=1 writes the bodies only. The fixed default rule of the MX (allow) stays at the end
+  [info] AZURE_ANY_PROTOCOL: protocol '*' is read as Microsoft documents it: TCP, UDP and ICMP; with ports, an allow rule allows TCP and UDP on them and a deny rule blocks ICMP as well. If Azure also matches other protocols with it, a deny rule '*' blocks more there than the converted rule
+  [info] AZURE_UNFILTERED: network security groups do not filter the platform's own traffic (168.63.129.16 and 169.254.169.254: DHCP, DNS, the instance metadata service, health probes); and the security admin rules of Azure Virtual Network Manager, which come first, are not in this export
+  [info] AZURE_ZONES: each network security group is a zone, and everything else the zone outside. The networks behind them, for --zone-network: --zone-network nsg-web=10.30.1.0/24,2001:db8:30:1::/64 --zone-network nsg-app=10.30.2.0/24 --zone-network nsg-db=10.30.3.20
+  [info] AZURE_COMPOSED: traffic between resources behind the groups passes the outbound rules of one and the inbound rules of the other: 80 rules say what both allow, in the order of the two
+  [info] AZURE_ASG_MEMBERS: the members of these application security groups are the network interfaces in the export: asg-db, asg-web. A member whose interface is not in it (another resource group, another subscription) is not in the group
+  [info] MERAKI_DEFAULT_DENY: the source blocks what no rule matches: the outbound table ends in a rule that blocks everything, before the fixed default rule of the MX
+
+Security rules
+  nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:Deny-Partner  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone outside; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:DenyAllInBound  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone outside; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-web:Allow-App-Out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+  nsg-web:Allow-Storage  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+  nsg-web:Deny-Internet  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowInternetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:DenyAllOutBound  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone outside; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:Allow-Esp-Partner  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+  nsg-app:Allow-Probe  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:Deny-VNet  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:DenyAllInBound  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone outside; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-app:Allow-Db  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+  nsg-app:Allow-Sql  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+  nsg-app:Allow-Dns  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+  nsg-app:Deny-Out  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone outside; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-app:AllowVnetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:AllowInternetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:DenyAllOutBound  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone outside; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:Allow-Old-Gre  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+  nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:DenyAllInBound  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone outside; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-db:AllowVnetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:AllowInternetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:DenyAllOutBound  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone outside; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-web:Allow-App-Out+nsg-web:Deny-Partner  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] MERAKI_INTRAZONE: traffic inside zone nsg-web does not pass the MX: there the rule filters nothing
+  nsg-web:Allow-App-Out+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:Allow-App-Out+nsg-web:DenyAllInBound  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] MERAKI_INTRAZONE: traffic inside zone nsg-web does not pass the MX: there the rule filters nothing
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:Deny-Partner  ->  needs-review  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] MERAKI_INTRAZONE: traffic inside zone nsg-web does not pass the MX: there the rule filters nothing
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  needs-review  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] MERAKI_INTRAZONE: traffic inside zone nsg-web does not pass the MX: there the rule filters nothing
+  nsg-web:DenyAllOutBound to nsg-web  ->  needs-review  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] MERAKI_INTRAZONE: traffic inside zone nsg-web does not pass the MX: there the rule filters nothing
+  nsg-web:Allow-App-Out+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-web:Allow-App-Out+nsg-app:Deny-VNet  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-web:Allow-App-Out+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-web:Allow-App-Out+nsg-app:DenyAllInBound  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-web:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-app:Deny-VNet  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-web:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-web:DenyAllOutBound to nsg-app  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-web:Allow-App-Out+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-web:Allow-App-Out+nsg-db:DenyAllInBound  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-web:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-web:DenyAllOutBound to nsg-db  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-app:Allow-Db+nsg-web:Deny-Partner  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-app:Allow-Db+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-app:Allow-Db+nsg-web:DenyAllInBound  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-app:Allow-Dns+nsg-web:Deny-Partner  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-app:Allow-Dns+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-app:Allow-Dns+nsg-web:DenyAllInBound  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-app:Deny-Out to nsg-web  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:Deny-Partner  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-app:DenyAllOutBound to nsg-web  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-app:Allow-Db+nsg-app:Deny-VNet  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] MERAKI_INTRAZONE: traffic inside zone nsg-app does not pass the MX: there the rule filters nothing
+  nsg-app:Allow-Db+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:Allow-Db+nsg-app:DenyAllInBound  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] MERAKI_INTRAZONE: traffic inside zone nsg-app does not pass the MX: there the rule filters nothing
+  nsg-app:Allow-Dns+nsg-app:Deny-VNet  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] MERAKI_INTRAZONE: traffic inside zone nsg-app does not pass the MX: there the rule filters nothing
+  nsg-app:Allow-Dns+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:Allow-Dns+nsg-app:DenyAllInBound  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] MERAKI_INTRAZONE: traffic inside zone nsg-app does not pass the MX: there the rule filters nothing
+  nsg-app:Deny-Out to nsg-app  ->  needs-review  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] MERAKI_INTRAZONE: traffic inside zone nsg-app does not pass the MX: there the rule filters nothing
+  nsg-app:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-app:Deny-VNet  ->  needs-review  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] MERAKI_INTRAZONE: traffic inside zone nsg-app does not pass the MX: there the rule filters nothing
+  nsg-app:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  needs-review  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] MERAKI_INTRAZONE: traffic inside zone nsg-app does not pass the MX: there the rule filters nothing
+  nsg-app:DenyAllOutBound to nsg-app  ->  needs-review  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] MERAKI_INTRAZONE: traffic inside zone nsg-app does not pass the MX: there the rule filters nothing
+  nsg-app:Allow-Db+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-app:Allow-Db+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-app:Allow-Db+nsg-db:DenyAllInBound  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-app:Allow-Dns+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-app:Allow-Dns+nsg-db:DenyAllInBound  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-app:Deny-Out to nsg-db  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-app:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-app:DenyAllOutBound to nsg-db  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:Deny-Partner  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and the MX names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-db:DenyAllOutBound to nsg-web  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-db:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-app:Deny-VNet  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-db:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and the MX names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-db:DenyAllOutBound to nsg-app  ->  approximated  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  nsg-db:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and the MX names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  needs-review  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] MERAKI_INTRAZONE: traffic inside zone nsg-db does not pass the MX: there the rule filters nothing
+  nsg-db:DenyAllOutBound to nsg-db  ->  needs-review  (emitted as 3 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] MERAKI_INTRAZONE: traffic inside zone nsg-db does not pass the MX: there the rule filters nothing

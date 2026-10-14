@@ -1,0 +1,440 @@
+{
+  "fwshift": "meraki-mx",
+  "network": {
+    "id": "N_100000000000000001",
+    "organizationId": "100001",
+    "name": "plant-a",
+    "productTypes": [
+      "appliance",
+      "switch"
+    ],
+    "isBoundToConfigTemplate": false
+  },
+  "applianceSettings": {
+    "deploymentMode": "routed",
+    "clientTrackingMethod": "MAC address"
+  },
+  "vlansSettings": {
+    "vlansEnabled": true
+  },
+  "vlans": [
+    {
+      "id": 10,
+      "name": "office",
+      "subnet": "10.10.10.0/24",
+      "applianceIp": "10.10.10.1",
+      "ipv6": {
+        "enabled": true,
+        "prefixAssignments": [
+          {
+            "autonomous": false,
+            "staticPrefix": "2001:db8:10::/64",
+            "staticApplianceIp6": "2001:db8:10::1"
+          }
+        ]
+      }
+    },
+    {
+      "id": 20,
+      "name": "servers",
+      "subnet": "10.10.20.0/24",
+      "applianceIp": "10.10.20.1",
+      "groupPolicyId": "101"
+    },
+    {
+      "id": "30",
+      "name": "ot-cell",
+      "subnet": "10.10.30.0/24",
+      "applianceIp": "10.10.30.1"
+    }
+  ],
+  "staticRoutes": [
+    {
+      "id": "d0000000-0000-4000-8000-000000000001",
+      "ipVersion": 4,
+      "enabled": true,
+      "name": "plc-ring",
+      "subnet": "172.16.40.0/24",
+      "gatewayIp": "10.10.30.254",
+      "gatewayVlanId": 30
+    }
+  ],
+  "l3FirewallRules": {
+    "rules": [
+      {
+        "comment": "office to servers web",
+        "policy": "allow",
+        "protocol": "tcp",
+        "srcPort": "Any",
+        "srcCidr": "VLAN(10).*",
+        "destPort": "80,443",
+        "destCidr": "10.10.20.0/24",
+        "syslogEnabled": false
+      },
+      {
+        "comment": "historian",
+        "policy": "allow",
+        "protocol": "tcp",
+        "srcPort": "Any",
+        "srcCidr": "10.10.20.15/32",
+        "destPort": "4840",
+        "destCidr": "VLAN(30).*,172.16.40.0/24",
+        "syslogEnabled": true
+      },
+      {
+        "comment": "eng ws to plc",
+        "policy": "allow",
+        "protocol": "tcp",
+        "srcPort": "Any",
+        "srcCidr": "OBJ(4003)",
+        "destPort": "102",
+        "destCidr": "GRP(5002)",
+        "syslogEnabled": true
+      },
+      {
+        "comment": "ot cell isolated",
+        "policy": "deny",
+        "protocol": "any",
+        "srcPort": "Any",
+        "srcCidr": "Any",
+        "destPort": "Any",
+        "destCidr": "VLAN(30).*,172.16.40.0/24",
+        "syslogEnabled": true
+      },
+      {
+        "comment": "ot no internet",
+        "policy": "deny",
+        "protocol": "any",
+        "srcPort": "Any",
+        "srcCidr": "10.10.30.0/24,172.16.40.0/24",
+        "destPort": "Any",
+        "destCidr": "Any",
+        "syslogEnabled": true
+      },
+      {
+        "comment": "block update site",
+        "policy": "deny",
+        "protocol": "tcp",
+        "srcPort": "Any",
+        "srcCidr": "10.10.10.0/24",
+        "destPort": "443",
+        "destCidr": "updates.example.com",
+        "syslogEnabled": false
+      },
+      {
+        "comment": "dns to servers",
+        "policy": "allow",
+        "protocol": "udp",
+        "srcPort": "Any",
+        "srcCidr": "Any",
+        "destPort": "53",
+        "destCidr": "VLAN(20).53",
+        "syslogEnabled": false
+      },
+      {
+        "comment": "ping servers",
+        "policy": "allow",
+        "protocol": "icmp",
+        "srcPort": "Any",
+        "srcCidr": "VLAN(10).*",
+        "destPort": "Any",
+        "destCidr": "VLAN(20).*",
+        "syslogEnabled": false
+      },
+      {
+        "comment": "office ipv6 out",
+        "policy": "allow",
+        "protocol": "any",
+        "srcPort": "Any",
+        "srcCidr": "2001:db8:10::/64",
+        "destPort": "Any",
+        "destCidr": "Any",
+        "syslogEnabled": false
+      },
+      {
+        "comment": "passive ftp",
+        "policy": "allow",
+        "protocol": "tcp",
+        "srcPort": "Any",
+        "srcCidr": "10.10.10.0/24",
+        "destPort": "50000-50100",
+        "destCidr": "VLAN(20).21",
+        "syslogEnabled": false
+      },
+      {
+        "comment": "bad ports",
+        "policy": "allow",
+        "protocol": "tcp",
+        "srcPort": "Any",
+        "srcCidr": "10.10.10.0/24",
+        "destPort": "1024-5000,5004",
+        "destCidr": "Any",
+        "syslogEnabled": false
+      },
+      {
+        "comment": "Default rule",
+        "policy": "allow",
+        "protocol": "Any",
+        "srcPort": "Any",
+        "srcCidr": "Any",
+        "destPort": "Any",
+        "destCidr": "Any",
+        "syslogEnabled": false
+      }
+    ]
+  },
+  "l7FirewallRules": {
+    "rules": [
+      {
+        "policy": "deny",
+        "type": "applicationCategory",
+        "value": {
+          "id": "meraki:layer7/category/24",
+          "name": "Advertising"
+        }
+      },
+      {
+        "policy": "deny",
+        "type": "port",
+        "value": "23"
+      },
+      {
+        "policy": "deny",
+        "type": "ipRange",
+        "value": "198.51.100.0/24"
+      }
+    ]
+  },
+  "firewalledServices": [
+    {
+      "service": "ICMP",
+      "access": "unrestricted"
+    },
+    {
+      "service": "web",
+      "access": "blocked"
+    },
+    {
+      "service": "SNMP",
+      "access": "blocked"
+    }
+  ],
+  "portForwardingRules": {
+    "rules": [
+      {
+        "name": "vpn-portal",
+        "lanIp": "10.10.20.30",
+        "uplink": "internet1",
+        "protocol": "tcp",
+        "publicPort": "8443",
+        "localPort": "443",
+        "allowedIps": [
+          "198.51.100.0/24"
+        ]
+      }
+    ]
+  },
+  "oneToOneNatRules": {
+    "rules": [
+      {
+        "name": "mail",
+        "publicIp": "203.0.113.25",
+        "lanIp": "10.10.20.25",
+        "uplink": "internet1",
+        "allowedInbound": [
+          {
+            "protocol": "tcp",
+            "destinationPorts": [
+              "25"
+            ],
+            "allowedIps": [
+              "any"
+            ]
+          },
+          {
+            "protocol": "icmp-ping",
+            "destinationPorts": [
+              "any"
+            ],
+            "allowedIps": [
+              "192.0.2.0/24"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "oneToManyNatRules": {
+    "rules": [
+      {
+        "publicIp": "203.0.113.30",
+        "uplink": "internet1",
+        "portRules": [
+          {
+            "name": "scada-view",
+            "protocol": "tcp",
+            "publicPort": "9443",
+            "localIp": "10.10.20.40",
+            "localPort": "443",
+            "allowedIps": [
+              "192.0.2.10/32"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "inboundFirewallRules": {
+    "rules": [
+      {
+        "comment": "Default rule",
+        "policy": "deny",
+        "protocol": "Any",
+        "srcPort": "Any",
+        "srcCidr": "Any",
+        "destPort": "Any",
+        "destCidr": "Any",
+        "syslogEnabled": false
+      }
+    ],
+    "syslogDefaultRule": false
+  },
+  "cellularFirewallRules": {
+    "rules": [
+      {
+        "comment": "cell: no ot",
+        "policy": "deny",
+        "protocol": "any",
+        "srcPort": "Any",
+        "srcCidr": "10.10.30.0/24",
+        "destPort": "Any",
+        "destCidr": "Any",
+        "syslogEnabled": false
+      },
+      {
+        "comment": "Default rule",
+        "policy": "allow",
+        "protocol": "Any",
+        "srcPort": "Any",
+        "srcCidr": "Any",
+        "destPort": "Any",
+        "destCidr": "Any",
+        "syslogEnabled": false
+      }
+    ]
+  },
+  "policyObjects": [
+    {
+      "id": "4003",
+      "name": "eng-ws",
+      "category": "network",
+      "type": "cidr",
+      "cidr": "10.10.10.50/32",
+      "groupIds": []
+    },
+    {
+      "id": "4004",
+      "name": "plc-1",
+      "category": "network",
+      "type": "cidr",
+      "cidr": "172.16.40.11/32",
+      "groupIds": [
+        "5002"
+      ]
+    },
+    {
+      "id": "4005",
+      "name": "plc-2",
+      "category": "network",
+      "type": "cidr",
+      "cidr": "172.16.40.12/32",
+      "groupIds": [
+        "5002"
+      ]
+    }
+  ],
+  "policyObjectsGroups": [
+    {
+      "id": "5002",
+      "name": "plcs",
+      "category": "NetworkObjectGroup",
+      "objectIds": [
+        4004,
+        4005
+      ]
+    }
+  ],
+  "groupPolicies": [
+    {
+      "groupPolicyId": "101",
+      "name": "servers-restricted",
+      "firewallAndTrafficShaping": {
+        "settings": "custom",
+        "l3FirewallRules": [
+          {
+            "comment": "only https out",
+            "policy": "allow",
+            "protocol": "tcp",
+            "destPort": "443",
+            "destCidr": "Any"
+          }
+        ],
+        "l7FirewallRules": [],
+        "trafficShapingRules": []
+      }
+    }
+  ],
+  "uplinkStatuses": [
+    {
+      "networkId": "N_100000000000000001",
+      "serial": "Q000-0000-0001",
+      "model": "MX68",
+      "uplinks": [
+        {
+          "interface": "wan1",
+          "status": "active",
+          "ip": "203.0.113.2",
+          "gateway": "203.0.113.1",
+          "publicIp": "203.0.113.2"
+        }
+      ]
+    }
+  ],
+  "uplinksNat": [
+    {
+      "networkId": "N_100000000000000001",
+      "uplinks": [
+        {
+          "interface": "wan1",
+          "nat": {
+            "enabled": true
+          }
+        }
+      ]
+    }
+  ],
+  "vpnFirewallRules": {
+    "rules": [
+      {
+        "comment": "vpn: no ot",
+        "policy": "deny",
+        "protocol": "any",
+        "srcPort": "Any",
+        "srcCidr": "10.10.30.0/24",
+        "destPort": "Any",
+        "destCidr": "Any",
+        "syslogEnabled": false
+      },
+      {
+        "comment": "Default rule",
+        "policy": "allow",
+        "protocol": "Any",
+        "srcPort": "Any",
+        "srcCidr": "Any",
+        "destPort": "Any",
+        "destCidr": "Any",
+        "syslogEnabled": false
+      }
+    ]
+  }
+}

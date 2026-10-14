@@ -1,0 +1,95 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: meraki
+
+Summary
+  Security rules:     18   exact 0, approximated 2, needs review 15 (15 emitted disabled), skipped 1
+  NAT rules:           5   exact 1, approximated 0, needs review 0, skipped 4
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_INSIDE: no --inside-zone: every zone was taken as a LAN of the MX; rules from a zone that is the internet are then written as outbound rules, which the MX never matches for traffic from the internet
+  [needs-review] MERAKI_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one VLAN the MX passes everything: outside, inside, dmz, guest
+  [needs-review] MERAKI_LOAD: the output is a shell script for the Dashboard API (section 10): it backs up and replaces the outbound table; DRY_RUN=1 writes the bodies only. The fixed default rule of the MX (allow) stays at the end
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] MERAKI_DEFAULT_DENY: the source blocks what no rule matches: the outbound table ends in a rule that blocks everything, before the fixed default rule of the MX
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have syslogEnabled
+
+Security rules
+  outside_access_in-1  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-public' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-2' also translates the port to 8080; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
+  outside_access_in-2  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to 'mail-srv' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
+  outside_access_in-3  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone inside, dmz, guest, and the MX names no zone: give the networks behind inside, dmz, guest with --zone-network.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+  outside_access_in-4  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone outside; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  inside_access_in-1  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside, and the MX names no zone: give the networks behind inside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, dmz, guest, and the MX names no zone: give the networks behind outside, dmz, guest with --zone-network.
+  inside_access_in-2  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside, and the MX names no zone: give the networks behind inside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, dmz, guest, and the MX names no zone: give the networks behind outside, dmz, guest with --zone-network.
+  inside_access_in-3  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to 'dmz-servers' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside, and the MX names no zone: give the networks behind inside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
+  inside_access_in-4  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
+      [needs-review] SCHEDULE: schedule business-hours is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside, and the MX names no zone: give the networks behind inside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, dmz, guest, and the MX names no zone: give the networks behind outside, dmz, guest with --zone-network.
+  inside_access_in-5  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside, and the MX names no zone: give the networks behind inside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, dmz, guest, and the MX names no zone: give the networks behind outside, dmz, guest with --zone-network.
+  inside_access_in-6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside, and the MX names no zone: give the networks behind inside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
+  inside_access_in-7  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match LOCAL\alice is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside, and the MX names no zone: give the networks behind inside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, dmz, guest, and the MX names no zone: give the networks behind outside, dmz, guest with --zone-network.
+  inside_access_in-8  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the MX cannot be disabled
+  inside_access_in-9  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone inside, and the MX names no zone: give the networks behind inside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, dmz, guest, and the MX names no zone: give the networks behind outside, dmz, guest with --zone-network.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+  dmz_access_in-1  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, inside, guest, and the MX names no zone: give the networks behind outside, inside, guest with --zone-network.
+  dmz_access_in-2  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, inside, guest, and the MX names no zone: give the networks behind outside, inside, guest with --zone-network.
+  dmz_access_in-3  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone dmz; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  dmz_access_in-4  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, inside, guest, and the MX names no zone: give the networks behind outside, inside, guest with --zone-network.
+  implicit-guest  ->  needs-review, emitted disabled
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone guest, and the MX names no zone: give the networks behind guest with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network.
+
+NAT rules
+  nat-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's
+  nat-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's
+  nat-mail-srv  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's
+  nat-after-auto-1  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's

@@ -1,0 +1,123 @@
+FWShift conversion report
+  source: routeros
+  target: meraki
+
+Summary
+  Security rules:     27   exact 0, approximated 3, needs review 15 (13 emitted disabled), skipped 9
+  NAT rules:           3   exact 0, approximated 1, needs review 0, skipped 2
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of /ip firewall filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] TABLE_NOT_CONVERTED: /ip firewall mangle has 1 rules and is not converted (it can mark connections and routes, which the filter rules may test)
+  [needs-review] ROUTEROS_DYNAMIC_LIST: address lists that rules fill while the router runs decide what their rules match; those rules are not converted: /ip scanners
+  [needs-review] MERAKI_INSIDE: no --inside-zone: every zone was taken as a LAN of the MX; rules from a zone that is the internet are then written as outbound rules, which the MX never matches for traffic from the internet
+  [needs-review] MERAKI_LOAD: the output is a shell script for the Dashboard API (section 10): it backs up and replaces the outbound table; DRY_RUN=1 writes the bodies only. The fixed default rule of the MX (allow) stays at the end
+  [info] ROUTEROS_ZONES: the interface lists the rules use do not overlap: each is a zone (DMZ: vlan20-dmz, GUEST: vlan30-guest, LAN: bridge-lan, WAN: ether1); an interface in none of them is a zone of its own
+  [info] ROUTEROS_PASSIVE: 2 rules with action log, passthrough or add-*-to-address-list decide nothing and were left out. A log rule directly before a rule with the same match, or one that matches everything, sets the logging of the rules it logs for
+  [info] ROUTEROS_FQDN_LIST: address lists that hold host names, which RouterOS resolves while it runs: converted as host name objects (mirrors)
+  [info] ROUTEROS_BRIDGE: traffic between the ports of one bridge (bridge-lan) does not pass the IP firewall of the source (use-ip-firewall=no); the conversion is of routed traffic
+  [info] FORWARD_POLICY_ACCEPT: RouterOS accepts what no rule of the forward chain decides; the model records that as its default action
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have syslogEnabled
+
+Security rules
+  defconf: accept in ipsec policy  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: ipsec-policy=in,ipsec (traffic of IPsec tunnels).
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and it cannot be written as their allowed remote addresses: not converted: ipsec-policy=in,ipsec (traffic of IPsec tunnels)
+  banned scanners  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: address list 'scanners', which rules fill while the router runs. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ssh from the admins  ->  skipped
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and the MX names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  web for everyone  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'dmz-web' because of NAT rule 'publish web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and the MX names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  web for everyone-2  ->  skipped
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'dmz-web' because of NAT rule 'publish web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and the MX names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  ping "echo" only  ->  skipped
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and the MX names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  ping "echo" only-2  ->  skipped
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and the MX names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  old partner access  ->  skipped
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the MX cannot be disabled
+  old partner access-2  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the MX cannot be disabled
+  nothing but TCP  ->  needs-review, emitted disabled
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] SERVICE_NEGATE: every service but some: the MX has no negation. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nothing but TCP-2  ->  needs-review, emitted disabled
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] SERVICE_NEGATE: every service but some: the MX has no negation. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-2  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NEGATE: every service but some: the MX has no negation. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-3  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone DMZ; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_NOT_WRITTEN: port 0, which the MX does not take. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to the package mirrors  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and the MX names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_DYNAMIC: 'mirrors' holds members only its platform knows.
+  no other web from guests  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [info] REJECT_AS_DENY: action reset-client: written as deny
+  guest DNS, either port  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone GUEST, and the MX names no zone: give the networks behind GUEST with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and the MX names no zone: give the networks behind WAN with --zone-network.
+  guest DNS, either port-2  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone GUEST, and the MX names no zone: give the networks behind GUEST with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and the MX names no zone: give the networks behind WAN with --zone-network.
+  guests to the internet  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone GUEST, and the MX names no zone: give the networks behind GUEST with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and the MX names no zone: give the networks behind WAN with --zone-network.
+  office hours for staff  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'time=8h-18h,mon,tue,wed,thu,fri' is not converted; the rule would apply at all times.
+      [needs-review] SCHEDULE: schedule time=8h-18h,mon,tue,wed,thu,fri is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and the MX names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and the MX names no zone: give the networks behind WAN with --zone-network.
+  no guests elsewhere  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  defconf: drop all from WAN not DSTNATed (allows publish web)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and the MX names no zone: give the networks behind WAN with --zone-network.
+  defconf: drop all from WAN not DSTNATed (allows publish mail)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and the MX names no zone: give the networks behind WAN with --zone-network.
+  defconf: drop all from WAN not DSTNATed  ->  approximated  (emitted as 1 rules of the outbound table)
+      [info] ROUTEROS_DSTNAT_EXCEPTION: connection-nat-state=!dstnat: the rule does not block connections a destination NAT rule translated. Those are allowed by 2 rules ahead of it (defconf: drop all from WAN not DSTNATed (allows publish web), defconf: drop all from WAN not DSTNATed (allows publish mail))
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone WAN; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  ICMPv6 echo  ->  skipped
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+      [needs-review] MERAKI_INBOUND: a rule from the internet: the MX lets traffic from the internet in only by its NAT rules, and no NAT rule of the model goes with it
+  the partners reach the web servers of the LAN by HTTPS and nothing else  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] MERAKI_INBOUND: what it allows from the internet is not written: the MX lets that in only by its NAT rules
+  drop everything else not coming from LAN  ->  needs-review  (emitted as 1 rules of the outbound table)
+      [needs-review] ROUTEROS_NEGATED_INTERFACE: negated input interface (on the rule or the jump to its chain): the export does not list every interface of the router, and the rule covers the zones it does show (DMZ, GUEST, WAN). On the source it also blocks traffic of interfaces the export leaves out
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ, GUEST, WAN; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+
+NAT rules
+  publish web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's. Here: rule banned scanners blocks some of it first
+  publish mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's. Here: rule banned scanners blocks some of it first
+  defconf: masquerade  ->  approximated  (emitted as what the MX does by itself: the LAN goes out with the address of the uplink)
+      [approximated] ROUTEROS_NAT_IPSEC_EXEMPT: ipsec-policy=out,none: on the source, traffic that goes into an IPsec tunnel is not translated; the converted rule translates it unless the target exempts it

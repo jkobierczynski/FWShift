@@ -203,6 +203,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <li><a href="#ios">Cisco IOS</a></li>
       <li><a href="#huawei">Huawei USG</a></li>
       <li><a href="#stormshield">Stormshield SNS</a></li>
+      <li><a href="#meraki">Cisco Meraki MX</a></li>
       <li><a href="#fmc">Cisco FMC</a></li>
       <li><a href="#fdm">Cisco FDM</a></li>
       <li><a href="#sophos">Sophos Firewall</a></li>
@@ -237,7 +238,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
 
 <main id="top">
 <header class="mast">
-  <div class="eyebrow">Field guide · version 0.30</div>
+  <div class="eyebrow">Field guide · version 0.31</div>
   <h1>FWShift, feature by feature</h1>
   <p class="lead">FWShift converts firewall policies between nineteen platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
   <div class="facts">
@@ -307,6 +308,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <tr><td>Cisco IOS and IOS XE (routers)</td><td><code>ios</code></td><td><code>show running-config</code></td><td>zone-based firewall commands</td></tr>
       <tr><td>Huawei USG (USG6000, USG6000E, USG9500)</td><td><code>huawei</code></td><td><code>display current-configuration</code></td><td>system-view commands</td></tr>
       <tr><td>Stormshield SNS (v4)</td><td><code>stormshield</code></td><td>ConfigFiles <code>.tgz</code> (<code>decbackup</code> of a backup)</td><td>serverd script</td></tr>
+      <tr><td>Cisco Meraki MX</td><td><code>meraki</code></td><td>Dashboard API answers in one JSON file</td><td>curl script for the Dashboard API</td></tr>
       <tr><td>Cisco Secure Firewall, Management Center</td><td><code>fmc</code></td><td>REST API answers</td><td>Python loader script</td></tr>
       <tr><td>Cisco Secure Firewall, Device Manager</td><td><code>fdm</code></td><td>config export (zip) or API</td><td>import file</td></tr>
       <tr><td>Sophos Firewall (SFOS 18+)</td><td><code>sophos</code></td><td><code>Entities.xml</code> / <code>.tar</code></td><td><code>Entities.xml</code> / <code>.tar</code></td></tr>
@@ -335,11 +337,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
   <h2><span class="num">2</span>Install and run</h2>
   <p>Each release has three packages: the project as a zip, a single file that runs with any Python 3.9 or newer, and a wheel for <code>pip</code>. Nothing else needs installing.</p>
   <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># one file, nothing to install</span>
-python3 fwshift-0.30.0.pyz --version
-python3 fwshift-0.30.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.31.0.pyz --version
+python3 fwshift-0.31.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 
 <span class="c"># or with pip</span>
-pip install fwshift-0.30.0-py3-none-any.whl
+pip install fwshift-0.31.0-py3-none-any.whl
 fwshift convert running-config.xml --to fortios -o fortigate.conf</pre></div>
   <p>The input may be <code>-</code> for standard input. The source format is detected (XML root elements, JSON keys, CLI keywords); give <code>--from</code> when detection could be ambiguous, for example <code>--from ip6tables</code>.</p>
 </section>
@@ -403,12 +405,12 @@ findings while reading:
   <div class="tablewrap"><table>
     <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa ios huawei stormshield fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure gcp terraform-aws terraform-azure terraform-google routeros forcepoint json</code>.</td></tr>
+      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa ios huawei stormshield meraki fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure gcp terraform-aws terraform-azure terraform-google routeros forcepoint json</code>.</td></tr>
       <tr><td><code>--zone-map SRC=DST</code></td><td>Rename a zone or interface. For iptables, nftables and ASA, this is how a zone becomes an interface.</td></tr>
       <tr><td><code>--interface-map SRC=DST</code></td><td>Map a source interface to a target interface: FortiOS zone members, interface NAT, Sophos/SonicWall/FDM NAT interfaces, Barracuda source interfaces.</td></tr>
-      <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Google Cloud, Terraform; SonicWall object zones).</td></tr>
+      <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Google Cloud, Terraform, Meraki; SonicWall object zones).</td></tr>
       <tr><td><code>--compare[=FILE]</code></td><td>Reads the output back (eleven targets) and reports every connection it decides differently from the source (section 13).</td></tr>
-      <tr><td><code>--inside-zone ZONE</code></td><td>AWS, Azure and Terraform: a zone inside the VPC or the virtual network; only its addresses get security groups.</td></tr>
+      <tr><td><code>--inside-zone ZONE</code></td><td>AWS, Azure and Terraform: a zone inside the VPC or the virtual network; only its addresses get security groups. Meraki: a zone of the LAN of the MX.</td></tr>
       <tr><td><code>--app-map FILE</code></td><td>JSON of extra application-to-port mappings.</td></tr>
       <tr><td><code>--target-vsys</code>, <code>--target-device-group</code>, <code>--target-shared</code></td><td>Where PAN-OS output goes.</td></tr>
       <tr><td><code>--target-version SERIES</code></td><td>OPNsense: the series to write for, <code>24.7</code>, <code>25.1</code>, <code>25.7</code>, <code>26.1</code> or <code>26.7</code> (default).</td></tr>
@@ -575,6 +577,7 @@ m add nat-rule package Standard position bottom original-destination web-public 
     <a href="#ios"><b>Cisco IOS</b><span>running-config → zone-based firewall</span></a>
     <a href="#huawei"><b>Huawei USG</b><span>current-configuration → system view</span></a>
     <a href="#stormshield"><b>Stormshield SNS</b><span>ConfigFiles → serverd script</span></a>
+    <a href="#meraki"><b>Cisco Meraki MX</b><span>Dashboard answers → curl script</span></a>
     <a href="#fmc"><b>Cisco FMC</b><span>REST → Python loader</span></a>
     <a href="#fdm"><b>Cisco FDM</b><span>export zip → import</span></a>
     <a href="#sophos"><b>Sophos Firewall</b><span>Entities.xml</span></a>
@@ -792,6 +795,32 @@ system-view                                                <span class="c"># pas
   action permit
   quit
  quit</pre></div>
+  </article>
+
+  <!-- meraki -->
+  <article class="brand" id="meraki">
+    <h3>Cisco Meraki MX</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>Dashboard API answers (JSON)</span></span><span class="port"><i>OUT</i><span>curl script</span></span><span class="port"><i>ID</i><span>meraki</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>Fetch the answers for one network with curl (the commands are in section 3 of the manual) and put them in one file with jq; the API key stays in the environment. The VLANs become zones, with the subnets of their static routes; the outbound table, layer 7 rules of ports and address ranges, port forwarding, 1:1 and 1:many NAT, NAT exceptions and the inbound table are read.</p>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>g "/networks/$NET/appliance/firewall/l3FirewallRules" > l3FirewallRules.json   <span class="c"># and the other answers</span>
+jq -n '[inputs | {(input_filename | sub("\\.json$"; "")): .}] | add + {"fwshift": "meraki-mx"}' *.json > ../meraki-$NET.json
+fwshift convert meraki-$NET.json --to panos -o candidate.set --report report.txt</pre></div>
+    <h4 class="sub">Options</h4>
+    <p>Target: <code>--inside-zone</code> (the zones of the LAN; the others are the internet), <code>--zone-network</code> (their networks, so that a rule for some zones is kept to them).</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to meraki -o meraki.sh --inside-zone trust --zone-network trust=10.10.0.0/16 --zone-network untrust=0.0.0.0/0,::/0
+DRY_RUN=1 sh meraki.sh                                     <span class="c"># writes the bodies only; no key, no call</span>
+MERAKI_API_KEY=... NETWORK_ID=N_... sh meraki.sh           <span class="c"># backs up each table, then puts it</span></pre></div>
+    <div class="callout"><b>Each put replaces the whole table.</b> The backups (<code>before-*.json</code>) end in the fixed Default rule of the MX: remove it before you put one back (<code>MERAKI_LOAD</code>).</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>From the internet only NAT lets traffic in: rules from the internet become the allowed remote addresses of a NAT rule when they allow all of its ports; a rule that blocks part of it first ends what is written (<code>MERAKI_INBOUND</code>, <code>NAT_NOT_CONVERTED</code>).</li>
+      <li>Traffic inside one VLAN does not pass the MX (<code>MERAKI_INTRAZONE</code>); the outbound table ends in an allow, so a final deny is written where the source blocks the rest.</li>
+      <li>ICMP types, other protocols and host names as sources are not written; group policies, the cellular and VPN tables and most layer 7 rules are not read.</li>
+      <li>1:1 and 1:many NAT are written for uplink internet1 (<code>MERAKI_NAT_UPLINK</code>).</li>
+    </ul>
+    <div class="codebox"><span class="label">output · meraki (one rule)</span><button class="copy" type="button">Copy</button><pre>{"comment": "web", "policy": "allow", "protocol": "tcp", "srcPort": "Any", "srcCidr": "10.10.10.0/24", "destPort": "80,443", "destCidr": "Any", "syslogEnabled": false}</pre></div>
   </article>
 
   <!-- stormshield -->
@@ -1572,6 +1601,7 @@ fwshift usage rules.v4 --logs kern.log --log-year 2026 --unchanged-since 2026-01
       <tr><td>OPNsense</td><td>Each restored area (Aliases; NAT with NPt; the rules of both pages)</td><td>A full backup; <code>--target-version</code> of the firewall</td></tr>
       <tr><td>ASA</td><td>Interface <code>access-group</code> bindings; <code>global_access</code> on every interface</td><td>Read the <code>access-group</code> lines</td></tr>
       <tr><td>IOS</td><td>Nothing until interfaces join the zones; entries are added to a list or class map of the same name</td><td>Check that no <code>FWS-</code> name is taken; zone the interfaces in a window</td></tr>
+      <tr><td>Meraki</td><td>Each put replaces a whole table of the network</td><td>Run with <code>DRY_RUN=1</code> first; the backups are in the output folder</td></tr>
       <tr><td>Stormshield</td><td>The script empties one slot and changes objects of its names</td><td>Pick a slot that is not active; check it, then activate it</td></tr>
       <tr><td>Huawei</td><td>Commands take effect at once; new rules come after the firewall's own</td><td>Check that no <code>FWS_</code> name is taken; <code>rule move</code> the new rules; zone the interfaces in a window</td></tr>
       <tr><td>FortiOS</td><td>Objects of the same name; central NAT changes existing NAT</td><td>A lab device for <code>central-nat enable</code></td></tr>

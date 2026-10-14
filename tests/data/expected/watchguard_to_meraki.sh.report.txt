@@ -1,0 +1,56 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: meraki
+
+Summary
+  Security rules:     10   exact 0, approximated 1, needs review 8 (8 emitted disabled), skipped 1
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] MERAKI_INSIDE: no --inside-zone: every zone was taken as a LAN of the MX; rules from a zone that is the internet are then written as outbound rules, which the MX never matches for traffic from the internet
+  [needs-review] MERAKI_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one VLAN the MX passes everything: External, Trusted, DMZ, Guests, Lab
+  [needs-review] MERAKI_LOAD: the output is a shell script for the Dashboard API (section 10): it backs up and replaces the outbound table; DRY_RUN=1 writes the bodies only. The fixed default rule of the MX (allow) stays at the end
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] MERAKI_DEFAULT_DENY: the source blocks what no rule matches: the outbound table ends in a rule that blocks everything, before the fixed default rule of the MX
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have syslogEnabled
+
+Security rules
+  Block Bad  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone Trusted, Guests; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  Admin SSH  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Trusted, and the MX names no zone: give the networks behind Trusted with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and the MX names no zone: give the networks behind External with --zone-network.
+  Web Out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Trusted, Guests, DMZ, and the MX names no zone: give the networks behind Trusted, Guests, DMZ with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and the MX names no zone: give the networks behind External with --zone-network.
+  Web In  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone External, and the MX names no zone: give the networks behind External with --zone-network.
+  Mail In  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone External, and the MX names no zone: give the networks behind External with --zone-network.
+  DMZ Updates  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+      [needs-review] SCHEDULE: schedule Business Hours is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and the MX names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] ZONE_DYNAMIC: 'Update-Site.1.alm' holds members only its platform knows.
+  Guests Out  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the MX cannot be disabled
+  Staff Only  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match Staff is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Trusted, and the MX names no zone: give the networks behind Trusted with --zone-network.
+  Ping  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Trusted, Guests, and the MX names no zone: give the networks behind Trusted, Guests with --zone-network.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+  Lab Tunnel  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone Lab, and the MX names no zone: give the networks behind Lab with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone External, and the MX names no zone: give the networks behind External with --zone-network.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+
+NAT rules
+  Web-Public (Web In)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's
+  Mail-Public (Mail In)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's

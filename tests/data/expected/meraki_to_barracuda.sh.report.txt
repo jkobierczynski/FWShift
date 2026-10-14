@@ -1,0 +1,135 @@
+FWShift conversion report
+  source: meraki
+  target: barracuda
+
+Summary
+  Security rules:     20   exact 0, approximated 2, needs review 17 (15 emitted disabled), skipped 1
+  NAT rules:           4   exact 0, approximated 0, needs review 0, skipped 4
+  Addresses:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 13, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_VLAN_IPV6: VLAN objects read with the IPv6 prefixes of the VLAN as well: VLAN(10)
+  [needs-review] MERAKI_CELLULAR: the rules of cellular failover act only on the cellular uplink, after the outbound table: not converted: cellularFirewallRules: 1 rules
+  [needs-review] MERAKI_VPN: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted: vpnFirewallRules: 1 rules
+  [needs-review] MERAKI_GROUP_POLICY: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and the rules here may not be what those get: servers-restricted
+  [needs-review] BARRACUDA_LOAD: the output is a shell script that creates network objects, service objects and forwarding rules through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. The rules go to the top of the rule list, above the rules the firewall has, deactivated, and are then activated in order, first rule first: if a call is refused the script stops, and only the rules above that one are active, with the rules the firewall had below them. Barracuda documents the API by examples: assumed are the keys of a service object and its entries (protocol, ports, client ports), the interface of an entry of a network object, the IP version and action types of a rule other than block, and names of up to 32 letters, digits, periods, underscores and hyphens
+  [needs-review] BLOCK_RULE_INACTIVE: the source blocks what no rule matches. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that do so follow the converted rules, deactivated: until they are activated, the rules the firewall has below them decide that traffic. Look at those rules (management access, the default rules) and activate the two
+  [needs-review] INTERZONE_DEFAULT: the source allows what no rule matches; the firewall blocks it at the end of its rule list. Add a rule that allows it if that was intended
+  [info] MERAKI_SOURCE: 3 LAN zones (vlan10-office, vlan20-servers, vlan30-ot-cell) and internet; traffic inside one VLAN passes (it does not pass the MX); the outbound table, first match, ends in its fixed default rule that allows the rest; from the internet only what NAT rules allow passes
+  [info] MERAKI_FQDN: host names in destinations: the MX learns their addresses from the DNS answers it sees; a domain without a subdomain stands for its subdomains too: updates.example.com
+  [info] MERAKI_SERVICES: services of the MX itself that answer on the WAN (firewalledServices): not converted: ICMP
+
+Security rules
+  inside a VLAN  ->  needs-review, emitted disabled  (emitted as inside_a_VLAN, inside_a_VLAN-v6)
+      [needs-review] RULE_TYPE: intrazone rule: a rule of the firewall names no zones.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  layer 7 rule 2  ->  needs-review  (emitted as layer_7_rule_2, layer_7_rule_2-v6)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan10-office, vlan20-servers, vlan30-ot-cell; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  layer 7 rule 3  ->  needs-review  (emitted as layer_7_rule_3)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan10-office, vlan20-servers, vlan30-ot-cell; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  office to servers web  ->  needs-review, emitted disabled  (emitted as office_to_servers_web)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  historian  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  eng ws to plc  ->  needs-review, emitted disabled  (emitted as eng_ws_to_plc)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  ot cell isolated  ->  approximated  (emitted as ot_cell_isolated)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan10-office, vlan20-servers, vlan30-ot-cell; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  ot no internet  ->  approximated  (emitted as ot_no_internet)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan10-office, vlan20-servers, vlan30-ot-cell; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  block update site  ->  needs-review, emitted disabled  (emitted as block_update_site)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone vlan10-office, vlan20-servers, vlan30-ot-cell; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'fqdn_updates.example.com': a host name: how the API spells a hostname object is not known. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dns to servers  ->  needs-review, emitted disabled  (emitted as dns_to_servers)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  ping servers  ->  needs-review, emitted disabled  (emitted as ping_servers)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  office ipv6 out  ->  needs-review, emitted disabled  (emitted as office_ipv6_out)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  passive ftp  ->  needs-review, emitted disabled  (emitted as passive_ftp)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  bad ports  ->  needs-review, emitted disabled  (emitted as bad_ports)
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination port '1024-5000,5004' cannot be read (one range, or a list of single ports).
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+  Default rule  ->  needs-review, emitted disabled  (emitted as Default_rule, Default_rule-v6)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone vlan10-office, vlan20-servers, vlan30-ot-cell, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind vlan10-office, vlan20-servers, vlan30-ot-cell with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  vpn-portal  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internet, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind internet with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of the firewall names no zone: give the networks behind vlan20-servers with --zone-network.
+  mail (1)  ->  needs-review, emitted disabled  (emitted as mail__1_)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internet, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind internet with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of the firewall names no zone: give the networks behind vlan20-servers with --zone-network.
+  mail (2)  ->  needs-review, emitted disabled  (emitted as mail__2_)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp_type_8': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internet, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind internet with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of the firewall names no zone: give the networks behind vlan20-servers with --zone-network.
+  scada-view  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone internet, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind internet with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone vlan20-servers, and a rule of the firewall names no zone: give the networks behind vlan20-servers with --zone-network.
+  layer 7 rule 1  ->  skipped
+      [needs-review] MERAKI_L7: layer 7 rule of applicationCategory: applications, categories, host names and countries have no ports or addresses; what it blocks after the layer 3 rules is not converted
+
+NAT rules
+  NAT vpn-portal  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  NAT mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  NAT scada-view  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  NAT to the uplink  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+
+Addresses
+  fqdn updates.example.com  ->  exact  (emitted as fqdn_updates.example.com)
+      [info] RENAMED: renamed to 'fqdn_updates.example.com' to fit the target's naming rules
+
+Address groups
+  zone vlan10-office  ->  exact  (emitted as zone_vlan10-office)
+      [info] RENAMED: renamed to 'zone_vlan10-office' to fit the target's naming rules
+  zone vlan20-servers  ->  exact  (emitted as zone_vlan20-servers)
+      [info] RENAMED: renamed to 'zone_vlan20-servers' to fit the target's naming rules
+  zone vlan30-ot-cell  ->  exact  (emitted as zone_vlan30-ot-cell)
+      [info] RENAMED: renamed to 'zone_vlan30-ot-cell' to fit the target's naming rules
+  zone internet  ->  exact  (emitted as zone_internet)
+      [info] RENAMED: renamed to 'zone_internet' to fit the target's naming rules
+  VLAN(10)  ->  exact  (emitted as VLAN_10_)
+      [info] RENAMED: renamed to 'VLAN_10_' to fit the target's naming rules
+  VLAN(30)  ->  exact  (emitted as VLAN_30_)
+      [info] RENAMED: renamed to 'VLAN_30_' to fit the target's naming rules
+  VLAN(20)  ->  exact  (emitted as VLAN_20_)
+      [info] RENAMED: renamed to 'VLAN_20_' to fit the target's naming rules
+
+Services
+  tcp/23  ->  exact  (emitted as tcp_23)
+      [info] RENAMED: renamed to 'tcp_23' to fit the target's naming rules
+  udp/23  ->  exact  (emitted as udp_23)
+      [info] RENAMED: renamed to 'udp_23' to fit the target's naming rules
+  tcp/80,443  ->  exact  (emitted as tcp_80_443)
+      [info] RENAMED: renamed to 'tcp_80_443' to fit the target's naming rules
+  tcp/4840  ->  exact  (emitted as tcp_4840)
+      [info] RENAMED: renamed to 'tcp_4840' to fit the target's naming rules
+  tcp/102  ->  exact  (emitted as tcp_102)
+      [info] RENAMED: renamed to 'tcp_102' to fit the target's naming rules
+  tcp/443  ->  exact  (emitted as tcp_443)
+      [info] RENAMED: renamed to 'tcp_443' to fit the target's naming rules
+  udp/53  ->  exact  (emitted as udp_53)
+      [info] RENAMED: renamed to 'udp_53' to fit the target's naming rules
+  tcp/50000-50100  ->  exact  (emitted as tcp_50000-50100)
+      [info] RENAMED: renamed to 'tcp_50000-50100' to fit the target's naming rules
+  tcp/8443  ->  exact  (emitted as tcp_8443)
+      [info] RENAMED: renamed to 'tcp_8443' to fit the target's naming rules
+  tcp/25  ->  exact  (emitted as tcp_25)
+      [info] RENAMED: renamed to 'tcp_25' to fit the target's naming rules
+  icmp type 8  ->  exact  (emitted as icmp_type_8)
+      [info] RENAMED: renamed to 'icmp_type_8' to fit the target's naming rules
+  tcp/9443  ->  exact  (emitted as tcp_9443)
+      [info] RENAMED: renamed to 'tcp_9443' to fit the target's naming rules
+  icmp_type_8  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated

@@ -1,0 +1,46 @@
+FWShift conversion report
+  source: meraki
+  target: watchguard
+
+Summary
+  Security rules:     20   exact 13, approximated 1, needs review 5 (2 emitted disabled), skipped 1
+  NAT rules:           4   exact 1, approximated 0, needs review 0, skipped 3
+  Addresses:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_VLAN_IPV6: VLAN objects read with the IPv6 prefixes of the VLAN as well: VLAN(10)
+  [needs-review] MERAKI_CELLULAR: the rules of cellular failover act only on the cellular uplink, after the outbound table: not converted: cellularFirewallRules: 1 rules
+  [needs-review] MERAKI_VPN: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted: vpnFirewallRules: 1 rules
+  [needs-review] MERAKI_GROUP_POLICY: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and the rules here may not be what those get: servers-restricted
+  [needs-review] WATCHGUARD_LOAD: the output is the policy part of a configuration file of Policy Manager: address groups, aliases, services, static NAT actions and policies in manual order. It holds no interfaces and no system settings, so it is not a file to restore on a Firebox as it is (a restore replaces the whole configuration). Merge its lists into a configuration saved from the target, open the result in Policy Manager and check it there before it goes to the Firebox. WatchGuard publishes no schema of the file: the elements are those of the published readers of the format, and the words for the action of a policy (Allow, Deny) are assumed
+  [needs-review] INTERFACES_REQUIRED: the policies name these zones as interfaces of the Firebox, which must exist under these names (or be renamed with --zone-map): internet, vlan10-office, vlan20-servers, vlan30-ot-cell
+  [needs-review] INTERZONE_DEFAULT: the source allows what no rule matches; the Firebox denies it. Add a policy that allows it if that was intended
+  [info] MERAKI_SOURCE: 3 LAN zones (vlan10-office, vlan20-servers, vlan30-ot-cell) and internet; traffic inside one VLAN passes (it does not pass the MX); the outbound table, first match, ends in its fixed default rule that allows the rest; from the internet only what NAT rules allow passes
+  [info] MERAKI_FQDN: host names in destinations: the MX learns their addresses from the DNS answers it sees; a domain without a subdomain stands for its subdomains too: updates.example.com
+  [info] MERAKI_SERVICES: services of the MX itself that answer on the WAN (firewalledServices): not converted: ICMP
+
+Security rules
+  inside a VLAN  ->  needs-review, emitted disabled
+      [needs-review] RULE_TYPE: intrazone rule: a policy of Fireware names interfaces, not pairs of zones.
+  layer 7 rule 2  ->  needs-review
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+  layer 7 rule 3  ->  needs-review
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+  bad ports  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination port '1024-5000,5004' cannot be read (one range, or a list of single ports).
+  vpn-portal  ->  approximated
+      [approximated] NAT_ZONE_DROPPED: the rule is for traffic to zone vlan20-servers; with the static NAT action of 'NAT vpn-portal' the policy names the public address, and allows the translated traffic wherever its server is
+  scada-view  ->  needs-review
+      [needs-review] NAT_NOT_IN_POLICY: the rule allows the destination of NAT rule 'NAT scada-view' for other services or zones than the NAT rule translates: on a Firebox the translation is part of the policy, and it is not written into this one, which allows the address without translating it
+  layer 7 rule 1  ->  skipped
+      [needs-review] MERAKI_L7: layer 7 rule of applicationCategory: applications, categories, host names and countries have no ports or addresses; what it blocks after the layer 3 rules is not converted
+
+NAT rules
+  NAT mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT is dynamic NAT on a Firebox, which this file does not hold (where Policy Manager keeps it is not known)
+  NAT scada-view  ->  skipped
+      [info] NAT_NO_POLICY: on a Firebox static NAT is part of a policy, and no rule allows exactly the traffic this rule translates: the action is written and used by no policy
+  NAT to the uplink  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT is dynamic NAT on a Firebox, which this file does not hold (where Policy Manager keeps it is not known)

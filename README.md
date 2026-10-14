@@ -14,6 +14,7 @@ what was approximated and what a person has to look at.
 | Cisco IOS and IOS XE (routers) | `show running-config`: interface access lists, object groups, the zone-based firewall, NAT | commands for the zone-based policy firewall |
 | Huawei USG (USG6000, USG6000E, USG9500) | `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy` | commands for the system view |
 | Stormshield SNS (v4) | the ConfigFiles as a `.tgz` (`decbackup` of a backup): interfaces, objects, groups, the active filter slot and the global one | a script of serverd commands (`snscli --script`) |
+| Cisco Meraki MX | the answers of the Dashboard API for one network in one JSON file: VLANs, static routes, policy objects, the outbound and layer 7 rules, port forwarding, 1:1 and 1:many NAT, NAT exceptions and the inbound table | a curl script that backs up and puts the outbound and NAT tables |
 | Cisco Secure Firewall (FTD) managed by a Management Center (FMC) | the JSON its REST API returns | a Python script that creates a new policy through the REST API |
 | Cisco Secure Firewall (FTD) managed by its Device Manager (FDM) | the configuration export (`.txt` or `.zip`), or the JSON of its REST API | a file for the configuration import |
 | Sophos Firewall (SFOS 18 and later) | the export of *Import export* (`.tar` or its `Entities.xml`) | the same, for import |
@@ -46,7 +47,7 @@ change, or a source and its conversion read back (the **equivalence check**).
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.30).** The converter is tested against synthetic
+> **Status: alpha (0.31).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -56,7 +57,7 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   backend; nft 1.0.9); NAT rules and IPv6 rules are loaded but no packets
 >   are sent through them. Generated nftables rulesets are also listed back
 >   by nft, as text and as JSON, and both listings must give the same model.
-> * **PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco IOS, Huawei USG, Stormshield SNS, Cisco Secure Firewall,
+> * **PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco IOS, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall,
 >   Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, VMware NSX, AWS, Azure, Google Cloud, RouterOS and Forcepoint** output has **not been loaded on a
 >   device or management server**, and the **Terraform** output has not been applied with Terraform. The Check Point input format is taken from the API
 >   documentation, not from a real export, the ASA and FTD syntax from Cisco's
@@ -91,7 +92,9 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   guides, command references and IOS XE YANG models, and nothing was loaded on a router; Huawei USG from Huawei's
 >   documentation and support pages (its command reference could not be read), and nothing was loaded on a firewall;
 >   Stormshield from its command reference and, for the configuration files (whose rule syntax is not published), from
->   its own tools and their test data, and nothing was run on a firewall.
+>   its own tools and their test data, and nothing was run on a firewall; Meraki from the OpenAPI specification of the
+>   Dashboard API, Meraki's documentation and the SDK, Terraform provider and Ansible modules Cisco publishes, and no
+>   call was made to a Dashboard.
 >   Several conversion rules rest on
 >   vendor behaviour taken from documentation rather than from a lab.
 >
@@ -166,8 +169,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.30.0.pyz --version
-python3 fwshift-0.30.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.31.0.pyz --version
+python3 fwshift-0.31.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -199,6 +202,13 @@ fwshift convert rules.v4 --to checkpoint -o checkpoint.sh --report report.txt --
 # Cisco ASA to PAN-OS: interface names become zones
 fwshift convert asa-running.cfg --to panos -o panos.set --report report.txt \
     --interface-map GigabitEthernet0/0=ethernet1/1
+
+# Cisco Meraki MX (the bundle of Dashboard answers, MANUAL section 3) to
+# PAN-OS; to Meraki, a curl script (DRY_RUN=1 writes the bodies only) with the
+# zones of the LAN and their networks
+fwshift convert meraki-N_1.json --to panos -o candidate.set --report report.txt
+fwshift convert candidate.xml --to meraki -o meraki.sh --report report.txt \
+    --inside-zone trust --zone-network trust=10.10.0.0/16 --zone-network untrust=0.0.0.0/0,::/0
 
 # Stormshield SNS (the .tgz decbackup makes of a backup) to FortiOS; to
 # Stormshield, a script for snscli that writes one filter slot, not made active
@@ -387,7 +397,7 @@ fwshift convert running-config.xml --to iptables -o rules.v4 --report report.txt
 
 The [manual](docs/MANUAL.md#3-getting-the-source-configuration) shows how to
 get the input for each platform; for Check Point that is three `mgmt_cli show`
-calls, for an ASA or an IOS router `show running-config`, for a Huawei USG `display current-configuration`, for a Stormshield firewall its backup opened with `decbackup`, for a Sophos Firewall an export under
+calls, for an ASA or an IOS router `show running-config`, for a Huawei USG `display current-configuration`, for a Stormshield firewall its backup opened with `decbackup`, for a Meraki MX the answers of the Dashboard API in one file, for a Sophos Firewall an export under
 *Backup & firmware > Import export*, for a Management Center a handful of
 `curl` calls to its REST API, for a Device Manager its configuration export,
 for a pfSense the backup under *Diagnostics > Backup & Restore*, for an
@@ -549,6 +559,15 @@ FWShift reads) and does the same for the conversion. See
 | Security rules | one ordered layer with its inline layers flattened; zones in cells, negation, action, track, disabled, install-on reported | `FORWARD` chain with the chains it jumps to flattened; interfaces as zones, negation, connection state | every base chain at the forward hook (ip, ip6, inet tables), combined as the kernel runs them; jump, goto, return, verdict maps, concatenations flattened; interfaces as zones, negation, connection state, logging |
 | NAT | manual and automatic rules: hide, static, port translation, no-NAT | `DNAT`, `SNAT`, `MASQUERADE` and exemptions of the `nat` table (IPv4) | `dnat`, `snat`, `masquerade`, NAT maps and exemptions at prerouting and postrouting (IPv4) |
 | Scope | one access layer and the NAT rulebase of one policy package | one IP version per file | both IP versions in one table |
+
+| | Cisco Meraki MX |
+|---|---|
+| Address objects | addresses and networks, `VLAN(n).*` and `VLAN(n).k`, policy objects (CIDR, IP and mask, FQDN), host names as destinations; a zone per VLAN with its static routes. Written: addresses and networks in the rules |
+| Address groups | policy object groups. Written: their addresses |
+| Services | TCP, UDP, ICMP, ICMPv6 and any, with a list of ports or one range. Written: one rule per protocol and range |
+| Security rules | the outbound table, first match, ending in the fixed allow; layer 7 rules of ports and address ranges; the inbound table with NAT exceptions or in passthrough mode. Written: the outbound table, with a final deny where the source blocks the rest |
+| NAT | port forwarding, 1:1 and 1:many NAT with their allowed remote addresses, NAT to the uplink. Written: the same, with the rules that allow all of a NAT rule's traffic as its allowed remote addresses |
+| Scope | one network; group policies, the cellular and VPN tables and the inbound table as a target left out |
 
 | | Stormshield SNS |
 |---|---|
@@ -762,7 +781,8 @@ schedules, `redirect` and IPv6 NAT, Forcepoint aliases, element-based and
 default NAT, VPN actions and matches, block lists, rule validity times and
 connection limits, Terraform resources outside the input (other states, made by
 hand), dynamic blocks and values a plan does not know (reported), AWS Network
-Firewall, WAF and Azure Firewall (reported), Stormshield implicit rules, NAT of a
+Firewall, WAF and Azure Firewall (reported), Meraki group policies, cellular and
+VPN tables and layer 7 categories (reported), content filtering, Stormshield implicit rules, NAT of a
 slot, time objects, inspection profiles and policy routing (reported), Huawei virtual systems, applications,
 users, domain sets, regions and the local zone (reported), IOS control-plane and self-zone
 policies, VRFs, policy routing, outside and route-map NAT, time ranges and layer-7
@@ -782,8 +802,8 @@ and everything else outside the policy.
   AWS security groups 0.20, Azure network security groups 0.21, MikroTik
   RouterOS 0.23, OPNsense 0.24, Forcepoint NGFW 0.25, Terraform (AWS and
   Azure) 0.26, Google Cloud firewall rules (and terraform-google) 0.27, Cisco IOS
-  and IOS XE 0.28, Huawei USG 0.29, Stormshield SNS 0.30; next Cisco Meraki MX
-  0.31 (see TODO.md).
+  and IOS XE 0.28, Huawei USG 0.29, Stormshield SNS 0.30, Cisco Meraki MX
+  0.31; what is still open for each is in TODO.md.
 * **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](docs/RULE_USAGE.md)):
   rule identities and hit counters (0.13), Check Point logs (0.14),
   connections without a rule uid and iptables logs (0.15), PAN-OS and FortiOS logs (0.16) and

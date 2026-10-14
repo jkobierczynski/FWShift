@@ -1,0 +1,79 @@
+FWShift conversion report
+  source: meraki
+  target: junos
+
+Summary
+  Security rules:     20   exact 10, approximated 2, needs review 7 (1 emitted disabled), skipped 1
+  NAT rules:           4   exact 3, approximated 1, needs review 0, skipped 0
+  Addresses:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_VLAN_IPV6: VLAN objects read with the IPv6 prefixes of the VLAN as well: VLAN(10)
+  [needs-review] MERAKI_CELLULAR: the rules of cellular failover act only on the cellular uplink, after the outbound table: not converted: cellularFirewallRules: 1 rules
+  [needs-review] MERAKI_VPN: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted: vpnFirewallRules: 1 rules
+  [needs-review] MERAKI_GROUP_POLICY: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and the rules here may not be what those get: servers-restricted
+  [needs-review] JUNOS_LOAD: the output is set commands for 'load set' (section 10): 'configure private', 'load set terminal' or 'load set FILE', then 'show | compare', 'commit check' and 'commit confirmed'. New policies go to the end of their pair of zones, after the policies the firewall has there, and the global policies after those: move them with 'insert ... before' where the firewall's own should not come first. Objects go into the global address book, which a firewall with address books in its zones does not accept. Assumed: names of up to 63 characters, 'match from-zone' and 'match to-zone' in global policies, and the definitions of the predefined applications the policies use
+  [needs-review] ZONES_REQUIRED: the policies and NAT rules name these security zones, which must exist on the SRX (or be renamed with --zone-map): internet, vlan10-office, vlan20-servers, vlan30-ot-cell
+  [needs-review] INTERZONE_DEFAULT: the source allows what no rule matches between zones or inside one, and not both; the default policy of an SRX is one for both, and denies. Add policies if that was intended
+  [info] MERAKI_SOURCE: 3 LAN zones (vlan10-office, vlan20-servers, vlan30-ot-cell) and internet; traffic inside one VLAN passes (it does not pass the MX); the outbound table, first match, ends in its fixed default rule that allows the rest; from the internet only what NAT rules allow passes
+  [info] MERAKI_FQDN: host names in destinations: the MX learns their addresses from the DNS answers it sees; a domain without a subdomain stands for its subdomains too: updates.example.com
+  [info] MERAKI_SERVICES: services of the MX itself that answer on the WAN (firewalledServices): not converted: ICMP
+
+Security rules
+  inside a VLAN  ->  exact  (emitted as inside_a_VLAN-1, inside_a_VLAN-2, inside_a_VLAN-3)
+      [info] ZONES_EXPANDED: a rule for every zone is written for each pair of the zones the policy knows (vlan10-office, vlan20-servers, vlan30-ot-cell, internet); traffic of other zones of the SRX is not matched by it
+      [info] RULE_SPLIT: written as 3 policies, one per pair of zones
+  layer 7 rule 2  ->  needs-review  (emitted as layer_7_rule_2)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+  layer 7 rule 3  ->  needs-review  (emitted as layer_7_rule_3)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+  office to servers web  ->  needs-review  (emitted as office_to_servers_web)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.10.20.25', the address NAT rule 'NAT_mail' translates '203.0.113.25' to. The target looks rules up after that translation, so traffic sent to '203.0.113.25' now matches this rule; on the source it did not
+  ping servers  ->  needs-review  (emitted as ping_servers)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.10.20.25', the address NAT rule 'NAT_mail' translates '203.0.113.25' to. The target looks rules up after that translation, so traffic sent to '203.0.113.25' now matches this rule; on the source it did not
+  bad ports  ->  needs-review, emitted disabled  (emitted as bad_ports)
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination port '1024-5000,5004' cannot be read (one range, or a list of single ports).
+  vpn-portal  ->  needs-review
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.10.20.30' because of NAT rule 'NAT_vpn-portal'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'NAT_vpn-portal' also translates the port to 443; the service of this rule still names the pre-NAT port and must be adjusted
+  mail (1)  ->  approximated  (emitted as mail__1_)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.10.20.25' because of NAT rule 'NAT_mail'; check that this rule is meant to cover the translated traffic
+  mail (2)  ->  approximated  (emitted as mail__2_)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.10.20.25' because of NAT rule 'NAT_mail'; check that this rule is meant to cover the translated traffic
+  scada-view  ->  needs-review
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.30' with post-NAT '10.10.20.40' because of NAT rule 'NAT_scada-view'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'NAT_scada-view' also translates the port to 443; the service of this rule still names the pre-NAT port and must be adjusted
+  layer 7 rule 1  ->  skipped
+      [needs-review] MERAKI_L7: layer 7 rule of applicationCategory: applications, categories, host names and countries have no ports or addresses; what it blocks after the layer 3 rules is not converted
+
+NAT rules
+  NAT mail  ->  approximated  (emitted as static fwshift-static-vlan10-office NAT_mail, static fwshift-static-vlan20-servers NAT_mail, static fwshift-static-vlan30-ot-cell NAT_mail, static fwshift-static-internet NAT_mail)
+      [approximated] NAT_BIDIRECTIONAL: written as static NAT, which translates both ways; the outbound way applies to traffic to every zone
+
+Addresses
+  fqdn updates.example.com  ->  exact  (emitted as fqdn_updates.example.com)
+      [info] RENAMED: renamed to 'fqdn_updates.example.com' to fit the target's naming rules
+
+Address groups
+  zone vlan10-office  ->  exact  (emitted as zone_vlan10-office)
+      [info] RENAMED: renamed to 'zone_vlan10-office' to fit the target's naming rules
+  zone vlan20-servers  ->  exact  (emitted as zone_vlan20-servers)
+      [info] RENAMED: renamed to 'zone_vlan20-servers' to fit the target's naming rules
+  zone vlan30-ot-cell  ->  exact  (emitted as zone_vlan30-ot-cell)
+      [info] RENAMED: renamed to 'zone_vlan30-ot-cell' to fit the target's naming rules
+  zone internet  ->  exact  (emitted as zone_internet)
+      [info] RENAMED: renamed to 'zone_internet' to fit the target's naming rules
+  VLAN(10)  ->  exact  (emitted as VLAN_10_)
+      [info] RENAMED: renamed to 'VLAN_10_' to fit the target's naming rules
+  VLAN(30)  ->  exact  (emitted as VLAN_30_)
+      [info] RENAMED: renamed to 'VLAN_30_' to fit the target's naming rules
+  VLAN(20)  ->  exact  (emitted as VLAN_20_)
+      [info] RENAMED: renamed to 'VLAN_20_' to fit the target's naming rules
+
+Services
+  tcp/80,443  ->  exact  (emitted as tcp/80_443)
+      [info] RENAMED: renamed to 'tcp/80_443' to fit the target's naming rules
+  icmp type 8  ->  exact  (emitted as icmp_type_8)
+      [info] RENAMED: renamed to 'icmp_type_8' to fit the target's naming rules

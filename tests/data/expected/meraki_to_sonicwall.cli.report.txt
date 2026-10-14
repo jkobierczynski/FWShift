@@ -1,0 +1,89 @@
+FWShift conversion report
+  source: meraki
+  target: sonicwall
+
+Summary
+  Security rules:     20   exact 15, approximated 0, needs review 4 (2 emitted disabled), skipped 1
+  NAT rules:           4   exact 0, approximated 1, needs review 2, skipped 1
+  Addresses:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 12, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_VLAN_IPV6: VLAN objects read with the IPv6 prefixes of the VLAN as well: VLAN(10)
+  [needs-review] MERAKI_CELLULAR: the rules of cellular failover act only on the cellular uplink, after the outbound table: not converted: cellularFirewallRules: 1 rules
+  [needs-review] MERAKI_VPN: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted: vpnFirewallRules: 1 rules
+  [needs-review] MERAKI_GROUP_POLICY: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and the rules here may not be what those get: servers-restricted
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, address-object fqdn, address-object ipv6, nat-policy name and comment, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): vlan10-office, vlan20-servers, vlan30-ot-cell, internet
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] MERAKI_SOURCE: 3 LAN zones (vlan10-office, vlan20-servers, vlan30-ot-cell) and internet; traffic inside one VLAN passes (it does not pass the MX); the outbound table, first match, ends in its fixed default rule that allows the rest; from the internet only what NAT rules allow passes
+  [info] MERAKI_FQDN: host names in destinations: the MX learns their addresses from the DNS answers it sees; a domain without a subdomain stands for its subdomains too: updates.example.com
+  [info] MERAKI_SERVICES: services of the MX itself that answer on the WAN (firewalledServices): not converted: ICMP
+  [info] DEFAULT_DENY_ADDED: 6 rules that deny were added, one at the end of each pair of zones and IP version: SonicOS allows some traffic between zones by itself (from LAN to WAN, for example), and the source did not
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 3 rule(s) match IPv4 and IPv6 traffic and were written twice: SonicOS has address objects and access rules per IP version
+
+Security rules
+  inside a VLAN  ->  exact  (emitted as inside a VLAN, inside a VLAN 2, inside a VLAN 3, inside a VLAN 4, inside a VLAN 5, inside a VLAN 6)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 3 rules
+  layer 7 rule 2  ->  needs-review  (emitted as layer 7 rule 2, layer 7 rule 2 2, layer 7 rule 2 3, layer 7 rule 2 4, layer 7 rule 2 5, layer 7 rule 2 6, layer 7 rule 2 7, layer 7 rule 2 8, layer 7 rule 2 9, layer 7 rule 2 10, layer 7 rule 2 11, layer 7 rule 2 12, layer 7 rule 2 13, layer 7 rule 2 14, layer 7 rule 2 15, layer 7 rule 2 16, layer 7 rule 2 17, layer 7 rule 2 18, layer 7 rule 2 19, layer 7 rule 2 20, layer 7 rule 2 21, layer 7 rule 2 22, layer 7 rule 2 23, layer 7 rule 2 24)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 12 rules
+  layer 7 rule 3  ->  needs-review  (emitted as layer 7 rule 3, layer 7 rule 3 2, layer 7 rule 3 3, layer 7 rule 3 4, layer 7 rule 3 5, layer 7 rule 3 6, layer 7 rule 3 7, layer 7 rule 3 8, layer 7 rule 3 9, layer 7 rule 3 10, layer 7 rule 3 11, layer 7 rule 3 12)
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 12 rules
+  office to servers web  ->  exact  (emitted as office to servers web, office to servers web 2, office to servers web 3, office to servers web 4, office to servers web 5, office to servers web 6, office to servers web 7, office to servers web 8, office to servers web 9, office to servers web 10, office to servers web 11, office to servers web 12)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 12 rules
+  historian  ->  exact  (emitted as historian, historian 2, historian 3, historian 4, historian 5, historian 6, historian 7, historian 8, historian 9, historian 10, historian 11, historian 12)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 12 rules
+  eng ws to plc  ->  exact  (emitted as eng ws to plc, eng ws to plc 2, eng ws to plc 3, eng ws to plc 4, eng ws to plc 5, eng ws to plc 6, eng ws to plc 7, eng ws to plc 8, eng ws to plc 9, eng ws to plc 10, eng ws to plc 11, eng ws to plc 12)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 12 rules
+  ot cell isolated  ->  exact  (emitted as ot cell isolated, ot cell isolated 2, ot cell isolated 3, ot cell isolated 4, ot cell isolated 5, ot cell isolated 6, ot cell isolated 7, ot cell isolated 8, ot cell isolated 9, ot cell isolated 10, ot cell isolated 11, ot cell isolated 12)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 12 rules
+  ot no internet  ->  exact  (emitted as ot no internet, ot no internet 2, ot no internet 3, ot no internet 4, ot no internet 5, ot no internet 6, ot no internet 7, ot no internet 8, ot no internet 9, ot no internet 10, ot no internet 11, ot no internet 12)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 12 rules
+  block update site  ->  exact  (emitted as block update site, block update site 2, block update site 3, block update site 4, block update site 5, block update site 6, block update site 7, block update site 8, block update site 9, block update site 10, block update site 11, block update site 12)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 12 rules
+  dns to servers  ->  exact  (emitted as dns to servers, dns to servers 2, dns to servers 3, dns to servers 4, dns to servers 5, dns to servers 6, dns to servers 7, dns to servers 8, dns to servers 9, dns to servers 10, dns to servers 11, dns to servers 12)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 12 rules
+  ping servers  ->  needs-review, emitted disabled  (emitted as ping servers, ping servers 2, ping servers 3, ping servers 4, ping servers 5, ping servers 6, ping servers 7, ping servers 8, ping servers 9, ping servers 10, ping servers 11, ping servers 12)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 12 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  office ipv6 out  ->  exact  (emitted as office ipv6 out, office ipv6 out 2, office ipv6 out 3, office ipv6 out 4, office ipv6 out 5, office ipv6 out 6, office ipv6 out 7, office ipv6 out 8, office ipv6 out 9, office ipv6 out 10, office ipv6 out 11, office ipv6 out 12)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 12 rules
+  passive ftp  ->  exact  (emitted as passive ftp, passive ftp 2, passive ftp 3, passive ftp 4, passive ftp 5, passive ftp 6, passive ftp 7, passive ftp 8, passive ftp 9, passive ftp 10, passive ftp 11, passive ftp 12)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 12 rules
+  bad ports  ->  needs-review, emitted disabled  (emitted as bad ports, bad ports 2, bad ports 3, bad ports 4, bad ports 5, bad ports 6, bad ports 7, bad ports 8, bad ports 9, bad ports 10, bad ports 11, bad ports 12)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 12 rules
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination port '1024-5000,5004' cannot be read (one range, or a list of single ports).
+  Default rule  ->  exact  (emitted as Default rule, Default rule 2, Default rule 3, Default rule 4, Default rule 5, Default rule 6, Default rule 7, Default rule 8, Default rule 9, Default rule 10, Default rule 11, Default rule 12, Default rule 13, Default rule 14, Default rule 15, Default rule 16, Default rule 17, Default rule 18, Default rule 19, Default rule 20, Default rule 21, Default rule 22, Default rule 23, Default rule 24)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 12 rules
+  layer 7 rule 1  ->  skipped
+      [needs-review] MERAKI_L7: layer 7 rule of applicationCategory: applications, categories, host names and countries have no ports or addresses; what it blocks after the layer 3 rules is not converted
+
+NAT rules
+  NAT vpn-portal  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from internet only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  NAT mail  ->  approximated  (emitted as NAT mail, NAT mail in)
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a source NAT policy plus policy 'NAT mail in' for the inbound direction
+  NAT scada-view  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from internet only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  NAT to the uplink  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+
+Address groups
+  zone vlan10-office  ->  exact  (emitted as zone vlan10-office, zone vlan10-office v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'zone vlan10-office', 'zone vlan10-office v6'
+  zone internet  ->  exact  (emitted as zone internet, zone internet v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'zone internet', 'zone internet v6'
+  VLAN(10)  ->  exact  (emitted as VLAN(10), VLAN(10) v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'VLAN(10)', 'VLAN(10) v6'
+
+Services
+  tcp/80,443  ->  exact  (emitted as tcp/80,443, tcp/80,443 tcp 80, tcp/80,443 tcp 443)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'tcp/80,443' of 'tcp/80,443 tcp 80', 'tcp/80,443 tcp 443'
+  icmp  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  icmp type 8  ->  exact
+      [info] ICMP_AS_DEFAULT: ICMP echo request is written as the default service 'Ping' of SonicOS, which is taken to be that

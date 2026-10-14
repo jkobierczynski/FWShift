@@ -8,13 +8,13 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.30.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
-| Tests | 5614, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, an IOS router, a Huawei USG, a Stormshield firewall, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a Google Cloud project, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
+| Version | 0.31.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Meraki MX (read the answers of the Dashboard API for one network: VLANs, objects, the outbound and layer 7 rules, port forwarding, 1:1 and 1:many NAT, the inbound table with NAT exceptions; write a curl script that puts the outbound and NAT tables); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
+| Tests | 6117, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, an IOS router, a Huawei USG, a Stormshield firewall, a Meraki MX, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a Google Cloud project, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
 | Analysis | the audit, the zone matrix, rule usage from hit counters and logs, the zone and conduit model as a gate (`fwshift conduits`), the equivalence check (`fwshift compare`, `convert --compare`) |
 | Security | an outside review (ChatGPT, October 2026) and the measures taken: `docs/security/SECURITY_REVIEW.md` |
-| Next | Cisco Meraki MX (0.31); the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
+| Next | the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
 
 ## Layout
 
@@ -26,6 +26,8 @@ src/fwshift/
         fortios.py    FortiOS configuration  -> model
         checkpoint.py Management API JSON    -> model (inline layers flattened)
         asa.py        ASA running-config     -> model (bound access lists, NAT sections)
+        meraki.py     Meraki Dashboard API answers -> model (VLANs as zones, the
+                      outbound and layer 7 rules, NAT and what it lets in)
         stormshield.py Stormshield ConfigFiles (.tar/.tgz) -> model (interfaces,
                       objects, the global and the active filter slot)
         huawei.py     Huawei USG current-configuration -> model (security zones,
@@ -87,6 +89,8 @@ src/fwshift/
         fortios.py    model -> FortiOS CLI configuration
         checkpoint.py model -> shell script of mgmt_cli calls
         asa.py        model -> ASA commands (access lists per interface, twice NAT)
+        meraki.py     model -> a curl script for the Dashboard API (the outbound
+                      table, port forwarding, 1:1 and 1:many NAT)
         stormshield.py model -> a script of serverd commands (objects, one
                       filter slot, NAT)
         huawei.py     model -> commands for the system view of a USG (zones,
@@ -186,7 +190,7 @@ tests/
                       FortiOS logs (and panos_logged.xml), the two
                       Cisco Secure Firewall samples and the SonicWall,
                       WatchGuard, Barracuda and Juniper samples, the nftables
-                      sample (written by nft itself), the NSX, AWS, Azure, Google Cloud, Terraform, IOS, Huawei, Stormshield, RouterOS and OPNsense samples, the zone model,
+                      sample (written by nft itself), the NSX, AWS, Azure, Google Cloud, Terraform, IOS, Huawei, Stormshield, Meraki, RouterOS and OPNsense samples, the zone model,
                       and the kernel checks for iptables and nftables
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
                       Check Point, ASA, Sophos and Cisco Secure Firewall output;
@@ -221,6 +225,10 @@ tests/
                       the router does, for random exports and for the script
     test_checkpoint.py Check Point both ways, with simulators for an export
                       and for an emitted script
+    test_meraki.py    Meraki both ways: random networks written as Dashboard
+                      answers and a judge of their own; the emitted script read
+                      back and judged the same way, also after a round trip, and
+                      what its NAT lets in against the model
     test_stormshield.py Stormshield both ways: random firewalls written as
                       ConfigFiles and a judge of their own; the emitted script
                       read back and judged the same way, also after a round trip
@@ -691,6 +699,9 @@ there for an old tag whose tests no longer run on today's tools.
 | Google Cloud: one list without zones, egress and ingress composed between instances | A connection between two instances passes the egress rules of the sender and the ingress rules of the receiver, each list with its own steps. The model has one first-match list: from outside the ingress rules, to outside the egress rules, and between instances the egress rules that deny, then for each that allows the ingress rules cut to it, as for AWS and Azure. |
 | Google Cloud: `goto_next` becomes the rules below it without what it matches | It leaves the policy for the next step, which in one list is "the rules after this policy". Subtracting its match from the rules below it in the same policy says exactly that; when that cannot be worked out, the rules after it are not converted. |
 | Google Cloud output is a new global policy, associated with nothing | Creating it changes no traffic; associating it, and putting it before the VPC rules, are two changes a person makes after reading the report. Each rule is written for ingress and egress, so a connection between instances meets the model's verdict at both ends. |
+| Meraki: the answers of the Dashboard API, in one file | The configuration of an MX is spread over a dozen endpoints of the network and its organization; one JSON file of them under their names (the jq command of the manual) is what FWShift reads. The outbound table alone is read too, with what it cannot know said. |
+| Meraki: a zone per VLAN, and the internet | The MX names addresses, not zones. A VLAN with the subnets of its static routes is the zone a packet comes from; traffic inside one VLAN does not pass the MX and is allowed in the model. |
+| Meraki output: from the internet only NAT, with allowed remote addresses that never let in more | An MX lets traffic from the internet in only by its NAT rules, whose allowed remote addresses are a list of sources with no order and no deny. The rules of the model that allow all of a NAT rule's traffic give their sources (kept to their zones outside); a rule that blocks some of it first ends the list, and one that cannot be written is left out, so what is written is never more than the model allows; the tests check that packet by packet. |
 | Stormshield: the configuration files, read with a grammar of what is known; anything else not converted | The syntax of a rule line in a slot file is not published. The reader takes what Stormshield's own tools and their test data show (action, options, `from ... on ... to ... on ... port ...`, comments) and makes any other word, an empty name or a word twice a reason not to convert the rule. A backup (`.na`) is encrypted with AES, which the standard library does not have: it is refused with the `decbackup` command. |
 | Stormshield: the global policy, then the local one, as one list | A global `deleg` of everything at its end hands the rest to the local policy, which is what one list of rules says; a `deleg` with conditions cannot be said so and is refused. `decrypt` and `log` go on to the next rule and are left out. |
 | Stormshield output: a serverd script for one slot, not made active | Serverd commands are documented and checked by the firewall one by one; slot files have no published syntax. A rule of SNS has one IP protocol, so a rule of the model becomes one per kind of service and per pair of interfaces, which together match what it matches. |
@@ -736,6 +747,10 @@ policy behaves unexpectedly.
 | Shape of `show access-rulebase` / `show nat-rulebase` answers: `rulebase`, `objects-dictionary`, sections, `from`/`to`/`total` (with `total` counting rules, not section titles), `inline-layer`, the field names of each object type; objects of data domains are predefined | Check Point parser |
 | `mgmt_cli` syntax of every call the script makes (`add host`, `add network`, `add address-range`, `add dns-domain`, `add group`, `add service-tcp/-udp/-sctp/-icmp/-icmp6/-other`, `add service-group`, `add security-zone`, `add access-layer ... add-default-rule false`, `add access-rule ... position N`, `add nat-rule ... position bottom`), switches after the command, a non-zero exit status when the server refuses a call | Check Point emitter |
 | Check Point accepts an address range `0.0.0.0`-`255.255.255.255`, domain objects as group members, empty groups as placeholders, and object names made of letters, digits, `.`, `_` and `-` | Check Point emitter |
+| Meraki, all rows below: from the OpenAPI specification of the Dashboard API (v1), Meraki's knowledge base and developer documentation, the Python SDK, the Terraform provider, the Ansible collection and Meraki's published backup and import scripts, read and never run; no call was made to a Dashboard | Meraki parser and emitter |
+| The outbound table first match from the LAN, ending in a fixed default rule that allows; layer 7 rules block after it; traffic inside one VLAN does not pass the MX; from the internet only NAT (its allowed remote addresses), or with NAT off on an uplink and in passthrough mode the inbound table | Meraki parser and emitter |
+| Answers: `l3FirewallRules`, `inboundFirewallRules`, `l7FirewallRules`, `portForwardingRules`, `oneToOneNatRules`, `oneToManyNatRules`, `vlans`, `singleLan`, `staticRoutes`, `policyObjects`, `policyObjectsGroups`, `uplinkStatuses`, `uplinksNat`, `applianceSettings`; the GET of a rule table ends in the Default rule, which a PUT must not hold | Meraki parser and emitter |
+| Assumed, not documented: the inbound table decides traffic NAT lets in when NAT is off on an uplink; layer 7 rules of ports and address ranges act on the LAN's traffic only; `VLAN(n).*` holds the IPv6 prefixes of the VLAN; the uplink `both` is every uplink; `allowedIps` of `any` or a list of networks; puts of more than about 900 rules time out | Meraki parser and emitter |
 | Stormshield, all rows below: from Stormshield's documentation (the serverd command reference for v4 and v5, the user manual, the technical note on the command line, the ANSSI recommendations), its Python API client and Ansible playbooks with their test data, and published readers of its files (snspoliciestocsv, decbackup-py, the CrowdSec bouncer), read and never run; nothing was run on a firewall | Stormshield parser and emitter |
 | Filter rules first match, on the addresses before NAT; implicit rules first, then the global policy, then the local one; what no rule matches is blocked without a log; `decrypt` and `log` go on | Stormshield parser and emitter |
 | ConfigFiles: `network`, `object` (`[Host]`, `[Network]`, `[Service]`, `[Protocol]`, `[Fqdn]`, `[Internet]`), `objectgroup`, `servicegroup`, `Filter/slotinfo` and `Filter/NN` with `[Filter]` and `[NAT]` | Stormshield parser |
@@ -2145,6 +2160,85 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-14: version 0.31.0
+
+The last of the four brands: **Cisco Meraki MX**, both ways.
+
+**Built**
+
+* `parsers/meraki.py`: the answers of the Dashboard API (v1) for one network, in one JSON file under the names of
+  their endpoints (the answer of the outbound table alone too). A zone per VLAN, with the subnets of its static
+  routes (`lan` for a single LAN), and `internet`; policy objects and groups, `VLAN(n).*` and `VLAN(n).k`, host names
+  as destinations; the outbound table first match from the LAN zones with its fixed default rule; layer 7 rules of
+  ports and address ranges as denies before it, the others not converted; port forwarding, 1:1 and 1:many NAT as
+  destination NAT and static NAT both ways, with their allowed remote addresses as rules from the internet; NAT to
+  the uplink; NAT exceptions and passthrough mode with the inbound table; group policies, the cellular and VPN
+  tables and the services of the MX said.
+* `emitters/meraki.py`: a shell script for curl that writes the bodies, backs up each table and puts it (with
+  `DRY_RUN=1` it writes the bodies only and needs no key): the outbound table, a rule of the model as many rules of
+  the MX as it takes (one protocol, one IP version where a side is not any, one range of ports), kept to the
+  networks of its zones, with a final deny where the source blocks the rest; port forwarding, 1:1 and 1:many NAT
+  with the sources of the rules that allow all of them as allowed remote addresses.
+* `--from` and `--to meraki`, `--inside-zone` and `--zone-network` for it, detection before AWS; the sample
+  (`meraki_sample.json`, written by `tests/tools/make_meraki_sample.py`), 55 golden conversions, their audit and
+  matrix.
+
+**What the work made necessary**
+
+* *Allowed remote addresses that never let in more.* They have no order and no deny. The emitter takes a rule into
+  them only when it allows all of a NAT rule's ports to the public address, its destination zones hold the
+  translated address and it can be written; a rule that blocks some of it first ends the list. A test of its own
+  sends packets from the internet through what the script writes and checks that the model allows each one the MX
+  lets in.
+* *The judge decides the inbound side as well.* NAT exceptions and passthrough mode hand traffic from the internet
+  to the inbound table; the random networks have both, with several uplinks.
+
+**Review**
+
+*Round 39* by the independent reviewer, with probe scripts, two fuzzers and a differential test of the allowed
+remote addresses.
+
+| | Finding | Fix |
+|---|---|---|
+| high | Emitter: rules that are not converted (unsupported, users, URL categories, applications, schedules) became allowed remote addresses | left out; one that blocks ends the list |
+| high | Emitter: a rule that allows one port of a NAT range opened the whole range (5,748 differences in the reviewer's differential) | the rule must allow all of it |
+| high | Emitter: the zones of rules from the internet were ignored, also the zone of the translated address | sources kept to their zones outside; destination zones must hold the translated address |
+| high | Parser: a policy object or group named `any` became every address | renamed |
+| high | Parser: in passthrough mode the inbound table was ignored | read before the allow of the rest |
+| high | Parser: with NAT off on an uplink the allowed remote addresses stayed in force when the inbound table held only its default rule, or was missing | the inbound table decides; missing, NAT lets in nothing |
+| high | Parser: the allow inside a VLAN had every zone as its source, the internet too, so every rule was dead without VLANs | the LAN zones only, none without them; `MERAKI_NO_LAN` |
+| medium | Parser: NAT ports missing or `any`, `destinationPorts` as a string, read as every port or per character | not converted |
+| medium | Parser: host bits in policy objects widened; a group of an object that is not read, a VLAN without a subnet, read as narrower denies | not converted |
+| medium | Emitter: port forwards always on internet1 | the uplink of the source, or of the address |
+| medium | Emitter: a rule between zones that names one zone on both sides was written as if the MX filtered that | said (`MERAKI_INTRAZONE`) |
+| medium | Parser: the inbound table alone read as the outbound table | refused |
+| low | Emitter: a deny that came out as no rule; DNAT ports that ended in a traceback or out of range; `DRY_RUN` needed the key; restoring a backup duplicates the Default rule. Parser: non-rules in the inbound table, naming that took quadratic time, host names as sources, lists inside allowed remote addresses | each refused, said or handled |
+
+The fixes were not reviewed again; they have tests (`test_r39_*` in `test_meraki.py`). A rule that blocks every
+service but some was found after them, by the NAT differential at more seeds, and is fixed and tested too.
+
+**Verified, and not**
+
+* The tests: 448 in `test_meraki.py`, the suite 6117. The parser against the judge: 500 random networks (VLANs
+  with IPv6 and static routes, objects named `any` and with host bits, groups of them, layer 7 rules, several uplinks,
+  NAT exceptions, passthrough mode and the inbound table), 300 packets each, and every rule the judge does not decide
+  is not converted; a round trip (answers, model, script) of 80 more; the emitter against the model through the reader
+  of its script: 40 random models exactly from the LAN, and 300 random NAT models where everything the MX lets in
+  from the internet is allowed by the model. Run once at more seeds: 3,000 more networks against the judge, 600 more
+  emitter models, 3,800 NAT models and round trips, none different.
+* A mutation check with 78 ways to break the parser and the emitter: 59 caught at first; for 17 of the other 19
+  tests were added (a Default rule that blocks, empty allowed remote addresses, the uplink of NAT with no SNAT rule
+  and of 1:many NAT on a WAN address, a translated address in no zone given, rules that block and cannot be read or
+  block other ports, ping and other ICMP types into 1:1 NAT, the fixed default rule, port 0, a service of every
+  protocol, ICMP and ICMPv6 by IP version, host names among the sources of a rule that blocks, users, more than 64
+  allowed remote addresses), which catch them. The last 2 change nothing: inbound rules from any zone come after
+  the Default rule, which takes all traffic from the LAN, and the reasons of a rule are checked again before its
+  sources are taken.
+* **Not verified**: no call was made to a Dashboard, and no configuration of a real network was read: the inputs were
+  written from the API specification and Meraki's documentation. How the inbound table and NAT exceptions decide
+  traffic NAT lets in, what layer 7 rules act on, the IPv6 side of VLAN objects and the uplink `both` are assumed;
+  the tests rest on the same reading.
 
 ### 2026-10-14: version 0.30.0
 

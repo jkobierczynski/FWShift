@@ -1,0 +1,85 @@
+FWShift conversion report
+  source: fortios
+  target: meraki
+
+Summary
+  Security rules:     14   exact 0, approximated 1, needs review 12 (12 emitted disabled), skipped 1
+  NAT rules:           5   exact 0, approximated 0, needs review 2, skipped 3
+  Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_INSIDE: no --inside-zone: every zone was taken as a LAN of the MX; rules from a zone that is the internet are then written as outbound rules, which the MX never matches for traffic from the internet
+  [needs-review] MERAKI_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one VLAN the MX passes everything: lan, wan1, dmz, ot
+  [needs-review] MERAKI_LOAD: the output is a shell script for the Dashboard API (section 10): it backs up and replaces the outbound table; DRY_RUN=1 writes the bodies only. The fixed default rule of the MX (allow) stays at the end
+  [info] MERAKI_DEFAULT_DENY: the source blocks what no rule matches: the outbound table ends in a rule that blocks everything, before the fixed default rule of the MX
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have syslogEnabled
+
+Security rules
+  LAN to Internet  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network.
+  LAN basics  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+  Inbound web  ->  needs-review, emitted disabled
+      [needs-review] NAT_PORT_TRANSLATION: virtual IP 'vip-web' forwards port 443 to 8443; FortiOS policies name the mapped port, the neutral model the original one. Check the service of this rule
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
+  Inbound mail  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
+  Admins to DMZ  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
+  Block geo  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ out via pool  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network.
+  SCADA to PLCs  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone ot, and the MX names no zone: give the networks behind ot with --zone-network.
+  OT no internet  ->  approximated  (emitted as 1 rules of the outbound table)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone ot; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone wan1; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+  Partner tunnel  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+  LAN v6 out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network.
+  policy-12  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] SCHEDULE: schedule office-hours is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
+  Not web  ->  skipped
+      [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the MX cannot be disabled
+  Timestamp probes  ->  needs-review, emitted disabled
+      [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
+      [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
+
+NAT rules
+  vip-web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's. Here: rule Block geo blocks traffic to addresses that cannot be read
+  vip-mail  ->  skipped
+      [approximated] VIP_REVERSE_NAT: FortiOS also source-translates sessions the mapped host opens (to the external IP) when the outgoing policy has NAT enabled; that reverse direction is not converted
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's
+  snat-1  ->  needs-review  (emitted as what the MX does by itself: the LAN goes out with the address of the uplink)
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+  snat-2  ->  needs-review  (emitted as what the MX does by itself: the LAN goes out with the address of the uplink)
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+  snat-7  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: the MX writes destination NAT of one public address and port (1:many NAT) and a static translation both ways (1:1 NAT), with the rules that allow traffic to them as the allowed remote addresses, and none that blocks before them; source NAT is the uplink's
+
+Addresses
+  geo-blocked  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: FortiOS address type 'geography' cannot be converted

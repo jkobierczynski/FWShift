@@ -1,0 +1,136 @@
+FWShift conversion report
+  source: meraki
+  target: opnsense
+
+Summary
+  Security rules:     20   exact 0, approximated 2, needs review 17 (15 emitted disabled), skipped 1
+  NAT rules:           4   exact 3, approximated 0, needs review 1, skipped 0
+  Addresses:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_VLAN_IPV6: VLAN objects read with the IPv6 prefixes of the VLAN as well: VLAN(10)
+  [needs-review] MERAKI_CELLULAR: the rules of cellular failover act only on the cellular uplink, after the outbound table: not converted: cellularFirewallRules: 1 rules
+  [needs-review] MERAKI_VPN: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted: vpnFirewallRules: 1 rules
+  [needs-review] MERAKI_GROUP_POLICY: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and the rules here may not be what those get: servers-restricted
+  [needs-review] INTERFACE_NAME: rules for every zone were written for the interfaces OPNsense can name, and not for vlan10-office, vlan20-servers, vlan30-ot-cell: map those zones to wan, lan or an optN with --zone-map. No rule at all is written for them
+  [needs-review] INTRAZONE_DEFAULT: the source allows traffic inside a zone unless a rule denies it; on OPNsense traffic that leaves by the interface it came in on, or goes from one interface of a zone to another, is dropped unless a rule passes it
+  [needs-review] OPNSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of an OPNsense configuration, for 26.7 (--target-version). Under System > Configuration > Backups, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every alias and every NAT rule that is there now is gone, and the Firewall Rules area replaces the rules of both rule pages ('Rules' and 'Rules [new]'), with the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. The NAT area holds 2 port forwards and 1 1:1 rule, and sets outbound NAT to manual mode with the 1 rule of the source; it removes every rule of NPt. OPNsense does not check what it restores and does not load it until the rules are applied or the firewall restarts; keep a backup, and look at the rules before anything depends on them
+  [info] MERAKI_SOURCE: 3 LAN zones (vlan10-office, vlan20-servers, vlan30-ot-cell) and internet; traffic inside one VLAN passes (it does not pass the MX); the outbound table, first match, ends in its fixed default rule that allows the rest; from the internet only what NAT rules allow passes
+  [info] MERAKI_FQDN: host names in destinations: the MX learns their addresses from the DNS answers it sees; a domain without a subdomain stands for its subdomains too: updates.example.com
+  [info] MERAKI_SERVICES: services of the MX itself that answer on the WAN (firewalledServices): not converted: ICMP
+
+Security rules
+  inside a VLAN  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic inside one zone, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind vlan20-servers, vlan30-ot-cell, internet, vlan10-office with --zone-network.
+      [needs-review] INTERFACE_NAME: 'vlan10-office' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan20-servers' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan30-ot-cell' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  layer 7 rule 2  ->  needs-review, emitted disabled
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [needs-review] INTERFACE_NAME: 'vlan10-office' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'vlan20-servers' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'vlan30-ot-cell' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  layer 7 rule 3  ->  needs-review, emitted disabled
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+      [needs-review] INTERFACE_NAME: 'vlan10-office' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'vlan20-servers' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'vlan30-ot-cell' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  office to servers web  ->  needs-review, emitted disabled
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.10.20.25', the address NAT rule 'NAT mail' translates '203.0.113.25' to. The target looks rules up after that translation, so traffic sent to '203.0.113.25' now matches this rule; on the source it did not
+      [needs-review] INTERFACE_NAME: 'vlan10-office' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan20-servers' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan30-ot-cell' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  historian  ->  needs-review, emitted disabled
+      [needs-review] INTERFACE_NAME: 'vlan10-office' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan20-servers' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan30-ot-cell' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  eng ws to plc  ->  needs-review, emitted disabled
+      [needs-review] INTERFACE_NAME: 'vlan10-office' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan20-servers' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan30-ot-cell' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  ot cell isolated  ->  needs-review, emitted disabled
+      [needs-review] INTERFACE_NAME: 'vlan10-office' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'vlan20-servers' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'vlan30-ot-cell' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ot no internet  ->  needs-review, emitted disabled
+      [needs-review] INTERFACE_NAME: 'vlan10-office' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'vlan20-servers' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'vlan30-ot-cell' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  block update site  ->  needs-review, emitted disabled
+      [needs-review] INTERFACE_NAME: 'vlan10-office' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'vlan20-servers' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'vlan30-ot-cell' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  dns to servers  ->  needs-review, emitted disabled
+      [needs-review] INTERFACE_NAME: 'vlan10-office' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan20-servers' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan30-ot-cell' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  ping servers  ->  needs-review, emitted disabled
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.10.20.25', the address NAT rule 'NAT mail' translates '203.0.113.25' to. The target looks rules up after that translation, so traffic sent to '203.0.113.25' now matches this rule; on the source it did not
+      [needs-review] INTERFACE_NAME: 'vlan10-office' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan20-servers' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan30-ot-cell' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  office ipv6 out  ->  needs-review, emitted disabled
+      [needs-review] INTERFACE_NAME: 'vlan10-office' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan20-servers' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan30-ot-cell' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  passive ftp  ->  needs-review, emitted disabled
+      [needs-review] INTERFACE_NAME: 'vlan10-office' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan20-servers' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan30-ot-cell' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  bad ports  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination port '1024-5000,5004' cannot be read (one range, or a list of single ports).
+      [needs-review] INTERFACE_NAME: 'vlan10-office' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan20-servers' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan30-ot-cell' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Default rule  ->  needs-review, emitted disabled
+      [needs-review] INTERFACE_NAME: 'vlan10-office' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan20-servers' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+      [needs-review] INTERFACE_NAME: 'vlan30-ot-cell' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  vpn-portal  ->  needs-review  (emitted as wan)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.10.20.30' because of NAT rule 'NAT vpn-portal'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'NAT vpn-portal' also translates the port to 443; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan20-servers. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  mail (1)  ->  approximated  (emitted as wan)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.10.20.25' because of NAT rule 'NAT mail'; check that this rule is meant to cover the translated traffic
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan20-servers. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  mail (2)  ->  approximated  (emitted as wan)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.10.20.25' because of NAT rule 'NAT mail'; check that this rule is meant to cover the translated traffic
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan20-servers. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  scada-view  ->  needs-review  (emitted as wan)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.30' with post-NAT '10.10.20.40' because of NAT rule 'NAT scada-view'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'NAT scada-view' also translates the port to 443; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by vlan20-servers. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  layer 7 rule 1  ->  skipped
+      [needs-review] MERAKI_L7: layer 7 rule of applicationCategory: applications, categories, host names and countries have no ports or addresses; what it blocks after the layer 3 rules is not converted
+
+NAT rules
+  NAT to the uplink  ->  needs-review  (emitted as 1 outbound NAT rule)
+      [needs-review] NAT_INPUT_INTERFACE: the rule applied to traffic from vlan10-office, vlan20-servers, vlan30-ot-cell only; outbound NAT of OPNsense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+
+Addresses
+  eng-ws  ->  exact  (emitted as eng_ws)
+      [info] RENAMED: renamed to 'eng_ws' to fit the target's naming rules
+  plc-1  ->  exact  (emitted as plc_1)
+      [info] RENAMED: renamed to 'plc_1' to fit the target's naming rules
+  plc-2  ->  exact  (emitted as plc_2)
+      [info] RENAMED: renamed to 'plc_2' to fit the target's naming rules
+  fqdn updates.example.com  ->  exact  (emitted as fqdn_updates_example_com)
+      [info] RENAMED: renamed to 'fqdn_updates_example_com' to fit the target's naming rules
+
+Address groups
+  zone vlan10-office  ->  exact  (emitted as zone_vlan10_office)
+      [info] RENAMED: renamed to 'zone_vlan10_office' to fit the target's naming rules
+  zone vlan20-servers  ->  exact  (emitted as zone_vlan20_servers)
+      [info] RENAMED: renamed to 'zone_vlan20_servers' to fit the target's naming rules
+  zone vlan30-ot-cell  ->  exact  (emitted as zone_vlan30_ot_cell)
+      [info] RENAMED: renamed to 'zone_vlan30_ot_cell' to fit the target's naming rules
+  zone internet  ->  exact  (emitted as zone_internet)
+      [info] RENAMED: renamed to 'zone_internet' to fit the target's naming rules
+  VLAN(10)  ->  exact  (emitted as VLAN_10_)
+      [info] RENAMED: renamed to 'VLAN_10_' to fit the target's naming rules
+  VLAN(30)  ->  exact  (emitted as VLAN_30_)
+      [info] RENAMED: renamed to 'VLAN_30_' to fit the target's naming rules
+  VLAN(20)  ->  exact  (emitted as VLAN_20_)
+      [info] RENAMED: renamed to 'VLAN_20_' to fit the target's naming rules

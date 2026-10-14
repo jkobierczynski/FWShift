@@ -1,0 +1,76 @@
+FWShift conversion report
+  source: meraki
+  target: forcepoint
+
+Summary
+  Security rules:     20   exact 16, approximated 0, needs review 3 (1 emitted disabled), skipped 1
+  NAT rules:           4   exact 1, approximated 0, needs review 3, skipped 0
+  Addresses:           4   exact 4, approximated 0, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] MERAKI_VLAN_IPV6: VLAN objects read with the IPv6 prefixes of the VLAN as well: VLAN(10)
+  [needs-review] MERAKI_CELLULAR: the rules of cellular failover act only on the cellular uplink, after the outbound table: not converted: cellularFirewallRules: 1 rules
+  [needs-review] MERAKI_VPN: the site-to-site VPN rules of the organization decide traffic into the VPN: not converted: vpnFirewallRules: 1 rules
+  [needs-review] MERAKI_GROUP_POLICY: group policies with layer 3 rules of their own, for the clients and VLANs they are applied to: not converted, and the rules here may not be what those get: servers-restricted
+  [needs-review] SMC_LOADER: the output is a Python program that loads the policy into a Security Management Center through its REST API (python3 FILE --help). It creates the elements and a new firewall policy 'FWShift' on template 'Firewall Template', checks first that every name is free, and uploads the policy to no engine: review it in the Management Client, then install it yourself. --undo deletes what a run created
+  [needs-review] TEMPLATE_RULES: the rules are written at the insert point of template 'Firewall Template': its rules above the insert point (the traffic of the engine with the SMC) come first, and its rules below come after the rules of the policy (the predefined templates refuse Ident and discard and log the rest)
+  [needs-review] ZONES_REQUIRED: the rules use these zones, which must be set on the interfaces of the engine (or renamed with --zone-map); a zone the SMC does not have is created without interfaces: vlan10-office, vlan20-servers, vlan30-ot-cell, internet
+  [needs-review] SMC_NAT: NAT rules are written in order to the policy, used on every engine. Element-based NAT and the default NAT of an engine apply after them, to what they do not translate: check those on the engines
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] MERAKI_SOURCE: 3 LAN zones (vlan10-office, vlan20-servers, vlan30-ot-cell) and internet; traffic inside one VLAN passes (it does not pass the MX); the outbound table, first match, ends in its fixed default rule that allows the rest; from the internet only what NAT rules allow passes
+  [info] MERAKI_FQDN: host names in destinations: the MX learns their addresses from the DNS answers it sees; a domain without a subdomain stands for its subdomains too: updates.example.com
+  [info] MERAKI_SERVICES: services of the MX itself that answer on the WAN (firewalledServices): not converted: ICMP
+  [info] INTRAZONE_RULES_ADDED: rules for traffic inside a zone were added at the end of the policy, as the source decides it when no rule does: vlan10-office (allowed), vlan20-servers (allowed), vlan30-ot-cell (allowed), internet (allowed)
+  [info] MATCH_EXPRESSIONS: rules that limit a side by zones and addresses name a match expression per zone and address element (its parts must all match): 30 were written
+  [info] DOMAIN_NAMES: host names are written as domain name elements; the engine resolves them only with DNS servers in its properties: updates.example.com
+  [info] NAME_COLLISIONS: an SMC predefines many elements (HTTPS, SSH, ...). An element of the same name that says the same is used by the loader; one that says something else stops it: convert again with --target-prefix
+  [info] TAGS_NOT_CONVERTED: tags of rules and objects are not converted
+
+Security rules
+  layer 7 rule 2  ->  needs-review  (emitted as layer 7 rule 2 (IPv4), layer 7 rule 2 (IPv6))
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+  layer 7 rule 3  ->  needs-review
+      [needs-review] MERAKI_L7_PORTS: a layer 7 rule of a port or an address range, read as blocking TCP and UDP to it before the layer 3 rules (layer 7 only blocks, after layer 3)
+  bad ports  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination port '1024-5000,5004' cannot be read (one range, or a list of single ports).
+  layer 7 rule 1  ->  skipped
+      [needs-review] MERAKI_L7: layer 7 rule of applicationCategory: applications, categories, host names and countries have no ports or addresses; what it blocks after the layer 3 rules is not converted
+
+NAT rules
+  NAT vpn-portal  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from internet only; a NAT rule of an SMC names no zone, and it is written without
+  NAT mail  ->  exact
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as two NAT rules, one for each direction
+  NAT scada-view  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from internet only; a NAT rule of an SMC names no zone, and it is written without
+  NAT to the uplink  ->  needs-review
+      [approximated] NAT_IPV4_ONLY: source NAT to the address of the outgoing interface, for addresses of both IP versions: written for IPv4 only; IPv6 traffic leaves with its own address
+      [approximated] NAT_INTERFACE_ALIAS: source NAT to the address of the outgoing interface is written as NAT to the alias '$$ Default NAT Address' of the engine: check that the default NAT address is the one the traffic should leave with
+      [needs-review] NAT_ZONES: the rule applied to traffic from vlan10-office, vlan20-servers, vlan30-ot-cell only; a NAT rule of an SMC names no zone, and it is written without
+      [needs-review] NAT_ZONES: the rule applied to traffic to internet only; a NAT rule of an SMC names no zone, and it is written without
+
+Services
+  tcp/23  ->  exact  (emitted as tcp_23)
+      [info] RENAMED: renamed to 'tcp_23' to fit the target's naming rules
+  udp/23  ->  exact  (emitted as udp_23)
+      [info] RENAMED: renamed to 'udp_23' to fit the target's naming rules
+  tcp/80,443  ->  exact  (emitted as tcp_80_443)
+      [info] RENAMED: renamed to 'tcp_80_443' to fit the target's naming rules
+  tcp/4840  ->  exact  (emitted as tcp_4840)
+      [info] RENAMED: renamed to 'tcp_4840' to fit the target's naming rules
+  tcp/102  ->  exact  (emitted as tcp_102)
+      [info] RENAMED: renamed to 'tcp_102' to fit the target's naming rules
+  tcp/443  ->  exact  (emitted as tcp_443)
+      [info] RENAMED: renamed to 'tcp_443' to fit the target's naming rules
+  udp/53  ->  exact  (emitted as udp_53)
+      [info] RENAMED: renamed to 'udp_53' to fit the target's naming rules
+  tcp/50000-50100  ->  exact  (emitted as tcp_50000-50100)
+      [info] RENAMED: renamed to 'tcp_50000-50100' to fit the target's naming rules
+  tcp/8443  ->  exact  (emitted as tcp_8443)
+      [info] RENAMED: renamed to 'tcp_8443' to fit the target's naming rules
+  tcp/25  ->  exact  (emitted as tcp_25)
+      [info] RENAMED: renamed to 'tcp_25' to fit the target's naming rules
+  tcp/9443  ->  exact  (emitted as tcp_9443)
+      [info] RENAMED: renamed to 'tcp_9443' to fit the target's naming rules

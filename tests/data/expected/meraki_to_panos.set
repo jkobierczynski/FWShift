@@ -1,0 +1,259 @@
+set tag "meraki uplink internet1"
+set tag "meraki wan internet1 203.0.113.2"
+set address eng-ws ip-netmask 10.10.10.50
+set address plc-1 ip-netmask 172.16.40.11
+set address plc-2 ip-netmask 172.16.40.12
+set address "fqdn updates.example.com" fqdn updates.example.com
+set address n-10.10.10.0_24 ip-netmask 10.10.10.0/24
+set address n-2001_db8_10___64 ip-netmask 2001:db8:10::/64
+set address-group "zone vlan10-office" static [ n-10.10.10.0_24 n-2001_db8_10___64 ]
+set address-group "zone vlan10-office" description "the networks of VLAN 10"
+set address n-10.10.20.0_24 ip-netmask 10.10.20.0/24
+set address-group "zone vlan20-servers" static n-10.10.20.0_24
+set address-group "zone vlan20-servers" description "the networks of VLAN 20"
+set address n-10.10.30.0_24 ip-netmask 10.10.30.0/24
+set address n-172.16.40.0_24 ip-netmask 172.16.40.0/24
+set address-group "zone vlan30-ot-cell" static [ n-10.10.30.0_24 n-172.16.40.0_24 ]
+set address-group "zone vlan30-ot-cell" description "the networks of VLAN 30"
+set address r-0.0.0.0-10.10.9.255 ip-range 0.0.0.0-10.10.9.255
+set address r-10.10.11.0-10.10.19.255 ip-range 10.10.11.0-10.10.19.255
+set address r-10.10.21.0-10.10.29.255 ip-range 10.10.21.0-10.10.29.255
+set address r-10.10.31.0-172.16.39.255 ip-range 10.10.31.0-172.16.39.255
+set address r-172.16.41.0-255.255.255.255 ip-range 172.16.41.0-255.255.255.255
+set address r-__-2001_db8_f_ffff_ffff_ffff_ffff_ffff ip-range ::-2001:db8:f:ffff:ffff:ffff:ffff:ffff
+set address r-2001_db8_10_1__-ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff ip-range 2001:db8:10:1::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+set address-group "zone internet" static [ r-0.0.0.0-10.10.9.255 r-10.10.11.0-10.10.19.255 r-10.10.21.0-10.10.29.255 r-10.10.31.0-172.16.39.255 r-172.16.41.0-255.255.255.255 r-__-2001_db8_f_ffff_ffff_ffff_ffff_ffff r-2001_db8_10_1__-ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff ]
+set address-group "zone internet" description "the addresses of no VLAN"
+set address-group plcs static [ plc-1 plc-2 ]
+set address-group VLAN_10_ static [ n-10.10.10.0_24 n-2001_db8_10___64 ]
+set address-group VLAN_30_ static n-10.10.30.0_24
+set address-group VLAN_20_ static n-10.10.20.0_24
+set service tcp_23 protocol tcp port 23
+set service udp_23 protocol udp port 23
+set service tcp_80_443 protocol tcp port 80,443
+set service tcp_4840 protocol tcp port 4840
+set service tcp_102 protocol tcp port 102
+set service tcp_443 protocol tcp port 443
+set service udp_53 protocol udp port 53
+set service tcp_50000-50100 protocol tcp port 50000-50100
+set service tcp_8443 protocol tcp port 8443
+set service tcp_25 protocol tcp port 25
+set service tcp_9443 protocol tcp port 9443
+set rulebase security rules "inside a VLAN" rule-type intrazone
+set rulebase security rules "inside a VLAN" from [ vlan10-office vlan20-servers vlan30-ot-cell ]
+set rulebase security rules "inside a VLAN" to [ vlan10-office vlan20-servers vlan30-ot-cell ]
+set rulebase security rules "inside a VLAN" source any
+set rulebase security rules "inside a VLAN" destination any
+set rulebase security rules "inside a VLAN" source-user any
+set rulebase security rules "inside a VLAN" category any
+set rulebase security rules "inside a VLAN" application any
+set rulebase security rules "inside a VLAN" service any
+set rulebase security rules "inside a VLAN" action allow
+set rulebase security rules "inside a VLAN" log-end no
+set rulebase security rules "inside a VLAN" description "traffic inside one VLAN does not pass the MX"
+set rulebase security rules "layer 7 rule 2" from [ vlan10-office vlan20-servers vlan30-ot-cell ]
+set rulebase security rules "layer 7 rule 2" to any
+set rulebase security rules "layer 7 rule 2" source any
+set rulebase security rules "layer 7 rule 2" destination any
+set rulebase security rules "layer 7 rule 2" source-user any
+set rulebase security rules "layer 7 rule 2" category any
+set rulebase security rules "layer 7 rule 2" application any
+set rulebase security rules "layer 7 rule 2" service [ tcp_23 udp_23 ]
+set rulebase security rules "layer 7 rule 2" action deny
+set rulebase security rules "layer 7 rule 2" log-end no
+set rulebase security rules "layer 7 rule 2" description "layer 7: port 23"
+set rulebase security rules "layer 7 rule 3" from [ vlan10-office vlan20-servers vlan30-ot-cell ]
+set rulebase security rules "layer 7 rule 3" to any
+set rulebase security rules "layer 7 rule 3" source any
+set rulebase security rules "layer 7 rule 3" destination 198.51.100.0/24
+set rulebase security rules "layer 7 rule 3" source-user any
+set rulebase security rules "layer 7 rule 3" category any
+set rulebase security rules "layer 7 rule 3" application any
+set rulebase security rules "layer 7 rule 3" service any
+set rulebase security rules "layer 7 rule 3" action deny
+set rulebase security rules "layer 7 rule 3" log-end no
+set rulebase security rules "layer 7 rule 3" description "layer 7: ipRange 198.51.100.0/24"
+set rulebase security rules "office to servers web" from [ vlan10-office vlan20-servers vlan30-ot-cell ]
+set rulebase security rules "office to servers web" to any
+set rulebase security rules "office to servers web" source VLAN_10_
+set rulebase security rules "office to servers web" destination 10.10.20.0/24
+set rulebase security rules "office to servers web" source-user any
+set rulebase security rules "office to servers web" category any
+set rulebase security rules "office to servers web" application any
+set rulebase security rules "office to servers web" service tcp_80_443
+set rulebase security rules "office to servers web" action allow
+set rulebase security rules "office to servers web" log-end no
+set rulebase security rules "office to servers web" description "office to servers web"
+set rulebase security rules historian from [ vlan10-office vlan20-servers vlan30-ot-cell ]
+set rulebase security rules historian to any
+set rulebase security rules historian source 10.10.20.15
+set rulebase security rules historian destination [ VLAN_30_ 172.16.40.0/24 ]
+set rulebase security rules historian source-user any
+set rulebase security rules historian category any
+set rulebase security rules historian application any
+set rulebase security rules historian service tcp_4840
+set rulebase security rules historian action allow
+set rulebase security rules historian log-end yes
+set rulebase security rules historian description historian
+set rulebase security rules "eng ws to plc" from [ vlan10-office vlan20-servers vlan30-ot-cell ]
+set rulebase security rules "eng ws to plc" to any
+set rulebase security rules "eng ws to plc" source eng-ws
+set rulebase security rules "eng ws to plc" destination plcs
+set rulebase security rules "eng ws to plc" source-user any
+set rulebase security rules "eng ws to plc" category any
+set rulebase security rules "eng ws to plc" application any
+set rulebase security rules "eng ws to plc" service tcp_102
+set rulebase security rules "eng ws to plc" action allow
+set rulebase security rules "eng ws to plc" log-end yes
+set rulebase security rules "eng ws to plc" description "eng ws to plc"
+set rulebase security rules "ot cell isolated" from [ vlan10-office vlan20-servers vlan30-ot-cell ]
+set rulebase security rules "ot cell isolated" to any
+set rulebase security rules "ot cell isolated" source any
+set rulebase security rules "ot cell isolated" destination [ VLAN_30_ 172.16.40.0/24 ]
+set rulebase security rules "ot cell isolated" source-user any
+set rulebase security rules "ot cell isolated" category any
+set rulebase security rules "ot cell isolated" application any
+set rulebase security rules "ot cell isolated" service any
+set rulebase security rules "ot cell isolated" action deny
+set rulebase security rules "ot cell isolated" log-end yes
+set rulebase security rules "ot cell isolated" description "ot cell isolated"
+set rulebase security rules "ot no internet" from [ vlan10-office vlan20-servers vlan30-ot-cell ]
+set rulebase security rules "ot no internet" to any
+set rulebase security rules "ot no internet" source [ 10.10.30.0/24 172.16.40.0/24 ]
+set rulebase security rules "ot no internet" destination any
+set rulebase security rules "ot no internet" source-user any
+set rulebase security rules "ot no internet" category any
+set rulebase security rules "ot no internet" application any
+set rulebase security rules "ot no internet" service any
+set rulebase security rules "ot no internet" action deny
+set rulebase security rules "ot no internet" log-end yes
+set rulebase security rules "ot no internet" description "ot no internet"
+set rulebase security rules "block update site" from [ vlan10-office vlan20-servers vlan30-ot-cell ]
+set rulebase security rules "block update site" to any
+set rulebase security rules "block update site" source 10.10.10.0/24
+set rulebase security rules "block update site" destination "fqdn updates.example.com"
+set rulebase security rules "block update site" source-user any
+set rulebase security rules "block update site" category any
+set rulebase security rules "block update site" application any
+set rulebase security rules "block update site" service tcp_443
+set rulebase security rules "block update site" action deny
+set rulebase security rules "block update site" log-end no
+set rulebase security rules "block update site" description "block update site"
+set rulebase security rules "dns to servers" from [ vlan10-office vlan20-servers vlan30-ot-cell ]
+set rulebase security rules "dns to servers" to any
+set rulebase security rules "dns to servers" source any
+set rulebase security rules "dns to servers" destination 10.10.20.53
+set rulebase security rules "dns to servers" source-user any
+set rulebase security rules "dns to servers" category any
+set rulebase security rules "dns to servers" application any
+set rulebase security rules "dns to servers" service udp_53
+set rulebase security rules "dns to servers" action allow
+set rulebase security rules "dns to servers" log-end no
+set rulebase security rules "dns to servers" description "dns to servers"
+set rulebase security rules "ping servers" from [ vlan10-office vlan20-servers vlan30-ot-cell ]
+set rulebase security rules "ping servers" to any
+set rulebase security rules "ping servers" source VLAN_10_
+set rulebase security rules "ping servers" destination VLAN_20_
+set rulebase security rules "ping servers" source-user any
+set rulebase security rules "ping servers" category any
+set rulebase security rules "ping servers" application [ icmp ping ]
+set rulebase security rules "ping servers" service application-default
+set rulebase security rules "ping servers" action allow
+set rulebase security rules "ping servers" log-end no
+set rulebase security rules "ping servers" description "ping servers"
+set rulebase security rules "office ipv6 out" from [ vlan10-office vlan20-servers vlan30-ot-cell ]
+set rulebase security rules "office ipv6 out" to any
+set rulebase security rules "office ipv6 out" source 2001:db8:10::/64
+set rulebase security rules "office ipv6 out" destination any
+set rulebase security rules "office ipv6 out" source-user any
+set rulebase security rules "office ipv6 out" category any
+set rulebase security rules "office ipv6 out" application any
+set rulebase security rules "office ipv6 out" service any
+set rulebase security rules "office ipv6 out" action allow
+set rulebase security rules "office ipv6 out" log-end no
+set rulebase security rules "office ipv6 out" description "office ipv6 out"
+set rulebase security rules "passive ftp" from [ vlan10-office vlan20-servers vlan30-ot-cell ]
+set rulebase security rules "passive ftp" to any
+set rulebase security rules "passive ftp" source 10.10.10.0/24
+set rulebase security rules "passive ftp" destination 10.10.20.21
+set rulebase security rules "passive ftp" source-user any
+set rulebase security rules "passive ftp" category any
+set rulebase security rules "passive ftp" application any
+set rulebase security rules "passive ftp" service tcp_50000-50100
+set rulebase security rules "passive ftp" action allow
+set rulebase security rules "passive ftp" log-end no
+set rulebase security rules "passive ftp" description "passive ftp"
+set rulebase security rules "bad ports" from [ vlan10-office vlan20-servers vlan30-ot-cell ]
+set rulebase security rules "bad ports" to any
+set rulebase security rules "bad ports" source 10.10.10.0/24
+set rulebase security rules "bad ports" destination any
+set rulebase security rules "bad ports" source-user any
+set rulebase security rules "bad ports" category any
+set rulebase security rules "bad ports" application any
+set rulebase security rules "bad ports" service any
+set rulebase security rules "bad ports" action allow
+set rulebase security rules "bad ports" log-end no
+set rulebase security rules "bad ports" disabled yes
+set rulebase security rules "bad ports" description "FWSHIFT: disabled by the converter, see the report. bad ports"
+set rulebase security rules "Default rule" from [ vlan10-office vlan20-servers vlan30-ot-cell ]
+set rulebase security rules "Default rule" to any
+set rulebase security rules "Default rule" source any
+set rulebase security rules "Default rule" destination any
+set rulebase security rules "Default rule" source-user any
+set rulebase security rules "Default rule" category any
+set rulebase security rules "Default rule" application any
+set rulebase security rules "Default rule" service any
+set rulebase security rules "Default rule" action allow
+set rulebase security rules "Default rule" log-end no
+set rulebase security rules "Default rule" description "the fixed default rule of the outbound table"
+set rulebase security rules vpn-portal from internet
+set rulebase security rules vpn-portal to vlan20-servers
+set rulebase security rules vpn-portal source 198.51.100.0/24
+set rulebase security rules vpn-portal destination 203.0.113.2
+set rulebase security rules vpn-portal source-user any
+set rulebase security rules vpn-portal category any
+set rulebase security rules vpn-portal application any
+set rulebase security rules vpn-portal service tcp_8443
+set rulebase security rules vpn-portal action allow
+set rulebase security rules vpn-portal log-end no
+set rulebase security rules vpn-portal description "the allowed remote addresses of a NAT rule, for the public address as it arrives"
+set rulebase security rules "mail _1_" from internet
+set rulebase security rules "mail _1_" to vlan20-servers
+set rulebase security rules "mail _1_" source any
+set rulebase security rules "mail _1_" destination 203.0.113.25
+set rulebase security rules "mail _1_" source-user any
+set rulebase security rules "mail _1_" category any
+set rulebase security rules "mail _1_" application any
+set rulebase security rules "mail _1_" service tcp_25
+set rulebase security rules "mail _1_" action allow
+set rulebase security rules "mail _1_" log-end no
+set rulebase security rules "mail _1_" description "the allowed remote addresses of a NAT rule, for the public address as it arrives"
+set rulebase security rules "mail _2_" from internet
+set rulebase security rules "mail _2_" to vlan20-servers
+set rulebase security rules "mail _2_" source 192.0.2.0/24
+set rulebase security rules "mail _2_" destination 203.0.113.25
+set rulebase security rules "mail _2_" source-user any
+set rulebase security rules "mail _2_" category any
+set rulebase security rules "mail _2_" application ping
+set rulebase security rules "mail _2_" service application-default
+set rulebase security rules "mail _2_" action allow
+set rulebase security rules "mail _2_" log-end no
+set rulebase security rules "mail _2_" description "the allowed remote addresses of a NAT rule, for the public address as it arrives"
+set rulebase security rules scada-view from internet
+set rulebase security rules scada-view to vlan20-servers
+set rulebase security rules scada-view source 192.0.2.10
+set rulebase security rules scada-view destination 203.0.113.30
+set rulebase security rules scada-view source-user any
+set rulebase security rules scada-view category any
+set rulebase security rules scada-view application any
+set rulebase security rules scada-view service tcp_9443
+set rulebase security rules scada-view action allow
+set rulebase security rules scada-view log-end no
+set rulebase security rules scada-view description "the allowed remote addresses of a NAT rule, for the public address as it arrives"
+set rulebase nat rules "NAT to the uplink" from [ vlan10-office vlan20-servers vlan30-ot-cell ]
+set rulebase nat rules "NAT to the uplink" to internet
+set rulebase nat rules "NAT to the uplink" source any
+set rulebase nat rules "NAT to the uplink" destination any
+set rulebase nat rules "NAT to the uplink" service any
+set rulebase nat rules "NAT to the uplink" source-translation dynamic-ip-and-port translated-address 203.0.113.2
+set rulebase nat rules "NAT to the uplink" tag "meraki wan internet1 203.0.113.2"
