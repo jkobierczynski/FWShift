@@ -85,6 +85,14 @@ jobs:
           python -m pip install build
           python -m build --outdir dist
           ls -l dist
+          
+      - name: The packages for PyPI
+        uses: actions/upload-artifact@<commit>  # v4
+        with:
+          name: pypi-dists
+          path: |
+            dist/*.whl
+            dist/*.tar.gz    
 
       - name: The packages are what they say
         run: |
@@ -149,3 +157,20 @@ jobs:
           else
             gh release create "$TAG" dist/* --title "FWShift $VERSION" --notes-file notes.md --verify-tag
           fi
+
+  pypi:
+    needs: release
+    # A tag push only; a run by hand rebuilds an old version, which PyPI will not take again.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/fwshift
+    permissions:
+      id-token: write   # this is what Trusted Publishing uses; no password or token is stored
+    steps:
+      - uses: actions/download-artifact@<commit>  # v4
+        with:
+          name: pypi-dists
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@<commit>  # release/v1
