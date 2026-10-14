@@ -1,0 +1,50 @@
+FWShift conversion report
+  source: opnsense
+  target: fortios
+
+Summary
+  Security rules:     25   exact 21, approximated 1, needs review 3 (3 emitted disabled), skipped 0
+  NAT rules:           7   exact 4, approximated 3, needs review 0, skipped 0
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:     14   exact 14, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NPT_NOT_CONVERTED: 1 IPv6 prefix translation (NPt) of the configuration is not converted
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: OPNsense drops what arrives there from addresses nobody has been given, by a list it downloads, which is not in the configuration
+  [needs-review] CENTRAL_NAT: NAT is emitted as central NAT. Enable it first ('config system settings', 'set central-nat enable'); on a FortiGate that already uses per-policy NAT this changes how existing policies translate. Virtual IPs are created with 'extintf any'
+  [needs-review] ZONES_WITHOUT_INTERFACES: zones created without interfaces: WAN, DMZ, OpenVPN, VPNSITE, LAN, GUEST. Assign interfaces, or rerun with --zone-map / --interface-map to use existing names
+  [info] FLOATING_LAST_MATCH: 2 rules are not 'quick' (floating rules, and rules of an interface with 'quick' off): such a rule decides only where no quick rule matched, and of several the last one. In the converted policy they stand behind the quick rules, the last one first: 'LAN to test net (not quick)', 'Time for everyone (floating, not quick)'
+  [info] OPNSENSE_VERSION: the configuration was written by OPNsense 26.7 (firewall model 1.0.6), and read as that series reads it
+  [info] OPNSENSE_RULE_EMPTY: rules that match nothing on OPNsense (a protocol of the other IP version, a disabled alias) were left out: 'ICMP for IPv6 only (matches nothing)' (ICMP in a rule for IPv6 only)
+  [info] OPNSENSE_DISABLED_ALIAS: disabled aliases are empty tables on OPNsense: rules that name one match nothing (and 'not' one everything): Old_partner
+  [info] OPNSENSE_REGISTERED_RULE: 1 port forward registers a rule of its own ('Register rule'), which OPNsense puts after every other rule; so does the converted policy
+  [info] OPNSENSE_AUTOMATIC_RULES: OPNsense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof) and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without (RFC 4890), DHCP, and the web interface on its first interface (anti-lockout); and it lets out whatever the firewall itself sends. Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] EXISTING_OBJECTS: objects are created by name: an object that already exists on the target under the same name is overwritten by the one in this output
+
+Security rules
+  Never to the blocklist (floating) 2  ->  needs-review, emitted disabled  (emitted as Never to the blocklist _floating_ 2)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Geo_block': an alias of type 'geoip' (the countries of a GeoIP database), whose addresses are not in the configuration. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests never to the blocklist  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the source of traffic that leaves, which is the source after outbound NAT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Voice from the partner - pass  ->  approximated
+      [approximated] AUTOMATIC_RULE: port forward 'Voice from the partner' passes what it forwards without a rule ('Pass' as its filter rule association): OPNsense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+  Block private networks from WAN  ->  exact
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks' set: OPNsense drops what arrives there from those networks (the list of 26.7) before any rule of the configuration. This rule stands for that
+  No outside resolver (group)  ->  exact  (emitted as No outside resolver _group_)
+      [info] RESET_ACTION: action reset-client becomes deny; FortiOS sends resets only with 'set send-deny-packet enable'
+  Guests to the portal (no protocol, both IP versions)  ->  exact  (emitted as Guests to the portal _no protocol,)
+      [info] RULE_HALF_NOT_LOADED: the rule is for IPv4 and IPv6, and there is no IPv6 rule for it on OPNsense (source: interface GUEST has no IPv6 network; the rule matches nothing of IPv6 there; destination: '192.0.2.80' is not an IPv6 address): it is converted for the other IP version only
+  Guests interactive (tos)  ->  needs-review, emitted disabled  (emitted as Guests interactive _tos_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the type of service (tos) '0x10'.
+
+NAT rules
+  SSH to bastion  ->  approximated  (emitted as virtual IP SSH to bastion)
+      [approximated] NAT_SOURCE_DROPPED: the rule translated only traffic from 0.0.0.0/0; the virtual IP applies to all sources
+  Voice from the partner  ->  approximated  (emitted as virtual IP Voice from the partner)
+      [approximated] NAT_SERVICE_DROPPED: the rule translated only service 'tcp-udp-5060'; the virtual IP translates all ports
+      [approximated] NAT_SOURCE_DROPPED: the rule translated only traffic from 198.51.100.0/24; the virtual IP applies to all sources
+  Mail relay 1:1 - inbound  ->  approximated  (emitted as virtual IP Mail relay 1:1 - inbound)
+      [approximated] NAT_SOURCE_DROPPED: the rule translated only traffic from 0.0.0.0/0; the virtual IP applies to all sources
+  Automatic outbound NAT on WAN  ->  exact  (emitted as central SNAT entry)
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: OPNsense translates what leaves by an interface with an IPv4 gateway and comes from the networks of its other interfaces, or from the firewall itself. This rule stands for that

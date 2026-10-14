@@ -339,6 +339,43 @@ CASES = [
     ("nsx_sample.json", "routeros", "nsx_to_routeros.rsc"),
     ("aws_sample.json", "routeros", "aws_to_routeros.rsc"),
     ("azure_sample.json", "routeros", "azure_to_routeros.rsc"),
+    ("opnsense_sample.xml", "opnsense", "opnsense_to_opnsense.xml"),
+    ("opnsense_sample.xml", "routeros", "opnsense_to_routeros.rsc"),
+    ("opnsense_sample.xml", "panos", "opnsense_to_panos.set"),
+    ("opnsense_sample.xml", "fortios", "opnsense_to_fortios.conf"),
+    ("opnsense_sample.xml", "checkpoint", "opnsense_to_checkpoint.sh"),
+    ("opnsense_sample.xml", "asa", "opnsense_to_asa.cfg"),
+    ("opnsense_sample.xml", "sophos", "opnsense_to_sophos.xml"),
+    ("opnsense_sample.xml", "fmc", "opnsense_to_fmc.policy.txt"),
+    ("opnsense_sample.xml", "fdm", "opnsense_to_fdm.json"),
+    ("opnsense_sample.xml", "pfsense", "opnsense_to_pfsense.xml"),
+    ("opnsense_sample.xml", "sonicwall", "opnsense_to_sonicwall.cli"),
+    ("opnsense_sample.xml", "watchguard", "opnsense_to_watchguard.xml"),
+    ("opnsense_sample.xml", "barracuda", "opnsense_to_barracuda.sh"),
+    ("opnsense_sample.xml", "iptables", "opnsense_to_iptables.rules"),
+    ("opnsense_sample.xml", "junos", "opnsense_to_junos.set.conf"),
+    ("opnsense_sample.xml", "nftables", "opnsense_to_nftables.nft"),
+    ("opnsense_sample.xml", "nsx", "opnsense_to_nsx.json"),
+    ("opnsense_sample.xml", "aws", "opnsense_to_aws.sh"),
+    ("opnsense_sample.xml", "azure", "opnsense_to_azure.json"),
+    ("routeros_sample.rsc", "opnsense", "routeros_to_opnsense.xml"),
+    ("panos_sample.xml", "opnsense", "panos_to_opnsense.xml"),
+    ("fortios_sample.conf", "opnsense", "fortios_to_opnsense.xml"),
+    ("checkpoint_sample.json", "opnsense", "checkpoint_to_opnsense.xml"),
+    ("asa_sample.cfg", "opnsense", "asa_to_opnsense.xml"),
+    ("sophos_sample.xml", "opnsense", "sophos_to_opnsense.xml"),
+    ("fmc_sample.json", "opnsense", "fmc_to_opnsense.xml"),
+    ("fdm_sample.txt", "opnsense", "fdm_to_opnsense.xml"),
+    ("pfsense_sample.xml", "opnsense", "pfsense_to_opnsense.xml"),
+    ("sonicwall_sample.exp", "opnsense", "sonicwall_to_opnsense.xml"),
+    ("watchguard_sample.xml", "opnsense", "watchguard_to_opnsense.xml"),
+    ("barracuda_sample.json", "opnsense", "barracuda_to_opnsense.xml"),
+    ("iptables_sample.rules", "opnsense", "iptables_to_opnsense.xml"),
+    ("junos_sample.conf", "opnsense", "junos_to_opnsense.xml"),
+    ("nftables_sample.nft", "opnsense", "nftables_to_opnsense.xml"),
+    ("nsx_sample.json", "opnsense", "nsx_to_opnsense.xml"),
+    ("aws_sample.json", "opnsense", "aws_to_opnsense.xml"),
+    ("azure_sample.json", "opnsense", "azure_to_opnsense.xml"),
 ]
 
 
@@ -353,6 +390,7 @@ def test_detect_format() -> None:
     assert detect_format((DATA / "aws_sample.json").read_bytes()) == "aws"
     assert detect_format((DATA / "azure_sample.json").read_bytes()) == "azure"
     assert detect_format((DATA / "routeros_sample.rsc").read_bytes()) == "routeros"
+    assert detect_format((DATA / "opnsense_sample.xml").read_bytes()) == "opnsense"
     assert detect_format(b'\n[\n {"uid": "x", "rulebase": []}]') == "checkpoint"
     assert detect_format(b": Saved\n:\nASA Version 9.12(4)\n!\nhostname fw\n") == "asa"
     assert detect_format(b'<?xml version="1.0" encoding="UTF-8"?>\n<Configuration APIVersion="2000.1">') == "sophos"

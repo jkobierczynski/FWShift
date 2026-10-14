@@ -44,6 +44,8 @@ class Options:
     zone_networks: Dict[str, List[str]] = field(default_factory=dict)
     # AWS target: the zones whose networks are inside the VPC, where the interfaces the groups are attached to are.
     inside_zones: List[str] = field(default_factory=list)
+    # OPNsense target: the series the output is written for ("" is the latest FWShift knows).
+    target_version: str = ""
     # When a list: an emitter adds the model it writes its output from, with the names, zones and
     # addresses as the target gets them. The audit proves what it disables on that as well.
     written: Optional[List[Policy]] = None

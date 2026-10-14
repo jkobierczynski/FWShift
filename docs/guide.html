@@ -204,6 +204,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <li><a href="#fdm">Cisco FDM</a></li>
       <li><a href="#sophos">Sophos Firewall</a></li>
       <li><a href="#pfsense">pfSense</a></li>
+      <li><a href="#opnsense">OPNsense</a></li>
       <li><a href="#sonicwall">SonicWall</a></li>
       <li><a href="#watchguard">WatchGuard</a></li>
       <li><a href="#barracuda">Barracuda CloudGen</a></li>
@@ -230,11 +231,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
 
 <main id="top">
 <header class="mast">
-  <div class="eyebrow">Field guide · version 0.23</div>
+  <div class="eyebrow">Field guide · version 0.24</div>
   <h1>FWShift, feature by feature</h1>
-  <p class="lead">FWShift converts firewall policies between eighteen platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
+  <p class="lead">FWShift converts firewall policies between nineteen platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
   <div class="facts">
-    <span><b>18</b> platforms in, <b>19</b> formats out</span>
+    <span><b>19</b> platforms in, <b>20</b> formats out</span>
     <span>Python 3.9+, standard library only</span>
     <span>GPL-3.0-or-later</span>
     <span>Examples run on the synthetic samples in <code>tests/data</code></span>
@@ -301,6 +302,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <tr><td>Cisco Secure Firewall, Device Manager</td><td><code>fdm</code></td><td>config export (zip) or API</td><td>import file</td></tr>
       <tr><td>Sophos Firewall (SFOS 18+)</td><td><code>sophos</code></td><td><code>Entities.xml</code> / <code>.tar</code></td><td><code>Entities.xml</code> / <code>.tar</code></td></tr>
       <tr><td>pfSense 2.6+</td><td><code>pfsense</code></td><td><code>config.xml</code></td><td>Aliases, NAT, Rules areas (2.7+)</td></tr>
+      <tr><td>OPNsense 24.7 to 26.7</td><td><code>opnsense</code></td><td><code>config.xml</code></td><td>Aliases, NAT, Rules areas of one series</td></tr>
       <tr><td>SonicWall (SonicOS 6.5, 7)</td><td><code>sonicwall</code></td><td>settings export <code>.exp</code></td><td>SonicOS 7 CLI</td></tr>
       <tr><td>WatchGuard (Fireware 12)</td><td><code>watchguard</code></td><td>Policy Manager XML</td><td>policy part, to merge</td></tr>
       <tr><td>Barracuda CloudGen 8.0+</td><td><code>barracuda</code></td><td>REST API answers</td><td>curl shell script</td></tr>
@@ -321,11 +323,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
   <h2><span class="num">2</span>Install and run</h2>
   <p>Each release has three packages: the project as a zip, a single file that runs with any Python 3.9 or newer, and a wheel for <code>pip</code>. Nothing else needs installing.</p>
   <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># one file, nothing to install</span>
-python3 fwshift-0.23.0.pyz --version
-python3 fwshift-0.23.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.24.0.pyz --version
+python3 fwshift-0.24.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 
 <span class="c"># or with pip</span>
-pip install fwshift-0.23.0-py3-none-any.whl
+pip install fwshift-0.24.0-py3-none-any.whl
 fwshift convert running-config.xml --to fortios -o fortigate.conf</pre></div>
   <p>The input may be <code>-</code> for standard input. The source format is detected (XML root elements, JSON keys, CLI keywords); give <code>--from</code> when detection could be ambiguous, for example <code>--from ip6tables</code>.</p>
 </section>
@@ -381,7 +383,7 @@ findings while reading:
       <tr><td><code>--vdom NAME</code></td><td>FortiOS</td><td>VDOM to read (one per run).</td></tr>
       <tr><td><code>--layer NAME</code></td><td>Check Point</td><td>Ordered access layer to read.</td></tr>
       <tr><td><code>--policy NAME</code>, <code>--nat-policy NAME</code></td><td>FMC</td><td>Access control and NAT policy to read.</td></tr>
-      <tr><td><code>--interface-address IF=ADDR/BITS</code></td><td>pfSense, SonicWall</td><td>The address of an interface the export does not hold (DHCP, PPPoE).</td></tr>
+      <tr><td><code>--interface-address IF=ADDR/BITS</code></td><td>pfSense, OPNsense, SonicWall</td><td>The address of an interface the export does not hold (DHCP, PPPoE).</td></tr>
     </tbody>
   </table></div>
 
@@ -389,18 +391,19 @@ findings while reading:
   <div class="tablewrap"><table>
     <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure routeros json</code>.</td></tr>
+      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure routeros json</code>.</td></tr>
       <tr><td><code>--zone-map SRC=DST</code></td><td>Rename a zone or interface. For iptables, nftables and ASA, this is how a zone becomes an interface.</td></tr>
       <tr><td><code>--interface-map SRC=DST</code></td><td>Map a source interface to a target interface: FortiOS zone members, interface NAT, Sophos/SonicWall/FDM NAT interfaces, Barracuda source interfaces.</td></tr>
-      <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, Barracuda, NSX, AWS, Azure; SonicWall object zones).</td></tr>
+      <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure; SonicWall object zones).</td></tr>
       <tr><td><code>--compare[=FILE]</code></td><td>Reads the output back (eleven targets) and reports every connection it decides differently from the source (section 13).</td></tr>
       <tr><td><code>--inside-zone ZONE</code></td><td>AWS and Azure: a zone inside the VPC or the virtual network; only its addresses get security groups.</td></tr>
       <tr><td><code>--app-map FILE</code></td><td>JSON of extra application-to-port mappings.</td></tr>
       <tr><td><code>--target-vsys</code>, <code>--target-device-group</code>, <code>--target-shared</code></td><td>Where PAN-OS output goes.</td></tr>
+      <tr><td><code>--target-version SERIES</code></td><td>OPNsense: the series to write for, <code>24.7</code>, <code>25.1</code>, <code>25.7</code>, <code>26.1</code> or <code>26.7</code> (default).</td></tr>
       <tr><td><code>--target-vdom</code>, <code>--policy-id-start N</code></td><td>FortiOS VDOM wrapper; first policy ID (0 lets the FortiGate pick).</td></tr>
       <tr><td><code>--target-layer</code>, <code>--target-package</code>, <code>--target-gateway</code></td><td>Check Point layer (default <code>Network</code>), package (default <code>Standard</code>), hide-NAT gateway.</td></tr>
       <tr><td><code>--target-nat-zone ZONE</code></td><td>Destination zone for NAT rules of a source that names none; ASA interface for "NAT to the outgoing interface".</td></tr>
-      <tr><td><code>--target-prefix TEXT</code></td><td>Prefix for created objects (Check Point, ASA, Sophos, Cisco SF, pfSense, SonicWall, WatchGuard, Barracuda, Juniper).</td></tr>
+      <tr><td><code>--target-prefix TEXT</code></td><td>Prefix for created objects (Check Point, ASA, Sophos, Cisco SF, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper).</td></tr>
       <tr><td><code>--target-policy NAME</code></td><td>Name of the FMC access and NAT policy created (default <code>FWShift</code>).</td></tr>
       <tr><td><code>--prune-unused</code></td><td>Leave out objects no rule uses.</td></tr>
       <tr><td><code>-o FILE</code>, <code>--report FILE</code>, <code>--report-json FILE</code></td><td>Output, text report (default: standard error), JSON report.</td></tr>
@@ -560,6 +563,7 @@ m add nat-rule package Standard position bottom original-destination web-public 
     <a href="#fdm"><b>Cisco FDM</b><span>export zip → import</span></a>
     <a href="#sophos"><b>Sophos Firewall</b><span>Entities.xml</span></a>
     <a href="#pfsense"><b>pfSense</b><span>config.xml areas</span></a>
+    <a href="#opnsense"><b>OPNsense</b><span>config.xml areas, per series</span></a>
     <a href="#sonicwall"><b>SonicWall</b><span>.exp → CLI</span></a>
     <a href="#watchguard"><b>WatchGuard</b><span>Policy Manager XML</span></a>
     <a href="#barracuda"><b>Barracuda CloudGen</b><span>REST → curl script</span></a>
@@ -787,7 +791,7 @@ python3 load_policy.py --host fmc.example.net --user api-user     <span class="c
     <h3>pfSense</h3>
     <div class="ports"><span class="port"><i>IN</i><span>config.xml (2.6+)</span></span><span class="port"><i>OUT</i><span>Aliases, NAT, Rules areas (2.7+)</span></span><span class="port"><i>ID</i><span>pfsense</span></span></div>
     <h4 class="sub">Export</h4>
-    <p><em>Diagnostics › Backup &amp; Restore</em>, backup area <strong>All</strong>, no encryption (or <code>/cf/conf/config.xml</code>). OPNsense files are refused.</p>
+    <p><em>Diagnostics › Backup &amp; Restore</em>, backup area <strong>All</strong>, no encryption (or <code>/cf/conf/config.xml</code>). An OPNsense file is refused here: read it with <code>--from opnsense</code>.</p>
     <h4 class="sub">Options</h4>
     <p><code>--interface-address wan=198.51.100.7/24</code> (one per IP version), <code>--zone-map</code> or <code>--interface-map</code> to <code>wan</code>, <code>lan</code>, <code>optN</code> or a group, <code>--zone-network</code>, <code>--target-nat-zone</code>.</p>
     <h4 class="sub">Output and loading</h4>
@@ -809,6 +813,42 @@ python3 load_policy.py --host fmc.example.net --user api-user     <span class="c
   &lt;local-port&gt;8443&lt;/local-port&gt;
   &lt;interface&gt;untrust&lt;/interface&gt;
   &lt;descr&gt;&lt;![CDATA[Inbound-Web-DNAT]]&gt;&lt;/descr&gt;
+&lt;/rule&gt;</pre></div>
+  </article>
+
+  <!-- OPNsense -->
+  <article class="brand" id="opnsense">
+    <h3>OPNsense</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>config.xml (24.7 to 26.7)</span></span><span class="port"><i>OUT</i><span>Aliases, NAT, Rules areas of one series</span></span><span class="port"><i>ID</i><span>opnsense</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p><em>System › Configuration › Backups</em>, <em>Download configuration</em>, not encrypted (or <code>/conf/config.xml</code>). The series is read from the version of the firewall model; files before 24.7 are refused.</p>
+    <h4 class="sub">Options</h4>
+    <p><code>--interface-address</code> as for pfSense; <code>--target-version 26.1</code> (default 26.7) to write for a series; <code>--zone-map</code>, <code>--zone-network</code>, <code>--target-nat-zone</code>, <code>--target-prefix</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <p>One file with the Aliases, NAT and Firewall Rules areas, rules of <em>Rules [new]</em>. Back up first, then restore area by area. <strong>Each restore replaces that area</strong> (Firewall Rules: both rule pages). OPNsense does not load what it restored until the changes are applied or it restarts, and checks nothing.</p>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Both kinds of rule are read in the order of OPNsense's priorities: floating, groups by sequence, interfaces, the newer kind first; rules port forwards register last (<code>OPNSENSE_REGISTERED_RULE</code>). Rules that are not quick, on any tab, go last (<code>FLOATING_LAST_MATCH</code>).</li>
+      <li>Flags as each series reads them: an empty element is <em>off</em>; <code>&lt;not/&gt;</code> negates up to 25.7 only; a file of 24.7 to 25.7 that cannot say which wrote it is read the way that blocks more (<code>OPNSENSE_FLAG_UNCLEAR</code>).</li>
+      <li>Aliases with <code>!</code> entries are worked out as the pf table; disabled aliases are empty tables (<code>OPNSENSE_DISABLED_ALIAS</code>, <code>OPNSENSE_RULE_EMPTY</code>); GeoIP, URL, ASN and MAC aliases disable their rules.</li>
+      <li>In a rule for IPv6 the network of an interface comes with <code>fe80::/10</code>, as OPNsense adds it; the writer uses the word (<code>lan</code>) only where that is what the rule holds.</li>
+      <li>To OPNsense: before 25.1 no ICMP types and no rules for both IP versions, before 25.7 no ICMPv6 types (<code>OPNSENSE_ICMP_TYPES</code>); only 26.7 writes <em>received-on</em> for a deny between named zones.</li>
+      <li>26.1 applies Source NAT rules in every outbound mode up to 26.1.10 (<code>OPNSENSE_SNAT_MODE</code>); NPt is not converted.</li>
+    </ul>
+    <div class="codebox"><span class="label">output · OPNsense rule (Rules [new])</span><button class="copy" type="button">Copy</button><pre>&lt;rule uuid="0e407c9d-13dc-50c3-a73a-9952e80480d1"&gt;
+  &lt;enabled&gt;1&lt;/enabled&gt;
+  &lt;statetype&gt;keep&lt;/statetype&gt;
+  &lt;sequence&gt;20&lt;/sequence&gt;
+  &lt;action&gt;pass&lt;/action&gt;
+  &lt;quick&gt;1&lt;/quick&gt;
+  &lt;interface&gt;trust&lt;/interface&gt;
+  &lt;direction&gt;in&lt;/direction&gt;
+  &lt;ipprotocol&gt;inet&lt;/ipprotocol&gt;
+  &lt;protocol&gt;TCP/UDP&lt;/protocol&gt;
+  &lt;source_net&gt;any&lt;/source_net&gt;
+  &lt;destination_net&gt;dns_servers&lt;/destination_net&gt;
+  &lt;destination_port&gt;53&lt;/destination_port&gt;
+  &lt;description&gt;Allow-DNS&lt;/description&gt;
 &lt;/rule&gt;</pre></div>
   </article>
 
@@ -1331,6 +1371,7 @@ fwshift usage rules.v4 --logs kern.log --log-year 2026 --unchanged-since 2026-01
       <tr><td>Azure</td><td>All rules of a group of the same name; associates nothing</td><td><code>what-if</code>; incremental mode; associate by hand</td></tr>
       <tr><td>RouterOS</td><td>Nothing: chains and lists of its own; the jumps that switch it on are disabled</td><td>Import with <code>verbose=yes</code>; enable the jumps in Safe Mode</td></tr>
       <tr><td>pfSense</td><td>Each restored area (Aliases, NAT, Rules)</td><td>A full backup</td></tr>
+      <tr><td>OPNsense</td><td>Each restored area (Aliases; NAT with NPt; the rules of both pages)</td><td>A full backup; <code>--target-version</code> of the firewall</td></tr>
       <tr><td>ASA</td><td>Interface <code>access-group</code> bindings; <code>global_access</code> on every interface</td><td>Read the <code>access-group</code> lines</td></tr>
       <tr><td>FortiOS</td><td>Objects of the same name; central NAT changes existing NAT</td><td>A lab device for <code>central-nat enable</code></td></tr>
       <tr><td>Sophos</td><td>Objects of the same name</td><td>Compare counts with the report after import</td></tr>

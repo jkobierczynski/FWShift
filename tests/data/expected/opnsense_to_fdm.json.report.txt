@@ -1,0 +1,106 @@
+FWShift conversion report
+  source: opnsense
+  target: fdm
+
+Summary
+  Security rules:     25   exact 19, approximated 1, needs review 0, skipped 5
+  NAT rules:           7   exact 0, approximated 6, needs review 0, skipped 1
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:     14   exact 14, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NPT_NOT_CONVERTED: 1 IPv6 prefix translation (NPt) of the configuration is not converted
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: OPNsense drops what arrives there from addresses nobody has been given, by a list it downloads, which is not in the configuration
+  [needs-review] FDM_LOAD: the output is a file for the configuration import of a Firewall Device Manager (POST /action/uploadconfigfile, then /action/configimport). Its first object must say the hardware model and software version of the target: copy both from the first object of an export of the target device. The import adds to what the device has: its access rules stay above the rules of this file and decide first, its default action stays what it is, and its NAT rules come first. Nothing is in force until the changes are deployed: look at them in the pending changes before that
+  [needs-review] ZONES_REQUIRED: the rules name these security zones, which must exist on the target (or be renamed with --zone-map): WAN, DMZ, OpenVPN, VPNSITE, LAN, GUEST. Zones are not written: an import would take the interfaces out of a zone that exists
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. 2 destination NAT rules are written as a rule that names the source as well and leaves it as it is: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] FLOATING_LAST_MATCH: 2 rules are not 'quick' (floating rules, and rules of an interface with 'quick' off): such a rule decides only where no quick rule matched, and of several the last one. In the converted policy they stand behind the quick rules, the last one first: 'LAN to test net (not quick)', 'Time for everyone (floating, not quick)'
+  [info] OPNSENSE_VERSION: the configuration was written by OPNsense 26.7 (firewall model 1.0.6), and read as that series reads it
+  [info] OPNSENSE_RULE_EMPTY: rules that match nothing on OPNsense (a protocol of the other IP version, a disabled alias) were left out: 'ICMP for IPv6 only (matches nothing)' (ICMP in a rule for IPv6 only)
+  [info] OPNSENSE_DISABLED_ALIAS: disabled aliases are empty tables on OPNsense: rules that name one match nothing (and 'not' one everything): Old_partner
+  [info] OPNSENSE_REGISTERED_RULE: 1 port forward registers a rule of its own ('Register rule'), which OPNsense puts after every other rule; so does the converted policy
+  [info] OPNSENSE_AUTOMATIC_RULES: OPNsense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof) and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without (RFC 4890), DHCP, and the web interface on its first interface (anti-lockout); and it lets out whatever the firewall itself sends. Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] EXISTING_OBJECTS: an import changes what the device has under the same name: an object or a rule of this file replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] FQDN_DNS: FQDN objects need name resolution on the device (a DNS server group in its platform settings)
+
+Security rules
+  Never to the blocklist (floating) 2  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Geo_block': an alias of type 'geoip' (the countries of a GeoIP database), whose addresses are not in the configuration. The rule is left out: a Device Manager has no rules that are switched off. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests never to the blocklist  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the source of traffic that leaves, which is the source after outbound NAT. The rule is left out: a Device Manager has no rules that are switched off. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Voice from the partner - pass  ->  approximated  (emitted as Voice_from_the_partner_-_pass)
+      [approximated] AUTOMATIC_RULE: port forward 'Voice from the partner' passes what it forwards without a rule ('Pass' as its filter rule association): OPNsense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+  Block private networks from WAN  ->  exact  (emitted as Block_private_networks_from_WAN)
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks' set: OPNsense drops what arrives there from those networks (the list of 26.7) before any rule of the configuration. This rule stands for that
+  No outside resolver (group)  ->  exact  (emitted as No_outside_resolver__group_)
+      [info] RESET_ACTION: action reset-client becomes Block, which drops without an answer: a Device Manager has no rule that resets
+  DMZ anywhere but LAN (disabled)  ->  skipped
+      [info] NEGATION_AS_ADDRESSES: an access rule cannot negate: 'not destination LAN_net' is written as the addresses that are left (3 range(s))
+      [info] DISABLED_RULE: disabled on the source: a Device Manager has no rules that are switched off, so it is left out
+  Guests to the portal (no protocol, both IP versions)  ->  exact  (emitted as Guests_to_the_portal__no_protocol__both_IP_versions_)
+      [info] RULE_HALF_NOT_LOADED: the rule is for IPv4 and IPv6, and there is no IPv6 rule for it on OPNsense (source: interface GUEST has no IPv6 network; the rule matches nothing of IPv6 there; destination: '192.0.2.80' is not an IPv6 address): it is converted for the other IP version only
+  DMZ anywhere but LAN (disabled) 2  ->  skipped
+      [info] NEGATION_AS_ADDRESSES: an access rule cannot negate: 'not destination LAN_net' is written as the addresses that are left (3 range(s))
+      [info] DISABLED_RULE: disabled on the source: a Device Manager has no rules that are switched off, so it is left out
+  Guests interactive (tos)  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the type of service (tos) '0x10'. The rule is left out: a Device Manager has no rules that are switched off.
+
+NAT rules
+  SSH to bastion  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone WAN only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  Voice from the partner  ->  approximated  (emitted as 2 NAT rules)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone WAN only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  Mail relay 1:1 - inbound  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic from zone WAN only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  Mail relay 1:1 - outbound  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic to zone WAN only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  DMZ leaves as .10  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic to zone WAN only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  Guests leave as .30  ->  approximated  (emitted as 1 NAT rule)
+      [approximated] NAT_ZONES: the rule applied to traffic to zone WAN only. A NAT rule of a Device Manager names interfaces, and the interfaces of that zone on the target are not known: written for any interface. Name them with --interface-map
+  Automatic outbound NAT on WAN  ->  skipped
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: OPNsense translates what leaves by an interface with an IPv4 gateway and comes from the networks of its other interfaces, or from the firewall itself. This rule stands for that
+      [needs-review] NAT_NOT_CONVERTED: not converted: the rule is for the address of an interface of zone 'WAN', and the interfaces of that zone on the target are not known; name them with --interface-map
+
+Addresses
+  WAN address  ->  exact  (emitted as WAN_address)
+      [info] RENAMED: renamed to 'WAN_address' to fit the target's naming rules
+  GUEST net  ->  exact  (emitted as GUEST_net)
+      [info] RENAMED: renamed to 'GUEST_net' to fit the target's naming rules
+  LAN net  ->  exact  (emitted as LAN_net)
+      [info] RENAMED: renamed to 'LAN_net' to fit the target's naming rules
+  DMZ net  ->  exact  (emitted as DMZ_net)
+      [info] RENAMED: renamed to 'DMZ_net' to fit the target's naming rules
+  LAN net IPv6  ->  exact  (emitted as LAN_net_IPv6)
+      [info] RENAMED: renamed to 'LAN_net_IPv6' to fit the target's naming rules
+  DMZ net IPv6  ->  exact  (emitted as DMZ_net_IPv6)
+      [info] RENAMED: renamed to 'DMZ_net_IPv6' to fit the target's naming rules
+
+Address groups
+  __lan_network  ->  exact  (emitted as x__lan_network)
+      [info] RENAMED: renamed to 'x__lan_network' to fit the target's naming rules
+  __opt1_network  ->  exact  (emitted as x__opt1_network)
+      [info] RENAMED: renamed to 'x__opt1_network' to fit the target's naming rules
+  Updates  ->  exact
+      [info] GROUP_SPLIT: a network group of a Cisco Secure Firewall holds no FQDN objects: group 'Updates' is written without them, and the rules that use it name 'updates.example.net' themselves
+  __wan_network  ->  exact  (emitted as x__wan_network)
+      [info] RENAMED: renamed to 'x__wan_network' to fit the target's naming rules
+  __opt2_network  ->  exact  (emitted as x__opt2_network)
+      [info] RENAMED: renamed to 'x__opt2_network' to fit the target's naming rules
+  __opt4_network  ->  exact  (emitted as x__opt4_network)
+      [info] RENAMED: renamed to 'x__opt4_network' to fit the target's naming rules
+  INSIDE net  ->  exact  (emitted as INSIDE_net)
+      [info] RENAMED: renamed to 'INSIDE_net' to fit the target's naming rules
+  WebServers IPv4  ->  exact  (emitted as WebServers_IPv4)
+      [info] RENAMED: renamed to 'WebServers_IPv4' to fit the target's naming rules
+
+Services
+  tcp-udp-5060  ->  exact  (emitted as tcp-udp-5060, tcp-5060, udp-5060)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-udp-5060' of 'tcp-5060', 'udp-5060'
+  tcp-udp-53  ->  exact  (emitted as tcp-udp-53, tcp-53, udp-53)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-udp-53' of 'tcp-53', 'udp-53'
+  WebPorts  ->  exact  (emitted as WebPorts, tcp-80, tcp-443, tcp-8000-8080)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'WebPorts' of 'tcp-80', 'tcp-443', 'tcp-8000-8080'
+  icmp6-echoreq-neighbrsol-neighbradv  ->  exact  (emitted as icmp6-echoreq-neighbrsol-neighbradv, icmp6-128, icmp6-135, icmp6-136)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'icmp6-echoreq-neighbrsol-neighbradv' of 'icmp6-128', 'icmp6-135', 'icmp6-136'

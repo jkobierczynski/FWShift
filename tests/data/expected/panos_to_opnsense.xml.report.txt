@@ -1,0 +1,119 @@
+FWShift conversion report
+  source: panos (vsys1)
+  target: opnsense
+
+Summary
+  Security rules:     14   exact 0, approximated 5, needs review 9 (8 emitted disabled), skipped 0
+  NAT rules:           5   exact 2, approximated 2, needs review 1, skipped 0
+  Addresses:          16   exact 14, approximated 0, needs review 2, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:            5   exact 5, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] INTERFACES_REQUIRED: OPNsense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: untrust, trust, dmz, ot
+  [needs-review] INTRAZONE_DEFAULT: the source allows traffic inside a zone unless a rule denies it; on OPNsense traffic that leaves by the interface it came in on, or goes from one interface of a zone to another, is dropped unless a rule passes it
+  [needs-review] OPNSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of an OPNsense configuration, for 26.7 (--target-version). Under System > Configuration > Backups, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every alias and every NAT rule that is there now is gone, and the Firewall Rules area replaces the rules of both rule pages ('Rules' and 'Rules [new]'), with the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. The NAT area holds 1 port forward and 1 1:1 rule, and sets outbound NAT to manual mode with the 3 rules of the source; it removes every rule of NPt. OPNsense does not check what it restores and does not load it until the rules are applied or the firewall restarts; keep a backup, and look at the rules before anything depends on them
+  [info] SELF_EXCLUDED: on OPNsense the rules of an interface are also the rules for traffic to the firewall itself. Rules of the source that pass traffic to any destination are written for any destination but the firewall itself ('not This Firewall'). A rule that names addresses of the firewall still reaches them
+
+Security rules
+  Allow-Web-Out  ->  needs-review, emitted disabled  (emitted as trust)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (group=default-profiles); attach equivalent inspection on the target
+      [approximated] APP_TO_PORTS: applications web-browsing, ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, dmz, ot, untrust with --zone-network.
+  Allow-DNS  ->  approximated  (emitted as trust, dmz)
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  Inbound-Web  ->  needs-review  (emitted as untrust)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web_public' with post-NAT 'web_1' because of NAT rule 'Inbound-Web-DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Inbound-Web-DNAT' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] APP_FILTER_DROPPED: application match ssl dropped; the rule now matches everything on its services
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  Inbound-Mail  ->  approximated  (emitted as untrust)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'mail_public' with post-NAT 'mail_1' because of NAT rule 'Mail-Static'; check that this rule is meant to cover the translated traffic
+      [approximated] APP_TO_PORTS: applications smtp reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  Admin-SSH  ->  needs-review, emitted disabled  (emitted as trust)
+      [approximated] APP_TO_PORTS: applications ssh reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] USER_MATCH: source user match example\netadmins is not converted.
+  Engineering to PLCs  ->  approximated  (emitted as trust)
+      [approximated] APP_TO_PORTS: applications modbus, siemens-s7 reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by ot. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  Block-OT-Outbound  ->  needs-review, emitted disabled  (emitted as ot)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, dmz, ot, untrust with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block-Torrents  ->  needs-review, emitted disabled  (emitted as trust)
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) bittorrent; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, dmz, ot, untrust with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block-Region  ->  needs-review, emitted disabled  (emitted as trust, untrust, dmz, ot)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'KP': not defined in the input. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  App-Server-Ports  ->  approximated  (emitted as trust)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  Tagged-Servers-Updates  ->  needs-review, emitted disabled  (emitted as dmz)
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'tagged_servers': dynamic address group, members are not known statically.
+  Not-From-Guests  ->  approximated  (emitted as trust)
+      [approximated] APP_TO_PORTS: applications ping reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  DMZ-Intrazone  ->  needs-review, emitted disabled  (emitted as dmz)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic inside one zone, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, untrust, ot, dmz with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Old-Rule  ->  needs-review, emitted disabled  (emitted as trust)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'odd_hosts': wildcard mask 10.20.1.2/0.0.254.0.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, dmz, ot, untrust with --zone-network.
+
+NAT rules
+  No-NAT-Partner  ->  approximated  (emitted as 1 outbound NAT rule)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from trust only; outbound NAT of OPNsense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+  Mail-Static  ->  exact  (emitted as 1:1 NAT)
+      [info] NAT_INPUT_INTERFACE: the rule names the zone of the inside address (dmz), which a 1:1 rule of OPNsense has no place for
+  DMZ-Out-Pool  ->  approximated  (emitted as 1 outbound NAT rule)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from dmz only; outbound NAT of OPNsense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+  Outbound-PAT  ->  needs-review  (emitted as 1 outbound NAT rule)
+      [needs-review] NAT_INPUT_INTERFACE: the rule applied to traffic from trust only; outbound NAT of OPNsense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+
+Addresses
+  dns-1  ->  exact  (emitted as dns_1)
+      [info] RENAMED: renamed to 'dns_1' to fit the target's naming rules
+  lan-net  ->  exact  (emitted as lan_net)
+      [info] RENAMED: renamed to 'lan_net' to fit the target's naming rules
+  web-1  ->  exact  (emitted as web_1)
+      [info] RENAMED: renamed to 'web_1' to fit the target's naming rules
+  web-public  ->  exact  (emitted as web_public)
+      [info] RENAMED: renamed to 'web_public' to fit the target's naming rules
+  mail-1  ->  exact  (emitted as mail_1)
+      [info] RENAMED: renamed to 'mail_1' to fit the target's naming rules
+  mail-public  ->  exact  (emitted as mail_public)
+      [info] RENAMED: renamed to 'mail_public' to fit the target's naming rules
+  dns-2  ->  exact  (emitted as dns_2)
+      [info] RENAMED: renamed to 'dns_2' to fit the target's naming rules
+  admin-range  ->  exact  (emitted as admin_range)
+      [info] RENAMED: renamed to 'admin_range' to fit the target's naming rules
+  updates.example.com  ->  exact  (emitted as updates_example_com)
+      [info] RENAMED: renamed to 'updates_example_com' to fit the target's naming rules
+  odd-hosts  ->  needs-review  (emitted as odd_hosts)
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard mask 10.20.1.2/0.0.254.0 cannot be converted
+      [info] RENAMED: renamed to 'odd_hosts' to fit the target's naming rules
+  snat-pool  ->  exact  (emitted as snat_pool)
+      [info] RENAMED: renamed to 'snat_pool' to fit the target's naming rules
+  partner-net  ->  exact  (emitted as partner_net)
+      [info] RENAMED: renamed to 'partner_net' to fit the target's naming rules
+  eng-station  ->  exact  (emitted as eng_station)
+      [info] RENAMED: renamed to 'eng_station' to fit the target's naming rules
+  plc-net  ->  exact  (emitted as plc_net)
+      [info] RENAMED: renamed to 'plc_net' to fit the target's naming rules
+  lan6-net  ->  exact  (emitted as lan6_net)
+      [info] RENAMED: renamed to 'lan6_net' to fit the target's naming rules
+  KP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'Block-Region' but not an address object in the input (a region, an external list or a missing object); emitted as a placeholder that matches nothing
+
+Address groups
+  dns-servers  ->  exact  (emitted as dns_servers)
+      [info] RENAMED: renamed to 'dns_servers' to fit the target's naming rules
+  dmz-servers  ->  exact  (emitted as dmz_servers)
+      [info] RENAMED: renamed to 'dmz_servers' to fit the target's naming rules
+  all-servers  ->  exact  (emitted as all_servers)
+      [info] RENAMED: renamed to 'all_servers' to fit the target's naming rules
+  tagged-servers  ->  exact  (emitted as tagged_servers)
+      [info] RENAMED: renamed to 'tagged_servers' to fit the target's naming rules

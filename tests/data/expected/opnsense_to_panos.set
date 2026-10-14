@@ -1,0 +1,403 @@
+set tag Security
+set tag Web
+set tag Remote
+set address updates.example.net fqdn updates.example.net
+set address "WAN address" ip-netmask 203.0.113.2/32
+set address "WAN address" description "address of interface WAN in the configuration"
+set address "GUEST net" ip-netmask 192.168.30.0/24
+set address "GUEST net" description "network of interface GUEST in the configuration"
+set address "LAN net" ip-netmask 192.168.10.0/24
+set address "LAN net" description "network of interface LAN in the configuration"
+set address "DMZ net" ip-netmask 172.16.20.0/24
+set address "DMZ net" description "network of interface DMZ in the configuration"
+set address "LAN net IPv6" ip-netmask 2001:db8:10::/64
+set address "LAN net IPv6" description "network of interface LAN in the configuration"
+set address "DMZ net IPv6" ip-netmask 2001:db8:20::/64
+set address "DMZ net IPv6" description "network of interface DMZ in the configuration"
+set address h-172.16.20.10 ip-netmask 172.16.20.10
+set address h-2001_db8_20__10 ip-netmask 2001:db8:20::10
+set address-group WebServers static [ h-172.16.20.10 h-2001_db8_20__10 ]
+set address-group WebServers description "Web servers"
+set address r-198.51.100.0-198.51.100.6 ip-range 198.51.100.0-198.51.100.6
+set address r-198.51.100.8-198.51.100.255 ip-range 198.51.100.8-198.51.100.255
+set address n-203.0.113.128_25 ip-netmask 203.0.113.128/25
+set address-group Blocklist static [ r-198.51.100.0-198.51.100.6 r-198.51.100.8-198.51.100.255 n-203.0.113.128_25 ]
+set address-group Blocklist description "Blocked networks, one exception (with what it leaves out taken away)"
+set address n-192.168.10.0_24 ip-netmask 192.168.10.0/24
+set address n-2001_db8_10___64 ip-netmask 2001:db8:10::/64
+set address-group x__lan_network static [ n-192.168.10.0_24 n-2001_db8_10___64 ]
+set address-group x__lan_network description "the networks of interface lan"
+set address n-172.16.20.0_24 ip-netmask 172.16.20.0/24
+set address n-2001_db8_20___64 ip-netmask 2001:db8:20::/64
+set address-group x__opt1_network static [ n-172.16.20.0_24 n-2001_db8_20___64 ]
+set address-group x__opt1_network description "the networks of interface opt1"
+set address-group Inside_nets static [ x__lan_network x__opt1_network ]
+set address-group Inside_nets description "LAN and DMZ"
+set address Geo_block ip-netmask 0.0.0.0/32
+set address Geo_block description "FWSHIFT PLACEHOLDER, matches nothing: an alias of type 'geoip' (the countries of a GeoIP database), whose addresses are not in the configuration"
+set address r-192.0.2.10-192.0.2.13 ip-range 192.0.2.10-192.0.2.13
+set address-group Updates static [ updates.example.net r-192.0.2.10-192.0.2.13 ]
+set address-group Updates description "Update servers"
+set address Old_partner ip-netmask 0.0.0.0/32
+set address Old_partner description "FWSHIFT PLACEHOLDER, matches nothing: the alias is disabled: OPNsense keeps it as an empty table, and a rule that names it matches nothing"
+set address h-172.16.20.20 ip-netmask 172.16.20.20
+set address-group Servers_all static [ WebServers h-172.16.20.20 ]
+set address-group Servers_all description "Every server"
+set address n-203.0.113.0_24 ip-netmask 203.0.113.0/24
+set address n-2001_db8_ffff___64 ip-netmask 2001:db8:ffff::/64
+set address-group x__wan_network static [ n-203.0.113.0_24 n-2001_db8_ffff___64 ]
+set address-group x__wan_network description "the networks of interface wan"
+set address n-192.168.30.0_24 ip-netmask 192.168.30.0/24
+set address-group x__opt2_network static n-192.168.30.0_24
+set address-group x__opt2_network description "the networks of interface opt2"
+set address n-10.8.1.0_24 ip-netmask 10.8.1.0/24
+set address-group x__opt4_network static n-10.8.1.0_24
+set address-group x__opt4_network description "the networks of interface opt4"
+set address-group "INSIDE net" static [ "LAN net" "DMZ net" ]
+set address-group "INSIDE net" description "networks of the interfaces of group INSIDE"
+set address-group "WebServers IPv4" static h-172.16.20.10
+set address-group "WebServers IPv4" description "the IPv4 addresses of WebServers"
+set service tcp-2222 protocol tcp port 2222
+set service tcp-udp-5060-tcp protocol tcp port 5060
+set service tcp-udp-5060-udp protocol udp port 5060
+set service-group tcp-udp-5060 members [ tcp-udp-5060-tcp tcp-udp-5060-udp ]
+set service udp-123 protocol udp port 123
+set service tcp-22 protocol tcp port 22
+set service tcp-udp-53-tcp protocol tcp port 53
+set service tcp-udp-53-udp protocol udp port 53
+set service-group tcp-udp-53 members [ tcp-udp-53-tcp tcp-udp-53-udp ]
+set service WebPorts protocol tcp port 80,443,8000-8080
+set service WebPorts description "ports of alias WebPorts"
+set service tcp-25 protocol tcp port 25
+set service tcp-443 protocol tcp port 443
+set service tcp protocol tcp port 1-65535
+set rulebase security rules "Never to the blocklist _floating_" from any
+set rulebase security rules "Never to the blocklist _floating_" to [ WAN DMZ ]
+set rulebase security rules "Never to the blocklist _floating_" source 0.0.0.0/0
+set rulebase security rules "Never to the blocklist _floating_" destination Blocklist
+set rulebase security rules "Never to the blocklist _floating_" source-user any
+set rulebase security rules "Never to the blocklist _floating_" category any
+set rulebase security rules "Never to the blocklist _floating_" application any
+set rulebase security rules "Never to the blocklist _floating_" service any
+set rulebase security rules "Never to the blocklist _floating_" action drop
+set rulebase security rules "Never to the blocklist _floating_" log-start yes
+set rulebase security rules "Never to the blocklist _floating_" log-end no
+set rulebase security rules "Never to the blocklist _floating_" tag Security
+set rulebase security rules "Never to the blocklist _floating_ 2" from any
+set rulebase security rules "Never to the blocklist _floating_ 2" to [ WAN DMZ ]
+set rulebase security rules "Never to the blocklist _floating_ 2" source 0.0.0.0/0
+set rulebase security rules "Never to the blocklist _floating_ 2" destination Geo_block
+set rulebase security rules "Never to the blocklist _floating_ 2" source-user any
+set rulebase security rules "Never to the blocklist _floating_ 2" category any
+set rulebase security rules "Never to the blocklist _floating_ 2" application any
+set rulebase security rules "Never to the blocklist _floating_ 2" service any
+set rulebase security rules "Never to the blocklist _floating_ 2" action drop
+set rulebase security rules "Never to the blocklist _floating_ 2" log-start yes
+set rulebase security rules "Never to the blocklist _floating_ 2" log-end no
+set rulebase security rules "Never to the blocklist _floating_ 2" disabled yes
+set rulebase security rules "Never to the blocklist _floating_ 2" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Never to the blocklist _floating_ 2" tag Security
+set rulebase security rules "Guests never to the blocklist" from any
+set rulebase security rules "Guests never to the blocklist" to WAN
+set rulebase security rules "Guests never to the blocklist" source "GUEST net"
+set rulebase security rules "Guests never to the blocklist" destination Blocklist
+set rulebase security rules "Guests never to the blocklist" source-user any
+set rulebase security rules "Guests never to the blocklist" category any
+set rulebase security rules "Guests never to the blocklist" application any
+set rulebase security rules "Guests never to the blocklist" service any
+set rulebase security rules "Guests never to the blocklist" action drop
+set rulebase security rules "Guests never to the blocklist" log-start yes
+set rulebase security rules "Guests never to the blocklist" log-end no
+set rulebase security rules "Guests never to the blocklist" disabled yes
+set rulebase security rules "Guests never to the blocklist" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "Guests never to the blocklist" tag Security
+set rulebase security rules "DMZ may not send mail out _received-on_" from DMZ
+set rulebase security rules "DMZ may not send mail out _received-on_" to WAN
+set rulebase security rules "DMZ may not send mail out _received-on_" source 0.0.0.0/0
+set rulebase security rules "DMZ may not send mail out _received-on_" destination 0.0.0.0/0
+set rulebase security rules "DMZ may not send mail out _received-on_" source-user any
+set rulebase security rules "DMZ may not send mail out _received-on_" category any
+set rulebase security rules "DMZ may not send mail out _received-on_" application any
+set rulebase security rules "DMZ may not send mail out _received-on_" service tcp-25
+set rulebase security rules "DMZ may not send mail out _received-on_" action drop
+set rulebase security rules "DMZ may not send mail out _received-on_" log-end no
+set rulebase security rules "Voice from the partner - pass" from WAN
+set rulebase security rules "Voice from the partner - pass" to any
+set rulebase security rules "Voice from the partner - pass" source 198.51.100.0/24
+set rulebase security rules "Voice from the partner - pass" destination [ 172.16.20.20 "WAN address" ]
+set rulebase security rules "Voice from the partner - pass" source-user any
+set rulebase security rules "Voice from the partner - pass" category any
+set rulebase security rules "Voice from the partner - pass" application any
+set rulebase security rules "Voice from the partner - pass" service tcp-udp-5060
+set rulebase security rules "Voice from the partner - pass" action allow
+set rulebase security rules "Voice from the partner - pass" log-end no
+set rulebase security rules "Voice from the partner - pass" description "what the port forward passes by itself (filter rule association 'Pass')"
+set rulebase security rules "Block private networks from WAN" from WAN
+set rulebase security rules "Block private networks from WAN" to any
+set rulebase security rules "Block private networks from WAN" source [ 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10 169.254.0.0/16 fd00::/8 fe80::/10 ]
+set rulebase security rules "Block private networks from WAN" destination any
+set rulebase security rules "Block private networks from WAN" source-user any
+set rulebase security rules "Block private networks from WAN" category any
+set rulebase security rules "Block private networks from WAN" application any
+set rulebase security rules "Block private networks from WAN" service any
+set rulebase security rules "Block private networks from WAN" action drop
+set rulebase security rules "Block private networks from WAN" log-end no
+set rulebase security rules "Block private networks from WAN" description "what 'Block private networks' of the interface does on OPNsense"
+set rulebase security rules "VPN users to the web servers" from [ OpenVPN VPNSITE ]
+set rulebase security rules "VPN users to the web servers" to any
+set rulebase security rules "VPN users to the web servers" source 0.0.0.0/0
+set rulebase security rules "VPN users to the web servers" destination WebServers
+set rulebase security rules "VPN users to the web servers" source-user any
+set rulebase security rules "VPN users to the web servers" category any
+set rulebase security rules "VPN users to the web servers" application any
+set rulebase security rules "VPN users to the web servers" service tcp-22
+set rulebase security rules "VPN users to the web servers" action allow
+set rulebase security rules "VPN users to the web servers" log-end no
+set rulebase security rules "No outside resolver _group_" from [ LAN DMZ ]
+set rulebase security rules "No outside resolver _group_" to any
+set rulebase security rules "No outside resolver _group_" source 0.0.0.0/0
+set rulebase security rules "No outside resolver _group_" destination 192.0.2.53
+set rulebase security rules "No outside resolver _group_" source-user any
+set rulebase security rules "No outside resolver _group_" category any
+set rulebase security rules "No outside resolver _group_" application any
+set rulebase security rules "No outside resolver _group_" service tcp-udp-53
+set rulebase security rules "No outside resolver _group_" action reset-client
+set rulebase security rules "No outside resolver _group_" log-end no
+set rulebase security rules "Inside may ping _old kind_" from [ LAN DMZ ]
+set rulebase security rules "Inside may ping _old kind_" to any
+set rulebase security rules "Inside may ping _old kind_" source "INSIDE net"
+set rulebase security rules "Inside may ping _old kind_" destination 0.0.0.0/0
+set rulebase security rules "Inside may ping _old kind_" source-user any
+set rulebase security rules "Inside may ping _old kind_" category any
+set rulebase security rules "Inside may ping _old kind_" application ping
+set rulebase security rules "Inside may ping _old kind_" service application-default
+set rulebase security rules "Inside may ping _old kind_" action allow
+set rulebase security rules "Inside may ping _old kind_" log-end no
+set rulebase security rules "Default allow LAN to any rule" from LAN
+set rulebase security rules "Default allow LAN to any rule" to any
+set rulebase security rules "Default allow LAN to any rule" source [ "LAN net" "LAN net IPv6" fe80::/10 ]
+set rulebase security rules "Default allow LAN to any rule" destination any
+set rulebase security rules "Default allow LAN to any rule" source-user any
+set rulebase security rules "Default allow LAN to any rule" category any
+set rulebase security rules "Default allow LAN to any rule" application any
+set rulebase security rules "Default allow LAN to any rule" service any
+set rulebase security rules "Default allow LAN to any rule" action allow
+set rulebase security rules "Default allow LAN to any rule" log-end no
+set rulebase security rules "Web publishing" from WAN
+set rulebase security rules "Web publishing" to any
+set rulebase security rules "Web publishing" source any
+set rulebase security rules "Web publishing" destination WebServers
+set rulebase security rules "Web publishing" source-user any
+set rulebase security rules "Web publishing" category any
+set rulebase security rules "Web publishing" application any
+set rulebase security rules "Web publishing" service WebPorts
+set rulebase security rules "Web publishing" action allow
+set rulebase security rules "Web publishing" log-start yes
+set rulebase security rules "Web publishing" log-end no
+set rulebase security rules "Web publishing" tag Web
+set rulebase security rules "DMZ anywhere but LAN _disabled_" from DMZ
+set rulebase security rules "DMZ anywhere but LAN _disabled_" to any
+set rulebase security rules "DMZ anywhere but LAN _disabled_" source "DMZ net"
+set rulebase security rules "DMZ anywhere but LAN _disabled_" destination "LAN net"
+set rulebase security rules "DMZ anywhere but LAN _disabled_" source-user any
+set rulebase security rules "DMZ anywhere but LAN _disabled_" category any
+set rulebase security rules "DMZ anywhere but LAN _disabled_" application any
+set rulebase security rules "DMZ anywhere but LAN _disabled_" service any
+set rulebase security rules "DMZ anywhere but LAN _disabled_" action allow
+set rulebase security rules "DMZ anywhere but LAN _disabled_" negate-destination yes
+set rulebase security rules "DMZ anywhere but LAN _disabled_" log-end no
+set rulebase security rules "DMZ anywhere but LAN _disabled_" disabled yes
+set rulebase security rules "DMZ ICMPv6" from DMZ
+set rulebase security rules "DMZ ICMPv6" to any
+set rulebase security rules "DMZ ICMPv6" source [ "DMZ net IPv6" fe80::/10 ]
+set rulebase security rules "DMZ ICMPv6" destination ::/0
+set rulebase security rules "DMZ ICMPv6" source-user any
+set rulebase security rules "DMZ ICMPv6" category any
+set rulebase security rules "DMZ ICMPv6" application [ ping6 ipv6-icmp ]
+set rulebase security rules "DMZ ICMPv6" service application-default
+set rulebase security rules "DMZ ICMPv6" action allow
+set rulebase security rules "DMZ ICMPv6" log-end no
+set rulebase security rules "Servers fetch updates" from DMZ
+set rulebase security rules "Servers fetch updates" to any
+set rulebase security rules "Servers fetch updates" source "WebServers IPv4"
+set rulebase security rules "Servers fetch updates" destination Updates
+set rulebase security rules "Servers fetch updates" source-user any
+set rulebase security rules "Servers fetch updates" category any
+set rulebase security rules "Servers fetch updates" application any
+set rulebase security rules "Servers fetch updates" service tcp-443
+set rulebase security rules "Servers fetch updates" action allow
+set rulebase security rules "Servers fetch updates" log-end no
+set rulebase security rules "Servers fetch updates 2" from DMZ
+set rulebase security rules "Servers fetch updates 2" to any
+set rulebase security rules "Servers fetch updates 2" source "WebServers IPv4"
+set rulebase security rules "Servers fetch updates 2" destination Servers_all
+set rulebase security rules "Servers fetch updates 2" source-user any
+set rulebase security rules "Servers fetch updates 2" category any
+set rulebase security rules "Servers fetch updates 2" application any
+set rulebase security rules "Servers fetch updates 2" service tcp-443
+set rulebase security rules "Servers fetch updates 2" action allow
+set rulebase security rules "Servers fetch updates 2" log-end no
+set rulebase security rules "Servers fetch updates 3" from DMZ
+set rulebase security rules "Servers fetch updates 3" to any
+set rulebase security rules "Servers fetch updates 3" source 172.16.20.20
+set rulebase security rules "Servers fetch updates 3" destination Updates
+set rulebase security rules "Servers fetch updates 3" source-user any
+set rulebase security rules "Servers fetch updates 3" category any
+set rulebase security rules "Servers fetch updates 3" application any
+set rulebase security rules "Servers fetch updates 3" service tcp-443
+set rulebase security rules "Servers fetch updates 3" action allow
+set rulebase security rules "Servers fetch updates 3" log-end no
+set rulebase security rules "Servers fetch updates 4" from DMZ
+set rulebase security rules "Servers fetch updates 4" to any
+set rulebase security rules "Servers fetch updates 4" source 172.16.20.20
+set rulebase security rules "Servers fetch updates 4" destination Servers_all
+set rulebase security rules "Servers fetch updates 4" source-user any
+set rulebase security rules "Servers fetch updates 4" category any
+set rulebase security rules "Servers fetch updates 4" application any
+set rulebase security rules "Servers fetch updates 4" service tcp-443
+set rulebase security rules "Servers fetch updates 4" action allow
+set rulebase security rules "Servers fetch updates 4" log-end no
+set rulebase security rules "Guests stay out" from GUEST
+set rulebase security rules "Guests stay out" to any
+set rulebase security rules "Guests stay out" source 0.0.0.0/0
+set rulebase security rules "Guests stay out" destination Inside_nets
+set rulebase security rules "Guests stay out" source-user any
+set rulebase security rules "Guests stay out" category any
+set rulebase security rules "Guests stay out" application any
+set rulebase security rules "Guests stay out" service any
+set rulebase security rules "Guests stay out" action drop
+set rulebase security rules "Guests stay out" log-start yes
+set rulebase security rules "Guests stay out" log-end no
+set rulebase security rules "Guests to the portal _no protocol_ both IP versions_" from GUEST
+set rulebase security rules "Guests to the portal _no protocol_ both IP versions_" to any
+set rulebase security rules "Guests to the portal _no protocol_ both IP versions_" source "GUEST net"
+set rulebase security rules "Guests to the portal _no protocol_ both IP versions_" destination 192.0.2.80
+set rulebase security rules "Guests to the portal _no protocol_ both IP versions_" source-user any
+set rulebase security rules "Guests to the portal _no protocol_ both IP versions_" category any
+set rulebase security rules "Guests to the portal _no protocol_ both IP versions_" application any
+set rulebase security rules "Guests to the portal _no protocol_ both IP versions_" service any
+set rulebase security rules "Guests to the portal _no protocol_ both IP versions_" action allow
+set rulebase security rules "Guests to the portal _no protocol_ both IP versions_" log-end no
+set rulebase security rules "DMZ anywhere but LAN _disabled_ 2" from DMZ
+set rulebase security rules "DMZ anywhere but LAN _disabled_ 2" to any
+set rulebase security rules "DMZ anywhere but LAN _disabled_ 2" source "DMZ net"
+set rulebase security rules "DMZ anywhere but LAN _disabled_ 2" destination "LAN net"
+set rulebase security rules "DMZ anywhere but LAN _disabled_ 2" source-user any
+set rulebase security rules "DMZ anywhere but LAN _disabled_ 2" category any
+set rulebase security rules "DMZ anywhere but LAN _disabled_ 2" application any
+set rulebase security rules "DMZ anywhere but LAN _disabled_ 2" service any
+set rulebase security rules "DMZ anywhere but LAN _disabled_ 2" action allow
+set rulebase security rules "DMZ anywhere but LAN _disabled_ 2" negate-destination yes
+set rulebase security rules "DMZ anywhere but LAN _disabled_ 2" log-end no
+set rulebase security rules "DMZ anywhere but LAN _disabled_ 2" disabled yes
+set rulebase security rules "Guests interactive _tos_" from GUEST
+set rulebase security rules "Guests interactive _tos_" to any
+set rulebase security rules "Guests interactive _tos_" source "GUEST net"
+set rulebase security rules "Guests interactive _tos_" destination 0.0.0.0/0
+set rulebase security rules "Guests interactive _tos_" source-user any
+set rulebase security rules "Guests interactive _tos_" category any
+set rulebase security rules "Guests interactive _tos_" application any
+set rulebase security rules "Guests interactive _tos_" service tcp
+set rulebase security rules "Guests interactive _tos_" action allow
+set rulebase security rules "Guests interactive _tos_" log-end no
+set rulebase security rules "Guests interactive _tos_" disabled yes
+set rulebase security rules "Guests interactive _tos_" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "VPN users to LAN web _old kind_" from [ OpenVPN VPNSITE ]
+set rulebase security rules "VPN users to LAN web _old kind_" to any
+set rulebase security rules "VPN users to LAN web _old kind_" source 0.0.0.0/0
+set rulebase security rules "VPN users to LAN web _old kind_" destination "LAN net"
+set rulebase security rules "VPN users to LAN web _old kind_" source-user any
+set rulebase security rules "VPN users to LAN web _old kind_" category any
+set rulebase security rules "VPN users to LAN web _old kind_" application any
+set rulebase security rules "VPN users to LAN web _old kind_" service tcp-443
+set rulebase security rules "VPN users to LAN web _old kind_" action allow
+set rulebase security rules "VPN users to LAN web _old kind_" log-end no
+set rulebase security rules "SSH to bastion _rule the port forward registers_" from WAN
+set rulebase security rules "SSH to bastion _rule the port forward registers_" to any
+set rulebase security rules "SSH to bastion _rule the port forward registers_" source 0.0.0.0/0
+set rulebase security rules "SSH to bastion _rule the port forward registers_" destination [ 172.16.20.10 "WAN address" ]
+set rulebase security rules "SSH to bastion _rule the port forward registers_" source-user any
+set rulebase security rules "SSH to bastion _rule the port forward registers_" category any
+set rulebase security rules "SSH to bastion _rule the port forward registers_" application any
+set rulebase security rules "SSH to bastion _rule the port forward registers_" service tcp-22
+set rulebase security rules "SSH to bastion _rule the port forward registers_" action allow
+set rulebase security rules "SSH to bastion _rule the port forward registers_" log-end no
+set rulebase security rules "SSH to bastion _rule the port forward registers_" tag Remote
+set rulebase security rules "LAN to test net _not quick_" from LAN
+set rulebase security rules "LAN to test net _not quick_" to any
+set rulebase security rules "LAN to test net _not quick_" source 0.0.0.0/0
+set rulebase security rules "LAN to test net _not quick_" destination 198.51.100.0/24
+set rulebase security rules "LAN to test net _not quick_" source-user any
+set rulebase security rules "LAN to test net _not quick_" category any
+set rulebase security rules "LAN to test net _not quick_" application any
+set rulebase security rules "LAN to test net _not quick_" service any
+set rulebase security rules "LAN to test net _not quick_" action drop
+set rulebase security rules "LAN to test net _not quick_" log-end no
+set rulebase security rules "Time for everyone _floating_ not quick_" from [ WAN LAN DMZ GUEST ]
+set rulebase security rules "Time for everyone _floating_ not quick_" to any
+set rulebase security rules "Time for everyone _floating_ not quick_" source 0.0.0.0/0
+set rulebase security rules "Time for everyone _floating_ not quick_" destination 192.0.2.123
+set rulebase security rules "Time for everyone _floating_ not quick_" source-user any
+set rulebase security rules "Time for everyone _floating_ not quick_" category any
+set rulebase security rules "Time for everyone _floating_ not quick_" application any
+set rulebase security rules "Time for everyone _floating_ not quick_" service udp-123
+set rulebase security rules "Time for everyone _floating_ not quick_" action allow
+set rulebase security rules "Time for everyone _floating_ not quick_" log-end no
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules "SSH to bastion" from WAN
+set rulebase nat rules "SSH to bastion" to WAN
+set rulebase nat rules "SSH to bastion" source 0.0.0.0/0
+set rulebase nat rules "SSH to bastion" destination "WAN address"
+set rulebase nat rules "SSH to bastion" service tcp-2222
+set rulebase nat rules "SSH to bastion" destination-translation translated-address 172.16.20.10
+set rulebase nat rules "SSH to bastion" destination-translation translated-port 22
+set rulebase nat rules "Voice from the partner" from WAN
+set rulebase nat rules "Voice from the partner" to WAN
+set rulebase nat rules "Voice from the partner" source 198.51.100.0/24
+set rulebase nat rules "Voice from the partner" destination "WAN address"
+set rulebase nat rules "Voice from the partner" service tcp-udp-5060
+set rulebase nat rules "Voice from the partner" destination-translation translated-address 172.16.20.20
+set rulebase nat rules "Mail relay 1_1 - inbound" from WAN
+set rulebase nat rules "Mail relay 1_1 - inbound" to WAN
+set rulebase nat rules "Mail relay 1_1 - inbound" source 0.0.0.0/0
+set rulebase nat rules "Mail relay 1_1 - inbound" destination 203.0.113.50
+set rulebase nat rules "Mail relay 1_1 - inbound" service any
+set rulebase nat rules "Mail relay 1_1 - inbound" destination-translation translated-address 172.16.20.50/32
+set rulebase nat rules "Mail relay 1_1 - inbound" description "one half of a 1:1 NAT rule of OPNsense"
+set rulebase nat rules "Mail relay 1_1 - outbound" from any
+set rulebase nat rules "Mail relay 1_1 - outbound" to WAN
+set rulebase nat rules "Mail relay 1_1 - outbound" source 172.16.20.50/32
+set rulebase nat rules "Mail relay 1_1 - outbound" destination 0.0.0.0/0
+set rulebase nat rules "Mail relay 1_1 - outbound" service any
+set rulebase nat rules "Mail relay 1_1 - outbound" source-translation static-ip translated-address 203.0.113.50
+set rulebase nat rules "Mail relay 1_1 - outbound" description "one half of a 1:1 NAT rule of OPNsense"
+set rulebase nat rules "DMZ leaves as .10" from any
+set rulebase nat rules "DMZ leaves as .10" to WAN
+set rulebase nat rules "DMZ leaves as .10" source 172.16.20.0/24
+set rulebase nat rules "DMZ leaves as .10" destination 0.0.0.0/0
+set rulebase nat rules "DMZ leaves as .10" service any
+set rulebase nat rules "DMZ leaves as .10" source-translation dynamic-ip-and-port translated-address 203.0.113.10
+set rulebase nat rules "Guests leave as .30" from any
+set rulebase nat rules "Guests leave as .30" to WAN
+set rulebase nat rules "Guests leave as .30" source 192.168.30.0/24
+set rulebase nat rules "Guests leave as .30" destination 0.0.0.0/0
+set rulebase nat rules "Guests leave as .30" service any
+set rulebase nat rules "Guests leave as .30" source-translation dynamic-ip-and-port translated-address 203.0.113.30
+set rulebase nat rules "Automatic outbound NAT on WAN" from any
+set rulebase nat rules "Automatic outbound NAT on WAN" to WAN
+set rulebase nat rules "Automatic outbound NAT on WAN" source [ 192.168.10.0/24 172.16.20.0/24 192.168.30.0/24 127.0.0.0/8 ]
+set rulebase nat rules "Automatic outbound NAT on WAN" destination 0.0.0.0/0
+set rulebase nat rules "Automatic outbound NAT on WAN" service any
+set rulebase nat rules "Automatic outbound NAT on WAN" source-translation dynamic-ip-and-port translated-address 203.0.113.2
+set rulebase nat rules "Automatic outbound NAT on WAN" description "the rule OPNsense makes by itself for this interface (outbound NAT mode automatic or hybrid)"

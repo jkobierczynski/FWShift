@@ -1,0 +1,95 @@
+FWShift conversion report
+  source: barracuda (forwarding firewall)
+  target: opnsense
+
+Summary
+  Security rules:     17   exact 0, approximated 0, needs review 5 (5 emitted disabled), skipped 12
+  Addresses:           8   exact 8, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CONNECTION_NOT_READ: rules whose connection object translates the source address: 'LAN-2-INTERNET'. Source NAT is not read; the rules are, as they match
+  [needs-review] INTERFACE_NAME: rules for every zone were written for the interfaces OPNsense can name, and not for port1, port2: map those zones to wan, lan or an optN with --zone-map. No rule at all is written for them
+  [needs-review] OPNSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of an OPNsense configuration, for 26.7 (--target-version). Under System > Configuration > Backups, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every alias and every NAT rule that is there now is gone, and the Firewall Rules area replaces the rules of both rule pages ('Rules' and 'Rules [new]'), with the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. There is no NAT area in the file: the NAT of the firewall stays as it is. OPNsense does not check what it restores and does not load it until the rules are applied or the firewall restarts; keep a backup, and look at the rules before anything depends on them
+  [info] BARRACUDA_FORMAT: read 15 forwarding rules, 10 network objects and 8 service objects from 19 answers of the REST API. Barracuda documents that API by examples only: the keys read are those its examples and published tools show, and a key of a rule, an object or an entry this parser does not know makes it unusable
+  [info] ICMP_LIMITS: service objects that limit the size or rate of ICMP echo requests: 'Ping'. The limits are not converted: the rules allow ICMP of any size and rate
+
+Security rules
+  BLOCK-BAD  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  BLOCK-BAD-V6  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  ADMIN-SSH (port2)  ->  needs-review, emitted disabled
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+      [needs-review] INTERFACE_NAME: 'port2' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  ADMIN-SSH (port1)  ->  needs-review, emitted disabled
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+      [needs-review] INTERFACE_NAME: 'port1' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  LAN-2-INTERNET  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  WEB-IN  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Dst NAT: how the API spells its target list is not known, so the translation is not read.
+  SERVER-SYNC  ->  skipped
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  SERVER-SYNC (back)  ->  skipped
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  DNS-OUT  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  PING-ALL  ->  skipped
+      [approximated] ICMP_LIMITS: service 'Ping' limits the size or rate of ICMP echo requests; the limits are not converted
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  UPDATES  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  V6-WEB  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  DENY-LAN-DMZ  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  GRE-LAB  ->  skipped
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application=urlFilter, ips=Default); attach equivalent inspection on the target
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  TO-LAB  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Cascade: the rules of the rule list it hands traffic to are not read, and they decide that traffic. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ODD  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule '{"type": "recurring", "name": "Work-Hours"}' is not converted; the rule would apply at all times.
+  BLOCKALL  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+
+Addresses
+  DMZ-Servers  ->  exact  (emitted as DMZ_Servers)
+      [info] RENAMED: renamed to 'DMZ_Servers' to fit the target's naming rules
+  Mail-Server  ->  exact  (emitted as Mail_Server)
+      [info] RENAMED: renamed to 'Mail_Server' to fit the target's naming rules
+  Office-LAN  ->  exact  (emitted as Office_LAN)
+      [info] RENAMED: renamed to 'Office_LAN' to fit the target's naming rules
+  Public-Web  ->  exact  (emitted as Public_Web)
+      [info] RENAMED: renamed to 'Public_Web' to fit the target's naming rules
+  updates.example.com  ->  exact  (emitted as updates_example_com)
+      [info] RENAMED: renamed to 'updates_example_com' to fit the target's naming rules
+  V6-Servers  ->  exact  (emitted as V6_Servers)
+      [info] RENAMED: renamed to 'V6_Servers' to fit the target's naming rules
+  Web-Server  ->  exact  (emitted as Web_Server)
+      [info] RENAMED: renamed to 'Web_Server' to fit the target's naming rules
+  updates.example.com (IPv4)  ->  exact  (emitted as updates_example_com__IPv4_)
+      [info] RENAMED: renamed to 'updates_example_com__IPv4_' to fit the target's naming rules
+
+Address groups
+  Admin-Hosts  ->  exact  (emitted as Admin_Hosts)
+      [info] RENAMED: renamed to 'Admin_Hosts' to fit the target's naming rules
+  Blocked-Nets  ->  exact  (emitted as Blocked_Nets)
+      [info] RENAMED: renamed to 'Blocked_Nets' to fit the target's naming rules
+  Server-Group  ->  exact  (emitted as Server_Group)
+      [info] RENAMED: renamed to 'Server_Group' to fit the target's naming rules
+  Blocked-Nets (IPv4)  ->  exact  (emitted as Blocked_Nets__IPv4_)
+      [info] RENAMED: renamed to 'Blocked_Nets__IPv4_' to fit the target's naming rules
+  Blocked-Nets (IPv6)  ->  exact  (emitted as Blocked_Nets__IPv6_)
+      [info] RENAMED: renamed to 'Blocked_Nets__IPv6_' to fit the target's naming rules
+  Admin-Hosts (port2)  ->  exact  (emitted as Admin_Hosts__port2_)
+      [info] RENAMED: renamed to 'Admin_Hosts__port2_' to fit the target's naming rules
+  Admin-Hosts (port1)  ->  exact  (emitted as Admin_Hosts__port1_)
+      [info] RENAMED: renamed to 'Admin_Hosts__port1_' to fit the target's naming rules
+  Updates (IPv4)  ->  exact  (emitted as Updates__IPv4_)
+      [info] RENAMED: renamed to 'Updates__IPv4_' to fit the target's naming rules

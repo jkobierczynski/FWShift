@@ -72,7 +72,7 @@ SYSTEM_GROUPS = {"l2tp": "L2TP", "pppoe": "PPPoE", "enc0": "IPsec", "openvpn": "
 # The protocols a rule can name besides TCP, UDP and ICMP, with their numbers.
 PROTOCOLS = {
     "esp": 50, "ah": 51, "gre": 47, "etherip": 97, "ipv6": 41, "igmp": 2, "pim": 103, "ospf": 89, "carp": 112,
-    "pfsync": 249,
+    "pfsync": 240,
 }  # fmt: skip
 PORT_PROTOCOLS = {"tcp": [Protocol.TCP], "udp": [Protocol.UDP], "tcp/udp": [Protocol.TCP, Protocol.UDP], "sctp": [Protocol.SCTP]}
 # The names pf has for ICMP types (pfctl_parser.c), as far as pfSense offers them.
@@ -139,8 +139,8 @@ def parse(data: bytes, report: Report, interface_addresses: Sequence[str] = ()) 
             element.tag = element.tag.lower()  # as pfSense reads them
     if root.tag == "opnsense":
         raise ParseError(
-            "this is the configuration of an OPNsense firewall. OPNsense keeps its aliases, its automatic rules and "
-            "parts of its NAT in other places than pfSense does, and FWShift does not read it yet"
+            "this is the configuration of an OPNsense firewall, which keeps its aliases, its rules and parts of its NAT "
+            "in other places than pfSense does: read it with --from opnsense"
         )
     if root.tag != "pfsense":
         raise ParseError(f"not a pfSense configuration: the first element is <{str(root.tag)[:40]}>, not <pfsense>")

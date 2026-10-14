@@ -1,0 +1,82 @@
+FWShift conversion report
+  source: nftables
+  target: opnsense
+
+Summary
+  Security rules:     16   exact 0, approximated 0, needs review 14 (14 emitted disabled), skipped 2
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CHAIN_NOT_CONVERTED: chain prerouting of table inet raw at the prerouting hook (priority -300, policy accept) can drop forwarded traffic as well and is not converted
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of table inet filter (3 rules, policy drop) filters traffic of the host itself, not forwarded traffic, and is not converted
+  [needs-review] DYNAMIC_SET: sets filled at run time decide what their rules match; those rules are not converted: @banned (flags timeout)
+  [needs-review] INTERFACE_NAME: rules for every zone were written for the interfaces OPNsense can name, and not for eth1, eth0, eth2, eth3: map those zones to wan, lan or an optN with --zone-map. No rule at all is written for them
+  [needs-review] OPNSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of an OPNsense configuration, for 26.7 (--target-version). Under System > Configuration > Backups, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every alias and every NAT rule that is there now is gone, and the Firewall Rules area replaces the rules of both rule pages ('Rules' and 'Rules [new]'), with the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. There is no NAT area in the file: the NAT of the firewall stays as it is. OPNsense does not check what it restores and does not load it until the rules are applied or the firewall restarts; keep a backup, and look at the rules before anything depends on them
+  [info] SEVERAL_BASE_CHAINS: IPv4 traffic passes 2 base chains at the forward hook: inet f2b forward (-5), inet filter forward (0). It is forwarded only if each of them accepts it; they were combined into one list of rules
+
+Security rules
+  Banned by fail2ban  ->  needs-review, emitted disabled
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [needs-review] UNSUPPORTED_MATCH: not converted: set @banned, which is filled at run time (flags timeout). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block bad hosts  ->  skipped
+      [needs-review] DROP_BEFORE_ESTABLISHED: this rule comes before the rule that accepts established connections, so on the source it also drops the replies of connections opened from the other side. The converted rule only blocks new connections in its own direction; add the mirror rule if that mattered
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  Guests stay in  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by eth0, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind eth1, eth2, eth3, eth0 with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'eth1' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN web  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by eth0, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind eth1, eth2, eth3, eth0 with --zone-network.
+      [needs-review] INTERFACE_NAME: 'eth1' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  LAN DNS  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by eth0, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind eth1, eth2, eth3, eth0 with --zone-network.
+      [needs-review] INTERFACE_NAME: 'eth1' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Rate limited mail  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: rate limit 10/minute.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by eth0, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind eth1, eth2, eth3, eth0 with --zone-network.
+      [needs-review] INTERFACE_NAME: 'eth1' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Partner tunnel  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by eth0, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind eth1, eth2, eth3, eth0 with --zone-network.
+      [needs-review] INTERFACE_NAME: 'eth1' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Admins  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by eth2. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'eth1' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Ping the DMZ  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by eth2, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind eth1, eth0, eth3, eth2 with --zone-network.
+      [needs-review] INTERFACE_NAME: 'eth1' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  SCADA to PLCs  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by eth3. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'eth1' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  OT no internet  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by eth0, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind eth1, eth2, eth3, eth0 with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] INTERFACE_NAME: 'eth3' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Inbound web  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to '10.20.0.10' because of NAT rule 'Web DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Web DNAT' also translates the port to 8443; the service of this rule still names the post-NAT port and must be adjusted
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by eth2. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'eth0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Inbound mail  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.25' next to '10.20.0.25' because of NAT rule 'Mail DNAT'; check that this rule is meant to cover the translated traffic
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by eth2. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'eth0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  Inbound IPv6  ->  needs-review, emitted disabled
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by eth2. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] INTERFACE_NAME: 'eth0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  DMZ updates  ->  needs-review, emitted disabled
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by eth0, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind eth1, eth2, eth3, eth0 with --zone-network.
+      [needs-review] INTERFACE_NAME: 'eth2' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  ICMPv6 basics  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+
+NAT rules
+  Web DNAT  ->  skipped
+      [needs-review] NAT_INTERFACE: 'eth0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map
+  Mail DNAT  ->  skipped
+      [needs-review] NAT_INTERFACE: 'eth0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map
+  No NAT to partner  ->  skipped
+      [needs-review] NAT_INTERFACE: 'eth0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map
+  DMZ out  ->  skipped
+      [needs-review] NAT_INTERFACE: 'eth0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map
+  LAN out  ->  skipped
+      [needs-review] NAT_INTERFACE: 'eth0' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map

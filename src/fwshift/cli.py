@@ -25,6 +25,7 @@ from .emitters import cisco as emit_cisco
 from .emitters import fortios as emit_fortios
 from .emitters import iptables as emit_iptables
 from .emitters import panos as emit_panos
+from .emitters import opnsense as emit_opnsense
 from .emitters import pfsense as emit_pfsense
 from .emitters import routeros as emit_routeros
 from .emitters import barracuda as emit_barracuda
@@ -46,6 +47,7 @@ from .parsers import cisco as parse_cisco
 from .parsers import fortios as parse_fortios
 from .parsers import iptables as parse_iptables
 from .parsers import panos as parse_panos
+from .parsers import opnsense as parse_opnsense
 from .parsers import pfsense as parse_pfsense
 from .parsers import routeros as parse_routeros
 from .parsers import barracuda as parse_barracuda
@@ -71,6 +73,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "asa": emit_asa.emit,
     "sophos": emit_sophos.emit,
     "pfsense": emit_pfsense.emit,
+    "opnsense": emit_opnsense.emit,
     "sonicwall": emit_sonicwall.emit,
     "barracuda": emit_barracuda.emit,
     "junos": emit_junos.emit,
@@ -78,7 +81,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "fmc": emit_cisco.emit_fmc,
     "fdm": emit_cisco.emit_fdm,
 }
-VENDORS = ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "pfsense", "sonicwall", "watchguard", "barracuda", "junos",
+VENDORS = ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "pfsense", "opnsense", "sonicwall", "watchguard", "barracuda", "junos",
            "iptables", "ip6tables", "nftables", "nsx", "aws", "azure", "routeros")  # fmt: skip
 
 
@@ -105,6 +108,8 @@ def detect_format(data: bytes) -> str:
         data = data[:65536].decode("utf-16", errors="replace").encode("utf-8")  # the start is enough to tell
     if parse_sophos.looks_like_sophos(data):
         return "sophos"
+    if parse_opnsense.looks_like_opnsense(data):
+        return "opnsense"
     if parse_pfsense.looks_like_pfsense(data):
         return "pfsense"
     if parse_sonicwall.looks_like_sonicwall(data):
@@ -145,8 +150,8 @@ def load(
     data: bytes, source: str, report: Report, vsys: str = "", device_group: str = "", vdom: str = "", layer: str = "",
     policy: str = "", nat_policy: str = "", interface_addresses: Sequence[str] = (),
 ) -> Policy:  # fmt: skip
-    if interface_addresses and source not in ("pfsense", "sonicwall"):
-        raise FwshiftError("--interface-address is for a pfSense or SonicWall source")
+    if interface_addresses and source not in ("pfsense", "opnsense", "sonicwall"):
+        raise FwshiftError("--interface-address is for a pfSense, OPNsense or SonicWall source")
     if source == "panos":
         return parse_panos.parse(data, report, vsys=vsys, device_group=device_group)
     if source == "fortios":
@@ -159,6 +164,8 @@ def load(
         return parse_sophos.parse(data, report)
     if source == "pfsense":
         return parse_pfsense.parse(data, report, interface_addresses=interface_addresses)
+    if source == "opnsense":
+        return parse_opnsense.parse(data, report, interface_addresses=interface_addresses)
     if source == "sonicwall":
         return parse_sonicwall.parse(data, report, interface_addresses=interface_addresses)
     if source == "watchguard":
@@ -431,7 +438,7 @@ def _source_options(parser: argparse.ArgumentParser, optional: bool = False) -> 
     parser.add_argument("--nat-policy", default="", help="Management Center source (fmc): NAT policy to read")
     parser.add_argument(
         "--interface-address", action="append", default=[], metavar="INTERFACE=ADDRESS/BITS",
-        help="pfSense and SonicWall sources: address and network of an interface that gets them from somewhere else (DHCP, "
+        help="pfSense, OPNsense and SonicWall sources: address and network of an interface that gets them from somewhere else (DHCP, "
         "PPPoE, a delegated prefix), for the rules that name them; repeatable, IPv4 and IPv6 (SonicWall: IPv4)",
     )  # fmt: skip
 
@@ -440,8 +447,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="fwshift",
         description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall "
-        "(Management Center and Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX, iptables, "
-        "nftables, VMware NSX, AWS security groups and Azure network security groups, with a lossiness report.",
+        "(Management Center and Device Manager), Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, iptables, "
+        "nftables, VMware NSX, AWS security groups, Azure network security groups and MikroTik RouterOS, with a lossiness report.",
     )
     parser.add_argument("--version", action="version", version=f"fwshift {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -459,7 +466,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conv.add_argument(
         "--zone-network", action="append", default=[], metavar="ZONE=NET[,NET]",
-        help="ASA, pfSense, Barracuda, NSX, AWS and Azure targets: the networks behind a zone, so that rules for other zones can leave them out. Give "
+        help="ASA, pfSense, OPNsense, Barracuda, NSX, AWS and Azure targets: the networks behind a zone, so that rules for other zones can leave them out. Give "
         "them for every zone; 0.0.0.0/0,::/0 for the zone with the default route",
     )  # fmt: skip
     conv.add_argument(
@@ -481,10 +488,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--target-nat-zone", default="", metavar="ZONE",
         help="PAN-OS target: destination zone for NAT rules of a source that names none; "
         "ASA target: interface for NAT to the outgoing interface where the rule names none; "
-        "Cisco Secure Firewall targets: its zone; pfSense target: interface for port forwards of a rule from every "
+        "Cisco Secure Firewall targets: its zone; pfSense and OPNsense targets: interface for port forwards of a rule from every "
         "zone, and for outbound NAT where the rule does not say where its traffic leaves",
     )  # fmt: skip
     conv.add_argument("--target-vdom", default="", metavar="NAME", help="FortiOS target: write into this VDOM")
+    conv.add_argument(
+        "--target-version", default="", metavar="SERIES",
+        help="OPNsense target: the series to write for: 24.7, 25.1, 25.7, 26.1 or 26.7 (default: 26.7)",
+    )  # fmt: skip
     conv.add_argument(
         "--policy-id-start", type=int, default=0, metavar="N", help="FortiOS target: first policy id (default: automatic)"
     )
@@ -499,7 +510,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conv.add_argument(
         "--target-prefix", default="", metavar="TEXT",
-        help="Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard, Barracuda, Juniper, Cisco Secure Firewall, NSX, AWS and Azure "
+        help="Check Point, ASA, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Cisco Secure Firewall, NSX, AWS and Azure "
              "targets: prefix for the names of created objects",
     )  # fmt: skip
     conv.add_argument(
@@ -634,6 +645,7 @@ def _run_convert(args: argparse.Namespace) -> int:
         target_scope=scope,
         nat_zone=args.target_nat_zone,
         target_vdom=args.target_vdom,
+        target_version=args.target_version,
         policy_id_start=max(args.policy_id_start, 0),
         target_layer=args.target_layer,
         target_package=args.target_package,

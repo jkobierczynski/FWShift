@@ -1,0 +1,63 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: opnsense
+
+Summary
+  Security rules:     10   exact 2, approximated 1, needs review 7 (6 emitted disabled), skipped 0
+  NAT rules:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] INTERFACES_REQUIRED: OPNsense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: External, Trusted, Guests, DMZ, Lab
+  [needs-review] OPNSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of an OPNsense configuration, for 26.7 (--target-version). Under System > Configuration > Backups, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every alias and every NAT rule that is there now is gone, and the Firewall Rules area replaces the rules of both rule pages ('Rules' and 'Rules [new]'), with the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. The NAT area holds 2 port forwards and 0 1:1 rules, and switches outbound NAT off, as the source translates no source address; it removes every rule of NPt. OPNsense does not check what it restores and does not load it until the rules are applied or the firewall restarts; keep a backup, and look at the rules before anything depends on them
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] SELF_EXCLUDED: on OPNsense the rules of an interface are also the rules for traffic to the firewall itself. Rules of the source that pass traffic to any destination are written for any destination but the firewall itself ('not This Firewall'). A rule that names addresses of the firewall still reaches them
+
+Security rules
+  Admin SSH  ->  needs-review, emitted disabled  (emitted as Trusted)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by External, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Trusted, DMZ, Guests, Lab, External with --zone-network.
+  Web Out  ->  needs-review, emitted disabled  (emitted as Trusted, Guests, DMZ)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by External, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Trusted, DMZ, Guests, Lab, External with --zone-network.
+  Web In  ->  approximated  (emitted as External)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Web_Public_1_snat' with post-NAT 'Web_Public_2_snat' because of NAT rule 'Web-Public (Web In)'; check that this rule is meant to cover the translated traffic
+  Mail In  ->  needs-review  (emitted as External)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Mail_Public_1_snat' with post-NAT 'Mail_Public_2_snat' because of NAT rule 'Mail-Public (Mail In)'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Mail-Public (Mail In)' also translates the port to 2525; the service of this rule still names the pre-NAT port and must be adjusted
+  DMZ Updates  ->  needs-review, emitted disabled  (emitted as DMZ)
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+  Guests Out  ->  needs-review, emitted disabled  (emitted as Guests)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by External, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Trusted, DMZ, Guests, Lab, External with --zone-network.
+  Staff Only  ->  needs-review, emitted disabled  (emitted as Trusted)
+      [needs-review] USER_MATCH: source user match Staff is not converted.
+  Lab Tunnel  ->  needs-review, emitted disabled  (emitted as Lab)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by External, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Trusted, DMZ, Guests, Lab, External with --zone-network.
+
+Addresses
+  Web-Server.1.alm  ->  exact  (emitted as Web_Server_1_alm)
+      [info] RENAMED: renamed to 'Web_Server_1_alm' to fit the target's naming rules
+  Mail-Server.1.alm  ->  exact  (emitted as Mail_Server_1_alm)
+      [info] RENAMED: renamed to 'Mail_Server_1_alm' to fit the target's naming rules
+  Admins.1.alm  ->  exact  (emitted as Admins_1_alm)
+      [info] RENAMED: renamed to 'Admins_1_alm' to fit the target's naming rules
+  Bad-Nets.1.alm  ->  exact  (emitted as Bad_Nets_1_alm)
+      [info] RENAMED: renamed to 'Bad_Nets_1_alm' to fit the target's naming rules
+  Bad-Nets.2.alm  ->  exact  (emitted as Bad_Nets_2_alm)
+      [info] RENAMED: renamed to 'Bad_Nets_2_alm' to fit the target's naming rules
+  Update-Site.1.alm updates.example.com  ->  exact  (emitted as Update_Site_1_alm_updates_examp)
+      [info] RENAMED: renamed to 'Update_Site_1_alm_updates_examp' to fit the target's naming rules
+  Web-Public.1.snat  ->  exact  (emitted as Web_Public_1_snat)
+      [info] RENAMED: renamed to 'Web_Public_1_snat' to fit the target's naming rules
+  Web-Public.2.snat  ->  exact  (emitted as Web_Public_2_snat)
+      [info] RENAMED: renamed to 'Web_Public_2_snat' to fit the target's naming rules
+  Mail-Public.1.snat  ->  exact  (emitted as Mail_Public_1_snat)
+      [info] RENAMED: renamed to 'Mail_Public_1_snat' to fit the target's naming rules
+  Mail-Public.2.snat  ->  exact  (emitted as Mail_Public_2_snat)
+      [info] RENAMED: renamed to 'Mail_Public_2_snat' to fit the target's naming rules
+
+Address groups
+  Update-Site.1.alm  ->  exact  (emitted as Update_Site_1_alm)
+      [info] RENAMED: renamed to 'Update_Site_1_alm' to fit the target's naming rules

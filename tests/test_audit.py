@@ -826,7 +826,7 @@ SAMPLES = ["panos_sample.xml", "fortios_sample.conf", "checkpoint_sample.json", 
            "sophos_sample.xml", "fmc_sample.json", "fdm_sample.txt", "pfsense_sample.xml", "sonicwall_sample.exp",
            "watchguard_sample.xml", "barracuda_sample.json",
            "junos_sample.conf", "nftables_sample.nft", "nsx_sample.json", "aws_sample.json", "azure_sample.json",
-           "routeros_sample.rsc"]  # fmt: skip
+           "routeros_sample.rsc", "opnsense_sample.xml"]  # fmt: skip
 
 
 @pytest.mark.parametrize("sample", SAMPLES)

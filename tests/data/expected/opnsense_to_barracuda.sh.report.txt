@@ -1,0 +1,148 @@
+FWShift conversion report
+  source: opnsense
+  target: barracuda
+
+Summary
+  Security rules:     25   exact 0, approximated 6, needs review 19 (19 emitted disabled), skipped 0
+  NAT rules:           7   exact 0, approximated 0, needs review 0, skipped 7
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:     14   exact 14, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 10, approximated 0, needs review 2, skipped 0
+
+Notes for the whole policy
+  [needs-review] NPT_NOT_CONVERTED: 1 IPv6 prefix translation (NPt) of the configuration is not converted
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: OPNsense drops what arrives there from addresses nobody has been given, by a list it downloads, which is not in the configuration
+  [needs-review] BARRACUDA_LOAD: the output is a shell script that creates network objects, service objects and forwarding rules through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. The rules go to the top of the rule list, above the rules the firewall has, deactivated, and are then activated in order, first rule first: if a call is refused the script stops, and only the rules above that one are active, with the rules the firewall had below them. Barracuda documents the API by examples: assumed are the keys of a service object and its entries (protocol, ports, client ports), the interface of an entry of a network object, the IP version and action types of a rule other than block, and names of up to 32 letters, digits, periods, underscores and hyphens
+  [needs-review] BLOCK_RULE_INACTIVE: the source blocks what no rule matches. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that do so follow the converted rules, deactivated: until they are activated, the rules the firewall has below them decide that traffic. Look at those rules (management access, the default rules) and activate the two
+  [info] FLOATING_LAST_MATCH: 2 rules are not 'quick' (floating rules, and rules of an interface with 'quick' off): such a rule decides only where no quick rule matched, and of several the last one. In the converted policy they stand behind the quick rules, the last one first: 'LAN to test net (not quick)', 'Time for everyone (floating, not quick)'
+  [info] OPNSENSE_VERSION: the configuration was written by OPNsense 26.7 (firewall model 1.0.6), and read as that series reads it
+  [info] OPNSENSE_RULE_EMPTY: rules that match nothing on OPNsense (a protocol of the other IP version, a disabled alias) were left out: 'ICMP for IPv6 only (matches nothing)' (ICMP in a rule for IPv6 only)
+  [info] OPNSENSE_DISABLED_ALIAS: disabled aliases are empty tables on OPNsense: rules that name one match nothing (and 'not' one everything): Old_partner
+  [info] OPNSENSE_REGISTERED_RULE: 1 port forward registers a rule of its own ('Register rule'), which OPNsense puts after every other rule; so does the converted policy
+  [info] OPNSENSE_AUTOMATIC_RULES: OPNsense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof) and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without (RFC 4890), DHCP, and the web interface on its first interface (anti-lockout); and it lets out whatever the firewall itself sends. Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+
+Security rules
+  Never to the blocklist (floating)  ->  approximated  (emitted as Never_to_the_blocklist__floating)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN, DMZ; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Never to the blocklist (floating) 2  ->  needs-review, emitted disabled  (emitted as Never_to_the_blocklist__floati_2)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN, DMZ; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Geo_block': an alias of type 'geoip' (the countries of a GeoIP database), whose addresses are not in the configuration. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests never to the blocklist  ->  needs-review, emitted disabled  (emitted as Guests_never_to_the_blocklist)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the source of traffic that leaves, which is the source after outbound NAT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ may not send mail out (received-on)  ->  approximated  (emitted as DMZ_may_not_send_mail_out__recei)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Voice from the partner - pass  ->  needs-review, emitted disabled  (emitted as Voice_from_the_partner_-_pass)
+      [approximated] AUTOMATIC_RULE: port forward 'Voice from the partner' passes what it forwards without a rule ('Pass' as its filter rule association): OPNsense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'WAN address' next to '172.16.20.20' because of NAT rule 'Voice from the partner'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind WAN with --zone-network.
+  Block private networks from WAN  ->  approximated  (emitted as Block_private_networks_from_WAN, Block_private_networks_from_WAN-)
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks' set: OPNsense drops what arrives there from those networks (the list of 26.7) before any rule of the configuration. This rule stands for that
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone WAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  VPN users to the web servers  ->  needs-review, emitted disabled  (emitted as VPN_users_to_the_web_servers)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OpenVPN, VPNSITE, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind OpenVPN, VPNSITE with --zone-network.
+  No outside resolver (group)  ->  approximated  (emitted as No_outside_resolver__group_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAN, DMZ; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  Inside may ping (old kind)  ->  needs-review, emitted disabled  (emitted as Inside_may_ping__old_kind_)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-echoreq': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, DMZ, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind LAN, DMZ with --zone-network.
+  Default allow LAN to any rule  ->  needs-review, emitted disabled  (emitted as Default_allow_LAN_to_any_rule, Default_allow_LAN_to_any_rule-v6)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind LAN with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  Web publishing  ->  needs-review, emitted disabled  (emitted as Web_publishing, Web_publishing-v6)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind WAN with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  DMZ anywhere but LAN (disabled)  ->  needs-review, emitted disabled  (emitted as DMZ_anywhere_but_LAN__disabled_)
+      [info] NEGATION_EXPANDED: the firewall has no negation in a rule: 'not destination LAN_net' is written as the addresses that are left
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind DMZ with --zone-network.
+  DMZ ICMPv6  ->  needs-review, emitted disabled  (emitted as DMZ_ICMPv6)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp6-echoreq-neighbrsol-neighbr': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind DMZ with --zone-network.
+  Servers fetch updates  ->  needs-review, emitted disabled  (emitted as Servers_fetch_updates)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Updates': a group that holds a host name: how the API spells a hostname object is not known.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind DMZ with --zone-network.
+  Servers fetch updates 2  ->  needs-review, emitted disabled  (emitted as Servers_fetch_updates_2)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind DMZ with --zone-network.
+  Servers fetch updates 3  ->  needs-review, emitted disabled  (emitted as Servers_fetch_updates_3)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Updates': a group that holds a host name: how the API spells a hostname object is not known.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind DMZ with --zone-network.
+  Servers fetch updates 4  ->  needs-review, emitted disabled  (emitted as Servers_fetch_updates_4)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind DMZ with --zone-network.
+  Guests stay out  ->  approximated  (emitted as Guests_stay_out)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  Guests to the portal (no protocol, both IP versions)  ->  needs-review, emitted disabled  (emitted as Guests_to_the_portal__no_protoco)
+      [info] RULE_HALF_NOT_LOADED: the rule is for IPv4 and IPv6, and there is no IPv6 rule for it on OPNsense (source: interface GUEST has no IPv6 network; the rule matches nothing of IPv6 there; destination: '192.0.2.80' is not an IPv6 address): it is converted for the other IP version only
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone GUEST, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind GUEST with --zone-network.
+  DMZ anywhere but LAN (disabled) 2  ->  needs-review, emitted disabled  (emitted as DMZ_anywhere_but_LAN__disabled__)
+      [info] NEGATION_EXPANDED: the firewall has no negation in a rule: 'not destination LAN_net' is written as the addresses that are left
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind DMZ with --zone-network.
+  Guests interactive (tos)  ->  needs-review, emitted disabled  (emitted as Guests_interactive__tos_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the type of service (tos) '0x10'.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone GUEST, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind GUEST with --zone-network.
+  VPN users to LAN web (old kind)  ->  needs-review, emitted disabled  (emitted as VPN_users_to_LAN_web__old_kind_)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OpenVPN, VPNSITE, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind OpenVPN, VPNSITE with --zone-network.
+  SSH to bastion (rule the port forward registers)  ->  needs-review, emitted disabled  (emitted as SSH_to_bastion__rule_the_port_fo)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'WAN address' next to '172.16.20.10' because of NAT rule 'SSH to bastion'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'SSH to bastion' also translates the port to 22; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind WAN with --zone-network.
+  LAN to test net (not quick)  ->  approximated  (emitted as LAN_to_test_net__not_quick_)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAN; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  Time for everyone (floating, not quick)  ->  needs-review, emitted disabled  (emitted as Time_for_everyone__floating__not)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, LAN, DMZ, GUEST, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind WAN, LAN, DMZ, GUEST with --zone-network.
+
+NAT rules
+  SSH to bastion  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  Voice from the partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  Mail relay 1:1 - inbound  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  Mail relay 1:1 - outbound  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  DMZ leaves as .10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  Guests leave as .30  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  Automatic outbound NAT on WAN  ->  skipped
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: OPNsense translates what leaves by an interface with an IPv4 gateway and comes from the networks of its other interfaces, or from the firewall itself. This rule stands for that
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+
+Addresses
+  WAN address  ->  exact  (emitted as WAN_address)
+      [info] RENAMED: renamed to 'WAN_address' to fit the target's naming rules
+  GUEST net  ->  exact  (emitted as GUEST_net)
+      [info] RENAMED: renamed to 'GUEST_net' to fit the target's naming rules
+  LAN net  ->  exact  (emitted as LAN_net)
+      [info] RENAMED: renamed to 'LAN_net' to fit the target's naming rules
+  DMZ net  ->  exact  (emitted as DMZ_net)
+      [info] RENAMED: renamed to 'DMZ_net' to fit the target's naming rules
+  LAN net IPv6  ->  exact  (emitted as LAN_net_IPv6)
+      [info] RENAMED: renamed to 'LAN_net_IPv6' to fit the target's naming rules
+  DMZ net IPv6  ->  exact  (emitted as DMZ_net_IPv6)
+      [info] RENAMED: renamed to 'DMZ_net_IPv6' to fit the target's naming rules
+
+Address groups
+  __lan_network  ->  exact  (emitted as x__lan_network)
+      [info] RENAMED: renamed to 'x__lan_network' to fit the target's naming rules
+  __opt1_network  ->  exact  (emitted as x__opt1_network)
+      [info] RENAMED: renamed to 'x__opt1_network' to fit the target's naming rules
+  __wan_network  ->  exact  (emitted as x__wan_network)
+      [info] RENAMED: renamed to 'x__wan_network' to fit the target's naming rules
+  __opt2_network  ->  exact  (emitted as x__opt2_network)
+      [info] RENAMED: renamed to 'x__opt2_network' to fit the target's naming rules
+  __opt4_network  ->  exact  (emitted as x__opt4_network)
+      [info] RENAMED: renamed to 'x__opt4_network' to fit the target's naming rules
+  INSIDE net  ->  exact  (emitted as INSIDE_net)
+      [info] RENAMED: renamed to 'INSIDE_net' to fit the target's naming rules
+  WebServers IPv4  ->  exact  (emitted as WebServers_IPv4)
+      [info] RENAMED: renamed to 'WebServers_IPv4' to fit the target's naming rules
+
+Services
+  icmp-echoreq  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated
+  icmp6-echoreq-neighbrsol-neighbradv  ->  exact  (emitted as icmp6-echoreq-neighbrsol-neighbr)
+      [info] RENAMED: renamed to 'icmp6-echoreq-neighbrsol-neighbr' to fit the target's naming rules
+  icmp6-echoreq-neighbrsol-neighbr  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated

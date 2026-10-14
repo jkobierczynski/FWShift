@@ -1,0 +1,118 @@
+FWShift conversion report
+  source: sophos (API version 2000.1)
+  target: opnsense
+
+Summary
+  Security rules:     17   exact 2, approximated 4, needs review 10 (9 emitted disabled), skipped 1
+  NAT rules:           6   exact 3, approximated 0, needs review 2, skipped 1
+  Addresses:          14   exact 12, approximated 0, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] INTERFACES_REQUIRED: OPNsense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: OT, DMZ, VPN
+  [needs-review] OPNSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of an OPNsense configuration, for 26.7 (--target-version). Under System > Configuration > Backups, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every alias and every NAT rule that is there now is gone, and the Firewall Rules area replaces the rules of both rule pages ('Rules' and 'Rules [new]'), with the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. The NAT area holds 2 port forwards and 0 1:1 rules, and sets outbound NAT to manual mode with the 6 rules of the source; it removes every rule of NPt. OPNsense does not check what it restores and does not load it until the rules are applied or the firewall restarts; keep a backup, and look at the rules before anything depends on them
+  [info] SELF_EXCLUDED: on OPNsense the rules of an interface are also the rules for traffic to the firewall itself. Rules of the source that pass traffic to any destination are written for any destination but the firewall itself ('not This Firewall'). A rule that names addresses of the firewall still reaches them
+
+Security rules
+  Block countries  ->  needs-review, emitted disabled  (emitted as wan)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocked_countries': country group. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to Internet web  ->  needs-review, emitted disabled  (emitted as lan)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy, ScanVirus=Enable, WebFilter=Default Policy); attach equivalent inspection on the target
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, DMZ, OT, VPN, WAN with --zone-network.
+  LAN web again  ->  needs-review, emitted disabled  (emitted as lan)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, DMZ, OT, VPN, WAN with --zone-network.
+  Admins to DMZ  ->  approximated  (emitted as lan (2 rules))
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [info] RULE_SPLIT: a rule of OPNsense names one protocol: the rule is written as 2 rules, one per kind of service
+  LAN to DMZ web not mail  ->  needs-review, emitted disabled  (emitted as lan)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, WAN, OT, VPN, DMZ with --zone-network.
+  LAN SSH out  ->  needs-review, emitted disabled  (emitted as lan)
+      [info] RULE_SPLIT: the rule has exclusions of 2 kinds, which Sophos Firewall applies together (the rule is skipped only for traffic that matches all of them): written as 2 rule(s), one per kind, that match the same traffic between them: 'LAN SSH out-2'
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by OT, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, WAN, DMZ, VPN, OT with --zone-network.
+  LAN SSH out-2  ->  needs-review, emitted disabled  (emitted as lan)
+      [info] EXCLUSION_AS_ADDRESSES: source lan-net without the excluded admin-range: written as the addresses that are left (10.10.0.0-10.10.5.9, 10.10.5.21-10.11.255.255)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, OT, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, WAN, VPN, DMZ, OT with --zone-network.
+  Internet to web  ->  approximated  (emitted as wan)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web_public' with post-NAT 'web_1' because of NAT rule 'Publish web'; check that this rule is meant to cover the translated traffic
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ); attach equivalent inspection on the target
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  Internet to mail  ->  needs-review  (emitted as wan)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'mail_public' with post-NAT 'mail_1' because of NAT rule 'Publish mail'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Publish mail' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ, ScanSMTP=Enable); attach equivalent inspection on the target
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  OT to SCADA  ->  approximated  (emitted as OT (2 rules))
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by LAN. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [info] RULE_SPLIT: a rule of OPNsense names one protocol: the rule is written as 2 rules, one per kind of service
+  DMZ updates  ->  approximated  (emitted as DMZ)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (WebFilter=Default Policy); attach equivalent inspection on the target
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  Finance to app  ->  needs-review, emitted disabled  (emitted as lan)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] USER_MATCH: source user match Finance is not converted.
+  DNS in office hours  ->  needs-review, emitted disabled  (emitted as OT (2 rules))
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by LAN. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [needs-review] SCHEDULE: schedule 'Work hours (5 Day week)' is not converted; the rule would apply at all times.
+  Old test rule  ->  exact  (emitted as lan (2 rules), wan (2 rules), DMZ (2 rules), OT (2 rules), VPN (2 rules))
+      [info] RULE_SPLIT: a rule of OPNsense names one protocol: the rule is written as 2 rules, one per kind of service
+  LAN6 to Internet  ->  needs-review, emitted disabled  (emitted as lan)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, DMZ, OT, VPN, WAN with --zone-network.
+  Web shop  ->  skipped
+      [needs-review] WAF_RULE: web server protection rule: the firewall answers for the web server itself (a reverse proxy), which is not a forwarding rule and is not converted. Publish the server on the target in its own way
+
+NAT rules
+  No NAT to partner  ->  skipped
+      [needs-review] NAT_INTERFACE: the rule names no zone its traffic leaves by: outbound NAT of OPNsense is per interface. Name one with --target-nat-zone
+  NAT of LAN to Internet web  ->  needs-review  (emitted as 4 outbound NAT rules)
+      [info] NAT_LINKED: linked NAT rule of firewall rule 'LAN to Internet web': it has no match of its own and is written with the zones, addresses and services of that rule
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from LAN only; outbound NAT of OPNsense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+      [needs-review] NAT_ORDER: NAT rule 'No NAT to partner' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+  Default SNAT IPv4  ->  needs-review  (emitted as 1 outbound NAT rule)
+      [needs-review] NAT_ORDER: NAT rule 'No NAT to partner' above this one is not converted. On the source it matched part of this traffic first; that traffic now reaches this rule and is translated by it
+
+Addresses
+  lan-net  ->  exact  (emitted as lan_net)
+      [info] RENAMED: renamed to 'lan_net' to fit the target's naming rules
+  web-1  ->  exact  (emitted as web_1)
+      [info] RENAMED: renamed to 'web_1' to fit the target's naming rules
+  mail-1  ->  exact  (emitted as mail_1)
+      [info] RENAMED: renamed to 'mail_1' to fit the target's naming rules
+  web-public  ->  exact  (emitted as web_public)
+      [info] RENAMED: renamed to 'web_public' to fit the target's naming rules
+  mail-public  ->  exact  (emitted as mail_public)
+      [info] RENAMED: renamed to 'mail_public' to fit the target's naming rules
+  admin-range  ->  exact  (emitted as admin_range)
+      [info] RENAMED: renamed to 'admin_range' to fit the target's naming rules
+  partner-net  ->  exact  (emitted as partner_net)
+      [info] RENAMED: renamed to 'partner_net' to fit the target's naming rules
+  scada-server  ->  exact  (emitted as scada_server)
+      [info] RENAMED: renamed to 'scada_server' to fit the target's naming rules
+  plc-net  ->  exact  (emitted as plc_net)
+      [info] RENAMED: renamed to 'plc_net' to fit the target's naming rules
+  lan6-net  ->  exact  (emitted as lan6_net)
+      [info] RENAMED: renamed to 'lan6_net' to fit the target's naming rules
+  updates.example.com  ->  exact  (emitted as updates_example_com)
+      [info] RENAMED: renamed to 'updates_example_com' to fit the target's naming rules
+  mirror.example.net  ->  exact  (emitted as mirror_example_net)
+      [info] RENAMED: renamed to 'mirror_example_net' to fit the target's naming rules
+  any-example-org  ->  needs-review  (emitted as any_example_org)
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard host name '*.example.org' cannot be converted
+      [info] RENAMED: renamed to 'any_example_org' to fit the target's naming rules
+  Blocked countries  ->  needs-review  (emitted as Blocked_countries)
+      [needs-review] UNSUPPORTED_ADDRESS: country group cannot be converted
+      [info] RENAMED: renamed to 'Blocked_countries' to fit the target's naming rules
+
+Address groups
+  dns-servers  ->  exact  (emitted as dns_servers)
+      [info] RENAMED: renamed to 'dns_servers' to fit the target's naming rules
+  dmz-servers  ->  exact  (emitted as dmz_servers)
+      [info] RENAMED: renamed to 'dmz_servers' to fit the target's naming rules
+  update-sites  ->  exact  (emitted as update_sites)
+      [info] RENAMED: renamed to 'update_sites' to fit the target's naming rules

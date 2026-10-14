@@ -36,8 +36,8 @@ Firewall** (the JSON of a Management Center's REST API and the configuration
 export of a Device Manager, read; a script that loads a new policy through
 the API of a Management Center and a file for the import of a Device Manager,
 written), and **0.8.0, pfSense** (`config.xml` of 2.6 and later, read; the
-areas Aliases, NAT and Firewall Rules for a restore, written; OPNsense is not
-part of it, see below), **0.9.0, SonicWall** (the settings export of
+areas Aliases, NAT and Firewall Rules for a restore, written; OPNsense came
+later, in 0.24.0), **0.9.0, SonicWall** (the settings export of
 SonicOS 6.5 and 7, read; commands of the SonicOS 7 command line, written),
 **0.10.0, WatchGuard** (the configuration file of Policy Manager,
 Fireware 12, read; its policy part, to merge into a configuration of the
@@ -65,7 +65,11 @@ RouterOS 6 and 7, read: the forward chains of `/ip` and `/ipv6`, custom
 chains with returns taken away exactly, interface lists as zones, address
 lists, the default accept and the `!dstnat` exception of the default
 configuration, NAT; a script for `/import` whose chains are switched on by
-one change, written).
+one change, written), and **0.24.0, OPNsense** (`config.xml` of 24.7 to
+26.7, read: both kinds of rule in the order of OPNsense's priorities, flags
+as each series reads them, aliases with exclusions worked out as pf tables,
+port forwards of both forms, Source NAT, 1:1 NAT, *received-on*; the areas
+Aliases, NAT and Firewall Rules for one series, written).
 What each rests on and what nobody has checked on a device is in
 the development log.
 
@@ -74,11 +78,6 @@ with the equivalence check (0.22.0, under Audit and matrix below).
 
 Next, one release each:
 
-- **0.24.0, OPNsense** (planned with pfSense, and left out of 0.8.0: its
-  configuration keeps aliases, automatic rules and parts of NAT elsewhere, and
-  its rules have other fields; FWShift refuses it with that reason until then):
-  `config.xml` of 24.7 to 26.7, the rules of the API and the legacy ones, in
-  the order OPNsense gives them; written for the restore of its areas.
 - **0.25.0, Forcepoint NGFW**: the JSON of the SMC REST API (and its XML
   export), rules with their Continue and Jump semantics; written as a script
   of calls to that API.
@@ -358,7 +357,17 @@ back and compared with the source): items 1, 2, 5 and 10 of the list before.
    the jumps on in Safe Mode and send packets through, the defaults and the
    `!dstnat` exception above all; check `icmp-options=8` without a code and
    `reject-with=tcp-reset` on a rule that matches more than TCP.
-15. The equivalence check on real changes: two exports of one firewall
+15. OPNsense, on a lab firewall of 26.7 and one of 25.7 (or 24.7): back
+   them up and compare with `opnsense_sample.xml` (how the GUI writes empty
+   flags, `quick` and the address lists of *Rules [new]*, the DNat form of a
+   port forward after a save); restore `panos_to_opnsense.xml` and
+   `opnsense_to_opnsense.xml` area by area (with `--target-version` of the
+   firewall) and record what the restore and the filter reload refuse; send
+   packets through: the order of the tiers, rules that are not quick on a
+   tab, *received-on*, the link-local network in rules for IPv6, aliases with
+   `!` entries, a disabled alias, Source NAT in each outbound mode, *Register
+   rule*.
+16. The equivalence check on real changes: two exports of one firewall
    before and after a change made by hand, compared, and the differences
    checked against what was changed; a conversion loaded on a target, its
    running configuration exported again and compared with the source.

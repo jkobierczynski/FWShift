@@ -1,0 +1,273 @@
+FWShift zone matrix
+  source: opnsense
+  security rules: 25 (2 disabled, 1 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 WAN               LAN               DMZ               GUEST             VPNSITE           OpenVPN           (other zones)
+  WAN            any~              tcp/22 +6~        tcp/22 +6~        tcp/22 +6~        tcp/22 +6~        tcp/22 +6~        tcp/22 +6~
+  LAN            any~              any               any               any               any               any               any
+  DMZ            any~              icmp type 8 +4~   icmp type 8 +4~   icmp type 8 +4~   icmp type 8 +4~   icmp type 8 +4~   icmp type 8 +4~
+  GUEST          any~              any~              any~              any~              any~              any~              any~
+  VPNSITE        any~              tcp/22 tcp/443    tcp/22 tcp/443    tcp/22 tcp/443    tcp/22 tcp/443    tcp/22 tcp/443    tcp/22 tcp/443
+  OpenVPN        any~              tcp/22 tcp/443    tcp/22 tcp/443    tcp/22 tcp/443    tcp/22 tcp/443    tcp/22 tcp/443    tcp/22 tcp/443
+  (other zones)  any~              -                 -                 -                 -                 -                 -
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+WAN -> WAN (inside the zone)
+  allowed: any ~
+  rule 'Guests never to the blocklist': GUEST net -> Blocklist: any (only with it matches the source of traffic that leaves, which is the source after outbound NAT, which is not in the model) ~
+  rule 'Voice from the partner - pass': 198.51.100.0/24 -> 172.16.20.20: tcp/5060, udp/5060 ~
+  rule 'Web publishing': any -> WebServers: tcp/80, tcp/443, tcp/8000-8080
+  rule 'SSH to bastion (rule the port forward registers)': 0.0.0.0/0 -> 172.16.20.10: tcp/22
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+WAN -> LAN
+  allowed: tcp/22, tcp/80, tcp/443, tcp/5060, tcp/8000-8080, udp/123, udp/5060 ~
+  rule 'Voice from the partner - pass': 198.51.100.0/24 -> 172.16.20.20: tcp/5060, udp/5060 ~
+  rule 'Web publishing': any -> WebServers: tcp/80, tcp/443, tcp/8000-8080
+  rule 'SSH to bastion (rule the port forward registers)': 0.0.0.0/0 -> 172.16.20.10: tcp/22
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+WAN -> DMZ
+  allowed: tcp/22, tcp/80, tcp/443, tcp/5060, tcp/8000-8080, udp/123, udp/5060 ~
+  rule 'Voice from the partner - pass': 198.51.100.0/24 -> 172.16.20.20: tcp/5060, udp/5060 ~
+  rule 'Web publishing': any -> WebServers: tcp/80, tcp/443, tcp/8000-8080
+  rule 'SSH to bastion (rule the port forward registers)': 0.0.0.0/0 -> 172.16.20.10: tcp/22
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+WAN -> GUEST
+  allowed: tcp/22, tcp/80, tcp/443, tcp/5060, tcp/8000-8080, udp/123, udp/5060 ~
+  rule 'Voice from the partner - pass': 198.51.100.0/24 -> 172.16.20.20: tcp/5060, udp/5060 ~
+  rule 'Web publishing': any -> WebServers: tcp/80, tcp/443, tcp/8000-8080
+  rule 'SSH to bastion (rule the port forward registers)': 0.0.0.0/0 -> 172.16.20.10: tcp/22
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+WAN -> VPNSITE
+  allowed: tcp/22, tcp/80, tcp/443, tcp/5060, tcp/8000-8080, udp/123, udp/5060 ~
+  rule 'Voice from the partner - pass': 198.51.100.0/24 -> 172.16.20.20: tcp/5060, udp/5060 ~
+  rule 'Web publishing': any -> WebServers: tcp/80, tcp/443, tcp/8000-8080
+  rule 'SSH to bastion (rule the port forward registers)': 0.0.0.0/0 -> 172.16.20.10: tcp/22
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+WAN -> OpenVPN
+  allowed: tcp/22, tcp/80, tcp/443, tcp/5060, tcp/8000-8080, udp/123, udp/5060 ~
+  rule 'Voice from the partner - pass': 198.51.100.0/24 -> 172.16.20.20: tcp/5060, udp/5060 ~
+  rule 'Web publishing': any -> WebServers: tcp/80, tcp/443, tcp/8000-8080
+  rule 'SSH to bastion (rule the port forward registers)': 0.0.0.0/0 -> 172.16.20.10: tcp/22
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+WAN -> (other zones)
+  allowed: tcp/22, tcp/80, tcp/443, tcp/5060, tcp/8000-8080, udp/123, udp/5060 ~
+  rule 'Voice from the partner - pass': 198.51.100.0/24 -> 172.16.20.20: tcp/5060, udp/5060 ~
+  rule 'Web publishing': any -> WebServers: tcp/80, tcp/443, tcp/8000-8080
+  rule 'SSH to bastion (rule the port forward registers)': 0.0.0.0/0 -> 172.16.20.10: tcp/22
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+LAN -> WAN
+  allowed: any ~
+  rule 'Guests never to the blocklist': GUEST net -> Blocklist: any (only with it matches the source of traffic that leaves, which is the source after outbound NAT, which is not in the model) ~
+  rule 'Inside may ping (old kind)': INSIDE net -> 0.0.0.0/0: icmp type 8
+  rule 'Default allow LAN to any rule': LAN net, LAN net IPv6, fe80::/10 -> any: any
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+LAN -> LAN (inside the zone)
+  allowed: any
+  rule 'Inside may ping (old kind)': INSIDE net -> 0.0.0.0/0: icmp type 8
+  rule 'Default allow LAN to any rule': LAN net, LAN net IPv6, fe80::/10 -> any: any
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+LAN -> DMZ
+  allowed: any
+  rule 'Inside may ping (old kind)': INSIDE net -> 0.0.0.0/0: icmp type 8
+  rule 'Default allow LAN to any rule': LAN net, LAN net IPv6, fe80::/10 -> any: any
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+LAN -> GUEST
+  allowed: any
+  rule 'Inside may ping (old kind)': INSIDE net -> 0.0.0.0/0: icmp type 8
+  rule 'Default allow LAN to any rule': LAN net, LAN net IPv6, fe80::/10 -> any: any
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+LAN -> VPNSITE
+  allowed: any
+  rule 'Inside may ping (old kind)': INSIDE net -> 0.0.0.0/0: icmp type 8
+  rule 'Default allow LAN to any rule': LAN net, LAN net IPv6, fe80::/10 -> any: any
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+LAN -> OpenVPN
+  allowed: any
+  rule 'Inside may ping (old kind)': INSIDE net -> 0.0.0.0/0: icmp type 8
+  rule 'Default allow LAN to any rule': LAN net, LAN net IPv6, fe80::/10 -> any: any
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+LAN -> (other zones)
+  allowed: any
+  rule 'Inside may ping (old kind)': INSIDE net -> 0.0.0.0/0: icmp type 8
+  rule 'Default allow LAN to any rule': LAN net, LAN net IPv6, fe80::/10 -> any: any
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+DMZ -> WAN
+  allowed: any ~
+  rule 'Guests never to the blocklist': GUEST net -> Blocklist: any (only with it matches the source of traffic that leaves, which is the source after outbound NAT, which is not in the model) ~
+  rule 'Inside may ping (old kind)': INSIDE net -> 0.0.0.0/0: icmp type 8
+  rule 'DMZ ICMPv6': DMZ net IPv6, fe80::/10 -> ::/0: icmp6 type 128, icmp6 type 135-136
+  rule 'Servers fetch updates': WebServers IPv4 -> Updates: tcp/443 ~
+  rule 'Servers fetch updates 2': WebServers IPv4 -> Servers_all: tcp/443
+  rule 'Servers fetch updates 3': 172.16.20.20 -> Updates: tcp/443 ~
+  rule 'Servers fetch updates 4': 172.16.20.20 -> Servers_all: tcp/443
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+DMZ -> LAN
+  allowed: icmp type 8, tcp/443, udp/123, icmp6 type 128, icmp6 type 135-136 ~
+  rule 'Inside may ping (old kind)': INSIDE net -> 0.0.0.0/0: icmp type 8
+  rule 'DMZ ICMPv6': DMZ net IPv6, fe80::/10 -> ::/0: icmp6 type 128, icmp6 type 135-136
+  rule 'Servers fetch updates': WebServers IPv4 -> Updates: tcp/443 ~
+  rule 'Servers fetch updates 2': WebServers IPv4 -> Servers_all: tcp/443
+  rule 'Servers fetch updates 3': 172.16.20.20 -> Updates: tcp/443 ~
+  rule 'Servers fetch updates 4': 172.16.20.20 -> Servers_all: tcp/443
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+DMZ -> DMZ (inside the zone)
+  allowed: icmp type 8, tcp/443, udp/123, icmp6 type 128, icmp6 type 135-136 ~
+  rule 'Inside may ping (old kind)': INSIDE net -> 0.0.0.0/0: icmp type 8
+  rule 'DMZ ICMPv6': DMZ net IPv6, fe80::/10 -> ::/0: icmp6 type 128, icmp6 type 135-136
+  rule 'Servers fetch updates': WebServers IPv4 -> Updates: tcp/443 ~
+  rule 'Servers fetch updates 2': WebServers IPv4 -> Servers_all: tcp/443
+  rule 'Servers fetch updates 3': 172.16.20.20 -> Updates: tcp/443 ~
+  rule 'Servers fetch updates 4': 172.16.20.20 -> Servers_all: tcp/443
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+DMZ -> GUEST
+  allowed: icmp type 8, tcp/443, udp/123, icmp6 type 128, icmp6 type 135-136 ~
+  rule 'Inside may ping (old kind)': INSIDE net -> 0.0.0.0/0: icmp type 8
+  rule 'DMZ ICMPv6': DMZ net IPv6, fe80::/10 -> ::/0: icmp6 type 128, icmp6 type 135-136
+  rule 'Servers fetch updates': WebServers IPv4 -> Updates: tcp/443 ~
+  rule 'Servers fetch updates 2': WebServers IPv4 -> Servers_all: tcp/443
+  rule 'Servers fetch updates 3': 172.16.20.20 -> Updates: tcp/443 ~
+  rule 'Servers fetch updates 4': 172.16.20.20 -> Servers_all: tcp/443
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+DMZ -> VPNSITE
+  allowed: icmp type 8, tcp/443, udp/123, icmp6 type 128, icmp6 type 135-136 ~
+  rule 'Inside may ping (old kind)': INSIDE net -> 0.0.0.0/0: icmp type 8
+  rule 'DMZ ICMPv6': DMZ net IPv6, fe80::/10 -> ::/0: icmp6 type 128, icmp6 type 135-136
+  rule 'Servers fetch updates': WebServers IPv4 -> Updates: tcp/443 ~
+  rule 'Servers fetch updates 2': WebServers IPv4 -> Servers_all: tcp/443
+  rule 'Servers fetch updates 3': 172.16.20.20 -> Updates: tcp/443 ~
+  rule 'Servers fetch updates 4': 172.16.20.20 -> Servers_all: tcp/443
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+DMZ -> OpenVPN
+  allowed: icmp type 8, tcp/443, udp/123, icmp6 type 128, icmp6 type 135-136 ~
+  rule 'Inside may ping (old kind)': INSIDE net -> 0.0.0.0/0: icmp type 8
+  rule 'DMZ ICMPv6': DMZ net IPv6, fe80::/10 -> ::/0: icmp6 type 128, icmp6 type 135-136
+  rule 'Servers fetch updates': WebServers IPv4 -> Updates: tcp/443 ~
+  rule 'Servers fetch updates 2': WebServers IPv4 -> Servers_all: tcp/443
+  rule 'Servers fetch updates 3': 172.16.20.20 -> Updates: tcp/443 ~
+  rule 'Servers fetch updates 4': 172.16.20.20 -> Servers_all: tcp/443
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+DMZ -> (other zones)
+  allowed: icmp type 8, tcp/443, udp/123, icmp6 type 128, icmp6 type 135-136 ~
+  rule 'Inside may ping (old kind)': INSIDE net -> 0.0.0.0/0: icmp type 8
+  rule 'DMZ ICMPv6': DMZ net IPv6, fe80::/10 -> ::/0: icmp6 type 128, icmp6 type 135-136
+  rule 'Servers fetch updates': WebServers IPv4 -> Updates: tcp/443 ~
+  rule 'Servers fetch updates 2': WebServers IPv4 -> Servers_all: tcp/443
+  rule 'Servers fetch updates 3': 172.16.20.20 -> Updates: tcp/443 ~
+  rule 'Servers fetch updates 4': 172.16.20.20 -> Servers_all: tcp/443
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+GUEST -> WAN
+  allowed: any ~
+  rule 'Guests never to the blocklist': GUEST net -> Blocklist: any (only with it matches the source of traffic that leaves, which is the source after outbound NAT, which is not in the model) ~
+  rule 'Guests to the portal (no protocol, both IP versions)': GUEST net -> 192.0.2.80: any
+  rule 'Guests interactive (tos)': GUEST net -> 0.0.0.0/0: any (only with it matches the type of service (tos) '0x10', which is not in the model) ~
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+GUEST -> LAN
+  allowed: any ~
+  rule 'Guests to the portal (no protocol, both IP versions)': GUEST net -> 192.0.2.80: any
+  rule 'Guests interactive (tos)': GUEST net -> 0.0.0.0/0: any (only with it matches the type of service (tos) '0x10', which is not in the model) ~
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+GUEST -> DMZ
+  allowed: any ~
+  rule 'Guests to the portal (no protocol, both IP versions)': GUEST net -> 192.0.2.80: any
+  rule 'Guests interactive (tos)': GUEST net -> 0.0.0.0/0: any (only with it matches the type of service (tos) '0x10', which is not in the model) ~
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+GUEST -> GUEST (inside the zone)
+  allowed: any ~
+  rule 'Guests to the portal (no protocol, both IP versions)': GUEST net -> 192.0.2.80: any
+  rule 'Guests interactive (tos)': GUEST net -> 0.0.0.0/0: any (only with it matches the type of service (tos) '0x10', which is not in the model) ~
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+GUEST -> VPNSITE
+  allowed: any ~
+  rule 'Guests to the portal (no protocol, both IP versions)': GUEST net -> 192.0.2.80: any
+  rule 'Guests interactive (tos)': GUEST net -> 0.0.0.0/0: any (only with it matches the type of service (tos) '0x10', which is not in the model) ~
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+GUEST -> OpenVPN
+  allowed: any ~
+  rule 'Guests to the portal (no protocol, both IP versions)': GUEST net -> 192.0.2.80: any
+  rule 'Guests interactive (tos)': GUEST net -> 0.0.0.0/0: any (only with it matches the type of service (tos) '0x10', which is not in the model) ~
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+GUEST -> (other zones)
+  allowed: any ~
+  rule 'Guests to the portal (no protocol, both IP versions)': GUEST net -> 192.0.2.80: any
+  rule 'Guests interactive (tos)': GUEST net -> 0.0.0.0/0: any (only with it matches the type of service (tos) '0x10', which is not in the model) ~
+  rule 'Time for everyone (floating, not quick)': 0.0.0.0/0 -> 192.0.2.123: udp/123
+VPNSITE -> WAN
+  allowed: any ~
+  rule 'Guests never to the blocklist': GUEST net -> Blocklist: any (only with it matches the source of traffic that leaves, which is the source after outbound NAT, which is not in the model) ~
+  rule 'VPN users to the web servers': 0.0.0.0/0 -> WebServers: tcp/22
+  rule 'VPN users to LAN web (old kind)': 0.0.0.0/0 -> LAN net: tcp/443
+VPNSITE -> LAN
+  allowed: tcp/22, tcp/443
+  rule 'VPN users to the web servers': 0.0.0.0/0 -> WebServers: tcp/22
+  rule 'VPN users to LAN web (old kind)': 0.0.0.0/0 -> LAN net: tcp/443
+VPNSITE -> DMZ
+  allowed: tcp/22, tcp/443
+  rule 'VPN users to the web servers': 0.0.0.0/0 -> WebServers: tcp/22
+  rule 'VPN users to LAN web (old kind)': 0.0.0.0/0 -> LAN net: tcp/443
+VPNSITE -> GUEST
+  allowed: tcp/22, tcp/443
+  rule 'VPN users to the web servers': 0.0.0.0/0 -> WebServers: tcp/22
+  rule 'VPN users to LAN web (old kind)': 0.0.0.0/0 -> LAN net: tcp/443
+VPNSITE -> VPNSITE (inside the zone)
+  allowed: tcp/22, tcp/443
+  rule 'VPN users to the web servers': 0.0.0.0/0 -> WebServers: tcp/22
+  rule 'VPN users to LAN web (old kind)': 0.0.0.0/0 -> LAN net: tcp/443
+VPNSITE -> OpenVPN
+  allowed: tcp/22, tcp/443
+  rule 'VPN users to the web servers': 0.0.0.0/0 -> WebServers: tcp/22
+  rule 'VPN users to LAN web (old kind)': 0.0.0.0/0 -> LAN net: tcp/443
+VPNSITE -> (other zones)
+  allowed: tcp/22, tcp/443
+  rule 'VPN users to the web servers': 0.0.0.0/0 -> WebServers: tcp/22
+  rule 'VPN users to LAN web (old kind)': 0.0.0.0/0 -> LAN net: tcp/443
+OpenVPN -> WAN
+  allowed: any ~
+  rule 'Guests never to the blocklist': GUEST net -> Blocklist: any (only with it matches the source of traffic that leaves, which is the source after outbound NAT, which is not in the model) ~
+  rule 'VPN users to the web servers': 0.0.0.0/0 -> WebServers: tcp/22
+  rule 'VPN users to LAN web (old kind)': 0.0.0.0/0 -> LAN net: tcp/443
+OpenVPN -> LAN
+  allowed: tcp/22, tcp/443
+  rule 'VPN users to the web servers': 0.0.0.0/0 -> WebServers: tcp/22
+  rule 'VPN users to LAN web (old kind)': 0.0.0.0/0 -> LAN net: tcp/443
+OpenVPN -> DMZ
+  allowed: tcp/22, tcp/443
+  rule 'VPN users to the web servers': 0.0.0.0/0 -> WebServers: tcp/22
+  rule 'VPN users to LAN web (old kind)': 0.0.0.0/0 -> LAN net: tcp/443
+OpenVPN -> GUEST
+  allowed: tcp/22, tcp/443
+  rule 'VPN users to the web servers': 0.0.0.0/0 -> WebServers: tcp/22
+  rule 'VPN users to LAN web (old kind)': 0.0.0.0/0 -> LAN net: tcp/443
+OpenVPN -> VPNSITE
+  allowed: tcp/22, tcp/443
+  rule 'VPN users to the web servers': 0.0.0.0/0 -> WebServers: tcp/22
+  rule 'VPN users to LAN web (old kind)': 0.0.0.0/0 -> LAN net: tcp/443
+OpenVPN -> OpenVPN (inside the zone)
+  allowed: tcp/22, tcp/443
+  rule 'VPN users to the web servers': 0.0.0.0/0 -> WebServers: tcp/22
+  rule 'VPN users to LAN web (old kind)': 0.0.0.0/0 -> LAN net: tcp/443
+OpenVPN -> (other zones)
+  allowed: tcp/22, tcp/443
+  rule 'VPN users to the web servers': 0.0.0.0/0 -> WebServers: tcp/22
+  rule 'VPN users to LAN web (old kind)': 0.0.0.0/0 -> LAN net: tcp/443
+(other zones) -> WAN
+  allowed: any ~
+  rule 'Guests never to the blocklist': GUEST net -> Blocklist: any (only with it matches the source of traffic that leaves, which is the source after outbound NAT, which is not in the model) ~
+
+From reading the configuration
+  NPT_NOT_CONVERTED: 1 IPv6 prefix translation (NPt) of the configuration is not converted
+  FLOATING_LAST_MATCH: 2 rules are not 'quick' (floating rules, and rules of an interface with 'quick' off): such a rule decides only where no quick rule matched, and of several the last one. In the converted policy they stand behind the quick rules, the last one first: 'LAN to test net (not quick)', 'Time for everyone (floating, not quick)'
+  OPNSENSE_VERSION: the configuration was written by OPNsense 26.7 (firewall model 1.0.6), and read as that series reads it
+  OPNSENSE_RULE_EMPTY: rules that match nothing on OPNsense (a protocol of the other IP version, a disabled alias) were left out: 'ICMP for IPv6 only (matches nothing)' (ICMP in a rule for IPv6 only)
+  OPNSENSE_DISABLED_ALIAS: disabled aliases are empty tables on OPNsense: rules that name one match nothing (and 'not' one everything): Old_partner
+  OPNSENSE_REGISTERED_RULE: 1 port forward registers a rule of its own ('Register rule'), which OPNsense puts after every other rule; so does the converted policy
+  BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: OPNsense drops what arrives there from addresses nobody has been given, by a list it downloads, which is not in the configuration
+  OPNSENSE_AUTOMATIC_RULES: OPNsense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof) and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without (RFC 4890), DHCP, and the web interface on its first interface (anti-lockout); and it lets out whatever the firewall itself sends. Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+
+Notes
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  1 rule(s) never match and are left out; 'fwshift audit' names them.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

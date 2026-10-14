@@ -15,6 +15,7 @@ what was approximated and what a person has to look at.
 | Cisco Secure Firewall (FTD) managed by its Device Manager (FDM) | the configuration export (`.txt` or `.zip`), or the JSON of its REST API | a file for the configuration import |
 | Sophos Firewall (SFOS 18 and later) | the export of *Import export* (`.tar` or its `Entities.xml`) | the same, for import |
 | pfSense (2.6 and later; CE and Plus) | the configuration backup (`config.xml`) | the areas Aliases, NAT and Firewall Rules, for *Backup & Restore* |
+| OPNsense (24.7 to 26.7) | the configuration backup (`config.xml`) | the areas Aliases, NAT and Firewall Rules of a chosen series, for *Backups* |
 | SonicWall (SonicOS 6.5 and 7) | the settings export (`.exp`) | commands of the SonicOS 7 command line |
 | WatchGuard (Fireware 12) | the configuration file of Policy Manager (XML) | its policy part, to merge into a configuration of the target |
 | Barracuda CloudGen Firewall (8.0 and later) | the answers of its REST API (JSON) | a shell script that creates the rules through that API |
@@ -39,7 +40,7 @@ change, or a source and its conversion read back (the **equivalence check**).
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.23).** The converter is tested against synthetic
+> **Status: alpha (0.24).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -50,7 +51,7 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   are sent through them. Generated nftables rulesets are also listed back
 >   by nft, as text and as JSON, and both listings must give the same model.
 > * **PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall,
->   Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX, VMware NSX, AWS, Azure and RouterOS** output has **not been loaded on a
+>   Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, VMware NSX, AWS, Azure and RouterOS** output has **not been loaded on a
 >   device or management server**. The Check Point input format is taken from the API
 >   documentation, not from a real export, the ASA and FTD syntax from Cisco's
 >   command references, and the Sophos format from the documentation of its
@@ -61,7 +62,8 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   script for a Management Center has only ever talked to a stand-in written
 >   for the tests. How pfSense turns its configuration into pf rules is taken
 >   from its source code (2.6, 2.7.2 and the current development branch), and
->   checked against a model of it written for the tests, not against pf. The
+>   checked against a model of it written for the tests, not against pf; so is
+>   how OPNsense does (24.7 to 26.7, from the code of each series). The
 >   SonicWall settings export is undocumented beyond its encoding: its keys are
 >   those the published readers of the format agree on, and the commands are
 >   those of SonicWall's knowledge base, a few of them assumed. The WatchGuard
@@ -133,8 +135,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.23.0.pyz --version
-python3 fwshift-0.23.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.24.0.pyz --version
+python3 fwshift-0.24.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -205,6 +207,14 @@ fwshift convert fgt-backup.conf --to fdm -o import.txt --report report.txt \
 fwshift convert config.xml --to panos -o panos.set --report report.txt \
     --interface-address wan=198.51.100.7/24
 fwshift convert running-config.xml --to pfsense -o restore.xml --report report.txt \
+    --zone-map trust=lan --zone-map untrust=wan \
+    --zone-network lan=10.10.0.0/16 --zone-network wan=0.0.0.0/0,::/0
+
+# OPNsense: config.xml from System > Configuration > Backups, of 24.7 to 26.7.
+# To an OPNsense, the output is for one series (--target-version, 26.7 by
+# default) and is restored once per area; it REPLACES what the firewall has there
+fwshift convert opnsense.xml --to fortios -o fortigate.conf --report report.txt
+fwshift convert running-config.xml --to opnsense --target-version 26.1 -o restore.xml --report report.txt \
     --zone-map trust=lan --zone-map untrust=wan \
     --zone-network lan=10.10.0.0/16 --zone-network wan=0.0.0.0/0,::/0
 
@@ -303,7 +313,8 @@ get the input for each platform; for Check Point that is three `mgmt_cli show`
 calls, for an ASA `show running-config`, for a Sophos Firewall an export under
 *Backup & firmware > Import export*, for a Management Center a handful of
 `curl` calls to its REST API, for a Device Manager its configuration export,
-for a pfSense the backup under *Diagnostics > Backup & Restore*, for a
+for a pfSense the backup under *Diagnostics > Backup & Restore*, for an
+OPNsense the one under *System > Configuration > Backups*, for a
 SonicWall *Export Settings*, for a WatchGuard the file Policy Manager saves,
 for a Barracuda a few `curl` calls to its REST API, for an SRX
 `show configuration | display inheritance no-comments | display set`.
@@ -497,6 +508,15 @@ FWShift reads) and does the same for the conversion. See
 | NAT | port forwards (with NAT reflection), 1:1 NAT, outbound NAT in all four modes (automatic, hybrid, manual, disabled) with "do not NAT", static port and address pools |
 | Scope | the whole configuration, pfSense 2.6 and later. Written for pfSense 2.7 and later |
 
+| | OPNsense |
+|---|---|
+| Address objects | aliases of the newer model (addresses, networks, ranges, host names, entries with `!` that leave addresses out, worked out as the pf table), the networks and addresses of interfaces, *This Firewall* |
+| Address groups | aliases, nested; disabled aliases as the empty tables they are; a rule for one IP version takes the addresses of that version |
+| Services | protocol and ports of a rule (ports for TCP and UDP only), port aliases (nested), ICMP types by name and ICMPv6 types by number |
+| Security rules | both kinds: those of *Rules* and of *Rules [new]*, in the order of OPNsense's priorities (floating, groups by their sequence, interfaces; the newer kind first in each; the rules port forwards register last); quick and not on every tab, in, out and both; *received-on*; flags as each series reads them. Written: rules of *Rules [new]* for the series given |
+| NAT | port forwards in both forms (with *Pass* and *Register rule*), Source NAT rules and manual outbound rules in every mode, automatic outbound NAT, 1:1 NAT both ways and one way |
+| Scope | the whole configuration, OPNsense 24.7 to 26.7. Written for one of them (`--target-version`) |
+
 | | SonicWall |
 |---|---|
 | Address objects | host, range, network, FQDN; the objects SonicOS has by itself (`X1 IP`, `X0 Subnet`, `LAN Subnets`, `Firewalled Subnets`, ...) worked out from the interfaces of the export. Written: host, network, range, FQDN, with a zone |
@@ -592,7 +612,7 @@ protection rules, Security Heartbeat conditions, MAC hosts and country groups,
 pfSense schedules, URL table aliases, policy routing (a gateway on a rule),
 tags, limiters and traffic shaping, match rules, NPt, IPv6 NAT, bogon
 networks, the rules of the captive portal and of packages, OPNsense
-configurations, SonicWall ICMP service objects, users, schedules, source-port
+GeoIP, URL, ASN and MAC aliases, TCP flags, rate limits and NPt, SonicWall ICMP service objects, users, schedules, source-port
 services and the security services of a rule (Geo-IP, botnet filter), its
 IPv6 and MAC address objects and Policy mode (SonicOSX), WatchGuard network
 dynamic NAT and 1-to-1 NAT, proxy actions and schedules, Barracuda rule lists
@@ -618,7 +638,7 @@ and everything else outside the policy.
   Firewall (formerly Firepower) 0.7, pfSense 0.8, SonicWall 0.9, WatchGuard
   0.10, Barracuda 0.11, Juniper SRX 0.12, nftables 0.18, VMware NSX 0.19,
   AWS security groups 0.20, Azure network security groups 0.21, MikroTik
-  RouterOS 0.23; next OPNsense 0.24 and Forcepoint NGFW 0.25 (see TODO.md).
+  RouterOS 0.23, OPNsense 0.24; next Forcepoint NGFW 0.25 (see TODO.md).
 * **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](docs/RULE_USAGE.md)):
   rule identities and hit counters (0.13), Check Point logs (0.14),
   connections without a rule uid and iptables logs (0.15), PAN-OS and FortiOS logs (0.16) and

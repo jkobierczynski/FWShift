@@ -274,7 +274,7 @@ def test_the_command_line_finds_and_reads_answers() -> None:
     data = (DATA / "barracuda_sample.json").read_bytes()
     assert cli.detect_format(data) == "barracuda"
     assert cli.detect_format(json.dumps(NETWORKS[0]).encode()) == "barracuda"
-    with pytest.raises(FwshiftError, match="pfSense or SonicWall"):
+    with pytest.raises(FwshiftError, match="pfSense, OPNsense or SonicWall"):
         cli.load(data, "barracuda", Report(), interface_addresses=["x=10.0.0.1/24"])
 
 

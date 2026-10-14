@@ -16,6 +16,7 @@ class NameRules:
     max_len: int
     invalid: Pattern[str]
     start_alnum: bool
+    start_letter: bool = False  # a letter first (an "x" is put in front otherwise)
 
 
 # PAN-OS: letters, digits, space, hyphen, underscore and period; alphanumeric first.
@@ -52,6 +53,8 @@ CISCO_NATIVE = NameRules(128, re.compile(r"[\x00-\x1f\x7f;]"), False)
 # pfSense: an alias has up to 31 letters, digits and underscores (is_validaliasname). A name of digits only, a word
 # of pf, a protocol and a service name are refused as well; the emitter sees to those.
 PFSENSE = NameRules(31, re.compile(r"[^A-Za-z0-9_]"), True)
+# OPNsense: as pfSense, with a letter first (AliasNameField).
+OPNSENSE = NameRules(31, PFSENSE.invalid, True, True)
 # The description of a rule is free text.
 PFSENSE_TEXT = NameRules(200, re.compile(r"[\x00-\x1f\x7f]"), False)
 
@@ -77,7 +80,7 @@ JUNOS_RULE = NameRules(63, re.compile(r"[^A-Za-z0-9_-]"), True)
 
 def clean(name: str, rules: NameRules) -> str:
     out = rules.invalid.sub("_", name).strip()
-    if rules.start_alnum and not (out[:1].isascii() and out[:1].isalnum()):
+    if (rules.start_alnum and not (out[:1].isascii() and out[:1].isalnum())) or (rules.start_letter and not (out[:1].isascii() and out[:1].isalpha())):
         out = "x" + out
     if not out:
         out = "unnamed"

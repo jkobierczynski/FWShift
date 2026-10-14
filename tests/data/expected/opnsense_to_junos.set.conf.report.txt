@@ -1,0 +1,70 @@
+FWShift conversion report
+  source: opnsense
+  target: junos
+
+Summary
+  Security rules:     25   exact 21, approximated 1, needs review 3 (3 emitted disabled), skipped 0
+  NAT rules:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:     14   exact 14, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NPT_NOT_CONVERTED: 1 IPv6 prefix translation (NPt) of the configuration is not converted
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: OPNsense drops what arrives there from addresses nobody has been given, by a list it downloads, which is not in the configuration
+  [needs-review] JUNOS_LOAD: the output is set commands for 'load set' (section 10): 'configure private', 'load set terminal' or 'load set FILE', then 'show | compare', 'commit check' and 'commit confirmed'. New policies go to the end of their pair of zones, after the policies the firewall has there, and the global policies after those: move them with 'insert ... before' where the firewall's own should not come first. Objects go into the global address book, which a firewall with address books in its zones does not accept. Assumed: names of up to 63 characters, 'match from-zone' and 'match to-zone' in global policies, and the definitions of the predefined applications the policies use
+  [needs-review] ZONES_REQUIRED: the policies and NAT rules name these security zones, which must exist on the SRX (or be renamed with --zone-map): DMZ, GUEST, LAN, OpenVPN, VPNSITE, WAN
+  [info] FLOATING_LAST_MATCH: 2 rules are not 'quick' (floating rules, and rules of an interface with 'quick' off): such a rule decides only where no quick rule matched, and of several the last one. In the converted policy they stand behind the quick rules, the last one first: 'LAN to test net (not quick)', 'Time for everyone (floating, not quick)'
+  [info] OPNSENSE_VERSION: the configuration was written by OPNsense 26.7 (firewall model 1.0.6), and read as that series reads it
+  [info] OPNSENSE_RULE_EMPTY: rules that match nothing on OPNsense (a protocol of the other IP version, a disabled alias) were left out: 'ICMP for IPv6 only (matches nothing)' (ICMP in a rule for IPv6 only)
+  [info] OPNSENSE_DISABLED_ALIAS: disabled aliases are empty tables on OPNsense: rules that name one match nothing (and 'not' one everything): Old_partner
+  [info] OPNSENSE_REGISTERED_RULE: 1 port forward registers a rule of its own ('Register rule'), which OPNsense puts after every other rule; so does the converted policy
+  [info] OPNSENSE_AUTOMATIC_RULES: OPNsense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof) and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without (RFC 4890), DHCP, and the web interface on its first interface (anti-lockout); and it lets out whatever the firewall itself sends. Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+
+Security rules
+  Never to the blocklist (floating) 2  ->  needs-review, emitted disabled  (emitted as Never_to_the_blocklist__floating__2)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Geo_block': an alias of type 'geoip' (the countries of a GeoIP database), whose addresses are not in the configuration. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests never to the blocklist  ->  needs-review, emitted disabled  (emitted as Guests_never_to_the_blocklist)
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the source of traffic that leaves, which is the source after outbound NAT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Voice from the partner - pass  ->  approximated  (emitted as Voice_from_the_partner_-_pass)
+      [approximated] AUTOMATIC_RULE: port forward 'Voice from the partner' passes what it forwards without a rule ('Pass' as its filter rule association): OPNsense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+  Block private networks from WAN  ->  exact  (emitted as Block_private_networks_from_WAN)
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks' set: OPNsense drops what arrives there from those networks (the list of 26.7) before any rule of the configuration. This rule stands for that
+  Guests to the portal (no protocol, both IP versions)  ->  exact  (emitted as Guests_to_the_portal__no_protocol__both_IP_versions_)
+      [info] RULE_HALF_NOT_LOADED: the rule is for IPv4 and IPv6, and there is no IPv6 rule for it on OPNsense (source: interface GUEST has no IPv6 network; the rule matches nothing of IPv6 there; destination: '192.0.2.80' is not an IPv6 address): it is converted for the other IP version only
+  Guests interactive (tos)  ->  needs-review, emitted disabled  (emitted as Guests_interactive__tos_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the type of service (tos) '0x10'.
+
+NAT rules
+  Automatic outbound NAT on WAN  ->  exact  (emitted as source fwshift-source-WAN-WAN Automatic_outbound_NAT_on_WAN, source fwshift-source-LAN-WAN Automatic_outbound_NAT_on_WAN, source fwshift-source-DMZ-WAN Automatic_outbound_NAT_on_WAN, source fwshift-source-GUEST-WAN Automatic_outbound_NAT_on_WAN, source fwshift-source-VPNSITE-WAN Automatic_outbound_NAT_on_WAN, source fwshift-source-OpenVPN-WAN Automatic_outbound_NAT_on_WAN)
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: OPNsense translates what leaves by an interface with an IPv4 gateway and comes from the networks of its other interfaces, or from the firewall itself. This rule stands for that
+
+Addresses
+  WAN address  ->  exact  (emitted as WAN_address)
+      [info] RENAMED: renamed to 'WAN_address' to fit the target's naming rules
+  GUEST net  ->  exact  (emitted as GUEST_net)
+      [info] RENAMED: renamed to 'GUEST_net' to fit the target's naming rules
+  LAN net  ->  exact  (emitted as LAN_net)
+      [info] RENAMED: renamed to 'LAN_net' to fit the target's naming rules
+  DMZ net  ->  exact  (emitted as DMZ_net)
+      [info] RENAMED: renamed to 'DMZ_net' to fit the target's naming rules
+  LAN net IPv6  ->  exact  (emitted as LAN_net_IPv6)
+      [info] RENAMED: renamed to 'LAN_net_IPv6' to fit the target's naming rules
+  DMZ net IPv6  ->  exact  (emitted as DMZ_net_IPv6)
+      [info] RENAMED: renamed to 'DMZ_net_IPv6' to fit the target's naming rules
+
+Address groups
+  __lan_network  ->  exact  (emitted as x__lan_network)
+      [info] RENAMED: renamed to 'x__lan_network' to fit the target's naming rules
+  __opt1_network  ->  exact  (emitted as x__opt1_network)
+      [info] RENAMED: renamed to 'x__opt1_network' to fit the target's naming rules
+  __wan_network  ->  exact  (emitted as x__wan_network)
+      [info] RENAMED: renamed to 'x__wan_network' to fit the target's naming rules
+  __opt2_network  ->  exact  (emitted as x__opt2_network)
+      [info] RENAMED: renamed to 'x__opt2_network' to fit the target's naming rules
+  __opt4_network  ->  exact  (emitted as x__opt4_network)
+      [info] RENAMED: renamed to 'x__opt4_network' to fit the target's naming rules
+  INSIDE net  ->  exact  (emitted as INSIDE_net)
+      [info] RENAMED: renamed to 'INSIDE_net' to fit the target's naming rules
+  WebServers IPv4  ->  exact  (emitted as WebServers_IPv4)
+      [info] RENAMED: renamed to 'WebServers_IPv4' to fit the target's naming rules

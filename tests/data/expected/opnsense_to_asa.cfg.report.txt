@@ -1,0 +1,85 @@
+FWShift conversion report
+  source: opnsense
+  target: asa
+
+Summary
+  Security rules:     25   exact 19, approximated 2, needs review 4 (4 emitted disabled), skipped 0
+  NAT rules:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:     14   exact 14, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NPT_NOT_CONVERTED: 1 IPv6 prefix translation (NPt) of the configuration is not converted
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: OPNsense drops what arrives there from addresses nobody has been given, by a list it downloads, which is not in the configuration
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: WAN, LAN, DMZ, GUEST, VPNSITE, OpenVPN. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. 2 destination NAT rules are written as a rule that names the source as well and leaves it as it is: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] FLOATING_LAST_MATCH: 2 rules are not 'quick' (floating rules, and rules of an interface with 'quick' off): such a rule decides only where no quick rule matched, and of several the last one. In the converted policy they stand behind the quick rules, the last one first: 'LAN to test net (not quick)', 'Time for everyone (floating, not quick)'
+  [info] OPNSENSE_VERSION: the configuration was written by OPNsense 26.7 (firewall model 1.0.6), and read as that series reads it
+  [info] OPNSENSE_RULE_EMPTY: rules that match nothing on OPNsense (a protocol of the other IP version, a disabled alias) were left out: 'ICMP for IPv6 only (matches nothing)' (ICMP in a rule for IPv6 only)
+  [info] OPNSENSE_DISABLED_ALIAS: disabled aliases are empty tables on OPNsense: rules that name one match nothing (and 'not' one everything): Old_partner
+  [info] OPNSENSE_REGISTERED_RULE: 1 port forward registers a rule of its own ('Register rule'), which OPNsense puts after every other rule; so does the converted policy
+  [info] OPNSENSE_AUTOMATIC_RULES: OPNsense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof) and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without (RFC 4890), DHCP, and the web interface on its first interface (anti-lockout); and it lets out whatever the firewall itself sends. Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+  [info] FQDN_DNS: objects with a host name need name resolution on the ASA ('dns domain-lookup' and a DNS server group)
+
+Security rules
+  Never to the blocklist (floating)  ->  approximated  (emitted as global_access)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, DMZ. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  Never to the blocklist (floating) 2  ->  needs-review, emitted disabled  (emitted as global_access)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, DMZ. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Geo_block': an alias of type 'geoip' (the countries of a GeoIP database), whose addresses are not in the configuration. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests never to the blocklist  ->  needs-review, emitted disabled  (emitted as global_access)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the source of traffic that leaves, which is the source after outbound NAT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ may not send mail out (received-on)  ->  needs-review, emitted disabled  (emitted as DMZ_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by WAN, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, GUEST, VPNSITE, OpenVPN, WAN with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Voice from the partner - pass  ->  approximated  (emitted as WAN_access_in)
+      [approximated] AUTOMATIC_RULE: port forward 'Voice from the partner' passes what it forwards without a rule ('Pass' as its filter rule association): OPNsense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+  Block private networks from WAN  ->  exact  (emitted as WAN_access_in)
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks' set: OPNsense drops what arrives there from those networks (the list of 26.7) before any rule of the configuration. This rule stands for that
+  No outside resolver (group)  ->  exact  (emitted as LAN_access_in, DMZ_access_in)
+      [info] RESET_ACTION: action reset-client becomes deny; an ASA resets denied TCP connections only with 'service resetinbound' or 'service resetoutside'
+  DMZ anywhere but LAN (disabled)  ->  exact  (emitted as DMZ_access_in)
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated destination is written as the 3 address ranges it leaves
+  Guests to the portal (no protocol, both IP versions)  ->  exact  (emitted as GUEST_access_in)
+      [info] RULE_HALF_NOT_LOADED: the rule is for IPv4 and IPv6, and there is no IPv6 rule for it on OPNsense (source: interface GUEST has no IPv6 network; the rule matches nothing of IPv6 there; destination: '192.0.2.80' is not an IPv6 address): it is converted for the other IP version only
+  DMZ anywhere but LAN (disabled) 2  ->  exact  (emitted as DMZ_access_in)
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated destination is written as the 3 address ranges it leaves
+  Guests interactive (tos)  ->  needs-review, emitted disabled  (emitted as GUEST_access_in)
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the type of service (tos) '0x10'.
+
+NAT rules
+  Automatic outbound NAT on WAN  ->  exact  (emitted as 1 NAT line)
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: OPNsense translates what leaves by an interface with an IPv4 gateway and comes from the networks of its other interfaces, or from the firewall itself. This rule stands for that
+
+Addresses
+  WAN address  ->  exact  (emitted as WAN_address)
+      [info] RENAMED: renamed to 'WAN_address' to fit the target's naming rules
+  GUEST net  ->  exact  (emitted as GUEST_net)
+      [info] RENAMED: renamed to 'GUEST_net' to fit the target's naming rules
+  LAN net  ->  exact  (emitted as LAN_net)
+      [info] RENAMED: renamed to 'LAN_net' to fit the target's naming rules
+  DMZ net  ->  exact  (emitted as DMZ_net)
+      [info] RENAMED: renamed to 'DMZ_net' to fit the target's naming rules
+  LAN net IPv6  ->  exact  (emitted as LAN_net_IPv6)
+      [info] RENAMED: renamed to 'LAN_net_IPv6' to fit the target's naming rules
+  DMZ net IPv6  ->  exact  (emitted as DMZ_net_IPv6)
+      [info] RENAMED: renamed to 'DMZ_net_IPv6' to fit the target's naming rules
+
+Address groups
+  __lan_network  ->  exact  (emitted as x__lan_network)
+      [info] RENAMED: renamed to 'x__lan_network' to fit the target's naming rules
+  __opt1_network  ->  exact  (emitted as x__opt1_network)
+      [info] RENAMED: renamed to 'x__opt1_network' to fit the target's naming rules
+  __wan_network  ->  exact  (emitted as x__wan_network)
+      [info] RENAMED: renamed to 'x__wan_network' to fit the target's naming rules
+  __opt2_network  ->  exact  (emitted as x__opt2_network)
+      [info] RENAMED: renamed to 'x__opt2_network' to fit the target's naming rules
+  __opt4_network  ->  exact  (emitted as x__opt4_network)
+      [info] RENAMED: renamed to 'x__opt4_network' to fit the target's naming rules
+  INSIDE net  ->  exact  (emitted as INSIDE_net)
+      [info] RENAMED: renamed to 'INSIDE_net' to fit the target's naming rules
+  WebServers IPv4  ->  exact  (emitted as WebServers_IPv4)
+      [info] RENAMED: renamed to 'WebServers_IPv4' to fit the target's naming rules

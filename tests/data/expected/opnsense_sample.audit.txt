@@ -1,0 +1,31 @@
+FWShift audit
+  source: opnsense
+  security rules: 25 (2 disabled), NAT rules: 7
+
+Summary
+  high 0, medium 3, low 13, info 3
+
+Findings in the policy as it was read
+  [medium] ANY_SERVICE: rule 'Default allow LAN to any rule' allows any service to any destination, from zone LAN to any zone
+  [medium] ANY_SERVICE: rule 'Guests to the portal (no protocol, both IP versions)' allows any service between its addresses, from zone GUEST to any zone
+  [medium] RISKY_SERVICE: rule 'Guests interactive (tos)' allows telnet, ftp, rsh/rlogin/rexec, netbios, smb, rdp, vnc, x11, from zone GUEST to any zone (on the list of the cleartext and remote administration protocols)
+  [low] ANY_SOURCE: rule 'VPN users to the web servers' allows any source, from zone OpenVPN, VPNSITE to any zone
+  [low] ANY_DESTINATION: rule 'Inside may ping (old kind)' allows its sources to reach any destination, from zone LAN, DMZ to any zone
+  [low] WIDE_NETWORK: rule 'Default allow LAN to any rule' allows traffic for 'fe80::/10', from zone LAN to any zone
+  [low] ANY_SOURCE: rule 'Web publishing' allows any source, from zone WAN to any zone
+  [low] ANY_DESTINATION: rule 'DMZ ICMPv6' allows its sources to reach any destination, from zone DMZ to any zone
+  [low] WIDE_NETWORK: rule 'DMZ ICMPv6' allows traffic for 'fe80::/10', from zone DMZ to any zone
+  [low] ANY_DESTINATION: rule 'Guests interactive (tos)' allows its sources to reach any destination, from zone GUEST to any zone
+  [low] WIDE_PORTS: rule 'Guests interactive (tos)' allows the ports tcp/0-65535, from zone GUEST to any zone
+  [low] INDUSTRIAL_SERVICE: rule 'Guests interactive (tos)' allows modbus, s7/iso-tsap, dnp3, ethernet-ip, opc-ua, iec-104, profinet, niagara-fox, from zone GUEST to any zone (on the list of the industrial control protocols)
+  [low] ANY_SOURCE: rule 'VPN users to LAN web (old kind)' allows any source, from zone OpenVPN, VPNSITE to any zone
+  [low] ANY_SOURCE: rule 'SSH to bastion (rule the port forward registers)' allows any source, from zone WAN to any zone
+  [low] ANY_SOURCE: rule 'Time for everyone (floating, not quick)' allows any source, from zone WAN, LAN, DMZ, GUEST to any zone
+  [low] REDUNDANT_RULE: rule 'Guests never to the blocklist' never matches: 'Never to the blocklist (floating)' above it already blocks everything it could match
+  [info] DISABLED_RULE: rule 'DMZ anywhere but LAN (disabled)' is disabled: remove it, or note why it is kept
+  [info] DISABLED_RULE: rule 'DMZ anywhere but LAN (disabled) 2' is disabled: remove it, or note why it is kept
+  [info] UNUSED_OBJECT: 1 address group no rule uses: 'Old_partner'
+
+Left out of the order checks
+  1 rule(s) that the model holds only approximately are neither called dead nor used to call another rule dead:
+    'Voice from the partner - pass' (AUTOMATIC_RULE)

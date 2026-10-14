@@ -33,7 +33,7 @@ import html
 import ipaddress
 import re
 from dataclasses import dataclass, field
-from typing import Dict, FrozenSet, List, Optional, Sequence, Set, Tuple
+from typing import Dict, FrozenSet, List, Optional, Sequence, Set, Tuple, Type
 
 from .. import transform
 from ..errors import FwshiftError
@@ -66,6 +66,7 @@ _PLACEHOLDER = "192.0.0.8"  # the dummy address of RFC 7600: nothing is sent fro
 _MAX_ENTRIES = 5000  # what an alias holds
 _FIRST_TRACKER = 2000000000  # above what pfSense gives its own rules and what the web interface hands out today
 _ZONE_OF = {zone: key for key, zone in SYSTEM_GROUPS.items()}  # IPsec -> enc0, ...
+_SAME_KIND = ("pfsense", "opnsense")  # sources whose objects and words are those of pf as pfSense writes it
 _GROUP = re.compile(r"[A-Za-z_]|[A-Za-z_][A-Za-z0-9_]{0,13}[A-Za-z_]")  # an interface group: 15 characters, no digit at an end
 _ICMP_NAMES = {number: name for name, number in reversed(list(ICMP_TYPES.items()))}
 _ICMP6_NAMES = {number: name for name, number in reversed(list(ICMP6_TYPES.items()))}
@@ -132,7 +133,7 @@ def _target_interfaces(policy: Policy, options: Options) -> Dict[str, List[str]]
         hints = [options.interface_map.get(i, i) for i in zone.interfaces] if zone is not None else []
         if _is_key(target.lower()):
             add = [target.lower()]
-        elif target in _ZONE_OF and policy.vendor == "pfsense":
+        elif target in _ZONE_OF and policy.vendor in _SAME_KIND:
             add = [_ZONE_OF[target]]
         elif hints and all(_is_key(hint) for hint in hints):
             add = hints
@@ -148,7 +149,7 @@ def _target_interfaces(policy: Policy, options: Options) -> Dict[str, List[str]]
 def _keywords(policy: Policy, interfaces: Dict[str, List[str]], options: Options) -> Dict[str, str]:
     """Objects a pfSense source has for what the firewall itself is -> the word pfSense has for them."""
     out: Dict[str, str] = {}
-    if policy.vendor != "pfsense":
+    if policy.vendor not in _SAME_KIND:
         return out
     names = [(n, a.builtin) for n, a in policy.addresses.items()] + [(n, g.builtin) for n, g in policy.address_groups.items()]
     for name, builtin in names:
@@ -167,32 +168,38 @@ def _keywords(policy: Policy, interfaces: Dict[str, List[str]], options: Options
 
 
 def emit(policy: Policy, report: Report, options: Options) -> str:
+    return emit_with(policy, report, options, _Emitter)
+
+
+def emit_with(policy: Policy, report: Report, options: Options, emitter: Type["_Emitter"]) -> str:
+    """The conversion with an emitter that writes what pfSense has in another form (OPNsense)."""
     zone_spaces(options.zone_networks)  # refuses networks that contradict each other
     interfaces = _target_interfaces(policy, options)
     if options.nat_zone and not all(valid_interface(i) for i in interfaces[options.nat_zone]):
         raise FwshiftError(f"--target-nat-zone: '{options.nat_zone[:40]}' is no interface a pfSense rule can name")
     p = copy.deepcopy(policy)
-    keywords = _keywords(p, interfaces, options)
+    keywords = emitter.keywords_of(p, interfaces, options)
     transform.apply_zone_map(p, options.zone_map)
     transform.ensure_references(p, report)
-    native = p.vendor == "pfsense"
+    native = p.vendor in _SAME_KIND
     listed = list(p.addresses) + list(p.address_groups)
-    reserved = set() if native else {clean(name, PFSENSE) for name in listed if _reserved(clean(name, PFSENSE))}
+    names = emitter.NAMES
+    reserved = set() if native else {clean(name, names) for name in listed if _reserved(clean(name, names))}
     descriptions = [nat.name for nat in p.nat_rules]
     # pfSense has no service objects: a rule says protocol and ports itself. Their names stay as they are.
     services, service_groups = p.services, p.service_groups
     p.services, p.service_groups = {}, {}
-    transform.sanitize_names(p, PFSENSE, PFSENSE_TEXT, report, reserved_addresses=reserved, prefix=options.object_prefix, keep=set(keywords))
+    transform.sanitize_names(p, names, PFSENSE_TEXT, report, reserved_addresses=reserved, prefix=options.object_prefix, keep=set(keywords))
     p.services, p.service_groups = services, service_groups
     for nat, description in zip(p.nat_rules, descriptions):
         nat.name = clean(description, PFSENSE_TEXT)  # the description of a NAT rule is free text, not a name
     # The rules of pfSense see the translated destination. Rewrite them for the translations that are really written.
-    probe = _Emitter(p, Report(), options, interfaces, keywords)
+    probe = emitter(p, Report(), options, interfaces, keywords)
     written = {origin for origins, _, plan in probe.plans() if plan.problem is None and (plan.forwards or plan.one_to_one) for origin in origins}
     transform.to_post_nat_lookup(p, report, written)
     if options.written is not None:
         options.written.append(p)
-    return _Emitter(p, report, options, interfaces, keywords).run()
+    return emitter(p, report, options, interfaces, keywords).run()
 
 
 # -- XML as pfSense writes it ---------------------------------------------------------------------
@@ -270,10 +277,16 @@ def _items(ports: str) -> List[str]:
 
 
 class _Emitter:
+    NAMES = PFSENSE  # what an alias can be called
+
+    @staticmethod
+    def keywords_of(policy: Policy, interfaces: Dict[str, List[str]], options: Options) -> Dict[str, str]:
+        return _keywords(policy, interfaces, options)
+
     def __init__(self, p: Policy, report: Report, options: Options, interfaces: Dict[str, List[str]], keywords: Dict[str, str]) -> None:
         self.p, self.report, self.options = p, report, options
         self.interfaces, self.keywords = interfaces, keywords
-        self.native = p.vendor == "pfsense"
+        self.native = p.vendor in _SAME_KIND
         self.universe = list(interfaces)
         self.known_zones = {options.zone_map.get(zone, zone) for zone in p.zones} | {
             z for r in list(p.rules) + list(p.nat_rules) for z in r.src_zones + r.dst_zones
@@ -338,7 +351,7 @@ class _Emitter:
         if name not in self.keywords:
             return name
         if name not in self.keyword_alias:
-            alias = unique(name, self.taken, PFSENSE)
+            alias = unique(name, self.taken, self.NAMES)
             intervals, complete = transform.known_intervals(self.p, name)
             if complete and intervals:
                 self._alias(alias, "network", _networks(intervals), f"{name} of the source, as the addresses it had there")
@@ -354,7 +367,7 @@ class _Emitter:
             if address.kind == AddressKind.UNSUPPORTED:
                 self._placeholder(address.name, address.raw or "unsupported address type")
             elif address.kind == AddressKind.FQDN:
-                if clean(address.value, PFSENSE) == address.name and not address.description:
+                if clean(address.value, self.NAMES) == address.name and not address.description:
                     self.lazy.add(address.name)  # an object that is nothing but the host name: no alias unless a rule wants one
                 else:
                     self._alias(address.name, "host", [address.value], address.description)
@@ -396,7 +409,7 @@ class _Emitter:
         """An alias for several members of a rule, or for address ranges that are no single network."""
         key = tuple(members)
         if key not in self.lists:
-            name = unique(self.options.object_prefix + label, self.taken, PFSENSE)
+            name = unique(self.options.object_prefix + label, self.taken, self.NAMES)
             entries = transform.dedupe([entry for member in members for entry in self._entries(member)])
             self._alias(name, "network", entries, description)
             self.lists[key] = name
@@ -406,10 +419,10 @@ class _Emitter:
         """An alias of ports. Its name has an upper-case letter or an underscore, which no name of a service has: the
         web interface refuses an alias called like a service (is_validaliasname), and that way none is."""
         if ports not in self.port_aliases:
-            label = clean(hint, PFSENSE) if hint else "ports_" + "_".join(_items(ports)).replace("-", "to")
-            if len(label) > PFSENSE.max_len or _reserved(label) or not re.search(r"[A-Z_]", label):
-                label = clean(f"{label[:20]}_ports" if hint else f"ports_{len(self.port_aliases) + 1}", PFSENSE)
-            name = unique(self.options.object_prefix + label, self.taken, PFSENSE)
+            label = clean(hint, self.NAMES) if hint else "ports_" + "_".join(_items(ports)).replace("-", "to")
+            if len(label) > self.NAMES.max_len or _reserved(label) or not re.search(r"[A-Z_]", label):
+                label = clean(f"{label[:20]}_ports" if hint else f"ports_{len(self.port_aliases) + 1}", self.NAMES)
+            name = unique(self.options.object_prefix + label, self.taken, self.NAMES)
             node = _X("alias")
             node.add("name", name)
             node.add("type", "port")
@@ -1134,13 +1147,13 @@ class _Emitter:
             return f"{ipaddress.ip_address(value)}/32"
         except ValueError:
             pass
-        if "opt" not in value:
-            return value
+        if "opt" not in value or value in self.keywords.values():
+            return value  # (a word of pfSense, opt1 among them, is what it is)
         if ("opt", value) not in self.lists:
-            name = unique("nat_set", self.taken, PFSENSE)
+            name = unique("nat_set", self.taken, self.NAMES)
             counter = 1
             while "opt" in name:
-                name = unique(f"nat_set_{counter}", self.taken, PFSENSE)
+                name = unique(f"nat_set_{counter}", self.taken, self.NAMES)
                 counter += 1
             self._alias(name, "network", [value], f"holds {value} for outbound NAT")
             self.lists[("opt", value)] = name

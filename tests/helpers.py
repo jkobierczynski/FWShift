@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import re
 import shlex
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -1425,7 +1426,7 @@ class PfSense:
 
     PRIVATE = ("10.0.0.0/8", "127.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7")
     NUMBERS = {"tcp": 6, "udp": 17, "icmp": 1, "icmp6": 58, "sctp": 132, "esp": 50, "ah": 51, "gre": 47, "etherip": 97,
-               "ipv6": 41, "igmp": 2, "pim": 103, "ospf": 89, "carp": 112, "pfsync": 249}  # fmt: skip
+               "ipv6": 41, "igmp": 2, "pim": 103, "ospf": 89, "carp": 112, "pfsync": 240}  # fmt: skip
     ICMP = {"echorep": 0, "unreach": 3, "squench": 4, "redir": 5, "althost": 6, "echoreq": 8, "routeradv": 9, "routersol": 10,
             "timex": 11, "paramprob": 12, "timereq": 13, "timerep": 14, "inforeq": 15, "inforep": 16, "maskreq": 17,
             "maskrep": 18, "trace": 30, "dataconv": 31, "mobredir": 32, "ipv6-where": 33, "ipv6-here": 34,
@@ -2685,3 +2686,608 @@ class JunosConfig:
     def allows(self, pkt: Any) -> bool:
         found = self.deciding(pkt)
         return self.default if found is None else found[2]
+
+
+# -- OPNsense ----------------------------------------------------------------------------------------
+
+
+class OPNsense:
+    """An OPNsense firewall (24.7 to 26.7), as far as its ``config.xml`` says what it does with a packet it forwards.
+
+    Written from OPNsense's own code as the notes of the work on it describe it (filter.inc, filter.lib.inc, the models
+    of Firewall/Filter, Alias and DNat, the rule classes) and from pf, not from the parser of FWShift: it reads the XML
+    itself. Both kinds of filter rule, in the order of their priorities; aliases as pf tables, with what they leave out;
+    port forwards in both forms, 1:1 NAT, outbound NAT of both kinds and the automatic one. What it does not know raises,
+    so that a test never passes on something it took for something else. Host names in aliases match nothing here.
+    """
+
+    PRIVATE = {
+        "1.0.4": ("10.0.0.0/8", "127.0.0.0/8", "100.64.0.0/10", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "fc00::/7",
+                  "fe80::/10", "::/128"),
+        "1.0.5": ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "100.64.0.0/10", "169.254.0.0/16", "fd00::/8",
+                  "fe80::/10", "::/128"),
+        "1.0.6": ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10", "169.254.0.0/16", "fd00::/8", "fe80::/10"),
+    }  # fmt: skip
+    NUMBERS = PfSense.NUMBERS
+    ICMP = PfSense.ICMP
+    ICMP6 = PfSense.ICMP6
+    MVC_FIELDS = {"enabled", "statetype", "sequence", "action", "quick", "interfacenot", "interface", "direction", "ipprotocol",
+                  "protocol", "icmptype", "icmp6type", "source_net", "source_not", "source_port", "destination_net",
+                  "destination_not", "destination_port", "log", "categories", "description", "received-on", "received-on-not",
+                  "gateway", "sched"}  # fmt: skip
+    LEGACY_FIELDS = {"type", "interface", "ipprotocol", "statetype", "protocol", "icmptype", "icmp6-type", "source", "destination",
+                     "disabled", "log", "descr", "floating", "quick", "direction", "category", "interfacenot", "associated-rule-id",
+                     "gateway"}  # fmt: skip
+    SERVICES = {"http": 80, "https": 443, "ssh": 22, "smtp": 25, "domain": 53}
+
+    def __init__(self, text: str) -> None:
+        import xml.etree.ElementTree as ET
+
+        self.root = ET.fromstring(text)
+        assert self.root.tag == "opnsense", self.root.tag
+        model = self.root.find("OPNsense/Firewall/Filter")
+        assert model is not None and model.get("version") in self.PRIVATE, "a firewall model of 24.7 to 26.7"
+        self.model = model.get("version", "")
+        self._cache: Dict[str, Any] = {}
+
+    # -- System > Configuration > Backups ----------------------------------------------------------------
+
+    AREAS = {"aliases": ("aliases", "OPNsense/Firewall/Alias"), "nat": ("nat", "OPNsense/Firewall/Filter/snatrules",
+             "OPNsense/Firewall/Filter/npt", "OPNsense/Firewall/Filter/onetoone"),
+             "rules": ("filter", "OPNsense/Firewall/Filter/rules")}  # fmt: skip
+
+    def restore(self, text: str, areas: Tuple[str, ...] = ("aliases", "nat", "rules")) -> None:
+        """Restore one area after the other: the sections of the area the file has replace those of the firewall, those it
+        does not have are deleted, and an area of which the file has no section is refused."""
+        import xml.etree.ElementTree as ET
+
+        other = ET.fromstring(text)
+        for area in areas:
+            sections = self.AREAS[area]
+            if not any(other.find(path) is not None for path in sections):
+                continue
+            for path in sections:
+                parent_path, _, tag = path.rpartition("/")
+                parent = self.root.find(parent_path) if parent_path else self.root
+                if parent is None:
+                    parent = self.root
+                    for part in parent_path.split("/"):
+                        found = parent.find(part)
+                        parent = found if found is not None else ET.SubElement(parent, part)
+                old = parent.find(tag)
+                if old is not None:
+                    parent.remove(old)
+                new = other.find(path)
+                if new is not None:
+                    parent.append(new)
+        self._cache = {}
+
+    # -- reading --------------------------------------------------------------------------------------
+
+    @staticmethod
+    def _t(node: Any, tag: str) -> str:
+        if node is None:
+            return ""
+        found = node.findall(tag)
+        assert len(found) <= 1, f"<{tag}> twice"
+        return (found[0].text or "").strip() if found else ""
+
+    @staticmethod
+    def _set(value: str) -> bool:
+        return value not in ("", "0")  # PHP's !empty()
+
+    @staticmethod
+    def _bool(node: Any, tag: str, default: bool) -> bool:
+        """A BooleanField of the newer models: 1 is true, 0 and nothing false; absent, its default."""
+        found = node.find(tag)
+        return default if found is None else (found.text or "").strip() == "1"
+
+    def newer(self) -> bool:
+        return self.model >= "1.0.5"
+
+    def ipv6(self) -> bool:
+        if self.newer():
+            return not self._set(self._t(self.root.find("OPNsense/Interfaces/settings"), "disableipv6"))
+        return self.root.find("system/ipv6allow") is not None
+
+    def interfaces(self) -> Dict[str, Dict[str, Any]]:
+        """Enabled interfaces of every kind: key -> description, addresses, whether it has a gateway, its settings."""
+        import ipaddress
+
+        if "interfaces" in self._cache:
+            return self._cache["interfaces"]  # type: ignore[no-any-return]
+        out: Dict[str, Dict[str, Any]] = {}
+        self._cache["interfaces"] = out
+        section = self.root.find("interfaces")
+        for node in section if section is not None else []:
+            if node.find("enable") is None:
+                continue  # isset: <enable>0</enable> is enabled too
+            entry: Dict[str, Any] = {"descr": self._t(node, "descr") or node.tag.upper(), "v4": None, "v6": None, "vips": [],
+                                     "device": self._t(node, "if"), "type": self._t(node, "type"),
+                                     "dynamic": self._set(self._t(node, "internal_dynamic")) or self._set(self._t(node, "virtual"))}  # fmt: skip
+            address, bits = self._t(node, "ipaddr"), self._t(node, "subnet")
+            if address and address[0].isdigit() and bits:
+                entry["v4"] = ipaddress.ip_interface(f"{address}/{bits}")
+            address, bits = self._t(node, "ipaddrv6"), self._t(node, "subnetv6")
+            if ":" in address and bits:
+                entry["v6"] = ipaddress.ip_interface(f"{address}/{bits}")
+            gateway = self._t(node, "gateway")
+            entry["gateway"] = (bool(gateway) and gateway.lower() != "none") or self._t(node, "ipaddr") in ("dhcp", "pppoe", "pptp", "l2tp", "ppp")
+            for flag in ("blockpriv", "blockbogons"):
+                found = node.find(flag)
+                # 24.7 and 25.1 ask isset(), 25.7 and later !empty(); the file of 24.7 to 25.7 does not say which wrote it.
+                entry[flag] = found is not None and (self._set((found.text or "").strip()) or not self.newer())
+            out[node.tag] = entry
+        for vip in self.root.findall("virtualip/vip"):
+            owner = out.get(self._t(vip, "interface"))
+            if owner is not None:
+                owner["vips"].append((ipaddress.ip_interface(f"{self._t(vip, 'subnet')}/{self._t(vip, 'subnet_bits') or 32}"), self._t(vip, "mode")))
+        return out
+
+    def key(self, zone: str) -> str:
+        for key, entry in self.interfaces().items():
+            if zone in (key, entry["descr"]):
+                return key
+        raise AssertionError(f"no interface {zone}")
+
+    def groups(self) -> Dict[str, Tuple[List[str], int]]:
+        """Interface groups: name -> (members, sequence); the groups the system keeps of tunnels have sequence 0."""
+        if "groups" not in self._cache:
+            out: Dict[str, Tuple[List[str], int]] = {}
+            for entry in self.root.findall("ifgroups/ifgroupentry"):
+                members = [m.strip() for m in self._t(entry, "members").split(",") if m.strip()]
+                out[self._t(entry, "ifname")] = (members, int(self._t(entry, "sequence") or 0))
+            for key, interface in self.interfaces().items():
+                prefix = {"openvpn": "ovpn", "wireguard": "wg"}.get(key)
+                if interface["type"] == "group" and prefix and key not in out:
+                    out[key] = ([k for k, e in self.interfaces().items() if e["device"].startswith(prefix)], 0)
+            self._cache["groups"] = out
+        return self._cache["groups"]  # type: ignore[no-any-return]
+
+    def aliases(self) -> Dict[str, Tuple[str, List[str], bool]]:
+        if "aliases" not in self._cache:
+            self._cache["aliases"] = {
+                self._t(a, "name"): (self._t(a, "type"), [line.strip() for line in (a.findtext("content") or "").splitlines() if line.strip()],
+                                     self._bool(a, "enabled", True))
+                for a in self.root.findall("OPNsense/Firewall/Alias/aliases/alias")
+            }  # fmt: skip
+        return self._cache["aliases"]  # type: ignore[no-any-return]
+
+    # -- addresses --------------------------------------------------------------------------------------
+
+    @staticmethod
+    def _within(address: str, network: str) -> bool:
+        a, b = _literal(address), _literal(network)
+        return a is not None and b is not None and a[0] == b[0] and b[1] <= a[1] <= b[2]
+
+    def _networks_of(self, key: str, family: int) -> List[str]:
+        if key in self.groups():
+            return [n for member in self.groups()[key][0] for n in self._networks_of(member, family)]
+        entry = self.interfaces().get(key)
+        assert entry is not None, f"no interface {key}"
+        which = "v4" if family == 4 else "v6"
+        out = [str(entry[which].network)] if entry[which] is not None else []
+        return out + [str(vip.network) for vip, _ in entry["vips"] if vip.version == family]
+
+    def _table(self, name: str, seen: Tuple[str, ...] = ()) -> List[Tuple[str, bool]]:
+        """The entries of the pf table of an alias: its own and those of every alias it holds, with "leaves out"."""
+        import ipaddress
+
+        if name.startswith("__") and name.endswith("_network") and name not in self.aliases():
+            key = name[2:-8]
+            return [(n, False) for family in (4, 6) for n in self._networks_of(key, family)]
+        kind, entries, enabled = self.aliases()[name]
+        assert kind in ("host", "network", "networkgroup"), f"alias {name} of type {kind} as an address"
+        if not enabled or name in seen:
+            return []
+        out: List[Tuple[str, bool]] = []
+        for entry in entries:
+            negated = entry.startswith("!")
+            value = entry.lstrip("!")
+            if value in self.aliases() or (value.startswith("__") and value.endswith("_network")):
+                assert not negated, "an alias left out of another"
+                out += self._table(value, seen + (name,))
+            elif "-" in value and _literal(value) is not None:
+                first, last = (ipaddress.ip_address(part) for part in value.split("-"))
+                out += [(str(n), negated) for n in ipaddress.summarize_address_range(first, last)]
+            elif _literal(value) is not None:
+                out.append((value, negated))
+            else:
+                assert kind == "host" and not value[0].isdigit() and ":" not in value, f"entry {entry} of alias {name}"
+        return out
+
+    def _alias_holds(self, name: str, address: str) -> bool:
+        best: Optional[Tuple[int, bool]] = None
+        for network, negated in self._table(name):
+            literal = _literal(network)
+            if self._within(address, network):
+                width = literal[2] - literal[1]
+                if best is None or width < best[0] or (width == best[0] and negated):
+                    best = (width, negated)
+        return best is not None and not best[1]
+
+    def _value_holds(self, value: str, address: str, family: int, link_local: bool = False) -> bool:
+        """Whether an address is in what a rule names: any, a word of OPNsense, an alias, an address or network. In a rule
+        for IPv6 only, the network of an interface comes with the link-local network (Rule.php, mapAddressInfo)."""
+        interfaces = self.interfaces()
+        if value == "any":
+            return True
+        if value == "(self)":
+            which = "v4" if family == 4 else "v6"
+            own = [str(e[which].ip) for e in interfaces.values() if e[which] is not None]
+            own += [str(vip.ip) for e in interfaces.values() for vip, mode in e["vips"] if vip.version == family and mode in ("carp", "ipalias")]
+            return address in own
+        if value.endswith("ip") and value[:-2] in interfaces and re.fullmatch(r"wan|lan|opt\d+", value[:-2]):
+            own = interfaces[value[:-2]]["v4" if family == 4 else "v6"]
+            return own is not None and address == str(own.ip)
+        if value in interfaces or value in self.groups():
+            networks = self._networks_of(value, family) + (["fe80::/10"] if family == 6 and link_local else [])
+            return any(self._within(address, network) for network in networks)
+        if value in self.aliases() or (value.startswith("__") and value.endswith("_network")):
+            return self._alias_holds(value, address)
+        assert _literal(value) is not None and "-" not in value, f"'{value}' is nothing the judge knows"
+        return self._within(address, value)
+
+    def _ports(self, text: str, seen: Tuple[str, ...] = ()) -> Optional[List[Tuple[int, int]]]:
+        """Port ranges of a port, a range, a name or an alias; None for an alias that holds no port (the rule is not loaded)."""
+        if text in self.aliases():
+            kind, entries, enabled = self.aliases()[text]
+            assert kind == "port", f"alias {text} of type {kind} as ports"
+            if not enabled or text in seen:
+                return None
+            out: List[Tuple[int, int]] = []
+            for entry in entries:
+                out += self._ports(entry, seen + (text,)) or []
+            return out or None
+        if text in self.SERVICES:
+            return [(self.SERVICES[text],) * 2]
+        first, _, last = text.replace(":", "-").partition("-")
+        assert first.isdigit() and (not last or last.isdigit()), f"port {text}"
+        return [(int(first), int(last or first))]
+
+    # -- rules -------------------------------------------------------------------------------------------
+
+    def _protocol_matches(self, protocol: str, types: List[int], pkt: Any) -> bool:
+        if protocol in ("", "any"):
+            return True
+        if protocol in ("tcp", "udp", "tcp/udp"):
+            return pkt.proto in protocol.split("/")
+        if protocol == "icmp":
+            return pkt.proto == "icmp" and (not types or pkt.icmp_type in types)
+        if protocol == "ipv6-icmp":
+            return pkt.proto == "icmp6" and (not types or pkt.icmp_type in types)
+        return str(self.NUMBERS[protocol]) == str(self.NUMBERS.get(pkt.proto, pkt.proto))
+
+    def _port_matches(self, protocol: str, text: str, port: int) -> Optional[bool]:
+        if not text or protocol not in ("tcp", "udp", "tcp/udp"):
+            return True  # OPNsense writes ports for TCP and UDP only
+        ranges = self._ports(text)
+        if ranges is None:
+            return None
+        return any(low <= port <= high for low, high in ranges)
+
+    def _entries(self) -> List[Dict[str, Any]]:
+        """The filter rules of the configuration, as dictionaries, in the order of their priorities."""
+        if "entries" in self._cache:
+            return self._cache["entries"]  # type: ignore[no-any-return]
+        groups = self.groups()
+        listed: List[Tuple[Tuple[int, int, int, int, int], Dict[str, Any]]] = []
+        for index, node in enumerate(self.root.findall("OPNsense/Firewall/Filter/rules/rule")):
+            unknown = {child.tag for child in node} - self.MVC_FIELDS
+            assert not unknown, unknown
+            if not self._bool(node, "enabled", True):
+                continue
+            names = [n.strip() for n in self._t(node, "interface").split(",") if n.strip()]
+            negated = self._t(node, "interfacenot") == "1"
+            if len(names) != 1 or negated:
+                tier = (200000, 0)
+            elif names[0] in groups:
+                tier = (300000, groups[names[0]][1])
+            else:
+                tier = (400000, 0)
+            protocol = self._t(node, "protocol").lower()
+            numbers = [int(n) for n in self._t(node, "icmp6type").split(",") if n.strip()]
+            names4 = [self.ICMP[n] for n in self._t(node, "icmptype").split(",") if n.strip()]
+            sides = []
+            for tag in ("source", "destination"):
+                values = [v.strip() for v in (self._t(node, f"{tag}_net") or "any").split(",") if v.strip()]
+                side_negated = self._t(node, f"{tag}_not") == "1"
+                assert not (side_negated and len(values) > 1), "a negated list"
+                sides.append((values, side_negated, self._t(node, f"{tag}_port")))
+            received = [n.strip() for n in self._t(node, "received-on").split(",") if n.strip()]
+            entry = {
+                "descr": self._t(node, "description"), "action": self._t(node, "action") or "pass",
+                "quick": self._bool(node, "quick", True), "interfaces": names, "interfacenot": negated,
+                "direction": self._t(node, "direction") or "in", "families": {"inet6": [6], "inet46": [4, 6]}.get(self._t(node, "ipprotocol"), [4]),
+                "inet6": self._t(node, "ipprotocol") in ("inet6", "inet46"),
+                "protocol": protocol, "types": numbers if protocol == "ipv6-icmp" else names4, "source": sides[0], "destination": sides[1],
+                "received": received, "received_not": self._t(node, "received-on-not") == "1",
+            }  # fmt: skip
+            listed.append(((tier[0], tier[1], 0, int(self._t(node, "sequence") or 1), index), entry))
+        for index, node in enumerate(self.root.findall("filter/rule")):
+            unknown = {child.tag for child in node} - self.LEGACY_FIELDS
+            assert not unknown, unknown
+            kind = self._t(node, "type") or "pass"
+            assert kind in ("pass", "block", "reject", "match"), kind
+            if self._set(self._t(node, "disabled")) or kind == "match":
+                continue
+            floating = node.find("floating") is not None
+            interface = self._t(node, "interface")
+            if floating and "any" in interface.split(","):
+                continue  # OPNsense has no interface "any": it does not load the rule
+            names = [n.strip() for n in interface.split(",") if n.strip()] if floating else [interface]
+            tier = (200000, 0) if floating else (300000, groups[interface][1]) if interface in groups and interface not in ("openvpn", "wireguard") else (400000, 0)
+            quick_node = node.find("quick")
+            quick = (not floating) if quick_node is None else self._set((quick_node.text or "").strip())
+            protocol = self._t(node, "protocol").lower()
+            sides = []
+            for tag in ("source", "destination"):
+                side = node.find(tag)
+                negated_node = side.find("not") if side is not None else None
+                negated = negated_node is not None and (self._set((negated_node.text or "").strip()) or not self.newer())
+                if side is None or side.find("any") is not None:
+                    value = "any"
+                else:
+                    value = self._t(side, "network") or self._t(side, "address") or "any"
+                sides.append(([value], negated, self._t(side, "port")))
+            if protocol == "ipv6-icmp":
+                types = [self.ICMP6[n] for n in [self._t(node, "icmp6-type")] if n]
+            else:
+                types = [self.ICMP[n] for n in self._t(node, "icmptype").split(",") if n.strip()]
+            entry = {
+                "descr": self._t(node, "descr"), "action": kind, "quick": quick, "interfaces": names,
+                "interfacenot": self._set(self._t(node, "interfacenot")), "direction": self._t(node, "direction") or "in",
+                "families": {"inet": [4], "inet6": [6]}.get(self._t(node, "ipprotocol"), [4, 6]), "protocol": protocol,
+                "inet6": self._t(node, "ipprotocol") in ("inet6", "inet46"),  # (no family at all: one rule, not split)
+                "types": types, "source": sides[0], "destination": sides[1], "received": [], "received_not": False,
+            }  # fmt: skip
+            listed.append(((tier[0], tier[1], 1, 0, index), entry))
+        if self.newer():
+            for index, node in enumerate(self.root.findall("nat/rule")):
+                if self._t(node, "pass") != "rule" or self._set(self._t(node, "disabled")) or self._set(self._t(node, "nordr")):
+                    continue
+                source = node.find("source")
+                target_port = self._t(node, "local-port")
+                listed_port = self._t(node.find("destination"), "port")
+                if target_port and "-" in listed_port and target_port.isdigit():
+                    low, high = listed_port.split("-")
+                    target_port = f"{target_port}-{int(target_port) + int(high) - int(low)}"
+                entry = {
+                    "descr": self._t(node, "descr") + " (registered)", "action": "pass", "quick": True,
+                    "interfaces": [n.strip() for n in (self._t(node, "interface") or "wan").split(",")], "interfacenot": False,
+                    "direction": "in", "families": {"inet6": [6], "inet46": [4, 6]}.get(self._t(node, "ipprotocol"), [4]), "inet6": False,
+                    "protocol": self._t(node, "protocol").lower(), "types": [],
+                    "source": ([self._t(source, "network") or "any"], self._set(self._t(source, "not")), self._t(source, "port")),
+                    "destination": ([self._t(node, "target")], False, target_port or listed_port), "received": [], "received_not": False,
+                }  # fmt: skip
+                listed.append(((500000, 0, 0, int(self._t(node, "sequence") or 1), index), entry))
+        listed.sort(key=lambda item: item[0])
+        self._cache["entries"] = [entry for _, entry in listed]
+        return self._cache["entries"]  # type: ignore[no-any-return]
+
+    def _on(self, names: List[str], key: str) -> bool:
+        if not names:
+            return True
+        return any(key == name or key in self.groups().get(name, ([], 0))[0] for name in names)
+
+    def _matches(self, entry: Dict[str, Any], pkt: Any, src: str, dst: str, dport: int) -> Optional[bool]:
+        family = 6 if ":" in src else 4
+        if family not in entry["families"]:
+            return False
+        protocol = entry["protocol"]
+        if protocol == "icmp" and family == 6:
+            return False  # ICMP is of IPv4
+        if not self._protocol_matches(protocol, entry["types"], pkt):
+            return False
+        for (values, negated, port_text), address, port in ((entry["source"], src, pkt.sport), (entry["destination"], dst, dport)):
+            # An address of the other IP version: pf leaves that part of the rule out for this one.
+            usable = [v for v in values if v == "any" or _literal(v) is None or _literal(v)[0] == family]
+            if not usable:
+                return False
+            held = any(self._value_holds(v, address, family, entry["inet6"] and not negated) for v in usable)
+            if held == negated:
+                return False
+            ok = self._port_matches(protocol, port_text, port)
+            if ok is None:
+                return None
+            if not ok:
+                return False
+        return True
+
+    def _deciding(self, direction: str, key: str, pkt: Any, src: str, dst: str, dport: int, arrival: str = "") -> Optional[Dict[str, Any]]:
+        last: Optional[Dict[str, Any]] = None
+        for entry in self._entries():
+            if entry["direction"] not in (direction, "any"):
+                continue
+            if self._on(entry["interfaces"], key) == entry["interfacenot"]:
+                continue
+            if entry["received"] and self._on(entry["received"], arrival) == entry["received_not"]:
+                continue
+            if not self._matches(entry, pkt, src, dst, dport):
+                continue
+            if entry["quick"]:
+                return entry
+            last = entry
+        return last
+
+    # -- NAT -----------------------------------------------------------------------------------------------
+
+    def _target(self, text: str, key: str) -> str:
+        interfaces = self.interfaces()
+        if not text:
+            return str(interfaces[key]["v4"].ip)
+        if text.endswith("ip") and text[:-2] in interfaces:
+            return str(interfaces[text[:-2]]["v4"].ip)
+        if text in self.aliases():
+            return self.aliases()[text][1][0]
+        return text
+
+    def _forward_side(self, node: Any, address: str, port: int, protocol: str) -> Optional[bool]:
+        if node is None:
+            return True
+        if self.newer():
+            value = self._t(node, "network") or self._t(node, "address") or "any"
+            negated = self._set(self._t(node, "not"))
+        else:
+            value = "any" if node.find("any") is not None else self._t(node, "network") or self._t(node, "address") or "any"
+            negated = node.find("not") is not None
+        if self._value_holds(value, address, 4) == negated:
+            return False
+        return self._port_matches(protocol, self._t(node, "port"), port)
+
+    def _arriving(self, key: str, pkt: Any) -> Tuple[str, int, bool, str]:
+        """(destination, port, whether the packet is passed without a rule, the rule) after port forwards and 1:1 NAT."""
+        import ipaddress
+
+        if ":" in pkt.dst:
+            return pkt.dst, pkt.dport, False, ""
+        forwards = list(enumerate(self.root.findall("nat/rule")))
+        if self.newer():
+            forwards.sort(key=lambda item: (int(self._t(item[1], "sequence") or 1), item[0]))
+        system = self.root.find("system")
+        for _, rule in forwards:
+            if self._set(self._t(rule, "disabled")):
+                continue
+            reflection = self._t(rule, "natreflection")
+            assert reflection == "disable" or (not reflection and system is not None and system.find("disablenatreflection") is not None), "NAT reflection"
+            if key not in [m for n in (self._t(rule, "interface") or "wan").split(",") for m in self.groups().get(n.strip(), ([n.strip()], 0))[0]]:
+                continue
+            protocol = self._t(rule, "protocol").lower()
+            if not self._protocol_matches(protocol, [], pkt):
+                continue
+            if not self._forward_side(rule.find("source"), pkt.src, pkt.sport, protocol):
+                continue
+            if not self._forward_side(rule.find("destination"), pkt.dst, pkt.dport, protocol):
+                continue
+            if self._set(self._t(rule, "nordr")):
+                return pkt.dst, pkt.dport, False, self._t(rule, "descr")
+            target = self._target(self._t(rule, "target"), key)
+            port = pkt.dport
+            local, listed = self._t(rule, "local-port"), self._t(rule.find("destination"), "port")
+            if local and listed and protocol in ("tcp", "udp", "tcp/udp"):
+                assert local.isdigit() and listed not in self.aliases(), "port forward with an alias of ports"
+                port = int(local) + (pkt.dport - int(listed.replace(":", "-").split("-")[0]))
+            passed = self._t(rule, "pass") == "pass" if self.newer() else self._t(rule, "associated-rule-id") == "pass"
+            return target, port, passed, self._t(rule, "descr")
+        for rule in self.root.findall("OPNsense/Firewall/Filter/onetoone/rule"):
+            if not self._bool(rule, "enabled", True) or (self._t(rule, "interface") or "wan") != key or self._t(rule, "type") == "nat":
+                continue
+            assert self._t(rule, "destination_net") in ("", "any") and self._t(rule, "natreflection") in ("", "disable"), "1:1 rule the judge does not know"
+            network = ipaddress.ip_network(self._t(rule, "source_net"), strict=False)
+            outside = ipaddress.ip_network(f"{self._t(rule, 'external').split('/')[0]}/{network.prefixlen}", strict=False)
+            address = ipaddress.ip_address(pkt.dst)
+            if address in outside:
+                return str(network.network_address + (int(address) - int(outside.network_address))), pkt.dport, False, self._t(rule, "description")
+        return pkt.dst, pkt.dport, False, ""
+
+    def _snat_matches(self, rule: Any, pkt: Any, dst: str, dport: int, mvc: bool) -> bool:
+        protocol = self._t(rule, "protocol").lower()
+        if not self._protocol_matches(protocol, [], pkt):
+            return False
+        if mvc:
+            sides = ((self._t(rule, "source_net") or "any", self._t(rule, "source_not") == "1", self._t(rule, "source_port"), pkt.src, pkt.sport),
+                     (self._t(rule, "destination_net") or "any", self._t(rule, "destination_not") == "1", self._t(rule, "destination_port"), dst, dport))  # fmt: skip
+        else:
+            source, destination = rule.find("source"), rule.find("destination")
+            far = "any" if destination is None or destination.find("any") is not None else self._t(destination, "network") or self._t(destination, "address")
+            near_not = source is not None and source.find("not") is not None and (self._set(self._t(source, "not")) or not self.newer())
+            sides = ((self._t(source, "network") or "any", near_not, self._t(rule, "sourceport"), pkt.src, pkt.sport),
+                     (far, destination is not None and self._set(self._t(destination, "not")), self._t(rule, "dstport"), dst, dport))  # fmt: skip
+        for value, negated, port_text, address, port in sides:
+            if self._value_holds(value, address, 4) == negated:
+                return False
+            if port_text and not self._port_matches(protocol, port_text, port):
+                return False
+        return True
+
+    def _leaving(self, key: str, pkt: Any, dst: str, dport: int) -> Tuple[str, str]:
+        """(source after 1:1 NAT and outbound NAT on the interface a packet leaves by, the rule)."""
+        import ipaddress
+
+        if ":" in pkt.src:
+            return pkt.src, ""
+        interfaces = self.interfaces()
+        def one_to_one(kinds: Tuple[str, ...]) -> Optional[Tuple[str, str]]:
+            for rule in self.root.findall("OPNsense/Firewall/Filter/onetoone/rule"):
+                if not self._bool(rule, "enabled", True) or (self._t(rule, "interface") or "wan") != key or (self._t(rule, "type") or "binat") not in kinds:
+                    continue
+                network = ipaddress.ip_network(self._t(rule, "source_net"), strict=False)
+                outside = ipaddress.ip_network(f"{self._t(rule, 'external').split('/')[0]}/{network.prefixlen}", strict=False)
+                address = ipaddress.ip_address(pkt.src)
+                if address in network:
+                    return str(outside.network_address + (int(address) - int(network.network_address))), self._t(rule, "description")
+            return None
+
+        found = one_to_one(("binat",))  # pf looks at binat rules before nat rules
+        if found is not None:
+            return found
+        mode = self._t(self.root.find("nat/outbound"), "mode") or "automatic"
+        listed: List[Tuple[Any, bool]] = []
+        if self.model != "1.0.6" or mode in ("advanced", "hybrid"):
+            snat = list(enumerate(self.root.findall("OPNsense/Firewall/Filter/snatrules/rule")))
+            snat.sort(key=lambda item: (int(self._t(item[1], "sequence") or 1), item[0]))
+            listed += [(rule, True) for _, rule in snat]
+        if mode in ("advanced", "hybrid"):
+            listed += [(rule, False) for rule in self.root.findall("nat/outbound/rule")]
+        for rule, mvc in listed:
+            if (not self._bool(rule, "enabled", True)) if mvc else self._set(self._t(rule, "disabled")):
+                continue
+            if self._t(rule, "interface") != key or not self._snat_matches(rule, pkt, dst, dport, mvc):
+                continue
+            if self._set(self._t(rule, "nonat")):
+                return pkt.src, self._t(rule, "description" if mvc else "descr")
+            target = self._t(rule, "target")
+            bits = "" if mvc else self._t(rule, "target_subnet")
+            if not mvc and target == "other-subnet":
+                target, bits = self._t(rule, "targetip"), self._t(rule, "targetip_subnet")
+            if not mvc and not target:
+                target = f"{key}ip"
+            translated = self._target(target, key)
+            if bits and bits != "32":
+                translated = f"{translated}/{bits}"
+            return translated, self._t(rule, "description" if mvc else "descr")
+        if mode in ("automatic", "hybrid") and interfaces[key]["gateway"] and not interfaces[key]["device"].startswith("ovpn"):
+            inside = [str(e["v4"].network) for e in interfaces.values() if not e["gateway"] and e["v4"] is not None] + ["127.0.0.0/8"]
+            if any(self._within(pkt.src, network) for network in inside):
+                return str(interfaces[key]["v4"].ip), "automatic"
+        found = one_to_one(("nat",))  # one way: a nat rule of priority 500, after source NAT (50), manual (100), automatic (200)
+        return found if found is not None else (pkt.src, "")
+
+    # -- verdicts ------------------------------------------------------------------------------------------
+
+    def allows(self, pkt: Any) -> bool:
+        """Whether a packet that opens a connection gets through: in on one interface, out by another."""
+        arrival, departure = self.key(pkt.in_if), self.key(pkt.out_if)
+        if ":" in pkt.src and not self.ipv6():
+            return False
+        dst, dport, passed, _ = self._arriving(arrival, pkt)
+        if not passed:
+            entry = self.interfaces()[arrival]
+            assert not entry["blockbogons"], "bogons"
+            if entry["blockpriv"] and any(self._within(pkt.src, network) for network in self.PRIVATE[self.model]):
+                return False
+            rule = self._deciding("in", arrival, pkt, pkt.src, dst, dport)
+            if rule is None or rule["action"] != "pass":
+                return False  # the default is to block
+        src, _ = self._leaving(departure, pkt, dst, dport)
+        src = src.split("/")[0]
+        rule = self._deciding("out", departure, pkt, src, dst, dport, arrival)
+        return rule is None or rule["action"] == "pass"  # the default is to pass what leaves
+
+    def deciding(self, pkt: Any) -> str:
+        arrival, departure = self.key(pkt.in_if), self.key(pkt.out_if)
+        dst, dport, passed, name = self._arriving(arrival, pkt)
+        src, _ = self._leaving(departure, pkt, dst, dport)
+        leaving = self._deciding("out", departure, pkt, src.split("/")[0], dst, dport, arrival)
+        if leaving is not None and leaving["action"] != "pass":
+            return str(leaving["descr"])
+        if passed:
+            return name
+        rule = self._deciding("in", arrival, pkt, pkt.src, dst, dport)
+        return "" if rule is None else str(rule["descr"])
+
+    def translation(self, pkt: Any) -> Tuple[str, str, str]:
+        dst, dport, _, _ = self._arriving(self.key(pkt.in_if), pkt)
+        src, _ = self._leaving(self.key(pkt.out_if), pkt, dst, dport)
+        return ("Original" if src == pkt.src else src, "Original" if dst == pkt.dst else dst,
+                "Original" if dport == pkt.dport else str(dport))  # fmt: skip

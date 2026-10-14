@@ -1,0 +1,64 @@
+FWShift conversion report
+  source: asa (ASA Version 9.12(4))
+  target: opnsense
+
+Summary
+  Security rules:     18   exact 15, approximated 0, needs review 3 (3 emitted disabled), skipped 0
+  NAT rules:           5   exact 2, approximated 2, needs review 1, skipped 0
+  Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           17   exact 17, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] INTERFACES_REQUIRED: OPNsense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: outside, inside, dmz, guest
+  [needs-review] OPNSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of an OPNsense configuration, for 26.7 (--target-version). Under System > Configuration > Backups, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every alias and every NAT rule that is there now is gone, and the Firewall Rules area replaces the rules of both rule pages ('Rules' and 'Rules [new]'), with the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. The NAT area holds 1 port forward and 1 1:1 rule, and sets outbound NAT to manual mode with the 3 rules of the source; it removes every rule of NPt. OPNsense does not check what it restores and does not load it until the rules are applied or the firewall restarts; keep a backup, and look at the rules before anything depends on them
+  [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
+  [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] SELF_EXCLUDED: on OPNsense the rules of an interface are also the rules for traffic to the firewall itself. Rules of the source that pass traffic to any destination are written for any destination but the firewall itself ('not This Firewall'). A rule that names addresses of the firewall still reaches them
+  [info] EGRESS_IMPLIED: the source rules name no interface traffic leaves by either; destination zones FWShift had worked out for them were left out again
+
+Security rules
+  inside_access_in-1  ->  exact  (emitted as inside (2 rules))
+      [info] RULE_SPLIT: a rule of OPNsense names one protocol: the rule is written as 2 rules, one per kind of service
+  inside_access_in-4  ->  needs-review, emitted disabled  (emitted as inside)
+      [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
+  inside_access_in-7  ->  needs-review, emitted disabled  (emitted as inside)
+      [needs-review] USER_MATCH: source user match LOCAL\alice is not converted.
+  implicit-guest  ->  needs-review, emitted disabled  (emitted as guest)
+      [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind inside, dmz, guest, outside with --zone-network.
+
+NAT rules
+  nat-1  ->  approximated  (emitted as 1 outbound NAT rule)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from inside only; outbound NAT of OPNsense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+  nat-mail-srv  ->  exact  (emitted as 1:1 NAT)
+      [info] NAT_INPUT_INTERFACE: the rule names the zone of the inside address (dmz), which a 1:1 rule of OPNsense has no place for
+  nat-inside-net  ->  approximated  (emitted as 1 outbound NAT rule)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from inside only; outbound NAT of OPNsense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+  nat-after-auto-1  ->  needs-review  (emitted as 1 outbound NAT rule)
+      [needs-review] NAT_INPUT_INTERFACE: the rule applied to traffic from guest only; outbound NAT of OPNsense cannot match the interface traffic arrived on, so it applies to traffic from every interface
+
+Addresses
+  web-srv  ->  exact  (emitted as web_srv)
+      [info] RENAMED: renamed to 'web_srv' to fit the target's naming rules
+  mail-srv  ->  exact  (emitted as mail_srv)
+      [info] RENAMED: renamed to 'mail_srv' to fit the target's naming rules
+  inside-net  ->  exact  (emitted as inside_net)
+      [info] RENAMED: renamed to 'inside_net' to fit the target's naming rules
+  inside-v6  ->  exact  (emitted as inside_v6)
+      [info] RENAMED: renamed to 'inside_v6' to fit the target's naming rules
+  admin-range  ->  exact  (emitted as admin_range)
+      [info] RENAMED: renamed to 'admin_range' to fit the target's naming rules
+  web-public  ->  exact  (emitted as web_public)
+      [info] RENAMED: renamed to 'web_public' to fit the target's naming rules
+  branch-net  ->  exact  (emitted as branch_net)
+      [info] RENAMED: renamed to 'branch_net' to fit the target's naming rules
+  guest-pool  ->  exact  (emitted as guest_pool)
+      [info] RENAMED: renamed to 'guest_pool' to fit the target's naming rules
+
+Address groups
+  dmz-servers  ->  exact  (emitted as dmz_servers)
+      [info] RENAMED: renamed to 'dmz_servers' to fit the target's naming rules

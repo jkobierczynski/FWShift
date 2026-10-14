@@ -1053,7 +1053,7 @@ def test_the_format_is_detected() -> None:
     assert cli.detect_format(sample) == "pfsense"
     assert cli.detect_format(b'\xef\xbb\xbf<?xml version="1.0"?>\n<!-- a backup -->\n<pfsense>\n<version>23.3</version></pfsense>') == "pfsense"
     assert cli.detect_format(b"<PFSENSE><version>1</version></PFSENSE>") == "pfsense"
-    assert cli.detect_format(b"<opnsense><version>1</version></opnsense>") == "pfsense"  # for the answer the parser has for it
+    assert cli.detect_format(b"<opnsense><version>1</version></opnsense>") == "opnsense"
     assert cli.detect_format((DATA / "panos_sample.xml").read_bytes()) == "panos" and cli.detect_format((DATA / "sophos_sample.xml").read_bytes()) == "sophos"
     assert cli.detect_format(b"<config><pfsense/></config>") == "panos"
     written = cli.convert(parse_pfsense.parse(sample, Report()), "pfsense", Report())
@@ -1671,7 +1671,7 @@ def test_an_interface_address_given_twice_is_refused() -> None:
     interfaces = interfaces_xml().replace(x("ipaddr", "198.51.100.2") + x("subnet", "24"), x("ipaddr", "dhcp"))
     with pytest.raises(FwshiftError, match="--interface-address: two IPv4 addresses for 'WAN'"):
         read(NO_NAT, x("filter"), interfaces=interfaces, interface_addresses=["wan=198.51.100.7/24", "WAN=198.51.100.8/24"])
-    with pytest.raises(FwshiftError, match="--interface-address is for a pfSense or SonicWall source"):
+    with pytest.raises(FwshiftError, match="--interface-address is for a pfSense, OPNsense or SonicWall source"):
         cli.load((DATA / "asa_sample.cfg").read_bytes(), "asa", Report(), interface_addresses=["wan=198.51.100.7/24"])
 
 

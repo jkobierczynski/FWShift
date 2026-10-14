@@ -8,12 +8,12 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.23.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on) |
-| Tests | 4345, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a MikroTik router, a Check Point management server, a Cisco Management Center or a Device Manager |
+| Version | 0.24.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on) |
+| Tests | 4506, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a MikroTik router, an OPNsense, a Check Point management server, a Cisco Management Center or a Device Manager |
 | Analysis | the audit, the zone matrix, rule usage from hit counters and logs, the zone and conduit model as a gate (`fwshift conduits`), the equivalence check (`fwshift compare`, `convert --compare`) |
-| Next | OPNsense (0.24.0) and Forcepoint NGFW (0.25.0); the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
+| Next | Forcepoint NGFW (0.25.0); the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
 
 ## Layout
 
@@ -31,6 +31,10 @@ src/fwshift/
         sophos.py     Sophos Entities.xml    -> model (exclusions, a rulebase per IP version)
         pfsense.py    pfSense config.xml     -> model (the order of pf, interface
                       groups, port forwards and the rules pfSense adds itself)
+        opnsense.py   OPNsense config.xml    -> model (brought into the form the
+                      pfSense reader reads, which a subclass of it reads with
+                      what OPNsense does otherwise: tiers, flags per series,
+                      aliases as pf tables, both kinds of rule and of NAT)
         sonicwall.py  SonicOS settings export -> model (rules per pair of zones,
                       default rules, objects of SonicOS from the interfaces)
         watchguard.py Policy Manager XML     -> model (interfaces as zones, a
@@ -68,6 +72,9 @@ src/fwshift/
         sophos.py     model -> Entities.xml (a rule per IP version, flat groups)
         pfsense.py    model -> the areas aliases, nat and filter of a pfSense
                       configuration (a rule per arrival interface)
+        opnsense.py   model -> the same decisions, in the form of an OPNsense
+                      series (a subclass of the pfSense emitter whose nodes
+                      become rules, aliases and NAT of the newer models)
         sonicwall.py  model -> SonicOS 7 commands (a rule per pair of zones and
                       IP version, a rule that denies at the end of each pair)
         watchguard.py model -> the policy part of a Policy Manager file (aliases
@@ -141,11 +148,13 @@ tests/
                       FortiOS logs (and panos_logged.xml), the two
                       Cisco Secure Firewall samples and the SonicWall,
                       WatchGuard, Barracuda and Juniper samples, the nftables
-                      sample (written by nft itself), the NSX, AWS, Azure and RouterOS samples, the zone model,
+                      sample (written by nft itself), the NSX, AWS, Azure, RouterOS and OPNsense samples, the zone model,
                       and the kernel checks for iptables and nftables
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
                       Check Point, ASA, Sophos and Cisco Secure Firewall output;
                       a pfSense that judges packets from its configuration;
+                      an OPNsense that does, for both kinds of rule and NAT,
+                      and restores areas as OPNsense does;
                       a SonicWall that judges by an export and by commands;
                       a Firebox that judges by its configuration file;
                       a CloudGen Firewall that judges by API answers or a script;
@@ -177,6 +186,8 @@ tests/
                       the script is run against
     test_pfsense.py   pfSense both ways: random configurations against the
                       judge in helpers.py, emitted files restored into it
+    test_opnsense.py  OPNsense both ways, per series, against the judge in
+                      helpers.py; pfSense converted and restored on an OPNsense
     test_sonicwall.py SonicWall both ways, against the two judges in helpers.py
     test_watchguard.py WatchGuard both ways, against the judge in helpers.py
     test_barracuda.py Barracuda both ways, against the judge in helpers.py
@@ -568,6 +579,10 @@ there for an old tag whose tests no longer run on today's tools.
 | RouterOS: chains of its own, switched on by one change | An import stops at the first line the router refuses and keeps the lines before it. Rules in `fwshift-forward` that nothing jumps to change no traffic, so a script that stops halfway is harmless; the jumps from `forward`, `dstnat` and `srcnat` come last, disabled, for a person to enable in Safe Mode. The script never writes `input` or `output` and never removes anything. |
 | RouterOS: the chain ends with the policy's default | What falls off a custom chain goes back to `forward`, whose own rules and default accept would then decide it. An explicit accept or drop at the end makes the chain decide everything, as the source did. |
 | RouterOS: interface lists as zones when they do not overlap | The lists are what a RouterOS administrator thinks in (`LAN`, `WAN`). Where they overlap, or a rule names part of one, every interface is a zone and a list its members, which is exact. |
+| OPNsense: the pfSense reader and emitter, with what OPNsense does otherwise | OPNsense writes the same kind of pf ruleset, and two thirds of what pfSense does with a configuration (interfaces, aliases of networks, the per-family halves of a rule, leaving rules, NAT plans) holds. The parser brings a configuration into the pfSense form (flags as the series reads them, both kinds of rule as rules of `<filter>` in OPNsense's order) and a subclass of the pfSense reader overrides the rest; the emitter subclasses the pfSense emitter and turns its nodes into the newer models. What both get right is shared, and so is what one fixes. |
+| OPNsense: rules of *Rules [new]*, for one series | The legacy rule page is a plugin in 26.7, and the newer models are where OPNsense goes. The models are not migrated on a restore, so the file has the form of the series it is for (`--target-version`): the port forwards changed in 26.1, rules for both IP versions came in 25.1, ICMPv6 types in 25.7, *received-on* in 26.7. |
+| OPNsense: no categories, no interface groups written | Restoring the Categories area replaces every category of the firewall, and a rule that names a category uuid the firewall does not have shows none. As for pfSense, groups are created by hand (`INTERFACES_REQUIRED`). |
+| OPNsense: the word of an interface network only where it is exact | OPNsense adds fe80::/10 to the network of an interface in a rule for IPv6. The model holds it where the source did (an OPNsense source); elsewhere the addresses are written. |
 | RouterOS: `!dstnat` as allow rules for the port forwards ahead of a deny | On RouterOS a port forward needs no filter rule: the default configuration drops what comes from WAN unless destination NAT translated it. The model has no NAT state; one allow rule per destination NAT rule, for what it translates, ahead of the deny, is exact when nothing below blocks that traffic, which is checked. |
 | Azure: an allow rule never says `*` | Microsoft documents `*` as TCP, UDP and ICMP, but the default DenyAll rules suggest it matches more. An allow rule names the three; a blocking rule may say `*`, which then blocks at least as much. |
 | The conduit check reads the matrix | The matrix already holds what a policy can allow between zones, more where it cannot be exact and marked. Checking the model against it inherits that: a check that passes holds for the policy as read; a finding that rests on a marked part is possible, and fails the gate too. |
@@ -682,6 +697,13 @@ policy behaves unexpectedly.
 | pfSense NAT: rdr before binat for what arrives, binat before nat for what leaves; a port forward with a numeric local port and several ports maps all of them to that port; NAT reflection in pure NAT mode puts the forward on the interfaces without a gateway (an `ovpn*` or `ipsec*` device counts as one with a gateway); automatic outbound NAT translates what leaves an interface with a gateway from the networks of the others, static routes over them, OpenVPN tunnel networks and the IPsec mobile pool; an outbound NAT rule without family and addresses is written for IPv4 and IPv6; `opt` in the source of an outbound NAT rule is read as an interface name | pfSense parser and emitter |
 | pfSense restore of an area: the file may have the root `<pfsense>`; the whole section is replaced; an empty or missing section is refused; no version check and no upgrade; the filter reloads by itself; separators, `bypassstaticroutes` and linked rules go with the section | emitter, `PFSENSE_RESTORE`, manual |
 | pfSense XML: a flag is an element, empty or not; text is decoded twice (also inside CDATA); alias names are up to 31 of `[A-Za-z0-9_]`, not a word of pf or of pfSense; descriptions take any text. A pfSense accepts what the emitter writes and has not restored it anywhere: trackers from 2000000001, `associated-rule-id` empty, `natreflection` `disable`, outbound NAT in the form of config 23.x | emitter |
+| OPNsense, all rows below: read in its source code of 24.7, 25.1, 25.7, 26.1 and 26.7 (`filter.inc`, `filter.lib.inc`, `diag_backup.php`, the models `Firewall/Filter`, `Alias`, `DNat`, `Category`, `Group`, and the classes `Rule`, `FilterRule`, `ForwardRule`, `SNatRule`, `DNatRule`), not on a running OPNsense | parser and emitter |
+| OPNsense flags: legacy `disabled`, `log`, `interfacenot`, outbound `nonat`/`staticnatport`, port forward `disabled`/`nordr` are `!empty()`; legacy `quick` absent means quick unless floating; source/destination `not` is `isset` up to 25.7, `!empty()` from 26.1; `blockpriv`/`blockbogons` `isset` in 24.7 and 25.1, `empty()` from 25.7; a BooleanField of the newer models is `1` true, `0` or empty false | `_Normalizer`, `_bool` |
+| OPNsense order: floating 200000, group rules 300000 + the sequence of the group (the newer kind for the groups of the system, OpenVPN and WireGuard, at 0), interface rules 400000, rules port forwards register 500000; inside one value the newer kind first by sequence, then the old kind in file order; any rule can be non-quick and (on a tab) for out or both directions | `_Normalizer._filter`, `_ordered` |
+| OPNsense rules: no `ipprotocol` in a legacy rule is one rule for both families; `inet46` is split in two before addresses are mapped, and an interface network in the IPv6 half gets `,fe80::/10` (a comma list becomes a rule per item, `!` applies to the first); ports only for TCP, UDP and TCP/UDP; `(device)` without an address of a family matches nothing of it | `_network`, `rule_family` |
+| OPNsense aliases: content one entry per line; a table is the union of the entries of the alias and of every alias it holds, `!` entries included, longest prefix decides; a disabled alias is an empty table; a disabled port alias inside another adds nothing | `_aliases`, `_flat`, `_effective` |
+| OPNsense NAT: MVC SNAT (50) before legacy manual (100) before automatic (200) before one-way 1:1 (500); binat before nat; MVC SNAT applied in every mode up to 26.1.10, in hybrid and manual from 26.1.11; a port forward with *Register rule* adds `pass in quick` on its interface to the target (500000) | `_nat`, `_registered` |
+| OPNsense restore of an area: a set of sections; those the file has replace the running ones, those it does not have are deleted; no section of the set, refused; no filter reload, no validation, migrations run but not for a `Filter` model whose version is not in the area | emitter, `OPNSENSE_RESTORE`, the judge's `restore` |
 | SonicWall, all rows below: from SonicWall's knowledge base and documentation where it says so, otherwise from the published readers of the settings export (faridlav/SonicWallParser, pryorda/sonicwallRuleParser, angeloxx/dumpwall on GitHub). Nothing was run on a SonicWall | SonicWall parser and emitter |
 | SonicWall `.exp`: Base64 of `key=value` joined by `&`, values URL-encoded, `&&` at the end (KB); the key names of address objects (`addrObj*`, type 1 host, 2 range, 4 network, 8 group), groups (`addro_atomToGrp`/`addro_grpToGrp`), services (`svcObj*`, `svcObjIpType` the protocol number), zones (`zoneObj*`), interfaces (`iface_*`, `interface_Zone`), access rules (`policy*`, `V6` for IPv6) and NAT (`natPolicy*`, interfaces by `iface_ifnum`, -1 any) (the readers agree) | SonicWall parser |
 | SonicWall `.exp`: action 2 is allow, 0 and 1 are deny and discard in an order the readers disagree on; empty source, destination, service is any, empty translation is original; `Port1 0` with `Port2 N` is port N; the codes of `zoneObjZoneType` (0 untrusted, 1 trusted, 2 public, 4 wireless, 5 encrypted) are one reader's reading | SonicWall parser |
@@ -2009,6 +2031,117 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-14: version 0.24.0
+
+The second of three brands asked for after the plan of 2026 (`TODO.md`):
+**OPNsense**, 24.7 to 26.7, both ways.
+
+**Built**
+
+* `parsers/opnsense.py`: `config.xml` of OPNsense 24.7, 25.1, 25.7, 26.1 and
+  26.7, told apart by the version of the firewall model. A normalizer brings
+  it into the form the pfSense reader reads: flags as each series reads them,
+  the rules of *Rules [new]* (lists of addresses one rule per pair, upper-case
+  protocols, ICMPv6 types by number, *received-on*) and of `<filter>` in the
+  order of OPNsense's priorities, quick or not on every tab, port forwards of
+  both forms (with *Pass* and *Register rule*), Source NAT and 1:1 NAT of the
+  newer model. A subclass of the pfSense reader does the rest: aliases of the
+  newer model as pf tables (entries with `!` worked out, disabled aliases
+  empty, `__lan_network` and its like), the link-local network in rules for
+  IPv6, the private networks of each series, the IPv6 switch of 26.1, NAT in
+  OPNsense's order, the dead sections OPNsense migrated.
+* `emitters/opnsense.py`: the pfSense emitter's decisions in the form of one
+  series (`--target-version`, 26.7 by default): rules of *Rules [new]* with
+  uuid5 identities and sequence numbers, aliases of the newer model (host
+  names in host aliases, names with a letter first), port forwards of the old
+  form up to 25.7 and of the newer from 26.1, Source NAT and 1:1 of the newer
+  model; *received-on* for a leading deny between named zones (26.7); what a
+  series cannot say disabled (`OPNSENSE_ICMP_TYPES`, `OPNSENSE_SCTP_PORTS`).
+* `--from opnsense`, `--to opnsense`, `--target-version`, detection of an
+  OPNsense configuration (the pfSense parser points to it), and
+  `--interface-address` for it.
+* `tests/test_opnsense.py` (122 tests): a judge of an OPNsense
+  (`helpers.OPNsense`) that reads a configuration itself, both kinds of rule,
+  aliases as tables, port forwards, Source NAT, 1:1 NAT and the restore of
+  areas; the sample (`opnsense_sample.xml`, written by
+  `tests/tools/make_opnsense_sample.py`), 37 golden conversions, its audit and
+  matrix.
+
+**What the work made necessary**
+
+* *The pfSense reader, reused.* Most of what pfSense does with a
+  configuration holds for OPNsense. Rather than a second reader, the
+  configuration is brought into the form the pfSense reader takes, and a
+  subclass overrides what differs; the emitter likewise. The parts of the
+  pfSense emitter that decide names and keywords became overridable
+  (`NAMES`, `keywords_of`, `emit_with`), and one of its decisions turned out
+  wrong for pfSense too: an interface word in the source of an outbound NAT
+  rule was wrapped in an alias as if it were an alias with `opt` in its name.
+* *Flags that differ by series.* An empty element means "off" in most places,
+  `<not/>` changed meaning in 26.1, and *Block private networks* in 25.7; a
+  file of 24.7 to 25.7 does not say which of the three wrote it. Where they
+  differ FWShift takes the reading that blocks more and says so.
+* *The link-local network.* OPNsense adds fe80::/10 to the network of an
+  interface in a rule for IPv6, and splits a rule for both versions before it
+  does. The model holds it; the writer uses the word of an interface only
+  where OPNsense makes of it what the model holds.
+
+**Review**
+
+*Round 32* by the independent reviewer, with probe scripts.
+
+| | Finding | Fix |
+|---|---|---|
+| high | Emitter (pfSense and OPNsense): outbound NAT from the network of an `optN` interface was written as an alias holding the word, a host name to the firewall: the rule matched nothing | a word stays a word |
+| high | Parser: a quick tab rule for both directions became a floating rule, ahead of every group and interface rule | split: the half for what arrives keeps its place, the half for what leaves is a leaving rule |
+| high | Parser: groups of one sequence were taken group by group; OPNsense takes the newer kind of all of them first | sorted by (sequence, kind, order) |
+| medium | Parser: leaving rules after Source NAT or 1:1 NAT of the newer model were not flagged as matching the translated source | those count for `_translating_zones` |
+| medium | Parser: a disabled port alias inside another made the rule not loaded | it adds nothing to the other |
+| medium | Parser: a negated source of a manual outbound NAT rule was dropped | the NAT rule is not converted, as for a negated destination |
+| medium | Parser: a NAT target `wanip` on a rule of another interface was read as the address of the rule's interface | the address of the interface named |
+| medium | Parser: a port forward on several interfaces was not loaded | one per interface; the note counts forwards |
+| medium | Parser: a legacy rule without a source or destination was not loaded | any |
+| medium | Parser: a one-way 1:1 rule was taken before Source NAT, manual and automatic NAT | after them (priority 500) |
+| medium | Parser: an ICMPv6 rule of the old kind took `icmptype`, which OPNsense uses for ICMP | left out |
+| medium | Emitter: host names in an alias of type network | an alias of type host of their own, held by the other |
+| medium | Emitter: alias names starting with a digit | a letter first (`NameRules.start_letter`) |
+| medium | Emitter: the word of an interface network in a rule for IPv6, to which OPNsense adds fe80::/10 | the addresses, unless the model holds the link-local network too (`OPNSENSE_LINK_LOCAL` where they are not known) |
+| low | Parser: fe80::/10 only in rules for IPv6 only; OPNsense splits `inet46` first | in the IPv6 half too; not for a legacy rule without a family |
+| low | Parser and judge: an empty BooleanField read as true in places | false, as the models read it |
+| low | Emitter: aliases of the networks of interfaces written as type host | network |
+| low | Parser: a disabled rule of an unknown type refused the file | left out (`OPNSENSE_DISABLED_ODD`) |
+| low | Parser: a negated `<key>ip` in a rule for IPv4 on an interface without IPv4 was not loaded | every IPv4 address |
+| low | `OPNSENSE_RESTORE` did not say that the rules area takes the static route bypass with it; the rate limit of 26.7 was not read | said; unsupported |
+| low | pfSense: `pfsync` is protocol 240, not 249 | 240 (parser and judge) |
+
+The fixes were not reviewed again; they have tests (`test_r32_*` in
+`test_opnsense.py`), and the random generators now make the cases the review
+found (tab rules for both directions, groups of one sequence, a disabled port
+alias in another, a rule without a destination, `icmptype` in an ICMPv6 rule,
+Source NAT to the address of another interface).
+
+**Verified, and not**
+
+* The tests: 122 in `test_opnsense.py`, the suite 4506. The parser against the
+  judge: 70 random configurations per series (both kinds of rule, aliases with
+  exclusions, disabled aliases, groups, flags), 300 packets each, and 60
+  random NAT configurations per series; the emitter against the judge: 50
+  random models across the five series; a round trip OPNsense to OPNsense
+  per series, and pfSense to OPNsense against the pfSense judge (rules,
+  floating rules, NAT).
+* A mutation check with 49 ways to break the parser and the emitter (3 did not
+  apply to the code as it was): 42 caught at first; tests were added for the
+  other 4, which catch them all (a rule of the newer kind without an IP
+  version, a port forward of the newer form that passes by itself, a negated
+  destination of Source NAT, the order of the entries of an alias that leaves
+  addresses out).
+* **Not verified**: nothing was restored on an OPNsense, and no backup of a
+  real one was read (the inputs were written by hand from the models and the
+  code). What a restore does, how the GUI writes empty flags and lists, and
+  the priorities are read in the code, not seen; the judge is written from
+  the same reading as the parser, so a misreading of OPNsense would be in
+  both.
 
 ### 2026-10-13: version 0.23.0
 

@@ -2,13 +2,13 @@
 
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
 Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
-or by its Device Manager), Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX, Linux iptables, Linux nftables, the VMware NSX
+or by its Device Manager), Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX, Linux iptables, Linux nftables, the VMware NSX
 distributed firewall, AWS security groups, Azure network security groups and MikroTik RouterOS, and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; show what each zone may reach in each
 other zone; check a policy against a zone and conduit model kept as a file;
 and say which connections two policies decide differently.
-This manual covers version 0.23.
+This manual covers version 0.24.
 
 **Contents**
 
@@ -44,8 +44,8 @@ more permissive without saying so.** In practice:
 * Every rule of the source appears in the output, in the same order, or in
   the report as *skipped* with the reason. (One kind is counted instead of
   listed: permit entries of an ASA that can match nothing the ASA forwards,
-  `RULE_WITHOUT_EFFECT`. Rules a pfSense does not load itself are named in
-  one note, `RULE_NOT_LOADED`.)
+  `RULE_WITHOUT_EFFECT`. Rules a pfSense or an OPNsense does not load itself
+  are named in one note, `RULE_NOT_LOADED`.)
 * A rule whose match cannot be expressed on the target is written
   **disabled** and listed in the report as *needs review*.
 * An object that cannot be converted becomes a placeholder that matches
@@ -62,16 +62,16 @@ may reach (section 14), check a policy against a zone and conduit model kept
 as a file (section 16), and name every connection two policies decide
 differently, including a source and its conversion read back (section 17).
 
-> **Status.** Version 0.23 is tested against synthetic configurations. iptables
+> **Status.** Version 0.24 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). Output for PAN-OS, FortiOS, Check Point,
-> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS, Azure and RouterOS has
+> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS, Azure and RouterOS has
 > not been loaded on a device or management server yet; the Check Point input format follows the
 > API documentation, the ASA and FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
 > Sophos's own SDK, and the JSON of a Management Center and of a Device
 > Manager their API documentation and the tooling Cisco publishes for them.
-> What pfSense makes of its configuration is taken from its source code; the
+> What pfSense and OPNsense make of their configurations is taken from their source code; the
 > SonicWall settings export and the WatchGuard configuration file from the
 > published readers of those formats, and the REST API of a Barracuda CloudGen
 > Firewall from the examples in its documentation; Junos from Juniper's
@@ -98,8 +98,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.23.0.pyz --version
-python3 fwshift-0.23.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.24.0.pyz --version
+python3 fwshift-0.24.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -538,9 +538,37 @@ captive portal and of IPsec, OpenVPN and other services that pfSense makes
 itself are not in the file as rules, and are not converted
 (`PFSENSE_AUTOMATIC_RULES`).
 
-The configuration of an **OPNsense** firewall looks alike, but keeps its
-aliases, automatic rules and parts of its NAT elsewhere: FWShift refuses it
-with that reason rather than read it as a pfSense.
+**OPNsense (24.7 to 26.7).** Under *System > Configuration > Backups*,
+*Download configuration*, without encryption (the box *Encrypt this
+configuration file* unticked). The file is `config-<host>-<date>.xml`, the
+same as `/conf/config.xml` on the firewall. It starts with `<opnsense>`,
+which FWShift recognises (`--from opnsense`); `--from pfsense` refuses it.
+
+```sh
+fwshift inspect config.xml
+fwshift convert config.xml --to panos -o panos.set --report report.txt
+```
+
+FWShift reads the configurations of OPNsense 24.7, 25.1, 25.7, 26.1 and 26.7,
+and tells them apart by the version of the firewall model
+(`OPNsense/Firewall/Filter version`: 1.0.4 for 24.7 to 25.7, 1.0.5 for 26.1,
+1.0.6 for 26.7; `OPNSENSE_VERSION`). An older file is refused: it still has
+1:1 NAT and aliases in their old places, which OPNsense migrates when it loads
+it. Both kinds of firewall rule are read, those of *Firewall > Rules* (in
+`<filter>`; in 26.7 the page of the plugin `os-firewall-legacy`) and those of
+*Rules [new]* / *Automation* (`OPNsense/Firewall/Filter/rules`), in the order
+OPNsense gives them (section 8). As for pfSense, an address that comes by
+DHCP, PPPoE or from a tracked interface is not in the file: give it with
+`--interface-address`. The zones are the enabled interfaces by their
+descriptions, and the groups OPNsense keeps of its tunnels (`OpenVPN`,
+`WireGuard`, `IPsec`) where they are in the file.
+
+OPNsense reads some elements otherwise than pfSense: an empty flag (`<disabled/>`)
+is *off*; `<not/>` without a value negates up to 25.7 and not from 26.1; a
+rule of the old kind without an IP version is for both. Where the file of 24.7
+to 25.7 cannot say which of them wrote it (an empty *Block private networks*,
+which 24.7 and 25.1 read as set and 25.7 not), FWShift takes the reading that
+blocks more and says so (`OPNSENSE_FLAG_UNCLEAR`).
 
 **SonicWall (SonicOS 6.5 and 7).** Export the settings: on SonicOS 7 under
 *Device > Settings > Firmware and Settings*, *Import/Export Configuration >
@@ -781,7 +809,7 @@ fwshift convert INPUT --to FORMAT [options]
 ```
 
 `FORMAT` is one of `panos`, `fortios`, `checkpoint`, `asa`, `fmc`, `fdm`,
-`sophos`, `pfsense`, `sonicwall`, `watchguard`, `barracuda`, `junos`,
+`sophos`, `pfsense`, `opnsense`, `sonicwall`, `watchguard`, `barracuda`, `junos`,
 `iptables`, `ip6tables`, `nftables`, `nsx`, `aws`, `azure`, `routeros` and `json` (the neutral model; see `--to json` below).
 
 `INPUT` is a file, or `-` for standard input.
@@ -790,14 +818,14 @@ fwshift convert INPUT --to FORMAT [options]
 
 | Option | Meaning |
 |---|---|
-| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; JSON with network security groups of Azure (`Microsoft.Network/networkSecurityGroups`, or `securityRules` with priorities) is Azure; a file whose header says `by RouterOS`, or whose first line is a menu such as `/ip firewall filter` or `/interface list`, is RouterOS; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<opnsense>` is OPNsense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; JSON with network security groups of Azure (`Microsoft.Network/networkSecurityGroups`, or `securityRules` with priorities) is Azure; a file whose header says `by RouterOS`, or whose first line is a menu such as `/ip firewall filter` or `/interface list`, is RouterOS; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
 | `--layer NAME` | Check Point source with several access layers: the one to read. |
 | `--policy NAME` | Management Center source with several access control policies: the one to read, by its name or its id. Without it the policy that no other policy in the input inherits from is read, if there is one such policy. |
 | `--nat-policy NAME` | Management Center source with several NAT policies: the one to read, by its name or its id. |
-| `--interface-address INTERFACE=ADDRESS/BITS` | pfSense and SonicWall sources: the address of an interface that gets it by DHCP, PPPoE, SLAAC or from a tracked interface, which is then not in the file (SonicWall: IPv4, by the name of the interface, `X1`). `INTERFACE` is the name of the interface (`wan`, `opt1`) or its description (`WAN`), `BITS` the prefix length of its network. One address per IP version and interface; repeatable. Without it, rules that name such an address or network are written disabled (section 3). |
+| `--interface-address INTERFACE=ADDRESS/BITS` | pfSense, OPNsense and SonicWall sources: the address of an interface that gets it by DHCP, PPPoE, SLAAC or from a tracked interface, which is then not in the file (SonicWall: IPv4, by the name of the interface, `X1`). `INTERFACE` is the name of the interface (`wan`, `opt1`) or its description (`WAN`), `BITS` the prefix length of its network. One address per IP version and interface; repeatable. Without it, rules that name such an address or network are written disabled (section 3). |
 
 For iptables the IP version is taken from the header that `iptables-save` or
 `ip6tables-save` writes, and otherwise from the addresses and protocols in the
@@ -819,6 +847,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to barracuda` | A shell script that creates network objects, service objects and forwarding rules on a Barracuda CloudGen Firewall through its REST API, with curl (section 10). |
 | `--to watchguard` | The policy part of a Policy Manager configuration file (Fireware 12): address groups, aliases, services, static NAT actions and policies in manual order, to merge into a configuration of the target (section 10). |
 | `--to pfsense` | A configuration file with the areas Aliases, NAT and Firewall Rules, for *Diagnostics > Backup & Restore* of pfSense 2.7 or later. Each restore of an area **replaces** that area (section 10). |
+| `--to opnsense` | A configuration file with the areas Aliases, NAT and Firewall Rules of OPNsense, in the form of the series `--target-version` names (26.7 when not given), for *System > Configuration > Backups*. The rules are those of *Rules [new]*. Each restore of an area **replaces** that area (section 10). |
 | `--to iptables` | A file for `iptables-restore`: the IPv4 half of the policy. |
 | `--to ip6tables` | A file for `ip6tables-restore`: the IPv6 half. |
 | `--to nsx` | The body of one `PATCH /policy/api/v1/infra` of the VMware NSX Policy API: services, groups and one security policy with the rules (section 10). |
@@ -830,13 +859,14 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--target-vsys NAME` | PAN-OS: prefix commands with `vsys NAME`. Default: a single-vsys firewall, no prefix. |
 | `--target-device-group NAME` | Panorama: write into this device group; rules go to its pre-rulebase. |
 | `--target-shared` | Panorama: write into `shared`; rules go to the shared pre-rulebase. |
-| `--target-nat-zone ZONE` | PAN-OS: destination zone for NAT rules of a source that names none (Check Point, some iptables and ASA rules). Without it those NAT rules are skipped. ASA: the interface for source NAT "to the address of the outgoing interface" where the rule does not name one. Management Center and Device Manager: the zone of that interface. pfSense: the interface a port forward of a rule for every zone is written for, and the interface outbound NAT is written for where a rule does not say where its traffic leaves. |
+| `--target-nat-zone ZONE` | PAN-OS: destination zone for NAT rules of a source that names none (Check Point, some iptables and ASA rules). Without it those NAT rules are skipped. ASA: the interface for source NAT "to the address of the outgoing interface" where the rule does not name one. Management Center and Device Manager: the zone of that interface. pfSense and OPNsense: the interface a port forward of a rule for every zone is written for, and the interface outbound NAT is written for where a rule does not say where its traffic leaves. |
+| `--target-version SERIES` | OPNsense: the series the output is written for: `24.7`, `25.1`, `25.7`, `26.1` or `26.7` (the default). It decides the form of the port forwards (26.1 changed it), the version of the firewall model, and what a rule can say: before 25.1 a rule is for one IP version and names no ICMP types, before 25.7 no ICMPv6 types; only 26.7 has *received-on*. |
 | `--target-vdom NAME` | FortiOS: wrap the output in `config vdom` / `edit NAME`. |
 | `--policy-id-start N` | FortiOS: number policies from N. Default is `edit 0`, which lets the FortiGate pick free ids and appends after existing policies. |
 | `--target-layer NAME` | Check Point: the access layer the rules are written to. Default `Network`. It must exist. |
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
-| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS, Azure and RouterOS: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on Azure every network security group; on RouterOS every interface list and address list, instead of `fws-`) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
+| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS, Azure and RouterOS: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on Azure every network security group; on RouterOS every interface list and address list, instead of `fws-`) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
 | `--compare[=FILE]` | Read the output back (for the targets FWShift reads: `asa`, `azure`, `fdm`, `fortios`, `iptables`, `ip6tables`, `junos`, `nftables`, `nsx`, `routeros`, `sophos`, `watchguard`) and compare it with the policy as it was read: every connection the two decide differently is in the report (`COMPARE_OPENED`, `COMPARE_CLOSED`, section 17). With `FILE` the whole comparison is written there. Give `--zone-network` for every zone, so that only connections that can happen are compared. |
 | `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates; the script can be given another name when it is run (`--name`). NSX: the name of the security policy. Azure: the name of the one network security group written when no zone has networks. Default `FWShift`. |
 
@@ -845,7 +875,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | Option | Meaning |
 |---|---|
 | `--zone-map SRC=DST` | Use `DST` wherever the source names zone or interface `SRC`. Repeatable. For iptables and ASA this is how a zone becomes an interface name, and the other way round; for pfSense how it becomes an interface (`lan`, `opt1`) or an interface group. |
-| `--zone-network ZONE=NET[,NET...]` | ASA, pfSense, Barracuda, NSX, AWS and Azure targets: the networks that lie behind a zone (SonicWall: the zone an address object is created in; Barracuda, NSX and AWS: both sides of a rule, which names no zone) (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
+| `--zone-network ZONE=NET[,NET...]` | ASA, pfSense, OPNsense, Barracuda, NSX, AWS and Azure targets: the networks that lie behind a zone (SonicWall: the zone an address object is created in; Barracuda, NSX and AWS: both sides of a rule, which names no zone) (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
 | `--inside-zone ZONE` | AWS and Azure targets: a zone whose networks (`--zone-network`) are inside the VPC or the virtual network. Repeatable. For Azure only those zones get a network security group. Only addresses inside get security groups, and their outbound rules leave the addresses inside to the inbound rules of the destination's group, which keeps them short. Without it every address gets a group (those outside are never attached), and each end says everything. From an AWS source the VPC it was read from is the inside. |
 | `--interface-map SRC=DST` | Map a source interface to a target interface: zone members written for FortiOS, source NAT to an interface address on PAN-OS, and the interfaces of a NAT rule on Sophos Firewall, SonicWall and a Device Manager, which match interfaces and not zones (SonicWall: `X1`, `X3:V10`); for a Barracuda target, the interface of the entries of the source of a rule in that zone (`port2`). For those two, map every interface of a zone the NAT rules name (for an iptables or ASA source, whose zones are interfaces, that is the zone name itself); for a Device Manager `DST` is the logical name of the interface (`inside`, `outside`). Repeatable. |
 | `--app-map FILE` | JSON file that adds or overrides application port definitions (section 9). |
@@ -1525,6 +1555,33 @@ To pfSense, the NAT findings `NAT_INTERFACE`, `NAT_IPV6`, `NAT_SERVICE`,
 `EGRESS_NO_ADDRESS`, mean what they mean for
 the other targets; the message says what pfSense cannot hold, and section 8
 what it can.
+
+Findings and notes that only an OPNsense source or target raises. An OPNsense
+source also raises the pfSense notes `RULE_NOT_LOADED`, `FLOATING_LAST_MATCH`
+(for every rule that is not *quick*, also one of an interface),
+`FLOATING_OUT_PASS`, `MATCH_RULE_SKIPPED`, `IPV6_NOT_ALLOWED`,
+`FILTER_DISABLED`, `BOGONS_NOT_CONVERTED`, `BRIDGE_NOT_CONVERTED`,
+`CAPTIVE_PORTAL` and `NPT_NOT_CONVERTED`, and an OPNsense target the pfSense
+target notes `SELF_EXCLUDED`, `EGRESS_IMPLIED`, `SCHEDULES_NOT_WRITTEN`,
+`INTERFACES_REQUIRED`, `INTERFACE_NAME`, `ZONE_NETWORK_UNKNOWN` and
+`ZONE_NETWORK_GAP`, with "OPNsense" for "pfSense":
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `OPNSENSE_VERSION` | I | Source: the series that wrote the file, by the version of its firewall model, and read as that series reads it. 24.7, 25.1 and 25.7 have the same model (1.0.4). |
+| `OPNSENSE_VERSION_NEWER` | R | Source: the firewall model is newer than that of 26.7; fields it added are not read. |
+| `OPNSENSE_FLAG_UNCLEAR` | R | Source: an empty *Block private networks* or *Block bogon networks* in a file of 24.7 to 25.7, which 24.7 and 25.1 read as set and 25.7 as not set. Read as set (it blocks more). |
+| `OPNSENSE_RULE_EMPTY` | I | Source: rules that match nothing on OPNsense were left out: ICMP in a rule for IPv6 only (or ICMPv6 for IPv4 only), or a disabled alias as source or destination (a disabled alias is an empty table). |
+| `OPNSENSE_DISABLED_ALIAS` | I | Source: disabled aliases. A rule that names one matches nothing, and one that names it with "not" everything; an alias that holds one leaves it out. |
+| `OPNSENSE_DISABLED_ODD` | I | Source: disabled rules of a type (or action) OPNsense does not have. OPNsense leaves them out of the ruleset, and so does FWShift. Enabled, such a rule makes pf refuse the whole ruleset, and FWShift refuses the file. |
+| `OPNSENSE_OLD_SECTIONS` | I | Source: parts of the file OPNsense no longer reads (aliases in `<aliases>`, 1:1 NAT and NPt in `<nat>`, which it migrated) were left out. |
+| `OPNSENSE_REGISTERED_RULE` | I | Source: port forwards with *Register rule* (26.1 and later): the rule OPNsense makes for each comes after every other rule, and so it does in the model. |
+| `OPNSENSE_SNAT_MODE` | R | Source (26.1): Source NAT rules in an outbound NAT mode other than *hybrid* or *manual*. 26.1 up to 26.1.10 applies them in every mode, 26.1.11 not; the file does not say which wrote it. Read as applied. |
+| `OPNSENSE_AUTOMATIC_RULES` | I | Source: the rules OPNsense puts before those of the configuration (antispoof, port 0, the ICMPv6 IPv6 needs, DHCP, anti-lockout, what the firewall sends itself) are not converted. |
+| `OPNSENSE_RESTORE` | R | Target: how to restore the output, and for which series (section 10). Each restore of an area replaces that area of the firewall. |
+| `OPNSENSE_ICMP_TYPES` | R | Target (on the rule): the series written for has no ICMP types in a rule (before 25.1), or no ICMPv6 types (before 25.7). The rule is written disabled; write for a later series, or allow the types by hand. |
+| `OPNSENSE_SCTP_PORTS` | R | Target (on the rule): a rule of OPNsense has ports for TCP and UDP only. The rule is written disabled. |
+| `OPNSENSE_LINK_LOCAL` | A | Target (on the rule): the rule names the network of an interface whose IPv6 addresses the source did not hold; written as the interface, to which OPNsense adds the link-local network (fe80::/10) in a rule for IPv6. |
 
 Notes that only a SonicWall source or target raises:
 
@@ -3012,6 +3069,103 @@ development branch) and not the web pages, which say less.
   gets a rule that passes everything at the end of every interface
   (`INTERZONE_DEFAULT`).
 
+### OPNsense
+
+OPNsense comes from the same line as pfSense and writes the same kind of pf
+ruleset: what is said above for pfSense holds, with what OPNsense does
+otherwise. FWShift follows OPNsense's own code for the five series it reads
+(24.7 to 26.7: the rule classes, the models of the firewall, aliases and
+port forwards, `filter.inc` and `filter.lib.inc`), not the web pages.
+
+**What is read**
+
+* **Two kinds of rule.** The rules of *Firewall > Rules* (`<filter>`) and
+  those of *Rules [new]* (in 24.7 to 25.7 *Automation > Filter*). A rule of
+  the newer kind with one interface is a rule of that interface, with none or
+  several (or *Invert interface*) a floating rule; a list of sources or
+  destinations is one rule per item; protocols are in upper case, ICMP types
+  by name, ICMPv6 types by number.
+* **Order**, by OPNsense's priorities: floating rules, then the rules of
+  interface groups by the sequence of the group, then those of the
+  interfaces; in each, the newer kind first (by its sequence), then the old
+  kind in the order of the file. The groups of the system (OpenVPN,
+  WireGuard) come first among the groups, for the newer kind of rule only. The
+  rules port forwards register (*Register rule*, 26.1 and later) come after
+  all of them (`OPNSENSE_REGISTERED_RULE`). Any rule can be not *quick* on
+  OPNsense, also one of an interface: it decides where no quick rule did, the
+  last one first (`FLOATING_LAST_MATCH`). A rule of an interface can be for
+  what leaves, or for both directions: what leaves is read as for a floating
+  rule, and the half for what arrives keeps its place.
+* **Flags as OPNsense reads them.** An empty element is *off* for most flags
+  (`<disabled/>` is an enabled rule); `<not/>` without a value negates up to
+  25.7 and not from 26.1; a rule of the old kind without an IP version is for
+  both, a floating rule without a direction for what arrives, and ports count
+  for TCP and UDP only. *Block private networks* has a list of networks of
+  its own per series, and IPv6 is switched off in another place from 26.1.
+* **Aliases** of the newer model: one entry per line. An entry with `!` in
+  front leaves addresses out, also of an alias that holds this one: FWShift
+  works out what the pf table holds (the most specific entry decides) and
+  writes the alias as those addresses. A disabled alias is an empty table
+  (`OPNSENSE_DISABLED_ALIAS`); a rule that names one matches nothing
+  (`OPNSENSE_RULE_EMPTY`). `__lan_network` and its like are the networks of
+  the interface. Aliases whose addresses are not in the file (GeoIP, URL
+  tables, ASN, MAC, dynamic IPv6 hosts, logged-in VPN users, external) are
+  unsupported by name, so the rules that name them are disabled.
+* **The network of an interface in a rule for IPv6** comes with the link-local
+  network fe80::/10, which OPNsense adds there (`LAN net IPv6`, `fe80::/10`). A
+  rule for both IP versions is split in two by OPNsense first, and gets it in
+  its IPv6 half; a rule of the old kind without an IP version does not.
+* **received-on** (26.7): a rule for what leaves by an interface, for traffic
+  that arrived on others, is a rule from those zones to that zone.
+* **NAT.** Port forwards in the form of their series (26.1 made them a model
+  with sequence numbers and *Pass*, *Register rule* or nothing as filter rule
+  association); a port forward on several interfaces is one per interface.
+  Source NAT rules of the newer kind come before the manual outbound rules,
+  and those before the automatic ones; up to 26.1.10 OPNsense applied them in
+  every outbound NAT mode (`OPNSENSE_SNAT_MODE`). A target named as the address
+  of another interface (`wanip` on a rule of `opt2`) is that address. 1:1 NAT
+  of the newer model: *binat* in both directions, *nat* one way, after the
+  other source NAT. NPt is not converted (`NPT_NOT_CONVERTED`).
+* **What is not converted**, beyond what is said for pfSense: TCP flags,
+  operating systems, marks of other rules, the rate limit of 26.7 and the
+  type of service in a rule (`UNSUPPORTED_MATCH`); reply-to, shapers,
+  *divert-to* and state options (reported on the rule); the automatic rules
+  (`OPNSENSE_AUTOMATIC_RULES`).
+
+**What is written**
+
+* **One file** with the areas Aliases, NAT and Firewall Rules, in the form of
+  the series `--target-version` names (26.7 when not given), to be restored
+  area by area (section 10). What is decided is decided as for pfSense; only
+  the form differs.
+* **Rules** are rules of the newer kind (*Rules [new]*), numbered in steps of
+  10 in the order of the model; a rule on one interface is a rule of that
+  interface, the floating rules for what leaves stay floating. Every flag is
+  `1` or `0`. In 26.7 a deny from named zones to others that stands above
+  every rule that passes is a rule for what leaves by the interfaces of the
+  destination zones, with *received-on* the interfaces of the source zones.
+* **What a series cannot say.** Before 25.1 a rule is for one IP version (a
+  rule for both is two) and names no ICMP types; before 25.7 no ICMPv6 types
+  (`OPNSENSE_ICMP_TYPES`, the rule is disabled). ICMP for both IP versions is
+  two rules, ICMP and IPV6-ICMP, in every series. SCTP has no ports
+  (`OPNSENSE_SCTP_PORTS`).
+* **The network of an interface** is written as its word (`lan`) where
+  OPNsense makes of it what the rule holds: in a rule for IPv4, or where the
+  rule holds the link-local network with it (as one read from an OPNsense
+  does). Otherwise its addresses are written, as an alias.
+* **Aliases** of the newer model (version 1.0.1), one entry per line, names
+  with a letter first (`RENAMED`). Host names stand in an alias of type host;
+  next to networks they get an alias of their own, which the other one
+  holds. From an OPNsense source `__lan_network` and its like stay what they
+  are.
+* **NAT.** Port forwards in the form of the series (from 26.1 with sequence
+  numbers and without filter rule association; before, in the old form);
+  source NAT as Source NAT rules of the newer kind, with outbound NAT in
+  manual mode (from 26.1 the address of the interface is an empty target, as
+  OPNsense writes it; before, `wanip` and the like); 1:1 as rules of the
+  newer kind. NPt is not written, and a restore of the NAT area removes what
+  NPt rules the firewall has.
+
 ### SonicWall
 
 **What is read**
@@ -3865,6 +4019,49 @@ empty). It is restored with the restore of one area at a time, which
    `FWSHIFT` in their description; aliases that stand in for an object that
    could not be converted match nothing (`192.0.0.8`, a reserved address).
 
+### OPNsense
+
+> **The file has never been restored on an OPNsense.** Its format and what a
+> restore does with it are taken from the source code of OPNsense
+> (`diag_backup.php`, `restore_config_section()`, the models it restores).
+
+The output is an OPNsense configuration file for the series given with
+`--target-version` (26.7 when not given). It holds the areas **Aliases**
+(`OPNsense/Firewall/Alias`), **NAT** (`<nat>` with the port forwards and the
+outbound NAT mode, and the Source NAT, NPt and 1:1 lists of
+`OPNsense/Firewall/Filter`) and **Firewall Rules** (the rules of *Rules
+[new]*). An area is left out when it would be empty.
+
+1. **Back up the firewall** under *System > Configuration > Backups*. That is
+   the way back.
+2. **Interfaces and groups.** Assign the interfaces the rules name (`lan`,
+   `opt1`, ...), and create the interface groups listed in
+   `INTERFACES_REQUIRED` under *Firewall > Groups*. The outside addresses of
+   port forwards and 1:1 rules must be addresses of the firewall (an
+   interface or a virtual IP); virtual IPs are not in the file.
+3. **Restore, area by area:** under *Restore*, pick the file and choose the
+   area to restore: **Aliases** first, then **NAT**, then **Firewall
+   Rules**. A restore **replaces** the area: Aliases every alias; NAT every
+   port forward, outbound NAT rule (of both pages), 1:1 and NPt rule, and the
+   outbound NAT mode; Firewall Rules the rules of *both* rule pages (*Rules*
+   and *Rules [new]*) and the setting to bypass the rules for static routes.
+   An area of which the file holds nothing is refused. Interface settings
+   (*Block private networks*, *Block bogon networks*), schedules, categories,
+   gateways and virtual IPs stay as they are.
+4. **Apply.** OPNsense does not load what it restored by itself: apply the
+   changes on the firewall pages, or let it restart (*Reboot after a
+   successful restore*, which is ticked by default). Between two restores the
+   firewall keeps running with what it has loaded.
+5. **OPNsense checks nothing** it restores. The models are not migrated
+   either: the file is in the form of the series it was written for, so
+   write for the series of the firewall. A rule that names an alias or
+   interface the firewall does not have is not loaded; look at the system
+   log (*System > Log Files*) after the filter reload, and compare the rules
+   with the summary of the report.
+6. Rules that could not be converted are in the file, **disabled**, with
+   `FWSHIFT` in their description; aliases that stand in for an object that
+   could not be converted match nothing (`192.0.0.8`).
+
 ### SonicWall
 
 > **The commands have never been run on a SonicWall.** Their form follows
@@ -4040,13 +4237,17 @@ the report is the list.)
 | `--zone-map expects SOURCE=TARGET` | Write the option as `--zone-map old=new`. |
 | `not a SonicWall settings export: ...` | The file is neither the Base64 of an export nor its decoded keys, or it is empty. |
 | `the settings export holds key '...' twice, with two values` | Two exports in one file, or an edited one. |
-| `this is the configuration of an OPNsense firewall ...` | OPNsense is not read (section 3). |
+| `this is the configuration of an OPNsense firewall ... read it with --from opnsense` | `--from pfsense` on the configuration of an OPNsense. Leave `--from` out, or give `--from opnsense`. |
+| `not an OPNsense configuration: the first element is <...>` | `--from opnsense` on XML that is something else. |
+| `the configuration has no version of the firewall model ...` / `... written by OPNsense before 24.7 ...` | OPNsense: the file is of a release before 24.7, or only a part of a configuration. Update the firewall, or back up the whole configuration. |
+| `rule '...' has type '...': OPNsense writes it into the ruleset as it is ...` / `rule '...' has action '...'` | OPNsense: an enabled rule of a type OPNsense does not have. pf refuses the whole ruleset for it and the firewall keeps the one it had, so the file does not say what runs. Fix or disable the rule. |
+| `--target-version: '...' is no series of OPNsense FWShift writes` | Give `24.7`, `25.1`, `25.7`, `26.1` or `26.7`. |
 | `not a pfSense configuration: the first element is <...>` | `--from pfsense` on XML that is something else, or the backup of one area only (it starts with `<filter>`, say). Back up area **All**. |
 | `<...> occurs N times in one <...>` | pfSense source: an element that can be there once is there twice. pfSense does not read such a file either; it was edited by hand or two files were joined. |
 | `--interface-address: '...' is not INTERFACE=ADDRESS/BITS` | Write the option as `--interface-address wan=198.51.100.7/24`. |
 | `--interface-address: no interface '...' in the configuration; it has ...` | Name the interface as the configuration does, by name or description: the message lists them. |
 | `--interface-address: two IPv4 addresses for '...'` | One address per IP version and interface. |
-| `--interface-address is for a pfSense or SonicWall source` | The option was given for another source. |
+| `--interface-address is for a pfSense, OPNsense or SonicWall source` | The option was given for another source. |
 | `not a configuration of a Firebox: the first element is <...>, not <profile>` | `--from watchguard` on XML that is something else. |
 | `the configuration holds no <abs-policy-list>: is it the file Policy Manager saves?` | WatchGuard source: the XML starts like a configuration and holds no policies. Save it again with *File > Save > As File*. |
 | `alias '...' is defined twice` | WatchGuard source: two aliases, address groups or services of one name. Policy Manager does not save such a file; it was edited by hand or two files were joined. |
@@ -4102,13 +4303,13 @@ only IPv4 networks were given. What no network covers is allowed by no rule
 for any address that is kept to its zone. Add `0.0.0.0/0,::/0` to the zone
 the default route points to.
 
-**Rules from a pfSense are disabled, with "give it with
+**Rules from a pfSense or an OPNsense are disabled, with "give it with
 --interface-address".** The interface gets its address by DHCP, PPPoE or
 from another interface, and the configuration does not hold it. Give it
 (section 3).
 
-**Rules for a pfSense pass more or less than the source.** Like an ASA, a rule
-of pfSense is for the interface traffic arrives on and cannot name the one it
+**Rules for a pfSense or an OPNsense pass more or less than the source.** Like an ASA, a rule
+of pfSense (or OPNsense) is for the interface traffic arrives on and cannot name the one it
 leaves by. Give the networks of every zone with `--zone-network`, and check
 `EGRESS_INTERFACE` and `FLOATING_AFTER_NAT` in the report.
 
@@ -4125,7 +4326,7 @@ deliberate: see *IPv4 and IPv6* in section 8.
   and nftables output has been loaded into the real thing (a Linux kernel
   with iptables 1.8.10, nf_tables backend, and nft 1.0.9; filter rules, not
   NAT); nothing has been
-  validated on PAN-OS, FortiOS, ASA, Sophos, pfSense or MikroTik devices, a Check Point
+  validated on PAN-OS, FortiOS, ASA, Sophos, pfSense, OPNsense or MikroTik devices, a Check Point
   management server, a Cisco Secure Firewall Management Center or Device
   Manager, or across versions.
 * Statements about vendor behaviour that the conversion relies on (FortiOS
@@ -4260,7 +4461,7 @@ deliberate: see *IPv4 and IPv6* in section 8.
   instances in NAT, wildcard addresses, predefined applications FWShift does
   not know. Written: set commands for the global address book, applications,
   policies and NAT. Nothing has been loaded on an SRX.
-* pfSense: 2.6 and later; OPNsense is not read. Schedules, URL table
+* pfSense: 2.6 and later. Schedules, URL table
   aliases, policy routing, tags, limiters and shaping, match rules, IPv6 NAT,
   NPt, bogon networks, the captive portal, bridges and the rules of packages
   and of pfSense itself (except *Block private networks*, port forwards that
@@ -4274,6 +4475,19 @@ deliberate: see *IPv4 and IPv6* in section 8.
   whole. A rule written for traffic to a zone needs `--zone-network`, as for
   an ASA; a rule that passes traffic to any address leaves the firewall
   itself out. Nothing has been restored on a pfSense.
+* OPNsense: 24.7 to 26.7, both kinds of rule. What is not converted for
+  pfSense is not converted here either, nor TCP flags, operating systems,
+  marks, rate limits and the type of service in a rule, aliases whose
+  addresses are not in the file (GeoIP, URL tables, ASN, MAC, dynamic IPv6
+  hosts, VPN users), and the automatic rules beyond *Block private networks*.
+  A file of 24.7 to 25.7 does not say which of the three wrote it; where they
+  read it differently FWShift takes the reading that blocks more and says so.
+  What OPNsense makes of its configuration is taken from its source code and
+  checked against a model written for the tests, not against pf or a running
+  OPNsense. Written: rules of *Rules [new]*, aliases and NAT for one series;
+  no interfaces, groups, virtual IPs, categories or schedules; a restore
+  replaces each area whole and is not migrated. Nothing has been restored on
+  an OPNsense.
 * The running configuration of an FTD device, read as an ASA configuration,
   shows only what the device was given. Rules with application, URL or user
   conditions come out disabled; for those the policy in the manager is the
