@@ -1,0 +1,69 @@
+FWShift conversion report
+  source: sophos (API version 2000.1)
+  target: huawei
+
+Summary
+  Security rules:     17   exact 4, approximated 8, needs review 4 (4 emitted disabled), skipped 1
+  NAT rules:           6   exact 2, approximated 0, needs review 0, skipped 4
+  Addresses:          14   exact 12, approximated 0, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HUAWEI_LOAD: the output is commands for the system view (section 10): new zones, address and service sets, rules, NAT; a USG adds new rules after the ones it has, and nat server and nat-policy take effect at once. Check, then save
+  [needs-review] HUAWEI_IPV6: IPv6 entries of address sets are written as ADDRESS/LENGTH; Huawei's documentation FWShift could read does not show their form: check them on the firewall
+  [info] INTRAZONE_RULES_ADDED: a USG passes traffic inside a zone that no rule matches; the source does not: rules that deny it were added at the end for LAN, WAN, DMZ, OT, VPN
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have policy logging
+
+Security rules
+  Block countries  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocked countries': country group. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'Blocked countries' holds members only its platform knows. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to Internet web  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy, ScanVirus=Enable, WebFilter=Default Policy); attach equivalent inspection on the target
+  Admins to DMZ  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN to DMZ web not mail  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN SSH out  ->  approximated  (emitted as 1 rules of the security policy)
+      [info] RULE_SPLIT: the rule has exclusions of 2 kinds, which Sophos Firewall applies together (the rule is skipped only for traffic that matches all of them): written as 2 rule(s), one per kind, that match the same traffic between them: 'LAN SSH out-2'
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN SSH out-2  ->  approximated  (emitted as 1 rules of the security policy)
+      [info] EXCLUSION_AS_ADDRESSES: source lan-net without the excluded admin-range: written as the addresses that are left (10.10.0.0-10.10.5.9, 10.10.5.21-10.11.255.255)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  Internet to web  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ); attach equivalent inspection on the target
+  Internet to mail  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ, ScanSMTP=Enable); attach equivalent inspection on the target
+  DMZ updates  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (WebFilter=Default Policy); attach equivalent inspection on the target
+      [needs-review] ZONE_DYNAMIC: 'update-sites' holds members only its platform knows.
+  Finance to app  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] USER_MATCH: source user match Finance is not converted.
+  DNS in office hours  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] SCHEDULE: schedule 'Work hours (5 Day week)' is not converted; the rule would apply at all times.
+      [needs-review] SCHEDULE: schedule Work hours (5 Day week) is not converted.
+  Reject the rest from LAN  ->  exact  (emitted as 1 rules of the security policy)
+      [info] REJECT_AS_DENY: action reset-client: written as deny
+  LAN6 to Internet  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  Web shop  ->  skipped
+      [needs-review] WAF_RULE: web server protection rule: the firewall answers for the web server itself (a reverse proxy), which is not a forwarding rule and is not converted. Publish the server on the target in its own way
+
+NAT rules
+  Publish web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a USG writes nat server for one address or port, and source NAT to the interface, to an address pool or none for addresses and zones
+  Publish mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a USG writes nat server for one address or port, and source NAT to the interface, to an address pool or none for addresses and zones
+  Mail server out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a USG writes nat server for one address or port, and source NAT to the interface, to an address pool or none for addresses and zones
+  NAT of LAN to Internet web  ->  skipped
+      [info] NAT_LINKED: linked NAT rule of firewall rule 'LAN to Internet web': it has no match of its own and is written with the zones, addresses and services of that rule
+      [needs-review] NAT_NOT_CONVERTED: not converted: a USG writes nat server for one address or port, and source NAT to the interface, to an address pool or none for addresses and zones
+
+Addresses
+  any-example-org  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard host name '*.example.org' cannot be converted
+  Blocked countries  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: country group cannot be converted

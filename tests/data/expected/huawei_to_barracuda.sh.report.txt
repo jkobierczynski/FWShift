@@ -1,0 +1,95 @@
+FWShift conversion report
+  source: huawei
+  target: barracuda
+
+Summary
+  Security rules:     16   exact 0, approximated 2, needs review 13 (13 emitted disabled), skipped 1
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 12, approximated 0, needs review 2, skipped 0
+
+Notes for the whole policy
+  [needs-review] HUAWEI_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with display predefined-service: http, https, smtp, dns, ntp, ssh, icmp, ftp
+  [needs-review] BARRACUDA_LOAD: the output is a shell script that creates network objects, service objects and forwarding rules through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. The rules go to the top of the rule list, above the rules the firewall has, deactivated, and are then activated in order, first rule first: if a call is refused the script stops, and only the rules above that one are active, with the rules the firewall had below them. Barracuda documents the API by examples: assumed are the keys of a service object and its entries (protocol, ports, client ports), the interface of an entry of a network object, the IP version and action types of a rule other than block, and names of up to 32 letters, digits, periods, underscores and hyphens
+  [needs-review] BLOCK_RULE_INACTIVE: the source blocks what no rule matches. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that do so follow the converted rules, deactivated: until they are activated, the rules the firewall has below them decide that traffic. Look at those rules (management access, the default rules) and activate the two
+  [info] HUAWEI_SOURCE: 4 zones (trust, untrust, dmz, lab); 15 rules of the security policy, first match. The local zone (the firewall itself) is not converted
+  [info] HUAWEI_NAT_ORDER: destination NAT (nat server) is done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT (nat-policy) is done after it
+  [info] HUAWEI_DEFAULTS: what no rule matches: between zones deny, inside a zone permit
+
+Security rules
+  block-bad-nets  ->  approximated
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone untrust; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+  web-in  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'web-servers' because of NAT rule 'nat-server-web'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'web-servers' because of NAT rule 'nat-server-web-tls'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone untrust, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind untrust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the firewall names no zone: give the networks behind dmz with --zone-network.
+  mail-in  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.6' next to 'mail-server' because of NAT rule 'nat-server-mail'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone untrust, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind untrust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the firewall names no zone: give the networks behind dmz with --zone-network.
+  office-out  ->  needs-review, emitted disabled  (emitted as office-out, office-out-v6)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of the firewall names no zone: give the networks behind untrust with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  office-dmz  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.6' next to 'dmz-servers' because of NAT rule 'nat-server-mail'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the firewall names no zone: give the networks behind dmz with --zone-network.
+  admin-ssh  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, lab, and a rule of the firewall names no zone: give the networks behind dmz, lab with --zone-network.
+  dmz-syslog  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind dmz with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone trust, and a rule of the firewall names no zone: give the networks behind trust with --zone-network.
+  lab-tools  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'lab-all': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone lab, and a rule of the firewall names no zone: give the networks behind lab with --zone-network.
+  lab-out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lab, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind lab with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of the firewall names no zone: give the networks behind untrust with --zone-network.
+  ping-dmz  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the firewall names no zone: give the networks behind dmz with --zone-network.
+  ipv6-out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone untrust, and a rule of the firewall names no zone: give the networks behind untrust with --zone-network.
+  video  ->  needs-review, emitted disabled  (emitted as video, video-v6)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone trust; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone untrust; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) YouTube; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  old-ftp  ->  needs-review, emitted disabled  (emitted as old-ftp, old-ftp-v6)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone trust, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind trust with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the firewall names no zone: give the networks behind dmz with --zone-network.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  lab-deny  ->  approximated  (emitted as lab-deny, lab-deny-v6)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone lab; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  intrazone default  ->  needs-review, emitted disabled  (emitted as intrazone_default, intrazone_default-v6)
+      [needs-review] RULE_TYPE: intrazone rule: a rule of the firewall names no zones.
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  manage-fw  ->  skipped
+      [info] HUAWEI_LOCAL_RULE: a rule for traffic to or from the firewall itself (the local zone): not converted
+
+NAT rules
+  nat-server-web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  nat-server-web-tls  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  nat-server-mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  no-nat-vpn  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  office-pat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  lab-easy-ip  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+
+Services
+  lab-tools  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated
+  lab-all  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated

@@ -1,0 +1,51 @@
+FWShift conversion report
+  source: huawei
+  target: asa
+
+Summary
+  Security rules:     16   exact 2, approximated 4, needs review 9 (9 emitted disabled), skipped 1
+  NAT rules:           6   exact 6, approximated 0, needs review 0, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HUAWEI_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with display predefined-service: http, https, smtp, dns, ntp, ssh, icmp, ftp
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: trust, untrust, dmz, lab. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [info] HUAWEI_SOURCE: 4 zones (trust, untrust, dmz, lab); 15 rules of the security policy, first match. The local zone (the firewall itself) is not converted
+  [info] HUAWEI_NAT_ORDER: destination NAT (nat server) is done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT (nat-policy) is done after it
+  [info] HUAWEI_DEFAULTS: what no rule matches: between zones deny, inside a zone permit
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+
+Security rules
+  web-in  ->  approximated  (emitted as untrust_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  mail-in  ->  approximated  (emitted as untrust_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  office-out  ->  needs-review, emitted disabled  (emitted as trust_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, lab, untrust with --zone-network.
+  office-dmz  ->  approximated  (emitted as trust_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  admin-ssh  ->  needs-review, emitted disabled  (emitted as trust_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz, lab, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind untrust, dmz, lab with --zone-network.
+  dmz-syslog  ->  approximated  (emitted as dmz_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by trust. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+  lab-tools  ->  needs-review, emitted disabled  (emitted as trust_access_in)
+      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by lab. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  lab-out  ->  needs-review, emitted disabled  (emitted as lab_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, dmz, untrust with --zone-network.
+  ping-dmz  ->  needs-review, emitted disabled  (emitted as trust_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind untrust, lab, dmz with --zone-network.
+  ipv6-out  ->  needs-review, emitted disabled  (emitted as trust_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, lab, untrust with --zone-network.
+  video  ->  needs-review, emitted disabled  (emitted as trust_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, lab, untrust with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) YouTube; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  old-ftp  ->  needs-review, emitted disabled  (emitted as trust_access_in)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind untrust, lab, dmz with --zone-network.
+  intrazone default  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] RULE_TYPE: intrazone rule with 'any' zone cannot be written per interface.
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic inside one zone, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind trust, untrust, dmz, lab, any with --zone-network. An ASA sends traffic back out of the interface it came in on only with 'same-security-traffic permit intra-interface'.
+  manage-fw  ->  skipped
+      [info] HUAWEI_LOCAL_RULE: a rule for traffic to or from the firewall itself (the local zone): not converted

@@ -90,7 +90,11 @@ firewall policy, written; the same from and to Terraform as
 of a router, read: interface access lists in and out, numbered, named and IPv6,
 object groups, the zone-based firewall with its zone pairs and class maps, NAT,
 composed for each pair of zones where more than the inbound list decides;
-commands for the zone-based firewall, written).
+commands for the zone-based firewall, written), and **0.29.0, Huawei USG**
+(`display current-configuration` of a USG6000, USG6000E or USG9500, read:
+security zones, address and service sets, `security-policy` with its
+defaults, `nat server` before it and `nat-policy` after it; commands for the
+system view, written).
 What each rests on and what nobody has checked on a device is in
 the development log.
 
@@ -104,11 +108,17 @@ output back for `convert --compare`.
 
 Next, one release each, in this order:
 
-* **0.29.0, Huawei USG**: security policies between zones, address and service
-  sets, NAT policies.
 * **0.30.0, Stormshield** (SNS): filter and NAT slots, objects.
 * **0.31.0, Cisco Meraki MX**: the layer 3 firewall rules of the Dashboard
   API, VLANs, 1:1 NAT and port forwarding.
+
+Still open for Huawei: virtual systems (each as its own policy, chosen as
+`--vsys` is for PAN-OS); destination NAT of `nat-policy` and NAT of ranges;
+rule groups, and whether a disabled group shows in display output; the ports of
+the predefined services as `display predefined-service` prints them; checking on
+a firewall the indentation of display output, the input form of IPv6 entries in
+address sets and that `disable` is taken in a new rule; reading the output back
+for `convert --compare`.
 
 Still open for IOS: interface access lists as a target (for routers without the
 zone-based firewall); NAT of the NAT virtual interface, outside NAT and route

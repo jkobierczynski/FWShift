@@ -1,0 +1,33 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: huawei
+
+Summary
+  Security rules:     10   exact 7, approximated 1, needs review 2 (2 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] HUAWEI_LOAD: the output is commands for the system view (section 10): new zones, address and service sets, rules, NAT; a USG adds new rules after the ones it has, and nat server and nat-policy take effect at once. Check, then save
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] INTRAZONE_RULES_ADDED: a USG passes traffic inside a zone that no rule matches; the source does not: rules that deny it were added at the end for External, Trusted, DMZ, Guests, Lab
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have policy logging
+
+Security rules
+  Web Out  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+  DMZ Updates  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+      [needs-review] SCHEDULE: schedule Business Hours is not converted.
+      [needs-review] ZONE_DYNAMIC: 'Update-Site.1.alm' holds members only its platform knows.
+  Staff Only  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] USER_MATCH: source user match Staff is not converted.
+
+NAT rules
+  Web-Public (Web In)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a USG writes nat server for one address or port, and source NAT to the interface, to an address pool or none for addresses and zones
+  Mail-Public (Mail In)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a USG writes nat server for one address or port, and source NAT to the interface, to an address pool or none for addresses and zones

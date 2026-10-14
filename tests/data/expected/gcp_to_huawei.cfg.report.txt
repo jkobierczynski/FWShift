@@ -1,0 +1,26 @@
+FWShift conversion report
+  source: gcp (vpc-shop)
+  target: huawei
+
+Summary
+  Security rules:     28   exact 27, approximated 0, needs review 1 (1 emitted disabled), skipped 0
+  NAT rules:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] HUAWEI_NO_ZONES: the source names no zones: the rules are written without zones, so they match between every pair of zones and to the firewall itself (local), and traffic inside a zone that no rule matches passes; give the rules their zones (--zone-map, or edit them)
+  [needs-review] HUAWEI_LOAD: the output is commands for the system view (section 10): new zones, address and service sets, rules, NAT; a USG adds new rules after the ones it has, and nat server and nat-policy take effect at once. Check, then save
+  [needs-review] HUAWEI_IPV6: IPv6 entries of address sets are written as ADDRESS/LENGTH; Huawei's documentation FWShift could read does not show their form: check them on the firewall
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have policy logging
+
+Security rules
+  pol-shop:geo-and-fqdn (in)  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: matches srcFqdns, srcRegionCodes, which the export does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.

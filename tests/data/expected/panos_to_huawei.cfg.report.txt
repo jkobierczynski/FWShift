@@ -1,0 +1,60 @@
+FWShift conversion report
+  source: panos (vsys1)
+  target: huawei
+
+Summary
+  Security rules:     14   exact 3, approximated 6, needs review 5 (5 emitted disabled), skipped 0
+  NAT rules:           5   exact 3, approximated 0, needs review 0, skipped 2
+  Addresses:          16   exact 14, approximated 0, needs review 2, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:            5   exact 5, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HUAWEI_LOAD: the output is commands for the system view (section 10): new zones, address and service sets, rules, NAT; a USG adds new rules after the ones it has, and nat server and nat-policy take effect at once. Check, then save
+  [needs-review] HUAWEI_IPV6: IPv6 entries of address sets are written as ADDRESS/LENGTH; Huawei's documentation FWShift could read does not show their form: check them on the firewall
+  [info] HUAWEI_INTRAZONE: traffic inside a zone that no rule matches passes, as on the source, as long as the firewall does not have default packet-filter intrazone enable
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have policy logging
+
+Security rules
+  Allow-Web-Out  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (group=default-profiles); attach equivalent inspection on the target
+      [approximated] APP_TO_PORTS: applications web-browsing, ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Allow-DNS  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Inbound-Web  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] APP_FILTER_DROPPED: application match ssl dropped; the rule now matches everything on its services
+  Inbound-Mail  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] APP_TO_PORTS: applications smtp reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Admin-SSH  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [approximated] APP_TO_PORTS: applications ssh reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] USER_MATCH: source user match example\netadmins is not converted.
+  Engineering to PLCs  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] APP_TO_PORTS: applications modbus, siemens-s7 reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Block-Torrents  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) bittorrent; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block-Region  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'KP': not defined in the input. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'KP' holds members only its platform knows. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Tagged-Servers-Updates  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'tagged-servers': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'tagged-servers' holds members only its platform knows.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates.example.com: written with addresses only.
+  Not-From-Guests  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] APP_TO_PORTS: applications ping reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Old-Rule  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'odd-hosts': wildcard mask 10.20.1.2/0.0.254.0.
+      [needs-review] ZONE_DYNAMIC: 'odd-hosts' holds members only its platform knows.
+
+NAT rules
+  Inbound-Web-DNAT  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a USG writes nat server for one address or port, and source NAT to the interface, to an address pool or none for addresses and zones
+  Mail-Static  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a USG writes nat server for one address or port, and source NAT to the interface, to an address pool or none for addresses and zones
+
+Addresses
+  odd-hosts  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard mask 10.20.1.2/0.0.254.0 cannot be converted
+  KP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'Block-Region' but not an address object in the input (a region, an external list or a missing object); emitted as a placeholder that matches nothing

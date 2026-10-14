@@ -1,0 +1,91 @@
+FWShift conversion report
+  source: huawei
+  target: sonicwall
+
+Summary
+  Security rules:     16   exact 9, approximated 3, needs review 3 (3 emitted disabled), skipped 1
+  NAT rules:           6   exact 0, approximated 1, needs review 4, skipped 1
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 11, approximated 0, needs review 3, skipped 0
+
+Notes for the whole policy
+  [needs-review] HUAWEI_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with display predefined-service: http, https, smtp, dns, ntp, ssh, icmp, ftp
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, address-object ipv6, nat-policy name and comment, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): untrust, dmz, trust, lab
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] HUAWEI_SOURCE: 4 zones (trust, untrust, dmz, lab); 15 rules of the security policy, first match. The local zone (the firewall itself) is not converted
+  [info] HUAWEI_NAT_ORDER: destination NAT (nat server) is done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT (nat-policy) is done after it
+  [info] HUAWEI_DEFAULTS: what no rule matches: between zones deny, inside a zone permit
+  [info] DEFAULT_DENY_ADDED: 18 rules that deny were added, one at the end of each pair of zones and IP version: SonicOS allows some traffic between zones by itself (from LAN to WAN, for example), and the source did not
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 5 rule(s) match IPv4 and IPv6 traffic and were written twice: SonicOS has address objects and access rules per IP version
+
+Security rules
+  block-bad-nets  ->  exact  (emitted as block-bad-nets, block-bad-nets 2, block-bad-nets 3, block-bad-nets 4)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  web-in  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'web-servers' because of NAT rule 'nat-server-web'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'web-servers' because of NAT rule 'nat-server-web-tls'; check that this rule is meant to cover the translated traffic
+  mail-in  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.6' next to 'mail-server' because of NAT rule 'nat-server-mail'; check that this rule is meant to cover the translated traffic
+  office-dmz  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.6' next to 'dmz-servers' because of NAT rule 'nat-server-mail'; check that this rule is meant to cover the translated traffic
+  admin-ssh  ->  exact  (emitted as admin-ssh, admin-ssh 2)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 2 rules
+  lab-tools  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'lab-all': source ports, which a SonicOS service object does not have.
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  ping-dmz  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  video  ->  needs-review, emitted disabled  (emitted as video, video 2)
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) YouTube; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  lab-deny  ->  exact  (emitted as lab-deny, lab-deny 2, lab-deny 3, lab-deny 4, lab-deny 5, lab-deny 6, lab-deny 7, lab-deny 8)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  intrazone default  ->  exact  (emitted as intrazone default, intrazone default 2, intrazone default 3, intrazone default 4, intrazone default 5, intrazone default 6, intrazone default 7, intrazone default 8)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 4 rules
+  manage-fw  ->  skipped
+      [info] HUAWEI_LOCAL_RULE: a rule for traffic to or from the firewall itself (the local zone): not converted
+
+NAT rules
+  nat-server-web  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from untrust only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  nat-server-web-tls  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from untrust only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  nat-server-mail  ->  approximated  (emitted as nat-server-mail, nat-server-mail in)
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a source NAT policy plus policy 'nat-server-mail in' for the inbound direction
+  no-nat-vpn  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from trust only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [approximated] NAT_ZONES: the rule applied to traffic to untrust only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+  office-pat  ->  needs-review
+      [approximated] NAT_ZONES: the rule applied to traffic from trust only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [needs-review] NAT_ZONES: the rule applied to traffic to untrust only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+  lab-easy-ip  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+
+Address groups
+  office-lan  ->  exact  (emitted as office-lan, office-lan v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'office-lan', 'office-lan v6'
+
+Services
+  web-alt  ->  exact  (emitted as web-alt, web-alt tcp 8080, web-alt tcp 8443)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'web-alt' of 'web-alt tcp 8080', 'web-alt tcp 8443'
+  lab-tools  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a SonicOS service object does not have: not written, and the rules that use it are disabled
+  lab-all  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: source ports, which a SonicOS service object does not have: not written, and the rules that use it are disabled
+  syslog  ->  exact  (emitted as syslog 2)
+      [info] RENAMED: renamed to 'syslog 2' to fit the target's naming rules
+  http  ->  exact  (emitted as http 2)
+      [info] RENAMED: renamed to 'http 2' to fit the target's naming rules
+  https  ->  exact  (emitted as https 2)
+      [info] RENAMED: renamed to 'https 2' to fit the target's naming rules
+  dns  ->  exact  (emitted as dns, dns tcp 53, dns udp 53)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'dns' of 'dns tcp 53', 'dns udp 53'
+  ntp  ->  exact  (emitted as ntp 2)
+      [info] RENAMED: renamed to 'ntp 2' to fit the target's naming rules
+  ssh  ->  exact  (emitted as ssh 2)
+      [info] RENAMED: renamed to 'ssh 2' to fit the target's naming rules
+  icmp  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  ftp  ->  exact  (emitted as ftp 2)
+      [info] RENAMED: renamed to 'ftp 2' to fit the target's naming rules

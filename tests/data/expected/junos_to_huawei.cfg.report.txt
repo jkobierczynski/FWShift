@@ -1,0 +1,42 @@
+FWShift conversion report
+  source: junos (root)
+  target: huawei
+
+Summary
+  Security rules:     14   exact 10, approximated 0, needs review 4 (3 emitted disabled), skipped 0
+  NAT rules:           6   exact 3, approximated 0, needs review 0, skipped 3
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HUAWEI_LOAD: the output is commands for the system view (section 10): new zones, address and service sets, rules, NAT; a USG adds new rules after the ones it has, and nat server and nat-policy take effect at once. Check, then save
+  [needs-review] HUAWEI_IPV6: IPv6 entries of address sets are written as ADDRESS/LENGTH; Huawei's documentation FWShift could read does not show their form: check them on the firewall
+  [info] JUNOS_FORMAT: read 14 security policies and 6 NAT rules of the root system. Policies are looked up after static and destination NAT; they were brought back to the original destination, as the model has it
+  [info] PREDEFINED_APPLICATIONS: predefined applications are not in the configuration; these were taken from FWShift's table of them: junos-dns-udp, junos-http, junos-https, junos-ping, junos-smtp, junos-ssh
+  [info] HOST_POLICIES: policies for the zone junos-host (traffic to and from the firewall itself) are not read: 'to-box'
+  [info] INTRAZONE_RULES_ADDED: a USG passes traffic inside a zone that no rule matches; the source does not: rules that deny it were added at the end for untrust, dmz, guest
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have policy logging
+
+Security rules
+  updates  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates: written with addresses only.
+  web-in  ->  needs-review  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.10' next to 'web-srv' because of NAT rule 'from-internet dnat-web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'from-internet dnat-web' also translates the port to 8080; the service of this rule still names the post-NAT port and must be adjusted
+  guest-web  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] SCHEDULE: schedule 'work-hours' is not converted; the rule would apply at all times.
+      [needs-review] SCHEDULE: schedule work-hours is not converted.
+  guest-ping  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'junos-ping': the predefined application junos-ping: Juniper describes it as ICMP echo, other readers of Junos as every ICMP type.
+  global-block  ->  exact  (emitted as 1 rules of the security policy)
+      [info] REJECT_AS_DENY: action reset-client: written as deny
+
+NAT rules
+  from-internet dnat-web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a USG writes nat server for one address or port, and source NAT to the interface, to an address pool or none for addresses and zones
+  inbound static-mail (outbound)  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a USG writes nat server for one address or port, and source NAT to the interface, to an address pool or none for addresses and zones
+  vr-out snat-vr  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a USG writes nat server for one address or port, and source NAT to the interface, to an address pool or none for addresses and zones

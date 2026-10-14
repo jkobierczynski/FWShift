@@ -1,0 +1,82 @@
+FWShift conversion report
+  source: ios
+  target: huawei
+
+Summary
+  Security rules:    204   exact 180, approximated 8, needs review 16 (12 emitted disabled), skipped 0
+  NAT rules:           3   exact 2, approximated 0, needs review 0, skipped 1
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IOS_STATELESS: access lists are stateless: on the router a connection also needs its replies let through by the lists of the other direction (established entries, reflexive lists, inspection). The converted policy is stateful and allows the replies of what it allows: where the router's lists did not let the replies through, it allows connections that did not work there
+  [needs-review] IOS_ZBFW_NAT: the zone-based firewall was read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check its class maps against the converted rules
+  [needs-review] IOS_VRF: interfaces in VRFs: the converted policy has one routing table, and does not know which zones reach each other: GigabitEthernet0 (vrf Mgmt-intf)
+  [needs-review] HUAWEI_LOAD: the output is commands for the system view (section 10): new zones, address and service sets, rules, NAT; a USG adds new rules after the ones it has, and nat server and nat-policy take effect at once. Check, then save
+  [needs-review] HUAWEI_IPV6: IPv6 entries of address sets are written as ADDRESS/LENGTH; Huawei's documentation FWShift could read does not show their form: check them on the firewall
+  [info] IOS_SOURCE: 5 zones (OUTSIDE, INSIDE, DMZ, LAB, MGMT) from the interfaces and the zones of the zone-based firewall; 4 access lists bound to interfaces. A connection passes the inbound list of the interface it arrives on, the outbound list of the one it leaves by and the zone-based firewall. Traffic to and from the router itself is not converted
+  [info] IOS_PORT_MAP: match protocol was read as the ports of Port-to-Application Mapping (the system table, and ip port-map); the router inspects the application as well, the converted rules match the ports: mailsub, http, https, dns, ssh
+  [info] IOS_SELF_ZONE: zone pairs with the self zone filter traffic to and from the router itself and were not read: ZP-OUT-SELF
+  [info] IOS_INTERFACES_LEFT_OUT: interfaces that forward no traffic of their own (loopbacks, interfaces without an address) are not zones: Loopback0
+  [info] IOS_SKIPPED_ENTRIES: entries that match no packet that opens a connection were left out (the model allows the replies of what it allows): WAN-IN 30: established: it matches replies only
+  [info] IOS_COMPOSED: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one, for each pair: 25
+  [info] INTRAZONE_RULES_ADDED: a USG passes traffic inside a zone that no rule matches; the source does not: rules that deny it were added at the end for OUTSIDE, DMZ, LAB
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have policy logging
+
+Security rules
+  WAN-IN-60 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-130 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-130 (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review  (emitted as 1 rules of the security policy)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'nat-177' translates '203.0.113.2' to. The target looks rules up after that translation, so traffic sent to '203.0.113.2' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177', which translates only some of the services of this rule: for the others the rule now names '10.20.0.25', sent there directly, and no longer '203.0.113.2'
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-177' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] SERVICE_NEGATE: every service but some: a service set of a USG lists what it matches. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-3  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-60 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-130 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review  (emitted as 1 rules of the security policy)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'nat-177' translates '203.0.113.2' to. The target looks rules up after that translation, so traffic sent to '203.0.113.2' now matches this rule; on the source it did not
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)-2  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review  (emitted as 1 rules of the security policy)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'nat-177' translates '203.0.113.2' to. The target looks rules up after that translation, so traffic sent to '203.0.113.2' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177', which translates only some of the services of this rule: for the others the rule now names '10.20.0.25', sent there directly, and no longer '203.0.113.2'
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-177' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [needs-review] SERVICE_NEGATE: every service but some: a service set of a USG lists what it matches. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-3  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-130 (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+  WAN-IN-130 (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-VPN (INSIDE to OUTSIDE)  ->  needs-review  (emitted as 1 rules of the security policy)
+      [needs-review] IOS_PASS: pass lets one direction through; the replies need a pass the other way
+  110-40 (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to INSIDE)  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to DMZ)  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to MGMT)  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+NAT rules
+  nat-176  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a USG writes nat server for one address or port, and source NAT to the interface, to an address pool or none for addresses and zones

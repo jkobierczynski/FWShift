@@ -1,0 +1,228 @@
+set address n-10.10.0.0_24 ip-netmask 10.10.0.0/24
+set address n-2001_db8_10___64 ip-netmask 2001:db8:10::/64
+set address-group office-lan static [ n-10.10.0.0_24 n-2001_db8_10___64 ]
+set address r-10.10.0.200-10.10.0.220 ip-range 10.10.0.200-10.10.0.220
+set address-group printers static r-10.10.0.200-10.10.0.220
+set address n-10.20.0.10_31 ip-netmask 10.20.0.10/31
+set address-group web-servers static n-10.20.0.10_31
+set address h-10.20.0.25 ip-netmask 10.20.0.25
+set address-group mail-server static h-10.20.0.25
+set address-group dmz-servers static [ n-10.20.0.10_31 h-10.20.0.25 ]
+set address n-10.30.0.0_24 ip-netmask 10.30.0.0/24
+set address-group lab-net static n-10.30.0.0_24
+set address n-10.10.0.50_31 ip-netmask 10.10.0.50/31
+set address-group admin-hosts static n-10.10.0.50_31
+set address n-198.51.100.0_24 ip-netmask 198.51.100.0/24
+set address-group blocked-nets static n-198.51.100.0_24
+set service web-alt protocol tcp port 8080,8443
+set service lab-tools-tcp protocol tcp port 5000-5010
+set service lab-tools-udp protocol udp port 6000
+set service lab-tools-udp protocol udp source-port 1024-65535
+set service-group lab-tools members [ lab-tools-tcp lab-tools-udp ]
+set service lab-all-tcp protocol tcp port 5000-5010,8080,8443
+set service lab-all-udp protocol udp port 6000
+set service lab-all-udp protocol udp source-port 1024-65535
+set service-group lab-all members [ lab-all-tcp lab-all-udp ]
+set service syslog protocol udp port 514
+set service http protocol tcp port 80
+set service https protocol tcp port 443
+set service smtp protocol tcp port 25
+set service dns-tcp protocol tcp port 53
+set service dns-udp protocol udp port 53
+set service-group dns members [ dns-tcp dns-udp ]
+set service ntp protocol udp port 123
+set service ssh protocol tcp port 22
+set service tcp-destination-port-443 protocol tcp port 443
+set service udp-destination-port-53 protocol udp port 53
+set service ftp protocol tcp port 21
+set rulebase security rules block-bad-nets from untrust
+set rulebase security rules block-bad-nets to any
+set rulebase security rules block-bad-nets source blocked-nets
+set rulebase security rules block-bad-nets destination any
+set rulebase security rules block-bad-nets source-user any
+set rulebase security rules block-bad-nets category any
+set rulebase security rules block-bad-nets application any
+set rulebase security rules block-bad-nets service any
+set rulebase security rules block-bad-nets action deny
+set rulebase security rules block-bad-nets log-end no
+set rulebase security rules web-in from untrust
+set rulebase security rules web-in to dmz
+set rulebase security rules web-in source any
+set rulebase security rules web-in destination [ web-servers 203.0.113.3 ]
+set rulebase security rules web-in source-user any
+set rulebase security rules web-in category any
+set rulebase security rules web-in application any
+set rulebase security rules web-in service [ http https ]
+set rulebase security rules web-in action allow
+set rulebase security rules web-in log-end no
+set rulebase security rules web-in description "published web servers"
+set rulebase security rules mail-in from untrust
+set rulebase security rules mail-in to dmz
+set rulebase security rules mail-in source any
+set rulebase security rules mail-in destination [ mail-server 203.0.113.6 ]
+set rulebase security rules mail-in source-user any
+set rulebase security rules mail-in category any
+set rulebase security rules mail-in application any
+set rulebase security rules mail-in service smtp
+set rulebase security rules mail-in action allow
+set rulebase security rules mail-in log-end yes
+set rulebase security rules office-out from trust
+set rulebase security rules office-out to untrust
+set rulebase security rules office-out source [ 10.10.0.0-10.10.0.199 10.10.0.221-10.10.0.255 2001:db8:10::/64 ]
+set rulebase security rules office-out destination any
+set rulebase security rules office-out source-user any
+set rulebase security rules office-out category any
+set rulebase security rules office-out application any
+set rulebase security rules office-out service [ http https dns ntp ]
+set rulebase security rules office-out action allow
+set rulebase security rules office-out log-end no
+set rulebase security rules office-dmz from trust
+set rulebase security rules office-dmz to dmz
+set rulebase security rules office-dmz source office-lan
+set rulebase security rules office-dmz destination [ dmz-servers 203.0.113.6 ]
+set rulebase security rules office-dmz source-user any
+set rulebase security rules office-dmz category any
+set rulebase security rules office-dmz application any
+set rulebase security rules office-dmz service [ http https smtp web-alt ]
+set rulebase security rules office-dmz action allow
+set rulebase security rules office-dmz log-end no
+set rulebase security rules admin-ssh from trust
+set rulebase security rules admin-ssh to [ dmz lab ]
+set rulebase security rules admin-ssh source admin-hosts
+set rulebase security rules admin-ssh destination any
+set rulebase security rules admin-ssh source-user any
+set rulebase security rules admin-ssh category any
+set rulebase security rules admin-ssh application any
+set rulebase security rules admin-ssh service ssh
+set rulebase security rules admin-ssh action allow
+set rulebase security rules admin-ssh log-end no
+set rulebase security rules dmz-syslog from dmz
+set rulebase security rules dmz-syslog to trust
+set rulebase security rules dmz-syslog source any
+set rulebase security rules dmz-syslog destination 10.10.0.60
+set rulebase security rules dmz-syslog source-user any
+set rulebase security rules dmz-syslog category any
+set rulebase security rules dmz-syslog application any
+set rulebase security rules dmz-syslog service syslog
+set rulebase security rules dmz-syslog action allow
+set rulebase security rules dmz-syslog log-end no
+set rulebase security rules lab-tools from trust
+set rulebase security rules lab-tools to lab
+set rulebase security rules lab-tools source 10.10.0.0/24
+set rulebase security rules lab-tools destination lab-net
+set rulebase security rules lab-tools source-user any
+set rulebase security rules lab-tools category any
+set rulebase security rules lab-tools application any
+set rulebase security rules lab-tools service lab-all
+set rulebase security rules lab-tools action allow
+set rulebase security rules lab-tools log-end no
+set rulebase security rules lab-tools disabled yes
+set rulebase security rules lab-tools description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules lab-tools-apps from trust
+set rulebase security rules lab-tools-apps to lab
+set rulebase security rules lab-tools-apps source 10.10.0.0/24
+set rulebase security rules lab-tools-apps destination lab-net
+set rulebase security rules lab-tools-apps source-user any
+set rulebase security rules lab-tools-apps category any
+set rulebase security rules lab-tools-apps application ping
+set rulebase security rules lab-tools-apps service application-default
+set rulebase security rules lab-tools-apps action allow
+set rulebase security rules lab-tools-apps log-end no
+set rulebase security rules lab-tools-apps disabled yes
+set rulebase security rules lab-tools-apps description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules lab-out from lab
+set rulebase security rules lab-out to untrust
+set rulebase security rules lab-out source lab-net
+set rulebase security rules lab-out destination any
+set rulebase security rules lab-out source-user any
+set rulebase security rules lab-out category any
+set rulebase security rules lab-out application any
+set rulebase security rules lab-out service [ tcp-destination-port-443 udp-destination-port-53 ]
+set rulebase security rules lab-out action allow
+set rulebase security rules lab-out log-end no
+set rulebase security rules ping-dmz from trust
+set rulebase security rules ping-dmz to dmz
+set rulebase security rules ping-dmz source any
+set rulebase security rules ping-dmz destination any
+set rulebase security rules ping-dmz source-user any
+set rulebase security rules ping-dmz category any
+set rulebase security rules ping-dmz application [ icmp ping ]
+set rulebase security rules ping-dmz service application-default
+set rulebase security rules ping-dmz action allow
+set rulebase security rules ping-dmz log-end no
+set rulebase security rules ipv6-out from trust
+set rulebase security rules ipv6-out to untrust
+set rulebase security rules ipv6-out source 2001:db8:10::/64
+set rulebase security rules ipv6-out destination any
+set rulebase security rules ipv6-out source-user any
+set rulebase security rules ipv6-out category any
+set rulebase security rules ipv6-out application any
+set rulebase security rules ipv6-out service any
+set rulebase security rules ipv6-out action allow
+set rulebase security rules ipv6-out log-end no
+set rulebase security rules video from trust
+set rulebase security rules video to untrust
+set rulebase security rules video source any
+set rulebase security rules video destination any
+set rulebase security rules video source-user any
+set rulebase security rules video category any
+set rulebase security rules video application YouTube
+set rulebase security rules video service any
+set rulebase security rules video action deny
+set rulebase security rules video log-end no
+set rulebase security rules old-ftp from trust
+set rulebase security rules old-ftp to dmz
+set rulebase security rules old-ftp source any
+set rulebase security rules old-ftp destination any
+set rulebase security rules old-ftp source-user any
+set rulebase security rules old-ftp category any
+set rulebase security rules old-ftp application any
+set rulebase security rules old-ftp service ftp
+set rulebase security rules old-ftp action allow
+set rulebase security rules old-ftp log-end no
+set rulebase security rules old-ftp disabled yes
+set rulebase security rules lab-deny from lab
+set rulebase security rules lab-deny to any
+set rulebase security rules lab-deny source any
+set rulebase security rules lab-deny destination any
+set rulebase security rules lab-deny source-user any
+set rulebase security rules lab-deny category any
+set rulebase security rules lab-deny application any
+set rulebase security rules lab-deny service any
+set rulebase security rules lab-deny action deny
+set rulebase security rules lab-deny log-end no
+set rulebase security rules "intrazone default" rule-type intrazone
+set rulebase security rules "intrazone default" from any
+set rulebase security rules "intrazone default" to any
+set rulebase security rules "intrazone default" source any
+set rulebase security rules "intrazone default" destination any
+set rulebase security rules "intrazone default" source-user any
+set rulebase security rules "intrazone default" category any
+set rulebase security rules "intrazone default" application any
+set rulebase security rules "intrazone default" service any
+set rulebase security rules "intrazone default" action allow
+set rulebase security rules "intrazone default" log-end no
+set rulebase security rules "intrazone default" description "traffic inside a zone that no rule matches passes (default packet-filter intrazone enable is not set)"
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
+set rulebase nat rules no-nat-vpn from trust
+set rulebase nat rules no-nat-vpn to untrust
+set rulebase nat rules no-nat-vpn source any
+set rulebase nat rules no-nat-vpn destination 192.0.2.0/24
+set rulebase nat rules no-nat-vpn service any
+set rulebase nat rules office-pat from trust
+set rulebase nat rules office-pat to untrust
+set rulebase nat rules office-pat source 10.10.0.0/24
+set rulebase nat rules office-pat destination any
+set rulebase nat rules office-pat service any
+set rulebase nat rules office-pat source-translation dynamic-ip-and-port translated-address 203.0.113.4/31

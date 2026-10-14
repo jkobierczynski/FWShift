@@ -1,0 +1,62 @@
+FWShift conversion report
+  source: fmc (Edge)
+  target: huawei
+
+Summary
+  Security rules:     22   exact 10, approximated 8, needs review 3 (3 emitted disabled), skipped 1
+  NAT rules:           7   exact 4, approximated 0, needs review 0, skipped 3
+  Addresses:          16   exact 16, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           24   exact 24, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HUAWEI_LOAD: the output is commands for the system view (section 10): new zones, address and service sets, rules, NAT; a USG adds new rules after the ones it has, and nat server and nat-policy take effect at once. Check, then save
+  [needs-review] HUAWEI_IPV6: IPv6 entries of address sets are written as ADDRESS/LENGTH; Huawei's documentation FWShift could read does not show their form: check them on the firewall
+  [approximated] OBJECT_OVERRIDES: 1 object(s) can have another value on a device than the one that was read (they allow overrides): ot-net. The values of the manager were converted; check them against the device the policy is for
+  [info] INTRAZONE_RULES_ADDED: a USG passes traffic inside a zone that no rule matches; the source does not: rules that deny it were added at the end for outside, dmz
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have policy logging
+
+Security rules
+  pre-backup  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'mail-srv' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  pre-partner-gre  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] TUNNEL_RULE: tunnel rule of the prefilter policy: it is converted as a rule for the protocol that carries the tunnel, between the tunnel endpoints. What the source did with the connections inside the tunnel is not converted
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-srv-pub' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+  pre-partner-gre-reverse  ->  exact  (emitted as 1 rules of the security policy)
+      [info] TUNNEL_RULE: the other direction of tunnel rule 'pre-partner-gre', which matches tunnels from source and destination
+  LAN web  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (file=Block Malware, intrusion=Balanced Security and Connectivity); attach equivalent inspection on the target
+  Updates  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates: written with addresses only.
+  Inbound web  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-srv-pub' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+  Inbound mail  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'mail-srv' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  Admin access  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'servers' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+  Helpdesk RDP  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'mail-srv-pub' next to 'servers' because of NAT rule 'nat-mail-srv'; check that this rule is meant to cover the translated traffic
+      [needs-review] USER_MATCH: source user match CORP\helpdesk is not converted.
+  Staff social media  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNSUPPORTED_MATCH: not converted: an application condition. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Partner service  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination 'web-srv-pub' next to 'web-srv' because of NAT rule 'nat-2'; check that this rule is meant to cover the translated traffic
+  Uncategorised web  ->  approximated  (emitted as 1 rules of the security policy)
+      [approximated] INTERACTIVE_BLOCK: the source showed web users a page from which they could go on to the site (Interactive Block); it is converted as a rule that blocks
+  Reset the rest from inside  ->  exact  (emitted as 1 rules of the security policy)
+      [info] REJECT_AS_DENY: action reset-both: written as deny
+  Watch DMZ  ->  skipped
+      [info] MONITOR_RULE: rule with the action Monitor: it logs the traffic and leaves the decision to the rules below it. Nothing to convert
+
+NAT rules
+  nat-2  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a USG writes nat server for one address or port, and source NAT to the interface, to an address pool or none for addresses and zones
+  nat-3  ->  skipped
+      [approximated] NAT_INTERFACE_ADDRESS: the rule is for the address of interface 'outside', whatever that is at the time. It is converted with the address the interface has in the input, 203.0.113.2
+      [needs-review] NAT_NOT_CONVERTED: not converted: a USG writes nat server for one address or port, and source NAT to the interface, to an address pool or none for addresses and zones
+  nat-4  ->  exact  (emitted as nat-policy)
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: round robin, flat port range, interface (as fallback)
+  nat-mail-srv  ->  skipped
+      [info] ATTRIBUTES_IGNORED: NAT options without an equivalent were ignored: translate DNS replies
+      [needs-review] NAT_NOT_CONVERTED: not converted: a USG writes nat server for one address or port, and source NAT to the interface, to an address pool or none for addresses and zones

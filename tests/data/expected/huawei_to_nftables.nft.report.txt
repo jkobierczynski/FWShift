@@ -1,0 +1,38 @@
+FWShift conversion report
+  source: huawei
+  target: nftables
+
+Summary
+  Security rules:     16   exact 12, approximated 0, needs review 3 (3 emitted disabled), skipped 1
+  NAT rules:           6   exact 3, approximated 2, needs review 1, skipped 0
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HUAWEI_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with display predefined-service: http, https, smtp, dns, ntp, ssh, icmp, ftp
+  [needs-review] NFT_LOAD: the output is one table, inet fwshift, which replaces itself when loaded: check it with 'nft -c -f FILE', load it with 'nft -f FILE'. Other tables stay as they are, but every base chain at the forward hook sees each packet: the drop policy here drops what this table does not accept even where another table (firewalld, Docker, libvirt, iptables-nft) accepts it, and a drop in another table still wins over an accept here
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names; map each zone to its interface with --zone-map: untrust, dmz, trust, lab
+  [info] HUAWEI_SOURCE: 4 zones (trust, untrust, dmz, lab); 15 rules of the security policy, first match. The local zone (the firewall itself) is not converted
+  [info] HUAWEI_NAT_ORDER: destination NAT (nat server) is done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT (nat-policy) is done after it
+  [info] HUAWEI_DEFAULTS: what no rule matches: between zones deny, inside a zone permit
+  [info] LOGGING_AT_END: 1 rule logs the end of a connection on the source; an nftables rule logs the packet it matches, so only rules that log the start of a connection got a log statement. Connection ends are in the conntrack events (conntrack -E, ulogd)
+
+Security rules
+  lab-tools  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  video  ->  needs-review, emitted disabled
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) YouTube; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  intrazone default  ->  needs-review, emitted disabled
+      [needs-review] RULE_TYPE: intrazone rule with 'any' zone cannot be written as interface pairs.
+  manage-fw  ->  skipped
+      [info] HUAWEI_LOCAL_RULE: a rule for traffic to or from the firewall itself (the local zone): not converted
+
+NAT rules
+  nat-server-mail  ->  exact  (emitted as 1 prerouting, 1 postrouting)
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as an SNAT rule plus a DNAT rule for the inbound direction
+  no-nat-vpn  ->  needs-review  (emitted as 1 postrouting)
+      [needs-review] NAT_INPUT_INTERFACE: the rule applied to traffic from trust only; postrouting cannot match the input interface, so it applies to traffic from every interface
+  office-pat  ->  approximated  (emitted as 1 postrouting)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from trust only; postrouting cannot match the input interface, so it applies to traffic from every interface
+  lab-easy-ip  ->  approximated  (emitted as 1 postrouting)
+      [approximated] NAT_INPUT_INTERFACE: the rule applied to traffic from lab only; postrouting cannot match the input interface, so it applies to traffic from every interface

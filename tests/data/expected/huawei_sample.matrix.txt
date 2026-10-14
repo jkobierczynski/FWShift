@@ -1,0 +1,62 @@
+FWShift zone matrix
+  source: huawei
+  security rules: 15 (1 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 trust             untrust           dmz               lab               (other zones)
+  trust          any               any               icmp tcp/22 +5    icmp type 8 … +5  -
+  untrust        -                 any               tcp/25 tcp/80 +1  -                 -
+  dmz            udp/514           -                 any               -                 -
+  lab            -                 tcp/443 udp/53    -                 -                 -
+  (other zones)  -                 -                 -                 -                 any
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+trust -> trust (inside the zone)
+  allowed: any
+  rule 'intrazone default': any -> any: any
+trust -> untrust
+  allowed: any
+  rule 'office-out': 10.10.0.0-10.10.0.199, 10.10.0.221-10.10.0.255, 2001:db8:10::/64 -> any: tcp/53, tcp/80, tcp/443, udp/53, udp/123
+  rule 'ipv6-out': 2001:db8:10::/64 -> any: any
+trust -> dmz
+  allowed: icmp, tcp/22, tcp/25, tcp/80, tcp/443, tcp/8080, tcp/8443
+  rule 'office-dmz': office-lan -> dmz-servers: tcp/25, tcp/80, tcp/443, tcp/8080, tcp/8443
+  rule 'admin-ssh': admin-hosts -> any: tcp/22
+  rule 'ping-dmz': any -> any: icmp
+trust -> lab
+  allowed: icmp type 8 code 0, tcp/22, tcp/5000-5010, tcp/8080, tcp/8443, udp/6000 from port 1024-65535
+  rule 'admin-ssh': admin-hosts -> any: tcp/22
+  rule 'lab-tools': 10.10.0.0/24 -> lab-net: icmp type 8 code 0, tcp/5000-5010, tcp/8080, tcp/8443, udp/6000 from port 1024-65535 (schedule office-hours)
+untrust -> untrust (inside the zone)
+  allowed: any
+  rule 'intrazone default': any -> any: any
+untrust -> dmz
+  allowed: tcp/25, tcp/80, tcp/443
+  rule 'web-in': any -> web-servers: tcp/80, tcp/443
+  rule 'mail-in': any -> mail-server: tcp/25
+dmz -> trust
+  allowed: udp/514
+  rule 'dmz-syslog': any -> 10.10.0.60: udp/514
+dmz -> dmz (inside the zone)
+  allowed: any
+  rule 'intrazone default': any -> any: any
+lab -> untrust
+  allowed: tcp/443, udp/53
+  rule 'lab-out': lab-net -> any: tcp/443, udp/53
+(other zones) -> (other zones)
+  allowed: any
+  rule 'intrazone default': any -> any: any
+
+Not in the matrix
+  1 rule(s) of the source could not be read; what they allow is not shown: 'manage-fw'
+
+From reading the configuration
+  HUAWEI_SOURCE: 4 zones (trust, untrust, dmz, lab); 15 rules of the security policy, first match. The local zone (the firewall itself) is not converted
+  HUAWEI_NAT_ORDER: destination NAT (nat server) is done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT (nat-policy) is done after it
+  HUAWEI_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with display predefined-service: http, https, smtp, dns, ntp, ssh, icmp, ftp
+  HUAWEI_DEFAULTS: what no rule matches: between zones deny, inside a zone permit
+
+Notes
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

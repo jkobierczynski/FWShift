@@ -12,6 +12,7 @@ what was approximated and what a person has to look at.
 | Check Point | Management API export (JSON) | shell script of `mgmt_cli` calls |
 | Cisco ASA (and the running configuration of an FTD, read only) | `show running-config` | ASA commands (9.x) |
 | Cisco IOS and IOS XE (routers) | `show running-config`: interface access lists, object groups, the zone-based firewall, NAT | commands for the zone-based policy firewall |
+| Huawei USG (USG6000, USG6000E, USG9500) | `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy` | commands for the system view |
 | Cisco Secure Firewall (FTD) managed by a Management Center (FMC) | the JSON its REST API returns | a Python script that creates a new policy through the REST API |
 | Cisco Secure Firewall (FTD) managed by its Device Manager (FDM) | the configuration export (`.txt` or `.zip`), or the JSON of its REST API | a file for the configuration import |
 | Sophos Firewall (SFOS 18 and later) | the export of *Import export* (`.tar` or its `Entities.xml`) | the same, for import |
@@ -44,7 +45,7 @@ change, or a source and its conversion read back (the **equivalence check**).
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.28).** The converter is tested against synthetic
+> **Status: alpha (0.29).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -54,7 +55,7 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   backend; nft 1.0.9); NAT rules and IPv6 rules are loaded but no packets
 >   are sent through them. Generated nftables rulesets are also listed back
 >   by nft, as text and as JSON, and both listings must give the same model.
-> * **PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco IOS, Cisco Secure Firewall,
+> * **PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco IOS, Huawei USG, Cisco Secure Firewall,
 >   Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, VMware NSX, AWS, Azure, Google Cloud, RouterOS and Forcepoint** output has **not been loaded on a
 >   device or management server**, and the **Terraform** output has not been applied with Terraform. The Check Point input format is taken from the API
 >   documentation, not from a real export, the ASA and FTD syntax from Cisco's
@@ -86,7 +87,9 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   dump program have only talked to a stand-in written for the tests); Terraform from the documentation and source of its
 >   JSON output and the documentation and schemas of the AWS, Azure and Google providers; Google Cloud from Google's API
 >   reference and the gcloud documentation, and no script was run against a project; IOS from Cisco's configuration
->   guides, command references and IOS XE YANG models, and nothing was loaded on a router. Several conversion rules rest on
+>   guides, command references and IOS XE YANG models, and nothing was loaded on a router; Huawei USG from Huawei's
+>   documentation and support pages (its command reference could not be read), and nothing was loaded on a firewall.
+>   Several conversion rules rest on
 >   vendor behaviour taken from documentation rather than from a lab.
 >
 > Treat the output as a draft for a lab, read the report, and never load it in
@@ -160,8 +163,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.28.0.pyz --version
-python3 fwshift-0.28.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.29.0.pyz --version
+python3 fwshift-0.29.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -193,6 +196,13 @@ fwshift convert rules.v4 --to checkpoint -o checkpoint.sh --report report.txt --
 # Cisco ASA to PAN-OS: interface names become zones
 fwshift convert asa-running.cfg --to panos -o panos.set --report report.txt \
     --interface-map GigabitEthernet0/0=ethernet1/1
+
+# Huawei USG to PAN-OS: nat server is done before the security policy, so the
+# rules are rewritten for the address as it arrives; to Huawei, the output is
+# commands for the system view, the zones' interfaces as comments
+fwshift convert usg-current.cfg --to panos -o candidate.set --report report.txt
+fwshift convert candidate.xml --to huawei -o usg.txt --report report.txt \
+    --interface-map ethernet1/1=GigabitEthernet1/0/1
 
 # Cisco IOS router to FortiOS: the interface lists, the zone-based firewall
 # and NAT, composed for each pair of zones. To IOS, the output is the
@@ -368,7 +378,7 @@ fwshift convert running-config.xml --to iptables -o rules.v4 --report report.txt
 
 The [manual](docs/MANUAL.md#3-getting-the-source-configuration) shows how to
 get the input for each platform; for Check Point that is three `mgmt_cli show`
-calls, for an ASA or an IOS router `show running-config`, for a Sophos Firewall an export under
+calls, for an ASA or an IOS router `show running-config`, for a Huawei USG `display current-configuration`, for a Sophos Firewall an export under
 *Backup & firmware > Import export*, for a Management Center a handful of
 `curl` calls to its REST API, for a Device Manager its configuration export,
 for a pfSense the backup under *Diagnostics > Backup & Restore*, for an
@@ -530,6 +540,15 @@ FWShift reads) and does the same for the conversion. See
 | Security rules | one ordered layer with its inline layers flattened; zones in cells, negation, action, track, disabled, install-on reported | `FORWARD` chain with the chains it jumps to flattened; interfaces as zones, negation, connection state | every base chain at the forward hook (ip, ip6, inet tables), combined as the kernel runs them; jump, goto, return, verdict maps, concatenations flattened; interfaces as zones, negation, connection state, logging |
 | NAT | manual and automatic rules: hide, static, port translation, no-NAT | `DNAT`, `SNAT`, `MASQUERADE` and exemptions of the `nat` table (IPv4) | `dnat`, `snat`, `masquerade`, NAT maps and exemptions at prerouting and postrouting (IPv4) |
 | Scope | one access layer and the NAT rulebase of one policy package | one IP version per file | both IP versions in one table |
+
+| | Huawei USG |
+|---|---|
+| Address objects | entries of address sets (mask, mask length, wildcard, range, IPv6) and the addresses of a rule. Written: address sets, one address in the rule |
+| Address groups | nested address sets |
+| Services | service sets (TCP, UDP, SCTP with source and destination ports, ICMP types, protocols), nested; the predefined services by their well-known ports; a service written in a rule. Written: service sets |
+| Security rules | `security-policy`, first match, with zones, addresses, exclusions, services, `disable` and logging; the defaults (`default action`, permit inside a zone). Written: the same, with zones listed, rules it cannot say disabled, defaults as rules or `default action permit` |
+| NAT | `nat server` (before the policy: ports, protocol, static), `nat-policy` (easy-ip, address pools, no-nat). Written: the same forms |
+| Scope | the root system of one firewall; the zones' interfaces and the order among existing rules left to you |
 
 | | Cisco IOS and IOS XE |
 |---|---|
@@ -725,7 +744,8 @@ schedules, `redirect` and IPv6 NAT, Forcepoint aliases, element-based and
 default NAT, VPN actions and matches, block lists, rule validity times and
 connection limits, Terraform resources outside the input (other states, made by
 hand), dynamic blocks and values a plan does not know (reported), AWS Network
-Firewall, WAF and Azure Firewall (reported), IOS control-plane and self-zone
+Firewall, WAF and Azure Firewall (reported), Huawei virtual systems, applications,
+users, domain sets, regions and the local zone (reported), IOS control-plane and self-zone
 policies, VRFs, policy routing, outside and route-map NAT, time ranges and layer-7
 inspection (reported), Google Cloud secure tags, address
 groups, FQDN, geography and threat intelligence matches, firewall endpoints and
@@ -743,7 +763,7 @@ and everything else outside the policy.
   AWS security groups 0.20, Azure network security groups 0.21, MikroTik
   RouterOS 0.23, OPNsense 0.24, Forcepoint NGFW 0.25, Terraform (AWS and
   Azure) 0.26, Google Cloud firewall rules (and terraform-google) 0.27, Cisco IOS
-  and IOS XE 0.28; next Huawei USG 0.29, Stormshield 0.30 and Cisco Meraki MX
+  and IOS XE 0.28, Huawei USG 0.29; next Stormshield 0.30 and Cisco Meraki MX
   0.31 (see TODO.md).
 * **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](docs/RULE_USAGE.md)):
   rule identities and hit counters (0.13), Check Point logs (0.14),

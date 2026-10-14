@@ -8,13 +8,13 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.28.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
-| Tests | 5262, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, an IOS router, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a Google Cloud project, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
+| Version | 0.29.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
+| Tests | 5438, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, an IOS router, a Huawei USG, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a Google Cloud project, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
 | Analysis | the audit, the zone matrix, rule usage from hit counters and logs, the zone and conduit model as a gate (`fwshift conduits`), the equivalence check (`fwshift compare`, `convert --compare`) |
 | Security | an outside review (ChatGPT, October 2026) and the measures taken: `docs/security/SECURITY_REVIEW.md` |
-| Next | Huawei USG (0.29), Stormshield (0.30), Cisco Meraki MX (0.31); the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
+| Next | Stormshield (0.30), Cisco Meraki MX (0.31); the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
 
 ## Layout
 
@@ -26,6 +26,9 @@ src/fwshift/
         fortios.py    FortiOS configuration  -> model
         checkpoint.py Management API JSON    -> model (inline layers flattened)
         asa.py        ASA running-config     -> model (bound access lists, NAT sections)
+        huawei.py     Huawei USG current-configuration -> model (security zones,
+                      address and service sets, security-policy, nat server
+                      before it, nat-policy after it)
         ios.py        IOS / IOS XE running-config -> model (interface lists in and
                       out, the zone-based firewall and NAT, composed for each
                       pair of zones where more than the inbound list decides)
@@ -82,6 +85,9 @@ src/fwshift/
         fortios.py    model -> FortiOS CLI configuration
         checkpoint.py model -> shell script of mgmt_cli calls
         asa.py        model -> ASA commands (access lists per interface, twice NAT)
+        huawei.py     model -> commands for the system view of a USG (zones,
+                      address and service sets, rules, defaults, nat server,
+                      nat-policy)
         ios.py        model -> commands for the IOS zone-based firewall (an
                       access list and class map per rule, a policy per zone pair)
         cisco.py      model -> the script for a Management Center (fmc_loader.py
@@ -176,7 +182,7 @@ tests/
                       FortiOS logs (and panos_logged.xml), the two
                       Cisco Secure Firewall samples and the SonicWall,
                       WatchGuard, Barracuda and Juniper samples, the nftables
-                      sample (written by nft itself), the NSX, AWS, Azure, Google Cloud, Terraform, IOS, RouterOS and OPNsense samples, the zone model,
+                      sample (written by nft itself), the NSX, AWS, Azure, Google Cloud, Terraform, IOS, Huawei, RouterOS and OPNsense samples, the zone model,
                       and the kernel checks for iptables and nftables
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
                       Check Point, ASA, Sophos and Cisco Secure Firewall output;
@@ -211,6 +217,10 @@ tests/
                       the router does, for random exports and for the script
     test_checkpoint.py Check Point both ways, with simulators for an export
                       and for an emitted script
+    test_huawei.py    Huawei USG both ways: random USGs written as current
+                      configurations and a judge of their own (nat server, first
+                      match, the defaults); the emitted commands read back and
+                      judged the same way, also after a round trip
     test_ios.py       Cisco IOS both ways: random routers written as running
                       configurations and a judge of their own (lists, NAT, the
                       zone-based firewall); the emitted commands read back and
@@ -674,6 +684,10 @@ there for an old tag whose tests no longer run on today's tools.
 | Google Cloud: one list without zones, egress and ingress composed between instances | A connection between two instances passes the egress rules of the sender and the ingress rules of the receiver, each list with its own steps. The model has one first-match list: from outside the ingress rules, to outside the egress rules, and between instances the egress rules that deny, then for each that allows the ingress rules cut to it, as for AWS and Azure. |
 | Google Cloud: `goto_next` becomes the rules below it without what it matches | It leaves the policy for the next step, which in one list is "the rules after this policy". Subtracting its match from the rules below it in the same policy says exactly that; when that cannot be worked out, the rules after it are not converted. |
 | Google Cloud output is a new global policy, associated with nothing | Creating it changes no traffic; associating it, and putting it before the VPC rules, are two changes a person makes after reading the report. Each rule is written for ingress and egress, so a connection between instances meets the model's verdict at both ends. |
+| Huawei: the implicit permit inside a zone is an explicit rule at the end | The model has one default for what no rule matches; a USG denies between zones and passes inside one (unless `default packet-filter intrazone enable`). A rule of scope intrazone at the end keeps both. |
+| Huawei: the model names addresses as they arrive; `nat server` is undone on reading and redone on writing | `nat server` is done before the security policy, whose rules name the inside address, as on FortiOS: the parser rewrites destinations to the pre-NAT address, the emitter back, for the translations it writes. A translation a `nat server` cannot say (a source, a destination zone, several source zones, a service it cannot read, an exemption above it) is not written, and the rules are left as the model names them. |
+| Huawei: lines by indent and by the `#` lines between blocks | VRP prints the commands of the system view with one space and puts `#` between blocks. A line after a `#` line is a command of the system view, `nat server` always is, and every line of a rule stays in its policy; what must not be missed (`default packet-filter intrazone enable`) is looked for at every depth. |
+| Huawei output: zones listed, never left out; rules that cannot be said written `disable` first | A rule without zones matches traffic to the firewall itself as well; commands take effect when they are entered, so a rule that is to be disabled is disabled before it has conditions, and a side it cannot say gets an address no forwarded packet has. |
 | IOS: the zones are the zone-based firewall's, or the interfaces; lists composed per pair of zones | A connection meets up to three lists (inbound, outbound, zone pair), each first match. Where only inbound lists decide, each stays the rules of its zone, as written; otherwise the three are composed for each pair of zones, as AWS and Azure lists are, with what an entry above already takes left out. Interfaces of one zone with different lists are zones of their own. |
 | IOS: the model names addresses as they arrive; outbound lists and the zone-based firewall are rewritten through NAT | An inbound list sees the packet before NAT, an outbound list after it, and the zone-based firewall is read as seeing inside addresses. Rewriting their entries through the static translations and the port translation of a list of sources gives one address space; NAT that is not read makes the entries it could change not converted. |
 | IOS output is the zone-based firewall, with the zone membership as comments | Interface access lists are stateless and need rules for the replies; inspection is stateful, as the model is. Creating zones, lists and policies changes nothing; putting an interface in a zone does, so it is left to a person, as are the NAT lines. |
@@ -712,6 +726,11 @@ policy behaves unexpectedly.
 | Shape of `show access-rulebase` / `show nat-rulebase` answers: `rulebase`, `objects-dictionary`, sections, `from`/`to`/`total` (with `total` counting rules, not section titles), `inline-layer`, the field names of each object type; objects of data domains are predefined | Check Point parser |
 | `mgmt_cli` syntax of every call the script makes (`add host`, `add network`, `add address-range`, `add dns-domain`, `add group`, `add service-tcp/-udp/-sctp/-icmp/-icmp6/-other`, `add service-group`, `add security-zone`, `add access-layer ... add-default-rule false`, `add access-rule ... position N`, `add nat-rule ... position bottom`), switches after the command, a non-zero exit status when the server refuses a call | Check Point emitter |
 | Check Point accepts an address range `0.0.0.0`-`255.255.255.255`, domain objects as group members, empty groups as placeholders, and object names made of letters, digits, `.`, `_` and `-` | Check Point emitter |
+| Huawei, all rows below: from Huawei's documentation and support pages for USG6000, USG6000E and USG9500 (V500, V600: security policies, address and service sets, NAT server, NAT policies, security zones, the default packet filter) and the configurations shown in them; the HedEx command reference could not be read; nothing was run on a firewall | Huawei parser and emitter |
+| Rules first match; conditions ANDed, values of one condition ORed; a condition that is not given is any; `*-address-exclude` takes addresses out; `default action` deny unless permit; inside a zone permit unless `default packet-filter intrazone enable` (V100R001: the default policy) | Huawei parser and emitter |
+| `nat server` before the security policy (rules name the inside address and port), `nat-policy` after it; `zone` limits a `nat server` to traffic from that zone; without a protocol it translates both ways unless `no-reverse`; display adds an id after the name | Huawei parser and emitter |
+| Address entries: `A mask LEN|DOTTED`, `A LEN`, `A WILDCARD` (no `mask`), `range A B`, `address-set X`; service entries `protocol P source-port .. destination-port P [to Q] ...`, `icmp-type T [C]` | Huawei parser and emitter |
+| Assumed, not documented: the indentation of display output; the ports of the predefined services; the form of IPv6 entries in address sets on input; that `disable` is accepted in a new rule; that rule groups are read in order | Huawei parser and emitter |
 | IOS, all rows below: from Cisco's IOS 12.2/15 command references and configuration guides (IP access lists, object groups, sequence numbers, IPv6 access lists, the zone-based policy firewall, Port-to-Application Mapping, NAT and its order of operation, document 6209), the IOS XE 17.15 YANG models, and the grammars of Batfish and Ansible cisco.ios (read, never run); nothing was run on a router | IOS parser and emitter |
 | A packet from A to B: inbound list of A, NAT (outside to inside before routing, inside to outside after), outbound list of B, then the zone-based firewall; an undefined or empty list passes everything; a list with entries ends in an implicit deny; IPv6 lists end in permits of neighbour discovery and a deny | IOS parser |
 | Zone-based firewall: no zone pair between two zones drops, inside one zone passes unless a zone pair from the zone to itself (15.0(1)M) says otherwise, zoned to unzoned drops, unzoned to unzoned passes, `self` is the router; `class-default` drops; `inspect` is stateful, `pass` one way; a class map's list takes what it permits | IOS parser and emitter |
@@ -2111,6 +2130,82 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-14: version 0.29.0
+
+The second of the four brands: **Huawei USG** (USG6000, USG6000E, USG9500), both ways.
+
+**Built**
+
+* `parsers/huawei.py`: `display current-configuration`. Security zones and their interfaces (`local`, the firewall,
+  not converted); address sets (masks, mask lengths, wildcards, ranges, IPv6, nested) and service sets (ports with
+  `to` and several on a line, ICMP types, protocols, nested), each resolved once; the predefined services by their
+  well-known ports; the rules of `security-policy`, first match, with zones, addresses, exclusions (taken out of what
+  the rule names, or a negation), services (also written in the rule), `disable`, logging, and applications, users and
+  time ranges carried; the defaults (`default action`, `default packet-filter intrazone enable`, V100R001) with the
+  permit inside a zone as an explicit rule; `nat server` (ports, a protocol, static both ways, `zone`, `no-reverse`)
+  before the policy, with the rules rewritten to the address as it arrives; `nat-policy` (easy-ip, address pools,
+  no-nat) after it. The root system up to the first `switch vsys`; `policy interzone` and packet filters between zones
+  refused. Lines are read by their indent and the `#` lines between blocks.
+* `emitters/huawei.py`: commands for the system view. Zones (`trust`, `untrust` and `dmz` as they are, others with
+  the prefix and a priority of their own), address and service sets, a rule of `security-policy` per rule in order
+  (per zone for rules inside or between their zones only; all zones listed for any), `disable` first for what it
+  cannot say; `default action permit` and rules that deny inside a zone where the source wants them; `nat server`,
+  `nat-policy` and address pools; the zones' interfaces as comments.
+* `--from` and `--to huawei`, detection before IOS; the sample (`huawei_sample.cfg`, written by
+  `tests/tools/make_huawei_sample.py`), 52 golden conversions, their audit and matrix.
+
+**What the work made necessary**
+
+* *Two defaults in one model.* A USG denies between zones and passes inside one; the parser writes the second as a
+  rule at the end, and the emitter leaves out the rules that deny inside a zone where a rule already decides all of it.
+* *Indentation that means two things.* VRP prints the commands of the system view with a space, like the lines of a
+  block. The reader goes by the `#` lines between blocks, keeps the lines of a rule in their policy, and looks for the
+  flag that changes the default inside a zone at every depth.
+* *A judge of the USG.* `test_huawei.py` builds random USGs as plain descriptions, writes them as current
+  configurations, and decides packets from the description: `nat server`, the rules, the defaults; what it does not
+  decide must be not converted in the model. The emitted commands are read back by a strict reader into the same
+  description, also after a round trip from a USG.
+
+**Review**
+
+*Round 37* by the independent reviewer, with probe scripts.
+
+| | Finding | Fix |
+|---|---|---|
+| high | `default packet-filter intrazone enable` printed with a space after another command of the system view was a line of that command: the permit inside a zone was converted | looked for at every depth; a line after a `#` line is a command of the system view |
+| high | The rules of virtual systems were read into the root's policy | the root is read up to the first `switch vsys`; a `switch vsys` inside a block is refused |
+| high | `nat server` was written for NAT rules with sources, destination zones or several source zones, which it cannot say, and the rules rewritten for it | not written; the rules are left as the model names them |
+| medium | A NAT service that cannot be read, or holds nothing, gave a `nat server` of every protocol | not written |
+| medium | `*-address-exclude any` next to addresses was ignored | the rule matches nothing: not converted |
+| medium | Nested sets were resolved again for every reference: a 2.5 kB configuration took minutes | each set resolved once; service sets flattened, at most 10,000 entries |
+| medium | Rules of any zone were written without zones, so they also matched traffic to the firewall | the zones are listed; a source without zones is said (`HUAWEI_NO_ZONES`) |
+| medium | A rule written disabled had its conditions before `disable`, and the side it could not say left out (any) | `disable` first; that side an address no forwarded packet has |
+| medium | Lines of a rule outside their place were lost or read as other rules' | every line of a rule stays in its policy; a rule outside one is refused |
+| medium | V100R001, where traffic inside a zone meets the default policy, was read as V500 | read from the version line (`HUAWEI_V100`) |
+| low | Zoneless sources, protocol 0, a wildcard of all ones, rule groups as information only, `?` and blank descriptions in the output, `quit` lines not read, a NAT origin with one rule written and one not | each said, refused or handled |
+
+Acted on as well, from the reviewer's suspicions: an exemption above a destination NAT keeps the `nat server` from
+being written (a USG does it first); packet filters between zones (a router, an older USG) are refused.
+
+The fixes were not reviewed again; they have tests (`test_r37_*` in `test_huawei.py`).
+
+**Verified, and not**
+
+* The tests: 122 in `test_huawei.py`, the suite 5438. The parser against the judge: 400 random USGs (200 with the policy
+  only, 200 with NAT), 300 packets each, and every rule the judge does not decide is not converted; a round trip
+  (USG, model, USG commands) of 60 more; the emitter against the model through the reader of its output: 40 random
+  models, exactly.
+* A mutation check with 63 ways to break the parser and the emitter: 50 caught at first; for 10 of the other 13
+  the random USGs were widened (wildcards with host bits, lines FWShift does not know, rules without an action or with
+  a zone that is not in the configuration), the judge now also requires that what it does not decide is not
+  converted, and tests were added (the zone and protocol of a `nat server`, a command of the system view after a `#`
+  line, emitted rules for the inside address, an origin with one NAT rule written and one not, a static translation
+  both ways limited to a zone), which catch them. The last 3 change nothing: ports 0 to 65535 are every port, and a
+  set that holds a set that cannot be read is not converted whether or not its addresses are kept.
+* **Not verified**: nothing was loaded on a firewall, and no configuration of a real firewall was read: the inputs were
+  written from Huawei's documentation. The indentation of display output, the ports of the predefined services, the
+  form of IPv6 entries in address sets and the order of rule groups are assumed; the tests rest on the same reading.
 
 ### 2026-10-14: version 0.28.0
 

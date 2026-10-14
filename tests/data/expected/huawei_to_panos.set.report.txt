@@ -1,0 +1,44 @@
+FWShift conversion report
+  source: huawei
+  target: panos
+
+Summary
+  Security rules:     16   exact 10, approximated 4, needs review 1 (1 emitted disabled), skipped 1
+  NAT rules:           6   exact 2, approximated 0, needs review 0, skipped 4
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HUAWEI_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with display predefined-service: http, https, smtp, dns, ntp, ssh, icmp, ftp
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): untrust, dmz, trust, lab
+  [info] HUAWEI_SOURCE: 4 zones (trust, untrust, dmz, lab); 15 rules of the security policy, first match. The local zone (the firewall itself) is not converted
+  [info] HUAWEI_NAT_ORDER: destination NAT (nat server) is done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT (nat-policy) is done after it
+  [info] HUAWEI_DEFAULTS: what no rule matches: between zones deny, inside a zone permit
+  [info] INTRAZONE_DENY_ADDED: appended 'fwshift-intrazone-deny': PAN-OS allows traffic inside a zone by default, the source denies it
+
+Security rules
+  web-in  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'web-servers' because of NAT rule 'nat-server-web'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'web-servers' because of NAT rule 'nat-server-web-tls'; check that this rule is meant to cover the translated traffic
+  mail-in  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.6' next to 'mail-server' because of NAT rule 'nat-server-mail'; check that this rule is meant to cover the translated traffic
+  office-dmz  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.6' next to 'dmz-servers' because of NAT rule 'nat-server-mail'; check that this rule is meant to cover the translated traffic
+  lab-tools  ->  needs-review, emitted disabled  (emitted as lab-tools, lab-tools-apps)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping. Verify these names against the App-ID release in use
+      [info] RULE_SPLIT: written as two rules, one for the port-based services and one for the application-based ones
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  ping-dmz  ->  approximated
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping. Verify these names against the App-ID release in use
+  manage-fw  ->  skipped
+      [info] HUAWEI_LOCAL_RULE: a rule for traffic to or from the firewall itself (the local zone): not converted
+
+NAT rules
+  nat-server-web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a PAN-OS NAT rule needs a destination zone and the source rule names none; give the zone the traffic is routed to before translation with --target-nat-zone
+  nat-server-web-tls  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a PAN-OS NAT rule needs a destination zone and the source rule names none; give the zone the traffic is routed to before translation with --target-nat-zone
+  nat-server-mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a PAN-OS NAT rule needs a destination zone and the source rule names none; give the zone the traffic is routed to before translation with --target-nat-zone
+  lab-easy-ip  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of untrust, which is unknown; map it with --interface-map

@@ -1,0 +1,54 @@
+FWShift conversion report
+  source: huawei
+  target: checkpoint
+
+Summary
+  Security rules:     16   exact 9, approximated 3, needs review 3 (2 emitted disabled), skipped 1
+  NAT rules:           6   exact 1, approximated 3, needs review 0, skipped 2
+  Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HUAWEI_PREDEFINED: predefined services read with the ports FWShift knows for them; check them with display predefined-service: http, https, smtp, dns, ntp, ssh, icmp, ftp
+  [needs-review] CHECKPOINT_SCRIPT: the output is a shell script of mgmt_cli calls. It changes one session and publishes nothing: log in, run it, review the session in SmartConsole, then publish and install the policy yourself. It stops at the first call the server refuses; discard the session before running it again
+  [needs-review] IMPLIED_RULES: Check Point applies implied rules (Global Properties) next to the rulebase, and every ordered layer of the policy package must accept a connection. Neither is part of the conversion: check that they allow no more and no less than intended
+  [needs-review] ZONES_REQUIRED: the rules use these security zones, which must be assigned to the interfaces of the gateway (or renamed with --zone-map): untrust, dmz, trust, lab. Rules that name a zone and addresses on the same side are sorted into 11 inline layers, one per pair of zones. An interface without a zone only reaches the rules that name no zone
+  [needs-review] NAT_MANUAL_RULES: 4 NAT rules are written as manual rules at the bottom of the NAT rulebase, below the automatic ones. Manual NAT does not answer ARP for translated addresses: add proxy ARP on the gateway for every translated address that is not routed to it
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] HUAWEI_SOURCE: 4 zones (trust, untrust, dmz, lab); 15 rules of the security policy, first match. The local zone (the firewall itself) is not converted
+  [info] HUAWEI_NAT_ORDER: destination NAT (nat server) is done before the security policy, which names the inside address; the rules were rewritten for the address as it arrives. Source NAT (nat-policy) is done after it
+  [info] HUAWEI_DEFAULTS: what no rule matches: between zones deny, inside a zone permit
+  [info] LAYER_PLACEMENT: the rules are written to the top of access layer 'Network', in order, and end in a cleanup rule; rules the layer held before stay below it and are no longer reached. Choose another layer with --target-layer
+  [info] NAME_COLLISIONS: Check Point predefines several hundred objects (http, https, ssh, ...). If the script stops because a name exists already, convert again with --target-prefix to give every created object a prefix
+
+Security rules
+  web-in  ->  approximated  (emitted as layer Network_untrust_to_dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'web-servers' because of NAT rule 'nat-server-web'; check that this rule is meant to cover the translated traffic
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'web-servers' because of NAT rule 'nat-server-web-tls'; check that this rule is meant to cover the translated traffic
+  mail-in  ->  approximated  (emitted as layer Network_untrust_to_dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.6' next to 'mail-server' because of NAT rule 'nat-server-mail'; check that this rule is meant to cover the translated traffic
+  office-dmz  ->  approximated  (emitted as layer Network_trust_to_dmz)
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.6' next to 'dmz-servers' because of NAT rule 'nat-server-mail'; check that this rule is meant to cover the translated traffic
+  lab-tools  ->  needs-review, emitted disabled  (emitted as layer Network_trust_to_lab)
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+  video  ->  needs-review, emitted disabled  (emitted as layer Network_trust_to_untrust, layer Network)
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) YouTube; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  intrazone default  ->  needs-review  (emitted as layer Network_untrust_to_untrust, layer Network_dmz_to_dmz, layer Network_trust_to_trust, layer Network_lab_to_lab)
+      [needs-review] RULE_TYPE_ANY_ZONE: intrazone rule for 'any' zone: it is written for the zones the policy names. Traffic between interfaces whose zones no rule names cannot be told to be inside one zone or between two: it is not allowed by this rule
+  manage-fw  ->  skipped
+      [info] HUAWEI_LOCAL_RULE: a rule for traffic to or from the firewall itself (the local zone): not converted
+
+NAT rules
+  nat-server-web  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from untrust only; it is written without zones and applies whatever the zone the traffic comes from
+  nat-server-web-tls  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from untrust only; it is written without zones and applies whatever the zone the traffic comes from
+  nat-server-mail  ->  exact
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as two rules, one for each direction
+  no-nat-vpn  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from trust only; it is written without zones and applies whatever the zone the traffic comes from
+      [approximated] NAT_ZONES: the rule applied to traffic to untrust only; it is written without zones
+  office-pat  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: hide NAT is written behind one address; this rule translates to several
+  lab-easy-ip  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface; name the gateway object to hide behind with --target-gateway

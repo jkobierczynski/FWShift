@@ -1,0 +1,60 @@
+FWShift conversion report
+  source: terraform-azure
+  target: huawei
+
+Summary
+  Security rules:     86   exact 74, approximated 0, needs review 12 (12 emitted disabled), skipped 0
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_DYNAMIC: service tags and application security groups whose addresses only Azure knows: Internet, VirtualNetwork. They are dynamic groups, which only an Azure target writes again; add the service tags (az network list-service-tags) and the network interfaces to the export to convert them for other targets
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: azurerm_firewall. The converted policy does not hold what they do
+  [needs-review] HUAWEI_LOAD: the output is commands for the system view (section 10): new zones, address and service sets, rules, NAT; a USG adds new rules after the ones it has, and nat server and nat-policy take effect at once. Check, then save
+  [needs-review] HUAWEI_IPV6: IPv6 entries of address sets are written as ADDRESS/LENGTH; Huawei's documentation FWShift could read does not show their form: check them on the firewall
+  [info] AZURE_ANY_PROTOCOL: protocol '*' is read as Microsoft documents it: TCP, UDP and ICMP; with ports, an allow rule allows TCP and UDP on them and a deny rule blocks ICMP as well. If Azure also matches other protocols with it, a deny rule '*' blocks more there than the converted rule
+  [info] AZURE_UNFILTERED: network security groups do not filter the platform's own traffic (168.63.129.16 and 169.254.169.254: DHCP, DNS, the instance metadata service, health probes); and the security admin rules of Azure Virtual Network Manager, which come first, are not in this export
+  [info] AZURE_ZONES: each network security group is a zone, and everything else the zone outside. The networks behind them, for --zone-network: --zone-network nsg-web=10.40.1.0/24 --zone-network nsg-app=10.40.2.0/24 --zone-network nsg-db=10.40.3.0/24
+  [info] AZURE_COMPOSED: traffic between resources behind the groups passes the outbound rules of one and the inbound rules of the other: 58 rules say what both allow, in the order of the two
+  [info] AZURE_DEFAULT_RULES_ADDED: the export does not list the default rules of these groups (a template never does); the six rules every group has were added: nsg-web, nsg-app, nsg-db
+  [info] AZURE_ASG_MEMBERS: the members of these application security groups are the network interfaces in the export: asg-app, asg-web. A member whose interface is not in it (another resource group, another subscription) is not in the group
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the Azure command line for the same resources: 2 azurerm_application_security_group, 3 azurerm_network_interface, 3 azurerm_network_interface_application_security_group_association, 3 azurerm_network_security_group, 2 azurerm_network_security_rule, 3 azurerm_subnet, 3 azurerm_subnet_network_security_group_association, 1 azurerm_virtual_network. Resources outside this state (made by hand, or by another state) are not in it
+  [info] INTRAZONE_RULES_ADDED: a USG passes traffic inside a zone that no rule matches; the source does not: rules that deny it were added at the end for nsg-web, nsg-app, nsg-db, outside
+
+Security rules
+  nsg-web:https-in  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'Internet' holds members only its platform knows.
+  nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'VirtualNetwork' holds members only its platform knows.
+  nsg-web:no-internet  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: 'Internet' holds members only its platform knows. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'VirtualNetwork' holds members only its platform knows.
+  nsg-web:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'Internet' holds members only its platform knows.
+  nsg-app:icmp-vnet  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'VirtualNetwork' holds members only its platform knows.
+  nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'VirtualNetwork' holds members only its platform knows.
+  nsg-app:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'VirtualNetwork' holds members only its platform knows.
+  nsg-app:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'Internet' holds members only its platform knows.
+  nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'VirtualNetwork' holds members only its platform knows.
+  nsg-db:AllowVnetOutBound  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'VirtualNetwork' holds members only its platform knows.
+  nsg-db:AllowInternetOutBound  ->  needs-review, emitted disabled  (emitted as 1 rules of the security policy)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: 'Internet' holds members only its platform knows.
