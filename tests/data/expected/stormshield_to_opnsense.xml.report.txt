@@ -1,0 +1,61 @@
+FWShift conversion report
+  source: stormshield
+  target: opnsense
+
+Summary
+  Security rules:     18   exact 5, approximated 1, needs review 10 (6 emitted disabled), skipped 2
+  Addresses:          22   exact 22, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] STORMSHIELD_IMPLICIT: the implicit rules (administration, DNS, IPsec, SSL VPN and the other services the firewall answers itself) come before the policy and are not converted
+  [needs-review] STORMSHIELD_INTERNALS: rules with Network_internals or Internet, read as the networks of the protected interfaces and everything else: networks behind them by routes are not known: local 2, local 4, local 6
+  [needs-review] STORMSHIELD_PROTOCOL_ANALYSIS: rules that force the analysis of an application protocol: read as not narrowing what the rule matches: local 15
+  [needs-review] STORMSHIELD_NAT_NOT_READ: NAT rules of the slot are not read (the filter rules name the addresses as they arrive, so they do not depend on them): 1 lines in Filter/05
+  [needs-review] INTERFACES_REQUIRED: OPNsense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: lab, labbridge
+  [needs-review] INTERFACE_NAME: rules for every zone were written for the interfaces OPNsense can name, and not for out, in, dmz1: map those zones to wan, lan or an optN with --zone-map. No rule at all is written for them
+  [needs-review] OPNSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of an OPNsense configuration, for 26.7 (--target-version). Under System > Configuration > Backups, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every alias and every NAT rule that is there now is gone, and the Firewall Rules area replaces the rules of both rule pages ('Rules' and 'Rules [new]'), with the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. There is no NAT area in the file: the NAT of the firewall stays as it is. OPNsense does not check what it restores and does not load it until the rules are applied or the firewall restarts; keep a backup, and look at the rules before anything depends on them
+  [info] STORMSHIELD_SOURCE: 5 interfaces as zones (out, in, dmz1, lab, labbridge); filter slot 05 after global slot 01: 16 rules, first match; what no rule matches is blocked
+  [info] STORMSHIELD_DELEG: global policies that end in a deleg of everything: the rest goes to the local policy: Global/Filter/01
+  [info] SELF_EXCLUDED: on OPNsense the rules of an interface are also the rules for traffic to the firewall itself. Rules of the source that pass traffic to any destination are written for any destination but the firewall itself ('not This Firewall'). A rule that names addresses of the firewall still reaches them
+
+Security rules
+  local 1  ->  needs-review, emitted disabled
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] INTERFACE_NAME: 'in' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  local 2  ->  needs-review  (emitted as lab, labbridge)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+  local 4  ->  needs-review  (emitted as lab, labbridge)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (inspection=ips); attach equivalent inspection on the target
+  local 5  ->  needs-review, emitted disabled
+      [needs-review] INTERFACE_NAME: 'in' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  local 6  ->  needs-review  (emitted as lab, labbridge)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+  local 8  ->  needs-review, emitted disabled
+      [needs-review] INTERFACE_NAME: 'out' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  local 9  ->  needs-review, emitted disabled
+      [needs-review] INTERFACE_NAME: 'out' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
+  local 10  ->  needs-review  (emitted as lab)
+      [needs-review] STORMSHIELD_BRIDGE: names a bridge or a port of one: read as that interface only; whether the firewall matches the bridge for its ports, or the reverse, is not documented
+  local 11  ->  needs-review, emitted disabled  (emitted as lab, labbridge)
+      [needs-review] USER_MATCH: source user match staff@corp.example is not converted.
+  local 12  ->  needs-review, emitted disabled  (emitted as lab, labbridge)
+      [needs-review] PROTOCOL_NOT_AVAILABLE: IP protocol 200, which a rule of OPNsense cannot name.
+  local 15  ->  approximated  (emitted as lab, labbridge)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application protocol=http); attach equivalent inspection on the target
+  global 2  ->  skipped
+      [info] STORMSHIELD_DELEG: deleg of everything: the rest goes to the local policy
+  local 7  ->  skipped
+      [info] STORMSHIELD_NON_TERMINAL: action decrypt: the firewall goes on to the next rule; nothing is decided here
+
+Addresses
+  updates.example.com  ->  exact  (emitted as updates_example_com)
+      [info] RENAMED: renamed to 'updates_example_com' to fit the target's naming rules
+  lan  ->  exact  (emitted as lan_2)
+      [info] RENAMED: renamed to 'lan_2' to fit the target's naming rules
+  www.example.org  ->  exact  (emitted as www_example_org)
+      [info] RENAMED: renamed to 'www_example_org' to fit the target's naming rules

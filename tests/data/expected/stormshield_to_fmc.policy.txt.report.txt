@@ -1,0 +1,67 @@
+FWShift conversion report
+  source: stormshield
+  target: fmc
+
+Summary
+  Security rules:     18   exact 9, approximated 1, needs review 6 (1 emitted disabled), skipped 2
+  Addresses:          22   exact 22, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] STORMSHIELD_IMPLICIT: the implicit rules (administration, DNS, IPsec, SSL VPN and the other services the firewall answers itself) come before the policy and are not converted
+  [needs-review] STORMSHIELD_INTERNALS: rules with Network_internals or Internet, read as the networks of the protected interfaces and everything else: networks behind them by routes are not known: local 2, local 4, local 6
+  [needs-review] STORMSHIELD_PROTOCOL_ANALYSIS: rules that force the analysis of an application protocol: read as not narrowing what the rule matches: local 15
+  [needs-review] STORMSHIELD_NAT_NOT_READ: NAT rules of the slot are not read (the filter rules name the addresses as they arrive, so they do not depend on them): 1 lines in Filter/05
+  [needs-review] FMC_LOAD: the output is a Python script that loads the policy into a Management Center through its REST API. It creates the objects, a new access control policy 'FWShift' and, when there are NAT rules, a NAT policy of the same name, and assigns them to no device: nothing is in force until the policies are assigned and deployed. It changes nothing that exists, and stops before it creates anything when a name is taken. Run it with --show and with --dry-run first. The new access control policy uses the default prefilter policy and no intrusion or file policies. The script was written from Cisco's API documentation and has not been run against a Management Center: use it first where a mistake costs nothing
+  [needs-review] ZONES_REQUIRED: the rules name these security zones (rename them with --zone-map): in, out, lab. A zone that exists on the Management Center is used as it is; one that does not is created empty, and matches no traffic until the interfaces of the devices are put in it
+  [info] STORMSHIELD_SOURCE: 5 interfaces as zones (out, in, dmz1, lab, labbridge); filter slot 05 after global slot 01: 16 rules, first match; what no rule matches is blocked
+  [info] STORMSHIELD_DELEG: global policies that end in a deleg of everything: the rest goes to the local policy: Global/Filter/01
+  [info] FQDN_DNS: FQDN objects need name resolution on the device (a DNS server group in its platform settings)
+
+Security rules
+  local 1  ->  needs-review
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+  local 2  ->  needs-review
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+  local 4  ->  needs-review
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (inspection=ips); attach equivalent inspection on the target
+      [info] NEGATION_AS_ADDRESSES: an access rule cannot negate: 'not destination Network_internals' is written as the addresses that are left (5 range(s))
+  local 6  ->  needs-review
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [info] RESET_ACTION: action reset-client becomes Block with reset, which resets the connection for both sides
+  local 10  ->  needs-review
+      [needs-review] STORMSHIELD_BRIDGE: names a bridge or a port of one: read as that interface only; whether the firewall matches the bridge for its ports, or the reverse, is not documented
+  local 11  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match staff@corp.example is not converted.
+  local 13  ->  exact
+      [info] NEGATION_AS_ADDRESSES: an access rule cannot negate: 'not source lan' is written as the addresses that are left (3 range(s))
+  local 15  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application protocol=http); attach equivalent inspection on the target
+  global 2  ->  skipped
+      [info] STORMSHIELD_DELEG: deleg of everything: the rest goes to the local policy
+  local 7  ->  skipped
+      [info] STORMSHIELD_NON_TERMINAL: action decrypt: the firewall goes on to the next rule; nothing is decided here
+
+Services
+  http  ->  exact  (emitted as http_2)
+      [info] RENAMED: renamed to 'http_2' to fit the target's naming rules
+  https  ->  exact  (emitted as https_2)
+      [info] RENAMED: renamed to 'https_2' to fit the target's naming rules
+  ssh  ->  exact  (emitted as ssh_2)
+      [info] RENAMED: renamed to 'ssh_2' to fit the target's naming rules
+  smtp  ->  exact  (emitted as smtp_2)
+      [info] RENAMED: renamed to 'smtp_2' to fit the target's naming rules
+  syslog  ->  exact  (emitted as syslog_2)
+      [info] RENAMED: renamed to 'syslog_2' to fit the target's naming rules
+  lab_tools  ->  exact  (emitted as lab_tools, tcp-5000-5010, udp-5000-5010)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'lab_tools' of 'tcp-5000-5010', 'udp-5000-5010'
+  (rule) ipproto-icmp  ->  exact  (emitted as x_rule__ipproto-icmp)
+      [info] RENAMED: renamed to 'x_rule__ipproto-icmp' to fit the target's naming rules
+  (rule) dns_udp-udp  ->  exact  (emitted as x_rule__dns_udp-udp)
+      [info] RENAMED: renamed to 'x_rule__dns_udp-udp' to fit the target's naming rules
+  (rule) ipproto-proto_200  ->  exact  (emitted as x_rule__ipproto-proto_200)
+      [info] RENAMED: renamed to 'x_rule__ipproto-proto_200' to fit the target's naming rules

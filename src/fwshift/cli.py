@@ -39,6 +39,7 @@ from .emitters import junos as emit_junos
 from .emitters import nftables as emit_nftables
 from .emitters import nsx as emit_nsx
 from .emitters import sonicwall as emit_sonicwall
+from .emitters import stormshield as emit_stormshield
 from .emitters import sophos as emit_sophos
 from .emitters import watchguard as emit_watchguard
 from .errors import FwshiftError
@@ -65,6 +66,7 @@ from .parsers import junos as parse_junos
 from .parsers import nftables as parse_nftables
 from .parsers import nsx as parse_nsx
 from .parsers import sonicwall as parse_sonicwall
+from .parsers import stormshield as parse_stormshield
 from .parsers import sophos as parse_sophos
 from .parsers import terraform as parse_terraform
 from .parsers import watchguard as parse_watchguard
@@ -88,6 +90,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "asa": emit_asa.emit,
     "ios": emit_ios.emit,
     "huawei": emit_huawei.emit,
+    "stormshield": emit_stormshield.emit,
     "sophos": emit_sophos.emit,
     "pfsense": emit_pfsense.emit,
     "opnsense": emit_opnsense.emit,
@@ -99,14 +102,14 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "fmc": emit_cisco.emit_fmc,
     "fdm": emit_cisco.emit_fdm,
 }
-VENDORS = ("panos", "fortios", "checkpoint", "asa", "ios", "huawei", "fmc", "fdm", "sophos", "pfsense", "opnsense", "sonicwall", "watchguard", "barracuda", "junos",
+VENDORS = ("panos", "fortios", "checkpoint", "asa", "ios", "huawei", "stormshield", "fmc", "fdm", "sophos", "pfsense", "opnsense", "sonicwall", "watchguard", "barracuda", "junos",
            "iptables", "ip6tables", "nftables", "nsx", "aws", "azure", "terraform-aws", "terraform-azure", "terraform-google", "gcp", "routeros", "forcepoint")  # fmt: skip
 
 
 def detect_format(data: bytes) -> str:
     """A Sophos export is a tar archive or XML that starts with <Configuration>, other XML is PAN-OS; JSON is what a
     Cisco manager or the Check Point API returns, told apart by the types of the objects in it; a zip is the export
-    of a Cisco Firewall Device Manager; nft list ruleset output starts with "table" (its JSON with "nftables"), JSON of the NSX Policy API has the
+    of a Cisco Firewall Device Manager; a tar or tgz that holds ConfigFiles, or a backup (.na), is Stormshield; nft list ruleset output starts with "table" (its JSON with "nftables"), JSON of the NSX Policy API has the
     resource types of NSX,
     iptables-save output starts with a table, a Huawei USG configuration has security-policy and firewall zone lines,
     an IOS configuration has lines only IOS writes (and none only an ASA writes),
@@ -121,6 +124,8 @@ def detect_format(data: bytes) -> str:
             return "fdm"
         raise FwshiftError("the input is compressed (a zip), and not the configuration export of a Firewall Device Manager as FWShift "
                            f"reads it ({why}). Unpack it and give FWShift the file inside")  # fmt: skip
+    if parse_stormshield.looks_like_stormshield(data):
+        return "stormshield"  # (a backup, or the ConfigFiles as a tar or tgz)
     if data[:2] == b"\x1f\x8b" or data[:3] == b"BZh" or data[:6] == b"\xfd7zXZ\x00":
         raise FwshiftError("the input is compressed (gzip, bzip2 or xz); unpack it and give FWShift the file inside")
     if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
@@ -201,6 +206,8 @@ def load(
         return parse_ios.parse(data, report)
     if source == "huawei":
         return parse_huawei.parse(data, report)
+    if source == "stormshield":
+        return parse_stormshield.parse(data, report, slot=policy)
     if source == "sophos":
         return parse_sophos.parse(data, report)
     if source == "pfsense":
@@ -506,7 +513,7 @@ def _source_options(parser: argparse.ArgumentParser, optional: bool = False) -> 
     parser.add_argument("--layer", default="", help="Check Point source: access layer to read")
     parser.add_argument("--policy", default="", help="Management Center source (fmc): access control policy to read; Forcepoint: "
                         "firewall policy to read; terraform-aws: the VPC to read (its id or the address of its aws_vpc); gcp and terraform-google: "
-                        "the network to read")
+                        "the network to read; Stormshield: the filter slot to read (its number or name)")
     parser.add_argument("--nat-policy", default="", help="Management Center source (fmc): NAT policy to read")
     parser.add_argument(
         "--interface-address", action="append", default=[], metavar="INTERFACE=ADDRESS/BITS",
@@ -518,7 +525,7 @@ def _source_options(parser: argparse.ArgumentParser, optional: bool = False) -> 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="fwshift",
-        description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco IOS and IOS XE routers, Huawei USG, Cisco Secure Firewall "
+        description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco IOS and IOS XE routers, Huawei USG, Stormshield SNS, Cisco Secure Firewall "
         "(Management Center and Device Manager), Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, iptables, "
         "nftables, VMware NSX, AWS security groups, Azure network security groups, Google Cloud firewall rules (these three also as Terraform), "
         "MikroTik RouterOS and Forcepoint NGFW, "
@@ -584,15 +591,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conv.add_argument(
         "--target-prefix", default="", metavar="TEXT",
-        help="Check Point, ASA, IOS, Huawei, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Cisco Secure Firewall, NSX, AWS and Azure "
+        help="Check Point, ASA, IOS, Huawei, Stormshield, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Cisco Secure Firewall, NSX, AWS and Azure "
              "targets (also as Terraform), and the policy Google Cloud targets create: prefix for the names of created objects",
     )  # fmt: skip
     conv.add_argument(
         "--target-policy", default="FWShift", metavar="NAME",
         help="Management Center target (fmc): name of the access control policy and the NAT policy the script creates; NSX: of "
              "the security policy; Forcepoint: of the firewall policy; Azure and terraform-azure: of the one group when no zone has networks; "
-             "gcp and terraform-google: of the network firewall policy "
-             "(default: FWShift)",
+             "gcp and terraform-google: of the network firewall policy; Stormshield: the filter slot to write, as N or N:NAME "
+             "(default: FWShift, in slot 9)",
     )  # fmt: skip
     conv.add_argument(
         "--target-template", default="Firewall Template", metavar="NAME",
@@ -648,7 +655,7 @@ def build_parser() -> argparse.ArgumentParser:
     cmp.add_argument("--from-second", choices=VENDORS, help="format of the second (default: detected)")
     for option, text in (("--vsys", "PAN-OS: virtual system to read"), ("--device-group", "Panorama: device group to read"),
                          ("--vdom", "FortiOS: VDOM to read"), ("--layer", "Check Point: access layer to read"),
-                         ("--policy", "Management Center (fmc), Forcepoint: access control or firewall policy to read; terraform-aws: the VPC; gcp and terraform-google: the network"),
+                         ("--policy", "Management Center (fmc), Forcepoint: access control or firewall policy to read; terraform-aws: the VPC; gcp and terraform-google: the network; Stormshield: the filter slot"),
                          ("--nat-policy", "Management Center (fmc): NAT policy to read")):  # fmt: skip
         cmp.add_argument(option, default="", help=text + " (of both)")
     cmp.add_argument("--zone-map", action="append", default=[], metavar="FIRST=SECOND",

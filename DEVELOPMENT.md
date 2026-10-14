@@ -8,13 +8,13 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.29.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
-| Tests | 5438, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, an IOS router, a Huawei USG, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a Google Cloud project, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
+| Version | 0.30.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
+| Tests | 5614, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, an IOS router, a Huawei USG, a Stormshield firewall, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a Google Cloud project, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
 | Analysis | the audit, the zone matrix, rule usage from hit counters and logs, the zone and conduit model as a gate (`fwshift conduits`), the equivalence check (`fwshift compare`, `convert --compare`) |
 | Security | an outside review (ChatGPT, October 2026) and the measures taken: `docs/security/SECURITY_REVIEW.md` |
-| Next | Stormshield (0.30), Cisco Meraki MX (0.31); the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
+| Next | Cisco Meraki MX (0.31); the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
 
 ## Layout
 
@@ -26,6 +26,8 @@ src/fwshift/
         fortios.py    FortiOS configuration  -> model
         checkpoint.py Management API JSON    -> model (inline layers flattened)
         asa.py        ASA running-config     -> model (bound access lists, NAT sections)
+        stormshield.py Stormshield ConfigFiles (.tar/.tgz) -> model (interfaces,
+                      objects, the global and the active filter slot)
         huawei.py     Huawei USG current-configuration -> model (security zones,
                       address and service sets, security-policy, nat server
                       before it, nat-policy after it)
@@ -85,6 +87,8 @@ src/fwshift/
         fortios.py    model -> FortiOS CLI configuration
         checkpoint.py model -> shell script of mgmt_cli calls
         asa.py        model -> ASA commands (access lists per interface, twice NAT)
+        stormshield.py model -> a script of serverd commands (objects, one
+                      filter slot, NAT)
         huawei.py     model -> commands for the system view of a USG (zones,
                       address and service sets, rules, defaults, nat server,
                       nat-policy)
@@ -182,7 +186,7 @@ tests/
                       FortiOS logs (and panos_logged.xml), the two
                       Cisco Secure Firewall samples and the SonicWall,
                       WatchGuard, Barracuda and Juniper samples, the nftables
-                      sample (written by nft itself), the NSX, AWS, Azure, Google Cloud, Terraform, IOS, Huawei, RouterOS and OPNsense samples, the zone model,
+                      sample (written by nft itself), the NSX, AWS, Azure, Google Cloud, Terraform, IOS, Huawei, Stormshield, RouterOS and OPNsense samples, the zone model,
                       and the kernel checks for iptables and nftables
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
                       Check Point, ASA, Sophos and Cisco Secure Firewall output;
@@ -217,6 +221,9 @@ tests/
                       the router does, for random exports and for the script
     test_checkpoint.py Check Point both ways, with simulators for an export
                       and for an emitted script
+    test_stormshield.py Stormshield both ways: random firewalls written as
+                      ConfigFiles and a judge of their own; the emitted script
+                      read back and judged the same way, also after a round trip
     test_huawei.py    Huawei USG both ways: random USGs written as current
                       configurations and a judge of their own (nat server, first
                       match, the defaults); the emitted commands read back and
@@ -684,6 +691,9 @@ there for an old tag whose tests no longer run on today's tools.
 | Google Cloud: one list without zones, egress and ingress composed between instances | A connection between two instances passes the egress rules of the sender and the ingress rules of the receiver, each list with its own steps. The model has one first-match list: from outside the ingress rules, to outside the egress rules, and between instances the egress rules that deny, then for each that allows the ingress rules cut to it, as for AWS and Azure. |
 | Google Cloud: `goto_next` becomes the rules below it without what it matches | It leaves the policy for the next step, which in one list is "the rules after this policy". Subtracting its match from the rules below it in the same policy says exactly that; when that cannot be worked out, the rules after it are not converted. |
 | Google Cloud output is a new global policy, associated with nothing | Creating it changes no traffic; associating it, and putting it before the VPC rules, are two changes a person makes after reading the report. Each rule is written for ingress and egress, so a connection between instances meets the model's verdict at both ends. |
+| Stormshield: the configuration files, read with a grammar of what is known; anything else not converted | The syntax of a rule line in a slot file is not published. The reader takes what Stormshield's own tools and their test data show (action, options, `from ... on ... to ... on ... port ...`, comments) and makes any other word, an empty name or a word twice a reason not to convert the rule. A backup (`.na`) is encrypted with AES, which the standard library does not have: it is refused with the `decbackup` command. |
+| Stormshield: the global policy, then the local one, as one list | A global `deleg` of everything at its end hands the rest to the local policy, which is what one list of rules says; a `deleg` with conditions cannot be said so and is refused. `decrypt` and `log` go on to the next rule and are left out. |
+| Stormshield output: a serverd script for one slot, not made active | Serverd commands are documented and checked by the firewall one by one; slot files have no published syntax. A rule of SNS has one IP protocol, so a rule of the model becomes one per kind of service and per pair of interfaces, which together match what it matches. |
 | Huawei: the implicit permit inside a zone is an explicit rule at the end | The model has one default for what no rule matches; a USG denies between zones and passes inside one (unless `default packet-filter intrazone enable`). A rule of scope intrazone at the end keeps both. |
 | Huawei: the model names addresses as they arrive; `nat server` is undone on reading and redone on writing | `nat server` is done before the security policy, whose rules name the inside address, as on FortiOS: the parser rewrites destinations to the pre-NAT address, the emitter back, for the translations it writes. A translation a `nat server` cannot say (a source, a destination zone, several source zones, a service it cannot read, an exemption above it) is not written, and the rules are left as the model names them. |
 | Huawei: lines by indent and by the `#` lines between blocks | VRP prints the commands of the system view with one space and puts `#` between blocks. A line after a `#` line is a command of the system view, `nat server` always is, and every line of a rule stays in its policy; what must not be missed (`default packet-filter intrazone enable`) is looked for at every depth. |
@@ -726,6 +736,11 @@ policy behaves unexpectedly.
 | Shape of `show access-rulebase` / `show nat-rulebase` answers: `rulebase`, `objects-dictionary`, sections, `from`/`to`/`total` (with `total` counting rules, not section titles), `inline-layer`, the field names of each object type; objects of data domains are predefined | Check Point parser |
 | `mgmt_cli` syntax of every call the script makes (`add host`, `add network`, `add address-range`, `add dns-domain`, `add group`, `add service-tcp/-udp/-sctp/-icmp/-icmp6/-other`, `add service-group`, `add security-zone`, `add access-layer ... add-default-rule false`, `add access-rule ... position N`, `add nat-rule ... position bottom`), switches after the command, a non-zero exit status when the server refuses a call | Check Point emitter |
 | Check Point accepts an address range `0.0.0.0`-`255.255.255.255`, domain objects as group members, empty groups as placeholders, and object names made of letters, digits, `.`, `_` and `-` | Check Point emitter |
+| Stormshield, all rows below: from Stormshield's documentation (the serverd command reference for v4 and v5, the user manual, the technical note on the command line, the ANSSI recommendations), its Python API client and Ansible playbooks with their test data, and published readers of its files (snspoliciestocsv, decbackup-py, the CrowdSec bouncer), read and never run; nothing was run on a firewall | Stormshield parser and emitter |
+| Filter rules first match, on the addresses before NAT; implicit rules first, then the global policy, then the local one; what no rule matches is blocked without a log; `decrypt` and `log` go on | Stormshield parser and emitter |
+| ConfigFiles: `network`, `object` (`[Host]`, `[Network]`, `[Service]`, `[Protocol]`, `[Fqdn]`, `[Internet]`), `objectgroup`, `servicegroup`, `Filter/slotinfo` and `Filter/NN` with `[Filter]` and `[NAT]` | Stormshield parser |
+| Serverd: `CONFIG OBJECT ... NEW ... update=1`, `CONFIG FILTER RULE INSERT` with the tokens of `RULE UPDATE`, `RULE REMOVE ... position=all`, `CONFIG FILTER ACTIVATE`, `CONFIG SLOT UPDATE` | Stormshield emitter |
+| Assumed, not documented: the syntax of a rule line beyond the forms shown; that `!` negates the whole list; `on` after the destination for the outgoing interface; the layout of `slotinfo`; `ipv6=` and `prefixlenv6=` on the commands that create objects; `port=0` in a service | Stormshield parser and emitter |
 | Huawei, all rows below: from Huawei's documentation and support pages for USG6000, USG6000E and USG9500 (V500, V600: security policies, address and service sets, NAT server, NAT policies, security zones, the default packet filter) and the configurations shown in them; the HedEx command reference could not be read; nothing was run on a firewall | Huawei parser and emitter |
 | Rules first match; conditions ANDed, values of one condition ORed; a condition that is not given is any; `*-address-exclude` takes addresses out; `default action` deny unless permit; inside a zone permit unless `default packet-filter intrazone enable` (V100R001: the default policy) | Huawei parser and emitter |
 | `nat server` before the security policy (rules name the inside address and port), `nat-policy` after it; `zone` limits a `nat server` to traffic from that zone; without a protocol it translates both ways unless `no-reverse`; display adds an id after the name | Huawei parser and emitter |
@@ -2130,6 +2145,73 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-14: version 0.30.0
+
+The third of the four brands: **Stormshield SNS** (version 4), both ways.
+
+**Built**
+
+* `parsers/stormshield.py`: the ConfigFiles of a firewall as a `.tar` or `.tgz` (what `decbackup` makes of a backup,
+  or the folder packed); a backup itself (`.na`, encrypted) is refused with the command that opens it. The interfaces
+  as zones; objects (hosts, ranges, networks, FQDN objects and hosts resolved by name, services, protocols, groups and
+  service groups, nested, by name without regard to case), the objects of the interfaces (`Network_<if>`,
+  `Firewall_<if>`, `firewall_all`, `Network_internals`, `Internet` by its definition); the active filter slot or the
+  one named with `--policy`, after the global slot; rule lines read with a grammar of what is published (actions,
+  `log`, `inspection`, `ipproto`, `proto`, `settos`, `route`, `from`, `on`, `to`, `port`, users, `!`, comments,
+  separators), anything else not converted; `decrypt` and `log` left out; a global `deleg` of everything at its end
+  read as the step to the local policy, one with conditions refused. The NAT rules of a slot are not read.
+* `emitters/stormshield.py`: a script of serverd commands: objects with `update=1`, one filter slot emptied and
+  written (a rule per interface pair and kind of service; `state=off` for what it cannot say), the defaults of the
+  source as rules at the end, NAT (to an interface, a pool, a static address, static both ways, destination NAT), the
+  slot renamed and not made active.
+* `--from` and `--to stormshield`, `--policy` for the slot to read and `--target-policy N[:NAME]` for the slot to
+  write, detection before the refusal of compressed input and before Sophos; the sample (`stormshield_sample.tgz`,
+  written byte for byte the same by `tests/tools/make_stormshield_sample.py`), 55 golden conversions, their audit and
+  matrix.
+
+**What the work made necessary**
+
+* *A grammar of what is known.* With the syntax of the files unpublished, every word the reader does not know makes
+  the rule not converted; the judge of the tests requires that what it does not decide is not converted.
+* *Archives as input.* A gzip that is not a Stormshield archive is still refused as before; a tar that is a Sophos
+  export is still Sophos; members, sizes and the unpacked size are bounded.
+* *One protocol per rule.* SNS rules carry one IP protocol, so the emitter splits by kind of service; the tests
+  judge the pieces together against the model.
+
+**Review**
+
+*Round 38* by the independent reviewer, with probe scripts.
+
+| | Finding | Fix |
+|---|---|---|
+| high | `tos N`, a match, was read as a setting: the rule matched everything | not converted; `settos` and `route` said on the rule (`STORMSHIELD_HANDLING`) |
+| high | `Internet` was always "not `Network_internals`", whatever `[Internet]` said; computed before group names were resolved | by its definition, after the names; not converted where that cannot be read, or without a `network` file |
+| high | A group that holds a member twice, or itself, hung the parser | each group looked at once; a group in itself not converted |
+| medium | A gzip that cannot be read ended in a traceback for every source | refused |
+| medium | Global slots with rules and no active one were left out silently | refused |
+| medium | Empty names in lists (`from ,`), hosts with a prefix, networks with host bits, lines split at U+0085 and the like | not converted; lines split at line feeds only |
+| medium | `Network_*` and `Firewall_*` (first address), bridges: not said | said on the rule (`STORMSHIELD_INTERFACE_OBJECTS`, `STORMSHIELD_BRIDGE`) |
+| medium | Emitter: the order of NAT rules not reported; the script changes objects an active slot may use, and snscli goes on after a failed command | `NAT_ORDER` reported; said in the script and the report, with `CONFIG FILTER CHECK` |
+| low | `deleg` in the local policy, tags across slots, options twice, `! !`, negated users, hosts resolved by a name that is no DNS name, unknown host options, Sophos tars with an `object` file, hard links, the number of members, scheduled slots; emitter: zone `Any`, names that clash once characters are replaced, a prefix of `Firewall_`, values with `<`, `>` or `#`, ports 0 to 65535, builtins in lists | each refused, said or handled |
+
+The fixes were not reviewed again; they have tests (`test_r38_*` in `test_stormshield.py`).
+
+**Verified, and not**
+
+* The tests: 120 in `test_stormshield.py`, the suite 5614. The parser against the judge: 500 random firewalls (with
+  global policies, custom `Internet`, groups with repeated members), 300 packets each, and every rule the judge does
+  not decide is not converted; a round trip (ConfigFiles, model, script) of 60 more; the emitter against the model
+  through the reader of its script: 40 random models, exactly.
+* A mutation check with 51 ways to break the parser and the emitter: 40 caught at first; for 9 of the other 11 the
+  random firewalls were widened (the objects of a bridge port) and tests were added (a `#` inside quotes, `!any`,
+  empty names in a list of services, words after the services, a global `deleg` with conditions at its end, the
+  defaults inside a zone of the target, a service of every protocol), which catch them. The last 2 change nothing: a
+  line that is all comment is left out either way, and ICMP read as protocol 1 is the same.
+* **Not verified**: nothing was run on a firewall, and no configuration of a real firewall was read: the inputs were
+  written from Stormshield's documentation and the fragments its tools show. The syntax of rule lines beyond those
+  forms, the layout of `slotinfo`, the IPv6 tokens of the commands that create objects and the NAT section are
+  assumed or not read; the tests rest on the same reading.
 
 ### 2026-10-14: version 0.29.0
 

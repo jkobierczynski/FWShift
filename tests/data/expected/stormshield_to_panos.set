@@ -1,0 +1,258 @@
+set tag "Company rules"
+set tag Administration
+set tag Outbound
+set tag "Published servers"
+set tag "Lab and users"
+set address Network_out ip-netmask 203.0.113.0/29
+set address Firewall_out ip-netmask 203.0.113.2
+set address Network_in ip-netmask 10.10.0.0/24
+set address Firewall_in ip-netmask 10.10.0.254
+set address Network_dmz1 ip-netmask 10.20.0.0/24
+set address Firewall_dmz1 ip-netmask 10.20.0.254
+set address Network_lab ip-netmask 10.30.0.0/24
+set address Firewall_lab ip-netmask 10.30.0.254
+set address Network_labbridge ip-netmask 10.30.0.0/24
+set address Firewall_labbridge ip-netmask 10.30.0.254
+set address web_srv ip-netmask 10.20.0.10
+set address web_srv description "web server"
+set address mail_srv ip-netmask 10.20.0.25
+set address web_pub ip-netmask 203.0.113.3
+set address web_pub description "public address of the web server"
+set address admin_ws ip-netmask 10.10.0.50
+set address dhcp_pool ip-range 10.10.0.100-10.10.0.199
+set address updates.example.com fqdn updates.example.com
+set address lan ip-netmask 10.10.0.0/24
+set address lan6 ip-netmask 2001:db8:10::/64
+set address lab_net ip-netmask 10.30.0.0/24
+set address blocked ip-netmask 198.51.100.0/24
+set address www.example.org fqdn www.example.org
+set address global_bad ip-netmask 192.0.2.128/25
+set address h-10.10.0.60 ip-netmask 10.10.0.60
+set address h-2001_db8_10__60 ip-netmask 2001:db8:10::60
+set address-group dual_ws static [ h-10.10.0.60 h-2001_db8_10__60 ]
+set address-group dual_ws description "dual stack"
+set address-group dmz_servers static [ web_srv mail_srv ]
+set address-group admins static [ admin_ws dual_ws ]
+set address-group firewall_all static [ Firewall_out Firewall_in Firewall_dmz1 Firewall_lab Firewall_labbridge ]
+set address-group Network_internals static [ Network_in Network_dmz1 Network_lab Network_labbridge ]
+set address r-0.0.0.0-10.9.255.255 ip-range 0.0.0.0-10.9.255.255
+set address r-10.10.1.0-10.19.255.255 ip-range 10.10.1.0-10.19.255.255
+set address r-10.20.1.0-10.29.255.255 ip-range 10.20.1.0-10.29.255.255
+set address r-10.30.1.0-255.255.255.255 ip-range 10.30.1.0-255.255.255.255
+set address n-___0 ip-netmask ::/0
+set address-group Internet static [ r-0.0.0.0-10.9.255.255 r-10.10.1.0-10.19.255.255 r-10.20.1.0-10.29.255.255 r-10.30.1.0-255.255.255.255 n-___0 ]
+set service http protocol tcp port 80
+set service https protocol tcp port 443
+set service ssh protocol tcp port 22
+set service dns_udp protocol udp port 53
+set service smtp protocol tcp port 25
+set service ident protocol tcp port 113
+set service web_alt protocol tcp port 8080-8090
+set service syslog protocol udp port 514
+set service lab_tools-tcp protocol tcp port 5000-5010
+set service lab_tools-udp protocol udp port 5000-5010
+set service-group lab_tools members [ lab_tools-tcp lab_tools-udp ]
+set service "x_rule_ dns_udp-udp" protocol udp port 53
+set service-group web_ports members [ http https web_alt ]
+set rulebase security rules "global 1" from any
+set rulebase security rules "global 1" to any
+set rulebase security rules "global 1" source global_bad
+set rulebase security rules "global 1" destination any
+set rulebase security rules "global 1" source-user any
+set rulebase security rules "global 1" category any
+set rulebase security rules "global 1" application any
+set rulebase security rules "global 1" service any
+set rulebase security rules "global 1" action drop
+set rulebase security rules "global 1" log-end yes
+set rulebase security rules "global 1" description "blocked company-wide"
+set rulebase security rules "global 1" tag "Company rules"
+set rulebase security rules "local 1" from in
+set rulebase security rules "local 1" to any
+set rulebase security rules "local 1" source admins
+set rulebase security rules "local 1" destination firewall_all
+set rulebase security rules "local 1" source-user any
+set rulebase security rules "local 1" category any
+set rulebase security rules "local 1" application any
+set rulebase security rules "local 1" service [ ssh https ]
+set rulebase security rules "local 1" action allow
+set rulebase security rules "local 1" log-end yes
+set rulebase security rules "local 1" description "admin access"
+set rulebase security rules "local 1" tag Administration
+set rulebase security rules "local 2" from any
+set rulebase security rules "local 2" to any
+set rulebase security rules "local 2" source Network_internals
+set rulebase security rules "local 2" destination firewall_all
+set rulebase security rules "local 2" source-user any
+set rulebase security rules "local 2" category any
+set rulebase security rules "local 2" application [ icmp ping ]
+set rulebase security rules "local 2" service application-default
+set rulebase security rules "local 2" action allow
+set rulebase security rules "local 2" log-end yes
+set rulebase security rules "local 2" description "ping the firewall"
+set rulebase security rules "local 2" tag Administration
+set rulebase security rules "local 3" from any
+set rulebase security rules "local 3" to any
+set rulebase security rules "local 3" source any
+set rulebase security rules "local 3" destination blocked
+set rulebase security rules "local 3" source-user any
+set rulebase security rules "local 3" category any
+set rulebase security rules "local 3" application any
+set rulebase security rules "local 3" service any
+set rulebase security rules "local 3" action drop
+set rulebase security rules "local 3" log-end yes
+set rulebase security rules "local 3" description "known bad"
+set rulebase security rules "local 3" tag Outbound
+set rulebase security rules "local 4" from any
+set rulebase security rules "local 4" to any
+set rulebase security rules "local 4" source Network_internals
+set rulebase security rules "local 4" destination Network_internals
+set rulebase security rules "local 4" source-user any
+set rulebase security rules "local 4" category any
+set rulebase security rules "local 4" application any
+set rulebase security rules "local 4" service web_ports
+set rulebase security rules "local 4" action allow
+set rulebase security rules "local 4" negate-destination yes
+set rulebase security rules "local 4" log-start yes
+set rulebase security rules "local 4" log-end yes
+set rulebase security rules "local 4" description web
+set rulebase security rules "local 4" tag Outbound
+set rulebase security rules "local 5" from in
+set rulebase security rules "local 5" to any
+set rulebase security rules "local 5" source lan
+set rulebase security rules "local 5" destination any
+set rulebase security rules "local 5" source-user any
+set rulebase security rules "local 5" category any
+set rulebase security rules "local 5" application any
+set rulebase security rules "local 5" service "x_rule_ dns_udp-udp"
+set rulebase security rules "local 5" action allow
+set rulebase security rules "local 5" log-end yes
+set rulebase security rules "local 5" description dns
+set rulebase security rules "local 5" tag Outbound
+set rulebase security rules "local 6" from any
+set rulebase security rules "local 6" to any
+set rulebase security rules "local 6" source Network_internals
+set rulebase security rules "local 6" destination any
+set rulebase security rules "local 6" source-user any
+set rulebase security rules "local 6" category any
+set rulebase security rules "local 6" application any
+set rulebase security rules "local 6" service ident
+set rulebase security rules "local 6" action reset-client
+set rulebase security rules "local 6" log-end yes
+set rulebase security rules "local 6" tag Outbound
+set rulebase security rules "local 8" from out
+set rulebase security rules "local 8" to any
+set rulebase security rules "local 8" source any
+set rulebase security rules "local 8" destination web_pub
+set rulebase security rules "local 8" source-user any
+set rulebase security rules "local 8" category any
+set rulebase security rules "local 8" application any
+set rulebase security rules "local 8" service [ http https ]
+set rulebase security rules "local 8" action allow
+set rulebase security rules "local 8" log-start yes
+set rulebase security rules "local 8" log-end yes
+set rulebase security rules "local 8" description "public web, as it arrives"
+set rulebase security rules "local 8" tag "Published servers"
+set rulebase security rules "local 9" from out
+set rulebase security rules "local 9" to any
+set rulebase security rules "local 9" source any
+set rulebase security rules "local 9" destination dmz_servers
+set rulebase security rules "local 9" source-user any
+set rulebase security rules "local 9" category any
+set rulebase security rules "local 9" application any
+set rulebase security rules "local 9" service smtp
+set rulebase security rules "local 9" action allow
+set rulebase security rules "local 9" log-end yes
+set rulebase security rules "local 9" tag "Published servers"
+set rulebase security rules "local 10" from lab
+set rulebase security rules "local 10" to any
+set rulebase security rules "local 10" source lab_net
+set rulebase security rules "local 10" destination any
+set rulebase security rules "local 10" source-user any
+set rulebase security rules "local 10" category any
+set rulebase security rules "local 10" application any
+set rulebase security rules "local 10" service lab_tools
+set rulebase security rules "local 10" action allow
+set rulebase security rules "local 10" log-end yes
+set rulebase security rules "local 10" tag "Lab and users"
+set rulebase security rules "local 11" from any
+set rulebase security rules "local 11" to any
+set rulebase security rules "local 11" source lan
+set rulebase security rules "local 11" destination dmz_servers
+set rulebase security rules "local 11" source-user "staff@corp.example"
+set rulebase security rules "local 11" category any
+set rulebase security rules "local 11" application any
+set rulebase security rules "local 11" service web_ports
+set rulebase security rules "local 11" action allow
+set rulebase security rules "local 11" log-end yes
+set rulebase security rules "local 11" tag "Lab and users"
+set rulebase security rules "local 12" from any
+set rulebase security rules "local 12" to any
+set rulebase security rules "local 12" source lab_net
+set rulebase security rules "local 12" destination any
+set rulebase security rules "local 12" source-user any
+set rulebase security rules "local 12" category any
+set rulebase security rules "local 12" application any
+set rulebase security rules "local 12" service any
+set rulebase security rules "local 12" action allow
+set rulebase security rules "local 12" log-end yes
+set rulebase security rules "local 12" disabled yes
+set rulebase security rules "local 12" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "local 12" tag "Lab and users"
+set rulebase security rules "local 13" from any
+set rulebase security rules "local 13" to any
+set rulebase security rules "local 13" source lan
+set rulebase security rules "local 13" destination updates.example.com
+set rulebase security rules "local 13" source-user any
+set rulebase security rules "local 13" category any
+set rulebase security rules "local 13" application any
+set rulebase security rules "local 13" service https
+set rulebase security rules "local 13" action allow
+set rulebase security rules "local 13" negate-source yes
+set rulebase security rules "local 13" log-end yes
+set rulebase security rules "local 13" tag "Lab and users"
+set rulebase security rules "local 14" from any
+set rulebase security rules "local 14" to any
+set rulebase security rules "local 14" source lan6
+set rulebase security rules "local 14" destination any
+set rulebase security rules "local 14" source-user any
+set rulebase security rules "local 14" category any
+set rulebase security rules "local 14" application any
+set rulebase security rules "local 14" service any
+set rulebase security rules "local 14" action allow
+set rulebase security rules "local 14" log-end yes
+set rulebase security rules "local 14" tag "Lab and users"
+set rulebase security rules "local 15" from any
+set rulebase security rules "local 15" to any
+set rulebase security rules "local 15" source lan
+set rulebase security rules "local 15" destination www.example.org
+set rulebase security rules "local 15" source-user any
+set rulebase security rules "local 15" category any
+set rulebase security rules "local 15" application any
+set rulebase security rules "local 15" service [ http web_alt ]
+set rulebase security rules "local 15" action allow
+set rulebase security rules "local 15" log-end yes
+set rulebase security rules "local 15" tag "Lab and users"
+set rulebase security rules "local 16" from any
+set rulebase security rules "local 16" to any
+set rulebase security rules "local 16" source any
+set rulebase security rules "local 16" destination any
+set rulebase security rules "local 16" source-user any
+set rulebase security rules "local 16" category any
+set rulebase security rules "local 16" application any
+set rulebase security rules "local 16" service any
+set rulebase security rules "local 16" action drop
+set rulebase security rules "local 16" log-end yes
+set rulebase security rules "local 16" description "Block all"
+set rulebase security rules "local 16" tag "Lab and users"
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."

@@ -2,9 +2,8 @@
 
 On 14 October 2026 ChatGPT reviewed the FWShift repository (commit c67f137f) from its source: the README, the project
 configuration, the command line, some emitters, the loader for a Cisco Management Center and the GitHub workflows. It
-was a static review, not a penetration test. The full report is in this folder, as ChatGPT wrote it
-([FWShift - security review by ChatGPT.docx](FWShift%20-%20security%20review%20by%20ChatGPT.docx)) and converted to
-Markdown ([CHATGPT_SECURITY_REVIEW.md](CHATGPT_SECURITY_REVIEW.md)).
+was a static review, not a penetration test. The full report is in this folder, as ChatGPT wrote it, in Markdown
+([CHATGPT_SECURITY_REVIEW.md](CHATGPT_SECURITY_REVIEW.md)).
 
 **Its verdict:** promising, not yet production-assured. It found no exploitable vulnerability. Its largest concern is
 not a software flaw but migration safety: a converted policy that quietly opens more than the source did. It ranks

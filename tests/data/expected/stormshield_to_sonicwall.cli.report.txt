@@ -1,0 +1,103 @@
+FWShift conversion report
+  source: stormshield
+  target: sonicwall
+
+Summary
+  Security rules:     18   exact 8, approximated 1, needs review 7 (3 emitted disabled), skipped 2
+  Addresses:          22   exact 22, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 10, approximated 0, needs review 3, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] STORMSHIELD_IMPLICIT: the implicit rules (administration, DNS, IPsec, SSL VPN and the other services the firewall answers itself) come before the policy and are not converted
+  [needs-review] STORMSHIELD_INTERNALS: rules with Network_internals or Internet, read as the networks of the protected interfaces and everything else: networks behind them by routes are not known: local 2, local 4, local 6
+  [needs-review] STORMSHIELD_PROTOCOL_ANALYSIS: rules that force the analysis of an application protocol: read as not narrowing what the rule matches: local 15
+  [needs-review] STORMSHIELD_NAT_NOT_READ: NAT rules of the slot are not read (the filter rules name the addresses as they arrive, so they do not depend on them): 1 lines in Filter/05
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, address-object fqdn, address-object ipv6, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): in, out, lab
+  [info] STORMSHIELD_SOURCE: 5 interfaces as zones (out, in, dmz1, lab, labbridge); filter slot 05 after global slot 01: 16 rules, first match; what no rule matches is blocked
+  [info] STORMSHIELD_DELEG: global policies that end in a deleg of everything: the rest goes to the local policy: Global/Filter/01
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 2 rule(s) match IPv4 and IPv6 traffic and were written twice: SonicOS has address objects and access rules per IP version
+
+Security rules
+  global 1  ->  exact  (emitted as global 1, global 1 2, global 1 3, global 1 4, global 1 5, global 1 6, global 1 7, global 1 8, global 1 9, global 1 10, global 1 11, global 1 12, global 1 13, global 1 14, global 1 15, global 1 16, global 1 17, global 1 18, global 1 19, global 1 20, global 1 21, global 1 22, global 1 23, global 1 24, global 1 25)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 25 rules
+  local 1  ->  needs-review  (emitted as local 1, local 1 2, local 1 3, local 1 4, local 1 5)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+  local 2  ->  needs-review, emitted disabled  (emitted as local 2, local 2 2, local 2 3, local 2 4, local 2 5, local 2 6, local 2 7, local 2 8, local 2 9, local 2 10, local 2 11, local 2 12, local 2 13, local 2 14, local 2 15, local 2 16, local 2 17, local 2 18, local 2 19, local 2 20, local 2 21, local 2 22, local 2 23, local 2 24, local 2 25)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 25 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'x(rule) ipproto-icmp': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  local 3  ->  exact  (emitted as local 3, local 3 2, local 3 3, local 3 4, local 3 5, local 3 6, local 3 7, local 3 8, local 3 9, local 3 10, local 3 11, local 3 12, local 3 13, local 3 14, local 3 15, local 3 16, local 3 17, local 3 18, local 3 19, local 3 20, local 3 21, local 3 22, local 3 23, local 3 24, local 3 25)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 25 rules
+  local 4  ->  needs-review  (emitted as local 4, local 4 2, local 4 3, local 4 4, local 4 5, local 4 6, local 4 7, local 4 8, local 4 9, local 4 10, local 4 11, local 4 12, local 4 13, local 4 14, local 4 15, local 4 16, local 4 17, local 4 18, local 4 19, local 4 20, local 4 21, local 4 22, local 4 23, local 4 24, local 4 25)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (inspection=ips); attach equivalent inspection on the target
+      [info] NEGATION_EXPANDED: SonicOS has no negation: 'not destination Network_internals' is written as the IPv4 addresses that are left (4 range(s))
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 25 rules
+  local 5  ->  exact  (emitted as local 5, local 5 2, local 5 3, local 5 4, local 5 5)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+  local 6  ->  needs-review  (emitted as local 6, local 6 2, local 6 3, local 6 4, local 6 5, local 6 6, local 6 7, local 6 8, local 6 9, local 6 10, local 6 11, local 6 12, local 6 13, local 6 14, local 6 15, local 6 16, local 6 17, local 6 18, local 6 19, local 6 20, local 6 21, local 6 22, local 6 23, local 6 24, local 6 25)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 25 rules
+      [info] RESET_ACTION: action reset-client becomes deny
+  local 8  ->  exact  (emitted as local 8, local 8 2, local 8 3, local 8 4, local 8 5)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+  local 9  ->  exact  (emitted as local 9, local 9 2, local 9 3, local 9 4, local 9 5)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+  local 10  ->  needs-review  (emitted as local 10, local 10 2, local 10 3, local 10 4, local 10 5)
+      [needs-review] STORMSHIELD_BRIDGE: names a bridge or a port of one: read as that interface only; whether the firewall matches the bridge for its ports, or the reverse, is not documented
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 5 rules
+  local 11  ->  needs-review, emitted disabled  (emitted as local 11, local 11 2, local 11 3, local 11 4, local 11 5, local 11 6, local 11 7, local 11 8, local 11 9, local 11 10, local 11 11, local 11 12, local 11 13, local 11 14, local 11 15, local 11 16, local 11 17, local 11 18, local 11 19, local 11 20, local 11 21, local 11 22, local 11 23, local 11 24, local 11 25)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 25 rules
+      [needs-review] USER_MATCH: source user match staff@corp.example is not converted.
+  local 12  ->  needs-review, emitted disabled  (emitted as local 12, local 12 2, local 12 3, local 12 4, local 12 5, local 12 6, local 12 7, local 12 8, local 12 9, local 12 10, local 12 11, local 12 12, local 12 13, local 12 14, local 12 15, local 12 16, local 12 17, local 12 18, local 12 19, local 12 20, local 12 21, local 12 22, local 12 23, local 12 24, local 12 25)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 25 rules
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'x(rule) ipproto-proto_200': IP protocol 200, for which FWShift does not know the command of SonicOS.
+  local 13  ->  exact  (emitted as local 13, local 13 2, local 13 3, local 13 4, local 13 5, local 13 6, local 13 7, local 13 8, local 13 9, local 13 10, local 13 11, local 13 12, local 13 13, local 13 14, local 13 15, local 13 16, local 13 17, local 13 18, local 13 19, local 13 20, local 13 21, local 13 22, local 13 23, local 13 24, local 13 25, local 13 26, local 13 27, local 13 28, local 13 29, local 13 30, local 13 31, local 13 32, local 13 33, local 13 34, local 13 35, local 13 36, local 13 37, local 13 38, local 13 39, local 13 40, local 13 41, local 13 42, local 13 43, local 13 44, local 13 45, local 13 46, local 13 47, local 13 48, local 13 49, local 13 50)
+      [info] NEGATION_EXPANDED: SonicOS has no negation: 'not source lan' is written as the IPv4 addresses that are left (2 range(s))
+      [info] NEGATION_EXPANDED: SonicOS has no negation: 'not source lan' is written as the IPv6 addresses that are left (1 range(s))
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 25 rules
+  local 14  ->  exact  (emitted as local 14, local 14 2, local 14 3, local 14 4, local 14 5, local 14 6, local 14 7, local 14 8, local 14 9, local 14 10, local 14 11, local 14 12, local 14 13, local 14 14, local 14 15, local 14 16, local 14 17, local 14 18, local 14 19, local 14 20, local 14 21, local 14 22, local 14 23, local 14 24, local 14 25)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 25 rules
+  local 15  ->  approximated  (emitted as local 15, local 15 2, local 15 3, local 15 4, local 15 5, local 15 6, local 15 7, local 15 8, local 15 9, local 15 10, local 15 11, local 15 12, local 15 13, local 15 14, local 15 15, local 15 16, local 15 17, local 15 18, local 15 19, local 15 20, local 15 21, local 15 22, local 15 23, local 15 24, local 15 25)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application protocol=http); attach equivalent inspection on the target
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 25 rules
+  local 16  ->  exact  (emitted as local 16, local 16 2, local 16 3, local 16 4, local 16 5, local 16 6, local 16 7, local 16 8, local 16 9, local 16 10, local 16 11, local 16 12, local 16 13, local 16 14, local 16 15, local 16 16, local 16 17, local 16 18, local 16 19, local 16 20, local 16 21, local 16 22, local 16 23, local 16 24, local 16 25, local 16 26, local 16 27, local 16 28, local 16 29, local 16 30, local 16 31, local 16 32, local 16 33, local 16 34, local 16 35, local 16 36, local 16 37, local 16 38, local 16 39, local 16 40, local 16 41, local 16 42, local 16 43, local 16 44, local 16 45, local 16 46, local 16 47, local 16 48, local 16 49, local 16 50)
+      [info] RULE_SPLIT: a SonicOS rule is for one pair of zones: written as 25 rules
+  global 2  ->  skipped
+      [info] STORMSHIELD_DELEG: deleg of everything: the rest goes to the local policy
+  local 7  ->  skipped
+      [info] STORMSHIELD_NON_TERMINAL: action decrypt: the firewall goes on to the next rule; nothing is decided here
+
+Address groups
+  dual_ws  ->  exact  (emitted as dual_ws, dual_ws v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'dual_ws', 'dual_ws v6'
+  admins  ->  exact  (emitted as admins, admins v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'admins', 'admins v6'
+
+Services
+  http  ->  exact  (emitted as http 2)
+      [info] RENAMED: renamed to 'http 2' to fit the target's naming rules
+  https  ->  exact  (emitted as https 2)
+      [info] RENAMED: renamed to 'https 2' to fit the target's naming rules
+  ssh  ->  exact  (emitted as ssh 2)
+      [info] RENAMED: renamed to 'ssh 2' to fit the target's naming rules
+  syslog  ->  exact  (emitted as syslog 2)
+      [info] RENAMED: renamed to 'syslog 2' to fit the target's naming rules
+  lab_tools  ->  exact  (emitted as lab_tools, lab_tools tcp 5000-5010, lab_tools udp 5000-5010)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'lab_tools' of 'lab_tools tcp 5000-5010', 'lab_tools udp 5000-5010'
+  proto_200  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 200, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  (rule) ipproto-icmp  ->  needs-review  (emitted as x(rule) ipproto-icmp)
+      [info] RENAMED: renamed to 'x(rule) ipproto-icmp' to fit the target's naming rules
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  (rule) dns_udp-udp  ->  exact  (emitted as x(rule) dns_udp-udp)
+      [info] RENAMED: renamed to 'x(rule) dns_udp-udp' to fit the target's naming rules
+  (rule) ipproto-proto_200  ->  needs-review  (emitted as x(rule) ipproto-proto_200)
+      [info] RENAMED: renamed to 'x(rule) ipproto-proto_200' to fit the target's naming rules
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 200, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled

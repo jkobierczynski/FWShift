@@ -828,7 +828,7 @@ SAMPLES = ["panos_sample.xml", "fortios_sample.conf", "checkpoint_sample.json", 
            "junos_sample.conf", "nftables_sample.nft", "nsx_sample.json", "aws_sample.json", "azure_sample.json",
            "routeros_sample.rsc", "opnsense_sample.xml", "forcepoint_sample.json",
            "terraform_aws_sample.json", "terraform_azure_sample.json", "gcp_sample.json", "ios_sample.cfg",
-           "terraform_google_sample.json", "huawei_sample.cfg"]  # fmt: skip
+           "terraform_google_sample.json", "huawei_sample.cfg", "stormshield_sample.tgz"]  # fmt: skip
 
 
 @pytest.mark.parametrize("sample", SAMPLES)

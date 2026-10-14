@@ -1,14 +1,14 @@
 # FWShift user manual
 
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
-Check Point, Cisco ASA, Cisco IOS and IOS XE routers, Huawei USG, Cisco Secure Firewall (managed by a Management Center
+Check Point, Cisco ASA, Cisco IOS and IOS XE routers, Huawei USG, Stormshield SNS, Cisco Secure Firewall (managed by a Management Center
 or by its Device Manager), Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX, Linux iptables, Linux nftables, the VMware NSX
 distributed firewall, AWS security groups, Azure network security groups, Google Cloud firewall rules and network firewall policies (these three also as the resources of a Terraform state or plan, and as Terraform configuration), MikroTik RouterOS and Forcepoint NGFW (through its Security Management Center), and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; show what each zone may reach in each
 other zone; check a policy against a zone and conduit model kept as a file;
 and say which connections two policies decide differently.
-This manual covers version 0.29.
+This manual covers version 0.30.
 
 **Contents**
 
@@ -62,10 +62,10 @@ may reach (section 14), check a policy against a zone and conduit model kept
 as a file (section 16), and name every connection two policies decide
 differently, including a source and its conversion read back (section 17).
 
-> **Status.** Version 0.29 is tested against synthetic configurations. iptables
+> **Status.** Version 0.30 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). Output for PAN-OS, FortiOS, Check Point,
-> Cisco ASA, Cisco IOS, Huawei USG, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS, Azure, Google Cloud, RouterOS and Forcepoint has
+> Cisco ASA, Cisco IOS, Huawei USG, Stormshield SNS, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS, Azure, Google Cloud, RouterOS and Forcepoint has
 > not been loaded on a device or management server yet, and the Terraform output has not been applied with Terraform; the Check Point input format follows the
 > API documentation, the ASA and FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
@@ -85,6 +85,8 @@ differently, including a source and its conversion read back (section 17).
 > published readers of IOS configurations as corroboration; nothing was loaded on a router. Huawei USG syntax and
 > behaviour are taken from Huawei's documentation, its support pages and configurations it publishes in them; the
 > command reference could not be read, and the indentation of `display current-configuration` is assumed.
+> Stormshield's configuration files are read as its own tools and their test data show them (the syntax of a rule
+> line is not published), and its serverd commands from its command reference; nothing was run on a firewall.
 > Use FWShift to produce a draft for a lab, and follow *Using it safely* in the README.
 
 ## 2. Installation
@@ -107,8 +109,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.29.0.pyz --version
-python3 fwshift-0.29.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.30.0.pyz --version
+python3 fwshift-0.30.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -371,6 +373,21 @@ The zones of the converted policy are the security zones; `local` is the firewal
 (`HUAWEI_LOCAL_RULE`). The `policy interzone` configuration of older USGs (USG2000, USG5000, USG5500) and packet
 filters between zones (`firewall interzone`, as on a router) are refused. Of a firewall with virtual systems the root
 system is read, up to the first `switch vsys` (`HUAWEI_VSYS`).
+
+**Stormshield SNS.** FWShift reads the configuration files of an SNS firewall (version 4), the folder
+`/usr/Firewall/ConfigFiles`, as a `.tar` or `.tgz`. A backup (`.na`, *Configuration > System > Maintenance > Backup*)
+is encrypted, also without a password; open it with `decbackup`, which is on the firewall and can be downloaded from
+MyStormshield:
+
+```
+decbackup -i backup.na -o backup.tgz [-p PASSWORD]
+```
+
+and give FWShift `backup.tgz`. The folder copied from the firewall (`scp -r admin@FIREWALL:/usr/Firewall/ConfigFiles .`
+and `tar czf configfiles.tgz ConfigFiles`) is the same. What is read: the interfaces (`network`), the objects
+(`object`, `objectgroup`, `servicegroup`), the active filter slot (`Filter/slotinfo`, `Filter/NN`; another with
+`--policy N` or its name) and the global policy before it (`Global/Filter`). The NAT rules of a slot are not read
+(`STORMSHIELD_NAT_NOT_READ`), nor the implicit rules that come before the policy (`STORMSHIELD_IMPLICIT`).
 
 **Cisco ASA.** FWShift reads the running configuration as the ASA prints it:
 
@@ -933,7 +950,7 @@ TCP 502 and TCP 102, not the applications themselves.
 fwshift convert INPUT --to FORMAT [options]
 ```
 
-`FORMAT` is one of `panos`, `fortios`, `checkpoint`, `asa`, `ios`, `huawei`, `fmc`, `fdm`,
+`FORMAT` is one of `panos`, `fortios`, `checkpoint`, `asa`, `ios`, `huawei`, `stormshield`, `fmc`, `fdm`,
 `sophos`, `pfsense`, `opnsense`, `sonicwall`, `watchguard`, `barracuda`, `junos`,
 `iptables`, `ip6tables`, `nftables`, `nsx`, `aws`, `azure`, `gcp`, `terraform-aws`, `terraform-azure`, `terraform-google`, `routeros`, `forcepoint` and `json` (the neutral model; see `--to json` below).
 
@@ -943,7 +960,7 @@ fwshift convert INPUT --to FORMAT [options]
 
 | Option | Meaning |
 |---|---|
-| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: the JSON of `terraform show -json` or a raw state of Terraform is `terraform-aws`, `terraform-azure` or `terraform-google`, by the resources it holds; JSON that holds the answers of the SMC API for a firewall policy (list answers with `fwshift_list`, or hrefs into `/elements/fw_policy/`), or the XML export of an SMC (`<generic_import_export>`, which is refused), is Forcepoint; JSON of gcloud with objects of the kinds `compute#firewall` or `compute#firewallPolicy` (or firewall rules with `allowed` or `denied`, `IPProtocol` and `network`) is `gcp`; a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<opnsense>` is OPNsense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; JSON with network security groups of Azure (`Microsoft.Network/networkSecurityGroups`, or `securityRules` with priorities) is Azure; a file whose header says `by RouterOS`, or whose first line is a menu such as `/ip firewall filter` or `/interface list`, is RouterOS; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with `security-policy` or `nat-policy` and `firewall zone`, `ip address-set`, `ip service-set`, `nat address-group` or `sysname` lines is `huawei`; a file with lines only IOS writes (`ip access-list standard|extended`, `ipv6 access-list`, ` ip access-group` under an interface, `zone security`, `zone-pair security`, `ip nat inside source`, `access-list 101 permit ...`, `version 15.4`) and none only an ASA writes is `ios`; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: the JSON of `terraform show -json` or a raw state of Terraform is `terraform-aws`, `terraform-azure` or `terraform-google`, by the resources it holds; JSON that holds the answers of the SMC API for a firewall policy (list answers with `fwshift_list`, or hrefs into `/elements/fw_policy/`), or the XML export of an SMC (`<generic_import_export>`, which is refused), is Forcepoint; JSON of gcloud with objects of the kinds `compute#firewall` or `compute#firewallPolicy` (or firewall rules with `allowed` or `denied`, `IPProtocol` and `network`) is `gcp`; a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<opnsense>` is OPNsense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; JSON with network security groups of Azure (`Microsoft.Network/networkSecurityGroups`, or `securityRules` with priorities) is Azure; a file whose header says `by RouterOS`, or whose first line is a menu such as `/ip firewall filter` or `/interface list`, is RouterOS; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a `.tar` or `.tgz` that holds ConfigFiles (`object`, `Filter/slotinfo` or a filter slot), or a Stormshield backup (`.na`, refused with the command that opens it), is `stormshield`; a file with `security-policy` or `nat-policy` and `firewall zone`, `ip address-set`, `ip service-set`, `nat address-group` or `sysname` lines is `huawei`; a file with lines only IOS writes (`ip access-list standard|extended`, `ipv6 access-list`, ` ip access-group` under an interface, `zone security`, `zone-pair security`, `ip nat inside source`, `access-list 101 permit ...`, `version 15.4`) and none only an ASA writes is `ios`; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
@@ -981,6 +998,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to terraform-aws` | Terraform configuration (HCL, hashicorp/aws 5 or later): the security groups the `aws` target writes, as `aws_security_group` resources without members and one `aws_vpc_security_group_ingress_rule` or `_egress_rule` per address block and service, for the VPC in the variable `vpc_id` (section 10). |
 | `--to ios` | Configuration commands for the zone-based policy firewall of IOS and IOS XE: a zone per zone of the source, an access list and an inspect class map per rule, an inspect policy per zone pair in the order of the rules, ending in the default of the source (section 10). The `zone-member security` lines and NAT are comments to move into place. |
 | `--to huawei` | Commands for the system view of a Huawei USG: security zones (`trust`, `untrust` and `dmz` as they are, others new with a priority of their own), address and service sets, the rules of `security-policy` in the order of the source, the defaults, `nat server` and `nat-policy` (section 10). Which interfaces go in which zone is a comment. |
+| `--to stormshield` | A script of serverd commands for an SNS firewall (version 4), to run with `snscli --script`: objects, then the rules in one filter slot (slot 9, or `--target-policy N` or `N:NAME`) that the script empties first and does not make active, then the NAT rules (section 10). The zones are the names of the firewall's interfaces (`--zone-map`). |
 | `--to gcp` | A shell script of gcloud commands that creates one new global network firewall policy with the rules, associated with no network (section 10). Each rule of the source becomes a rule per IP version, both ingress and egress, at priorities from 1000 in steps of 10; the last rules are the default of the source. Zones become the networks of `--zone-network`, as for NSX. |
 | `--to terraform-google` | Terraform configuration (HCL, hashicorp/google 5 or later): the policy and rules the `gcp` target writes, as a `google_compute_network_firewall_policy` and its `_rule` resources, in the project in the variable `project`; the association with a network is a comment (section 10). |
 | `--to terraform-azure` | Terraform configuration (HCL, hashicorp/azurerm 3 or later): the network security groups the `azure` target writes, as `azurerm_network_security_group` resources with their rules inline, in the resource group in the variable `resource_group_name` (section 10). |
@@ -998,7 +1016,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--target-layer NAME` | Check Point: the access layer the rules are written to. Default `Network`. It must exist. |
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
-| `--target-prefix TEXT` | Check Point, ASA, IOS, Huawei, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS, Azure (also as Terraform), Google Cloud (also as Terraform), RouterOS and Forcepoint: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on Azure every network security group; on Google Cloud the network firewall policy; on IOS every zone, access list, object group, class map and policy map, instead of `FWS-`; on Huawei every zone, address set, service set, rule, address pool and `nat server`, instead of `FWS_`; on RouterOS every interface list and address list, instead of `fws-`) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
+| `--target-prefix TEXT` | Check Point, ASA, IOS, Huawei, Stormshield, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS, Azure (also as Terraform), Google Cloud (also as Terraform), RouterOS and Forcepoint: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on Azure every network security group; on Google Cloud the network firewall policy; on IOS every zone, access list, object group, class map and policy map, instead of `FWS-`; on Huawei every zone, address set, service set, rule, address pool and `nat server`, instead of `FWS_`; on Stormshield every object, instead of `fws_` (not `Firewall_` or `Network_`); on RouterOS every interface list and address list, instead of `fws-`) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
 | `--compare[=FILE]` | Read the output back (for the targets FWShift reads: `asa`, `azure`, `fdm`, `fortios`, `iptables`, `ip6tables`, `junos`, `nftables`, `nsx`, `routeros`, `sophos`, `watchguard`) and compare it with the policy as it was read: every connection the two decide differently is in the report (`COMPARE_OPENED`, `COMPARE_CLOSED`, section 17). With `FILE` the whole comparison is written there. Give `--zone-network` for every zone, so that only connections that can happen are compared. |
 | `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates; the script can be given another name when it is run (`--name`). NSX: the name of the security policy. Azure and `terraform-azure`: the name of the one network security group written when no zone has networks. `gcp` and `terraform-google`: the name of the network firewall policy, in lower case with hyphens (`fwshift` when not given). Default `FWShift`. Forcepoint: the name of the firewall policy the program creates (`--name` when it is run gives another). |
 | `--target-template NAME` | Forcepoint: the template the new firewall policy is based on (default `Firewall Template`, the predefined one). The loader stops when the SMC has no template of that name; it can be given another when it is run (`--template`). |
@@ -1291,7 +1309,7 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `NEGATION_AS_ADDRESSES` | I | To Sophos: of several negated fields one is an exclusion; the others are written as the addresses that are left, which matches the same traffic. To a Management Center or a Device Manager: every negated address list is written that way, as range objects and the predefined object for the other IP version. |
 | `APP_PORTS` | R, disabled | To Sophos, a Management Center or a Device Manager: the ports of an application hold something a service of the target cannot say (SCTP ports). |
 | `SCHEDULE` | R, disabled | The rule had a schedule; converted without it, it would apply at all times. |
-| `SERVICE_NEGATE` | R, disabled | To PAN-OS, ASA, Barracuda or Huawei: a negated service match does not exist there. On an ASA only a remark is written for the rule: an inactive entry without the negation would say the opposite. |
+| `SERVICE_NEGATE` | R, disabled | To PAN-OS, ASA, Barracuda, Huawei or Stormshield: a negated service match does not exist there. On an ASA only a remark is written for the rule: an inactive entry without the negation would say the opposite. |
 | `EGRESS_INTERFACE` | A, or R and disabled | To ASA or pfSense: the rule is for traffic to certain zones, and an access list entry cannot name the interface traffic leaves by. A: the rule names destination addresses and is written for those, by whatever interface they are reached; also on an intrazone rule, which an ASA only serves with `same-security-traffic permit intra-interface`. R, disabled: the rule is for any address; give the networks behind the zones with `--zone-network`, or the rule a destination. |
 | `EGRESS_BY_NETWORKS` | I or A | To ASA or pfSense: with `--zone-network`, the networks given for the other zones were left out of the destination of the entry, which keeps the rule to its zones. A: the networks do not cover every address; what they leave out lies behind no zone that is known, so a permit rule for any address does not cover it and a deny rule does (`ZONE_NETWORK_GAP`). |
 | `EGRESS_NO_ADDRESS` | A or R, skipped | To ASA or pfSense: by the networks given with `--zone-network`, no address of the destination lies behind the zones the rule is for, so it matched nothing and is left out (or, with several source zones, has no entry for some of them). R for a deny rule: if one of the networks is wrong, a deny is missing. |
@@ -1856,6 +1874,31 @@ Findings and notes that only a Forcepoint source or target raises. A Forcepoint 
 | `APP_AND_SERVICE` | R | Target (on the rule): network applications and services in one rule of an SMC source: in one cell they would be ORed. Written disabled. |
 | `NAT_IPV4_ONLY` | A | Target (on the NAT rule): source NAT to the interface address for addresses of both IP versions is written for IPv4 only. |
 | `NAT_PORTS` | A | Target (on the NAT rule): dynamic NAT without port translation is written as dynamic NAT of an SMC, which translates ports as well. |
+
+Findings and notes that only a Stormshield source or target raises:
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `STORMSHIELD_SOURCE` | I | Source: the interfaces read as zones, the slot read (and the global slot before it) and the number of rules; what no rule matches is blocked. |
+| `STORMSHIELD_IMPLICIT` | R | Source: the implicit rules (administration, DNS, IPsec, SSL VPN and the other services the firewall answers itself) come before the policy and are not converted. |
+| `STORMSHIELD_PREDEFINED` | R | Source: predefined services that the object file does not hold were read by their well-known ports. |
+| `STORMSHIELD_INTERNALS` | R | Source (on the rule): `Network_internals` and `Internet` are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks behind them by routes, and their IPv6 networks, are not known. |
+| `STORMSHIELD_INTERFACE_OBJECTS` | R | Source (on the rule): `Network_*` and `Firewall_*` objects are read from the first IPv4 address of their interface. |
+| `STORMSHIELD_BRIDGE` | R | Source (on the rule): it names a bridge or a port of one and is read as that interface only; which one the firewall matches is not documented. |
+| `STORMSHIELD_PROTOCOL_ANALYSIS` | R | Source: rules that force the analysis of an application protocol (`proto http`) are read as not narrowing what they match. |
+| `STORMSHIELD_HANDLING` | R | Source (on the rule): it sets the type of service (`settos`) or routes what it passes by its own gateway (`route`); not converted. |
+| `STORMSHIELD_NON_TERMINAL` | I, skipped | Source (on the rule): `decrypt` and `log` go on to the next rule; nothing is decided there. |
+| `STORMSHIELD_DELEG` | I | Source: the global policy ends in a `deleg` of everything: the rest goes to the local policy. |
+| `STORMSHIELD_NAT_NOT_READ` | R | Source: the NAT rules of the slot are not read (their syntax in the file is not published). The filter rules name the addresses as they arrive, so they do not depend on them. |
+| `STORMSHIELD_SECTION` | R | Source: sections of a slot file other than `[Filter]` and `[NAT]` are not read. |
+| `STORMSHIELD_SCHEDULED` | R | Source: slots activated on a schedule: the slot read is the one named active. |
+| `STORMSHIELD_NO_NETWORK` | R | Source: no `network` file: the interfaces, `Network_*`, `Firewall_*` and `Internet` are not known. |
+| `STORMSHIELD_LOAD` | R | Target: the output is a script of serverd commands (section 10): it changes objects of the same names, also where an active slot uses them, empties the slot and writes it; the slot is not made active. snscli goes on after a command that fails. |
+| `STORMSHIELD_INTERFACES` | R | Target: rules name interfaces by the zone names of the source; each must be the name of an interface of the firewall (`--zone-map`). Names that an interface name cannot hold were written with characters replaced. |
+| `STORMSHIELD_IPV6` | R | Target: IPv6 objects are written with `ipv6=` and `prefixlenv6=`, which the documentation of the commands that create objects does not show. |
+| `STORMSHIELD_NAT_ARP` | R | Target: translated addresses are published by ARP (`natsrcarp`, `natdstarp`); leave that out where the address is one of the firewall's. |
+| `STORMSHIELD_RESET` | I | Target (on the rule): `reset` answers the client only. |
+| `STORMSHIELD_DEFAULT_ALLOW` | R | Target: the source allows what no rule matches; the slot ends in a rule that passes everything. |
 
 Findings and notes that only a Huawei USG source or target raises:
 
@@ -2874,6 +2917,53 @@ The second column matters too:
 * NAT rules are written as manual rules. Zones are left out of them
   (`NAT_ZONES`); source NAT to "the outgoing interface" needs the gateway
   object (`--target-gateway`).
+
+### Stormshield SNS
+
+**What is read**
+
+* The interfaces of `network`, by the names rules give them (`out`, `in`, `dmz1`), are the zones. A rule names the
+  interface a packet arrives on with `on` after the source, and the one it leaves by with `on` after the destination;
+  without one it applies to any.
+* The filter policy: the global slot (`Global/Filter/NN`, active in its `slotinfo`) and then the local one
+  (`Filter/NN`, active in `Filter/slotinfo` or named with `--policy`), first match, top to bottom. `pass`, `block`
+  and `reset` decide; `decrypt` and `log` go on to the next rule and are left out (`STORMSHIELD_NON_TERMINAL`). A
+  global policy that ends in `deleg` of everything goes on to the local policy; a `deleg` with conditions is refused.
+  What no rule matches is blocked.
+* A rule line: the action, options (`log`, `inspection firewall|ids|ips`, `ipproto`, `proto`, `settos`, `route`),
+  `from` with the source (a list of objects, `!` for all but them, `user="..."@object` or `group="..."@object` with
+  `domain`), `on` and the interface, `to` with the destination and its interface, `port` with a list of services, and
+  a comment after `#` (the automatic "Created on ... by ..." left out). Separators tag the rules after them. Any other
+  word (`tos`, `schedule`, `via`, a geolocation, an ICMP type) makes the rule not converted, as does an empty name or a
+  word twice: the syntax of the file is not published.
+* `ipproto tcp` or `udp` keeps the ports of the services of that protocol; `ipproto icmp` is every ICMP message;
+  `ipproto` with a protocol object, that protocol. `proto` names the analysis of an application protocol, read as not
+  narrowing what the rule matches (`STORMSHIELD_PROTOCOL_ANALYSIS`).
+* Objects, matched by name without regard to case: hosts (an address, a range, IPv4 and IPv6), networks (a mask or a
+  prefix length, without host bits), FQDN objects and hosts the firewall resolves by name (host names), services (a
+  port or a range of TCP, UDP or both), protocols, groups and service groups (nested). An object of the global and of
+  the local policy with one name is not converted where a rule names it. `Network_<if>` and `Firewall_<if>` are the
+  network and the address of an interface, `firewall_all` all of its addresses, `Network_internals` the networks of
+  the protected interfaces, `Internet` everything but the object `[Internet]` names (`STORMSHIELD_INTERNALS`).
+* The NAT rules of a slot are not read: the filter rules name the addresses as they arrive, before NAT.
+
+**What is written**
+
+* A script of serverd commands: objects with the prefix and `update=1` (hosts and networks, ranges as the networks
+  they are made of, groups, services, protocols), then the rules in a filter slot that the script empties first,
+  then `CONFIG FILTER ACTIVATE`; the slot is renamed and not made active.
+* Each rule of the model becomes one rule per pair of interfaces it names and per kind of service (the ports of TCP
+  and UDP together, each ICMP type, each other protocol, ports of a source with their own rule), since a rule of SNS
+  has one IP protocol; together they match what the rule matches. A negation is `!` before one object (a group where
+  there are several); a negated service is not written. Disabled rules, and rules the target cannot say, are written
+  with `state=off`, the reason in the comment.
+* The zones become `srcif` and `dstif` by their names; traffic inside a zone is in and out by the same interface.
+  Where the source allows what no rule matches, rules at the end pass it; SNS blocks the rest.
+* NAT: source NAT to an interface address (`Firewall_<if>` with the ephemeral ports), to a pool or to a static
+  address; a static translation both ways as two rules; destination NAT of one address and port, with ARP
+  publication (`STORMSHIELD_NAT_ARP`). Exemptions are not written.
+* From a Stormshield source the firewall's own objects (`Network_internals`, `Firewall_out`, `Internet`) are named as
+  they are.
 
 ### Huawei USG
 
@@ -4387,6 +4477,26 @@ management server and in the SmartConsole installation.
 6. Assign the security zones to the interfaces of the gateway, and add proxy
    ARP for translated addresses (`NAT_MANUAL_RULES`).
 
+### Stormshield SNS
+
+The output is a script of serverd commands. It creates objects, empties one filter slot and writes the policy there;
+it does not make the slot active.
+
+1. Convert, with the zones renamed to the names of the firewall's interfaces and the slot to write:
+
+   ```sh
+   fwshift convert policy.xml --to stormshield -o sns.script --report report.txt \
+       --zone-map trust=in --zone-map untrust=out --target-policy 7:Converted
+   ```
+
+2. Check that the slot is not the active one, and that no object name the script uses (`fws_` or `--target-prefix`)
+   is taken by an object an active slot uses: the script changes objects of those names.
+3. Run it: `snscli --host FIREWALL --user admin --script sns.script`, or paste the commands into `nsrpc` or the
+   `cli` of the console. snscli goes on after a command that fails: read its output.
+4. Check the slot (`CONFIG FILTER CHECK type=filter index=7`) and look at it in the web administration, then
+   activate it (`CONFIG SLOT ACTIVATE type=filter slot=7`) in a maintenance window. The implicit rules of the firewall
+   stay as they are.
+
 ### Huawei USG
 
 The output is commands for the system view, from `system-view` to `return`. Commands take effect when they are entered.
@@ -4899,6 +5009,13 @@ the report is the list.)
 | `network firewall policy ...: two rules with one priority ...` / `... a rule without a priority that can be read` | Google Cloud: a policy as Google Cloud never holds it; export it again with `describe`. |
 | `network ...: enforcement order '...' is not one FWShift knows` | Google Cloud: an enforcement order other than `AFTER_CLASSIC_FIREWALL` and `BEFORE_CLASSIC_FIREWALL`. |
 | `instance ...: '...' is not an address` / `... alias range '...' cannot be read` | Google Cloud: an instance list that was edited, or of another format. |
+| `a backup of a Stormshield firewall (.na), which is encrypted ...` | Stormshield: open it with `decbackup -i backup.na -o backup.tgz` and give FWShift `backup.tgz` (section 3). |
+| `the archive holds no ConfigFiles ...`, `... the ConfigFiles of more than one firewall ...` | Stormshield: give the `.tgz` of one firewall's ConfigFiles. |
+| `several filter slots and no slotinfo that names the active one ...`, `there is no filter slot NN ...`, `no filter slot is called '...'` | Stormshield: name the slot with `--policy N` or its name. |
+| `global filter slot NN holds rules and Global/Filter/slotinfo names no active slot ...` | Stormshield: the input is incomplete; the global policy comes before the local one. |
+| `... a deleg rule that does not match everything ...`, `... a rule after a deleg rule ...` | Stormshield: a global policy that hands only part of the traffic to the local one cannot be read as one list of rules. |
+| `... a line before the [Filter] section` | Stormshield: a slot file that was edited or cut. |
+| `--target-policy for Stormshield: a filter slot from 1 to 10 ...`, `--target-prefix for Stormshield: ...` | Stormshield target: a slot from 1 to 10 (`N` or `N:NAME`); a prefix of up to 16 letters, digits, periods, underscores and hyphens, not `Firewall_` or `Network_`. |
 | `a configuration of an older USG (USG2000, USG5000, USG5500: policy interzone) ...` | Huawei: the `policy interzone` generation is not read. |
 | `packet filters between zones (firewall interzone, firewall packet-filter default) ...` | Huawei: a router (AR) or an older USG that filters with access lists between zones; not read. |
 | `no security-policy and no security zones: not a configuration of a Huawei USG` | Huawei: give `display current-configuration` (section 3). |
@@ -5100,6 +5217,13 @@ deliberate: see *IPv4 and IPv6* in section 8.
   inside are read as connections to the internal one (`GCP_HAIRPIN`). To Google Cloud: one global policy, rules of one
   IP version, 5,000 address ranges on one side; ICMP types and source ports are not written. The formats follow
   Google's API reference and the gcloud documentation; nothing was read from or created in a real project.
+* Stormshield SNS: the ConfigFiles of one firewall (version 4); the implicit rules, the NAT rules of a slot, time
+  objects and scheduled slots, users (carried, not converted), inspection profiles, the analysis of application
+  protocols, policy routing, QoS, geolocation and reputation, `via`, `decrypt` and `log` rules, and a global `deleg`
+  with conditions are not converted. `Network_internals` and `Internet` know the networks of the protected
+  interfaces only. The syntax of a rule line is read as Stormshield's tools and their test data show it. To
+  Stormshield: one slot, not made active; ranges as networks; IPv6 objects with tokens not confirmed; no NAT
+  exemptions. Nothing was run on a firewall.
 * Huawei USG: the root system of a USG6000, USG6000E or USG9500 of the `security-policy` generation; traffic to and
   from the firewall (the local zone), virtual systems, VPN instances (one routing table), applications, users, time
   ranges, domain sets and regions, rule groups that are disabled, destination NAT of `nat-policy`, NAT of ranges and

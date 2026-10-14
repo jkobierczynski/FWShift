@@ -1,0 +1,178 @@
+FWShift zone matrix
+  source: stormshield
+  security rules: 16 (0 disabled, 0 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 out               in                dmz1              lab               labbridge         (other zones)
+  out            any~              any~              any~              any~              any~              any~
+  in             any~              any~              any~              any~              any~              any~
+  dmz1           any~              any~              any~              any~              any~              any~
+  lab            any~              any~              any~              any~              any~              any~
+  labbridge      any~              any~              any~              any~              any~              any~
+  (other zones)  any~              any~              any~              any~              any~              any~
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+In every conduit
+  rule 'local 2': Network_internals -> firewall_all: icmp ~
+  rule 'local 4': Network_internals -> not Network_internals: tcp/80, tcp/443, tcp/8080-8090 ~
+  rule 'local 11': lan -> dmz_servers: tcp/80, tcp/443, tcp/8080-8090 (users staff@corp.example)
+  rule 'local 12': lab_net -> any: ip/200
+  rule 'local 13': not lan -> updates.example.com: tcp/443 ~
+  rule 'local 14': lan6 -> any: any
+  rule 'local 15': lan -> www.example.org: tcp/80, tcp/8080-8090 ~
+
+Conduits
+out -> out (inside the zone)
+  allowed: any ~
+  rule 'local 8': any -> web_pub: tcp/80, tcp/443
+  rule 'local 9': any -> dmz_servers: tcp/25
+  and the 7 listed under 'In every conduit'
+out -> in
+  allowed: any ~
+  rule 'local 8': any -> web_pub: tcp/80, tcp/443
+  rule 'local 9': any -> dmz_servers: tcp/25
+  and the 7 listed under 'In every conduit'
+out -> dmz1
+  allowed: any ~
+  rule 'local 8': any -> web_pub: tcp/80, tcp/443
+  rule 'local 9': any -> dmz_servers: tcp/25
+  and the 7 listed under 'In every conduit'
+out -> lab
+  allowed: any ~
+  rule 'local 8': any -> web_pub: tcp/80, tcp/443
+  rule 'local 9': any -> dmz_servers: tcp/25
+  and the 7 listed under 'In every conduit'
+out -> labbridge
+  allowed: any ~
+  rule 'local 8': any -> web_pub: tcp/80, tcp/443
+  rule 'local 9': any -> dmz_servers: tcp/25
+  and the 7 listed under 'In every conduit'
+out -> (other zones)
+  allowed: any ~
+  rule 'local 8': any -> web_pub: tcp/80, tcp/443
+  rule 'local 9': any -> dmz_servers: tcp/25
+  and the 7 listed under 'In every conduit'
+in -> out
+  allowed: any ~
+  rule 'local 1': admins -> firewall_all: tcp/22, tcp/443 ~
+  rule 'local 5': lan -> any: udp/53
+  and the 7 listed under 'In every conduit'
+in -> in (inside the zone)
+  allowed: any ~
+  rule 'local 1': admins -> firewall_all: tcp/22, tcp/443 ~
+  rule 'local 5': lan -> any: udp/53
+  and the 7 listed under 'In every conduit'
+in -> dmz1
+  allowed: any ~
+  rule 'local 1': admins -> firewall_all: tcp/22, tcp/443 ~
+  rule 'local 5': lan -> any: udp/53
+  and the 7 listed under 'In every conduit'
+in -> lab
+  allowed: any ~
+  rule 'local 1': admins -> firewall_all: tcp/22, tcp/443 ~
+  rule 'local 5': lan -> any: udp/53
+  and the 7 listed under 'In every conduit'
+in -> labbridge
+  allowed: any ~
+  rule 'local 1': admins -> firewall_all: tcp/22, tcp/443 ~
+  rule 'local 5': lan -> any: udp/53
+  and the 7 listed under 'In every conduit'
+in -> (other zones)
+  allowed: any ~
+  rule 'local 1': admins -> firewall_all: tcp/22, tcp/443 ~
+  rule 'local 5': lan -> any: udp/53
+  and the 7 listed under 'In every conduit'
+dmz1 -> out
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+dmz1 -> in
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+dmz1 -> dmz1 (inside the zone)
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+dmz1 -> lab
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+dmz1 -> labbridge
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+dmz1 -> (other zones)
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+lab -> out
+  allowed: any ~
+  rule 'local 10': lab_net -> any: tcp/5000-5010, udp/5000-5010 ~
+  and the 7 listed under 'In every conduit'
+lab -> in
+  allowed: any ~
+  rule 'local 10': lab_net -> any: tcp/5000-5010, udp/5000-5010 ~
+  and the 7 listed under 'In every conduit'
+lab -> dmz1
+  allowed: any ~
+  rule 'local 10': lab_net -> any: tcp/5000-5010, udp/5000-5010 ~
+  and the 7 listed under 'In every conduit'
+lab -> lab (inside the zone)
+  allowed: any ~
+  rule 'local 10': lab_net -> any: tcp/5000-5010, udp/5000-5010 ~
+  and the 7 listed under 'In every conduit'
+lab -> labbridge
+  allowed: any ~
+  rule 'local 10': lab_net -> any: tcp/5000-5010, udp/5000-5010 ~
+  and the 7 listed under 'In every conduit'
+lab -> (other zones)
+  allowed: any ~
+  rule 'local 10': lab_net -> any: tcp/5000-5010, udp/5000-5010 ~
+  and the 7 listed under 'In every conduit'
+labbridge -> out
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+labbridge -> in
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+labbridge -> dmz1
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+labbridge -> lab
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+labbridge -> labbridge (inside the zone)
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+labbridge -> (other zones)
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+(other zones) -> out
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+(other zones) -> in
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+(other zones) -> dmz1
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+(other zones) -> lab
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+(other zones) -> labbridge
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+(other zones) -> (other zones)
+  allowed: any ~
+  and the 7 listed under 'In every conduit'
+
+Not in the matrix
+  2 rule(s) of the source could not be read; what they allow is not shown: 'global 2', 'local 7'
+
+From reading the configuration
+  STORMSHIELD_SOURCE: 5 interfaces as zones (out, in, dmz1, lab, labbridge); filter slot 05 after global slot 01: 16 rules, first match; what no rule matches is blocked
+  STORMSHIELD_IMPLICIT: the implicit rules (administration, DNS, IPsec, SSL VPN and the other services the firewall answers itself) come before the policy and are not converted
+  STORMSHIELD_DELEG: global policies that end in a deleg of everything: the rest goes to the local policy: Global/Filter/01
+  STORMSHIELD_INTERNALS: rules with Network_internals or Internet, read as the networks of the protected interfaces and everything else: networks behind them by routes are not known: local 2, local 4, local 6
+  STORMSHIELD_PROTOCOL_ANALYSIS: rules that force the analysis of an application protocol: read as not narrowing what the rule matches: local 15
+  STORMSHIELD_NAT_NOT_READ: NAT rules of the slot are not read (the filter rules name the addresses as they arrive, so they do not depend on them): 1 lines in Filter/05
+
+Notes
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

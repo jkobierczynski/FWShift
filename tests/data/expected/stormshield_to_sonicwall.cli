@@ -1,0 +1,1585 @@
+configure terminal
+address-object ipv4 "Network_out" network 203.0.113.0 255.255.255.248 zone dmz1
+address-object ipv4 "Firewall_out" host 203.0.113.2 zone dmz1
+address-object ipv4 "Network_in" network 10.10.0.0 255.255.255.0 zone dmz1
+address-object ipv4 "Firewall_in" host 10.10.0.254 zone dmz1
+address-object ipv4 "Network_dmz1" network 10.20.0.0 255.255.255.0 zone dmz1
+address-object ipv4 "Firewall_dmz1" host 10.20.0.254 zone dmz1
+address-object ipv4 "Network_lab" network 10.30.0.0 255.255.255.0 zone dmz1
+address-object ipv4 "Firewall_lab" host 10.30.0.254 zone dmz1
+address-object ipv4 "Network_labbridge" network 10.30.0.0 255.255.255.0 zone dmz1
+address-object ipv4 "Firewall_labbridge" host 10.30.0.254 zone dmz1
+address-object ipv4 "web_srv" host 10.20.0.10 zone dmz1
+address-object ipv4 "mail_srv" host 10.20.0.25 zone dmz1
+address-object ipv4 "web_pub" host 203.0.113.3 zone dmz1
+address-object ipv4 "admin_ws" host 10.10.0.50 zone in
+address-object ipv4 "dhcp_pool" range 10.10.0.100 10.10.0.199 zone dmz1
+address-object fqdn "updates.example.com" domain "updates.example.com" zone dmz1
+address-object ipv4 "lan" network 10.10.0.0 255.255.255.0 zone in
+address-object ipv6 "lan6" network 2001:db8:10:: /64 zone dmz1
+address-object ipv4 "lab_net" network 10.30.0.0 255.255.255.0 zone lab
+address-object ipv4 "blocked" network 198.51.100.0 255.255.255.0 zone dmz1
+address-object fqdn "www.example.org" domain "www.example.org" zone dmz1
+address-object ipv4 "global_bad" network 192.0.2.128 255.255.255.128 zone dmz1
+address-object ipv4 "h 10.10.0.60" host 10.10.0.60 zone dmz1
+address-object ipv6 "h 2001:db8:10::60" host 2001:db8:10::60 zone dmz1
+address-object ipv4 "r 0.0.0.0-10.9.255.255" range 0.0.0.0 10.9.255.255 zone dmz1
+address-object ipv4 "r 10.10.1.0-10.19.255.255" range 10.10.1.0 10.19.255.255 zone dmz1
+address-object ipv4 "r 10.20.1.0-10.29.255.255" range 10.20.1.0 10.29.255.255 zone dmz1
+address-object ipv4 "r 10.30.1.0-255.255.255.255" range 10.30.1.0 255.255.255.255 zone dmz1
+address-object ipv4 "r 10.10.1.0-255.255.255.255" range 10.10.1.0 255.255.255.255 zone dmz1
+address-group ipv4 "dual_ws"
+    address-object ipv4 "h 10.10.0.60"
+    exit
+address-group ipv6 "dual_ws v6"
+    address-object ipv6 "h 2001:db8:10::60"
+    exit
+address-group ipv4 "dmz_servers"
+    address-object ipv4 "web_srv"
+    address-object ipv4 "mail_srv"
+    exit
+address-group ipv4 "admins"
+    address-object ipv4 "admin_ws"
+    address-object ipv4 "h 10.10.0.60"
+    exit
+address-group ipv6 "admins v6"
+    address-object ipv6 "h 2001:db8:10::60"
+    exit
+address-group ipv4 "firewall_all"
+    address-object ipv4 "Firewall_out"
+    address-object ipv4 "Firewall_in"
+    address-object ipv4 "Firewall_dmz1"
+    address-object ipv4 "Firewall_lab"
+    address-object ipv4 "Firewall_labbridge"
+    exit
+address-group ipv4 "Network_internals"
+    address-object ipv4 "Network_in"
+    address-object ipv4 "Network_dmz1"
+    address-object ipv4 "Network_lab"
+    address-object ipv4 "Network_labbridge"
+    exit
+address-group ipv4 "Internet"
+    address-object ipv4 "r 0.0.0.0-10.9.255.255"
+    address-object ipv4 "r 10.10.1.0-10.19.255.255"
+    address-object ipv4 "r 10.20.1.0-10.29.255.255"
+    address-object ipv4 "r 10.30.1.0-255.255.255.255"
+    exit
+address-group ipv4 "dst local 4"
+    address-object ipv4 "r 0.0.0.0-10.9.255.255"
+    address-object ipv4 "r 10.10.1.0-10.19.255.255"
+    address-object ipv4 "r 10.20.1.0-10.29.255.255"
+    address-object ipv4 "r 10.30.1.0-255.255.255.255"
+    exit
+address-group ipv4 "src local 13"
+    address-object ipv4 "r 0.0.0.0-10.9.255.255"
+    address-object ipv4 "r 10.10.1.0-255.255.255.255"
+    exit
+service-object "http 2" TCP 80 80
+service-object "https 2" TCP 443 443
+service-object "ssh 2" TCP 22 22
+service-object "dns_udp" UDP 53 53
+service-object "smtp" TCP 25 25
+service-object "ident" TCP 113 113
+service-object "web_alt" TCP 8080 8090
+service-object "syslog 2" UDP 514 514
+service-object "lab_tools tcp 5000-5010" TCP 5000 5010
+service-object "lab_tools udp 5000-5010" UDP 5000 5010
+service-group "lab_tools"
+    service-object "lab_tools tcp 5000-5010"
+    service-object "lab_tools udp 5000-5010"
+    exit
+service-object "x(rule) dns_udp-udp" UDP 53 53
+service-group "web_ports"
+    service-object "http 2"
+    service-object "https 2"
+    service-object "web_alt"
+    exit
+service-group "svc local 1"
+    service-object "ssh 2"
+    service-object "https 2"
+    exit
+service-group "svc local 8"
+    service-object "http 2"
+    service-object "https 2"
+    exit
+service-group "svc local 15"
+    service-object "http 2"
+    service-object "web_alt"
+    exit
+access-rule ipv4 from dmz1 to dmz1 action discard source address name "global_bad" service any destination address any
+    name "global 1"
+    priority manual 1
+    exit
+access-rule ipv4 from dmz1 to in action discard source address name "global_bad" service any destination address any
+    name "global 1 2"
+    priority manual 1
+    exit
+access-rule ipv4 from dmz1 to lab action discard source address name "global_bad" service any destination address any
+    name "global 1 3"
+    priority manual 1
+    exit
+access-rule ipv4 from dmz1 to labbridge action discard source address name "global_bad" service any destination address any
+    name "global 1 4"
+    priority manual 1
+    exit
+access-rule ipv4 from dmz1 to out action discard source address name "global_bad" service any destination address any
+    name "global 1 5"
+    priority manual 1
+    exit
+access-rule ipv4 from in to dmz1 action discard source address name "global_bad" service any destination address any
+    name "global 1 6"
+    priority manual 1
+    exit
+access-rule ipv4 from in to in action discard source address name "global_bad" service any destination address any
+    name "global 1 7"
+    priority manual 1
+    exit
+access-rule ipv4 from in to lab action discard source address name "global_bad" service any destination address any
+    name "global 1 8"
+    priority manual 1
+    exit
+access-rule ipv4 from in to labbridge action discard source address name "global_bad" service any destination address any
+    name "global 1 9"
+    priority manual 1
+    exit
+access-rule ipv4 from in to out action discard source address name "global_bad" service any destination address any
+    name "global 1 10"
+    priority manual 1
+    exit
+access-rule ipv4 from lab to dmz1 action discard source address name "global_bad" service any destination address any
+    name "global 1 11"
+    priority manual 1
+    exit
+access-rule ipv4 from lab to in action discard source address name "global_bad" service any destination address any
+    name "global 1 12"
+    priority manual 1
+    exit
+access-rule ipv4 from lab to lab action discard source address name "global_bad" service any destination address any
+    name "global 1 13"
+    priority manual 1
+    exit
+access-rule ipv4 from lab to labbridge action discard source address name "global_bad" service any destination address any
+    name "global 1 14"
+    priority manual 1
+    exit
+access-rule ipv4 from lab to out action discard source address name "global_bad" service any destination address any
+    name "global 1 15"
+    priority manual 1
+    exit
+access-rule ipv4 from labbridge to dmz1 action discard source address name "global_bad" service any destination address any
+    name "global 1 16"
+    priority manual 1
+    exit
+access-rule ipv4 from labbridge to in action discard source address name "global_bad" service any destination address any
+    name "global 1 17"
+    priority manual 1
+    exit
+access-rule ipv4 from labbridge to lab action discard source address name "global_bad" service any destination address any
+    name "global 1 18"
+    priority manual 1
+    exit
+access-rule ipv4 from labbridge to labbridge action discard source address name "global_bad" service any destination address any
+    name "global 1 19"
+    priority manual 1
+    exit
+access-rule ipv4 from labbridge to out action discard source address name "global_bad" service any destination address any
+    name "global 1 20"
+    priority manual 1
+    exit
+access-rule ipv4 from out to dmz1 action discard source address name "global_bad" service any destination address any
+    name "global 1 21"
+    priority manual 1
+    exit
+access-rule ipv4 from out to in action discard source address name "global_bad" service any destination address any
+    name "global 1 22"
+    priority manual 1
+    exit
+access-rule ipv4 from out to lab action discard source address name "global_bad" service any destination address any
+    name "global 1 23"
+    priority manual 1
+    exit
+access-rule ipv4 from out to labbridge action discard source address name "global_bad" service any destination address any
+    name "global 1 24"
+    priority manual 1
+    exit
+access-rule ipv4 from out to out action discard source address name "global_bad" service any destination address any
+    name "global 1 25"
+    priority manual 1
+    exit
+access-rule ipv4 from in to dmz1 action allow source address group "admins" service group "svc local 1" destination address group "firewall_all"
+    name "local 1"
+    priority manual 2
+    exit
+access-rule ipv4 from in to in action allow source address group "admins" service group "svc local 1" destination address group "firewall_all"
+    name "local 1 2"
+    priority manual 2
+    exit
+access-rule ipv4 from in to lab action allow source address group "admins" service group "svc local 1" destination address group "firewall_all"
+    name "local 1 3"
+    priority manual 2
+    exit
+access-rule ipv4 from in to labbridge action allow source address group "admins" service group "svc local 1" destination address group "firewall_all"
+    name "local 1 4"
+    priority manual 2
+    exit
+access-rule ipv4 from in to out action allow source address group "admins" service group "svc local 1" destination address group "firewall_all"
+    name "local 1 5"
+    priority manual 2
+    exit
+access-rule ipv4 from dmz1 to dmz1 action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from dmz1 to in action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 2"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from dmz1 to lab action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 3"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from dmz1 to labbridge action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 4"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from dmz1 to out action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 5"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from in to dmz1 action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 6"
+    priority manual 3
+    no enable
+    exit
+access-rule ipv4 from in to in action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 7"
+    priority manual 3
+    no enable
+    exit
+access-rule ipv4 from in to lab action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 8"
+    priority manual 3
+    no enable
+    exit
+access-rule ipv4 from in to labbridge action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 9"
+    priority manual 3
+    no enable
+    exit
+access-rule ipv4 from in to out action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 10"
+    priority manual 3
+    no enable
+    exit
+access-rule ipv4 from lab to dmz1 action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 11"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from lab to in action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 12"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from lab to lab action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 13"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from lab to labbridge action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 14"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from lab to out action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 15"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from labbridge to dmz1 action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 16"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from labbridge to in action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 17"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from labbridge to lab action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 18"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from labbridge to labbridge action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 19"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from labbridge to out action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 20"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from out to dmz1 action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 21"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from out to in action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 22"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from out to lab action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 23"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from out to labbridge action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 24"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from out to out action allow source address group "Network_internals" service any destination address group "firewall_all"
+    name "local 2 25"
+    priority manual 2
+    no enable
+    exit
+access-rule ipv4 from dmz1 to dmz1 action discard source address any service any destination address name "blocked"
+    name "local 3"
+    priority manual 3
+    exit
+access-rule ipv4 from dmz1 to in action discard source address any service any destination address name "blocked"
+    name "local 3 2"
+    priority manual 3
+    exit
+access-rule ipv4 from dmz1 to lab action discard source address any service any destination address name "blocked"
+    name "local 3 3"
+    priority manual 3
+    exit
+access-rule ipv4 from dmz1 to labbridge action discard source address any service any destination address name "blocked"
+    name "local 3 4"
+    priority manual 3
+    exit
+access-rule ipv4 from dmz1 to out action discard source address any service any destination address name "blocked"
+    name "local 3 5"
+    priority manual 3
+    exit
+access-rule ipv4 from in to dmz1 action discard source address any service any destination address name "blocked"
+    name "local 3 6"
+    priority manual 4
+    exit
+access-rule ipv4 from in to in action discard source address any service any destination address name "blocked"
+    name "local 3 7"
+    priority manual 4
+    exit
+access-rule ipv4 from in to lab action discard source address any service any destination address name "blocked"
+    name "local 3 8"
+    priority manual 4
+    exit
+access-rule ipv4 from in to labbridge action discard source address any service any destination address name "blocked"
+    name "local 3 9"
+    priority manual 4
+    exit
+access-rule ipv4 from in to out action discard source address any service any destination address name "blocked"
+    name "local 3 10"
+    priority manual 4
+    exit
+access-rule ipv4 from lab to dmz1 action discard source address any service any destination address name "blocked"
+    name "local 3 11"
+    priority manual 3
+    exit
+access-rule ipv4 from lab to in action discard source address any service any destination address name "blocked"
+    name "local 3 12"
+    priority manual 3
+    exit
+access-rule ipv4 from lab to lab action discard source address any service any destination address name "blocked"
+    name "local 3 13"
+    priority manual 3
+    exit
+access-rule ipv4 from lab to labbridge action discard source address any service any destination address name "blocked"
+    name "local 3 14"
+    priority manual 3
+    exit
+access-rule ipv4 from lab to out action discard source address any service any destination address name "blocked"
+    name "local 3 15"
+    priority manual 3
+    exit
+access-rule ipv4 from labbridge to dmz1 action discard source address any service any destination address name "blocked"
+    name "local 3 16"
+    priority manual 3
+    exit
+access-rule ipv4 from labbridge to in action discard source address any service any destination address name "blocked"
+    name "local 3 17"
+    priority manual 3
+    exit
+access-rule ipv4 from labbridge to lab action discard source address any service any destination address name "blocked"
+    name "local 3 18"
+    priority manual 3
+    exit
+access-rule ipv4 from labbridge to labbridge action discard source address any service any destination address name "blocked"
+    name "local 3 19"
+    priority manual 3
+    exit
+access-rule ipv4 from labbridge to out action discard source address any service any destination address name "blocked"
+    name "local 3 20"
+    priority manual 3
+    exit
+access-rule ipv4 from out to dmz1 action discard source address any service any destination address name "blocked"
+    name "local 3 21"
+    priority manual 3
+    exit
+access-rule ipv4 from out to in action discard source address any service any destination address name "blocked"
+    name "local 3 22"
+    priority manual 3
+    exit
+access-rule ipv4 from out to lab action discard source address any service any destination address name "blocked"
+    name "local 3 23"
+    priority manual 3
+    exit
+access-rule ipv4 from out to labbridge action discard source address any service any destination address name "blocked"
+    name "local 3 24"
+    priority manual 3
+    exit
+access-rule ipv4 from out to out action discard source address any service any destination address name "blocked"
+    name "local 3 25"
+    priority manual 3
+    exit
+access-rule ipv4 from dmz1 to dmz1 action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4"
+    priority manual 4
+    exit
+access-rule ipv4 from dmz1 to in action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 2"
+    priority manual 4
+    exit
+access-rule ipv4 from dmz1 to lab action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 3"
+    priority manual 4
+    exit
+access-rule ipv4 from dmz1 to labbridge action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 4"
+    priority manual 4
+    exit
+access-rule ipv4 from dmz1 to out action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 5"
+    priority manual 4
+    exit
+access-rule ipv4 from in to dmz1 action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 6"
+    priority manual 5
+    exit
+access-rule ipv4 from in to in action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 7"
+    priority manual 5
+    exit
+access-rule ipv4 from in to lab action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 8"
+    priority manual 5
+    exit
+access-rule ipv4 from in to labbridge action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 9"
+    priority manual 5
+    exit
+access-rule ipv4 from in to out action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 10"
+    priority manual 5
+    exit
+access-rule ipv4 from lab to dmz1 action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 11"
+    priority manual 4
+    exit
+access-rule ipv4 from lab to in action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 12"
+    priority manual 4
+    exit
+access-rule ipv4 from lab to lab action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 13"
+    priority manual 4
+    exit
+access-rule ipv4 from lab to labbridge action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 14"
+    priority manual 4
+    exit
+access-rule ipv4 from lab to out action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 15"
+    priority manual 4
+    exit
+access-rule ipv4 from labbridge to dmz1 action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 16"
+    priority manual 4
+    exit
+access-rule ipv4 from labbridge to in action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 17"
+    priority manual 4
+    exit
+access-rule ipv4 from labbridge to lab action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 18"
+    priority manual 4
+    exit
+access-rule ipv4 from labbridge to labbridge action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 19"
+    priority manual 4
+    exit
+access-rule ipv4 from labbridge to out action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 20"
+    priority manual 4
+    exit
+access-rule ipv4 from out to dmz1 action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 21"
+    priority manual 4
+    exit
+access-rule ipv4 from out to in action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 22"
+    priority manual 4
+    exit
+access-rule ipv4 from out to lab action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 23"
+    priority manual 4
+    exit
+access-rule ipv4 from out to labbridge action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 24"
+    priority manual 4
+    exit
+access-rule ipv4 from out to out action allow source address group "Network_internals" service group "web_ports" destination address group "dst local 4"
+    name "local 4 25"
+    priority manual 4
+    exit
+access-rule ipv4 from in to dmz1 action allow source address name "lan" service name "x(rule) dns_udp-udp" destination address any
+    name "local 5"
+    priority manual 6
+    exit
+access-rule ipv4 from in to in action allow source address name "lan" service name "x(rule) dns_udp-udp" destination address any
+    name "local 5 2"
+    priority manual 6
+    exit
+access-rule ipv4 from in to lab action allow source address name "lan" service name "x(rule) dns_udp-udp" destination address any
+    name "local 5 3"
+    priority manual 6
+    exit
+access-rule ipv4 from in to labbridge action allow source address name "lan" service name "x(rule) dns_udp-udp" destination address any
+    name "local 5 4"
+    priority manual 6
+    exit
+access-rule ipv4 from in to out action allow source address name "lan" service name "x(rule) dns_udp-udp" destination address any
+    name "local 5 5"
+    priority manual 6
+    exit
+access-rule ipv4 from dmz1 to dmz1 action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6"
+    priority manual 5
+    exit
+access-rule ipv4 from dmz1 to in action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 2"
+    priority manual 5
+    exit
+access-rule ipv4 from dmz1 to lab action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 3"
+    priority manual 5
+    exit
+access-rule ipv4 from dmz1 to labbridge action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 4"
+    priority manual 5
+    exit
+access-rule ipv4 from dmz1 to out action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 5"
+    priority manual 5
+    exit
+access-rule ipv4 from in to dmz1 action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 6"
+    priority manual 7
+    exit
+access-rule ipv4 from in to in action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 7"
+    priority manual 7
+    exit
+access-rule ipv4 from in to lab action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 8"
+    priority manual 7
+    exit
+access-rule ipv4 from in to labbridge action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 9"
+    priority manual 7
+    exit
+access-rule ipv4 from in to out action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 10"
+    priority manual 7
+    exit
+access-rule ipv4 from lab to dmz1 action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 11"
+    priority manual 5
+    exit
+access-rule ipv4 from lab to in action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 12"
+    priority manual 5
+    exit
+access-rule ipv4 from lab to lab action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 13"
+    priority manual 5
+    exit
+access-rule ipv4 from lab to labbridge action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 14"
+    priority manual 5
+    exit
+access-rule ipv4 from lab to out action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 15"
+    priority manual 5
+    exit
+access-rule ipv4 from labbridge to dmz1 action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 16"
+    priority manual 5
+    exit
+access-rule ipv4 from labbridge to in action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 17"
+    priority manual 5
+    exit
+access-rule ipv4 from labbridge to lab action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 18"
+    priority manual 5
+    exit
+access-rule ipv4 from labbridge to labbridge action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 19"
+    priority manual 5
+    exit
+access-rule ipv4 from labbridge to out action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 20"
+    priority manual 5
+    exit
+access-rule ipv4 from out to dmz1 action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 21"
+    priority manual 5
+    exit
+access-rule ipv4 from out to in action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 22"
+    priority manual 5
+    exit
+access-rule ipv4 from out to lab action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 23"
+    priority manual 5
+    exit
+access-rule ipv4 from out to labbridge action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 24"
+    priority manual 5
+    exit
+access-rule ipv4 from out to out action deny source address group "Network_internals" service name "ident" destination address any
+    name "local 6 25"
+    priority manual 5
+    exit
+access-rule ipv4 from out to dmz1 action allow source address any service group "svc local 8" destination address name "web_pub"
+    name "local 8"
+    priority manual 6
+    exit
+access-rule ipv4 from out to in action allow source address any service group "svc local 8" destination address name "web_pub"
+    name "local 8 2"
+    priority manual 6
+    exit
+access-rule ipv4 from out to lab action allow source address any service group "svc local 8" destination address name "web_pub"
+    name "local 8 3"
+    priority manual 6
+    exit
+access-rule ipv4 from out to labbridge action allow source address any service group "svc local 8" destination address name "web_pub"
+    name "local 8 4"
+    priority manual 6
+    exit
+access-rule ipv4 from out to out action allow source address any service group "svc local 8" destination address name "web_pub"
+    name "local 8 5"
+    priority manual 6
+    exit
+access-rule ipv4 from out to dmz1 action allow source address any service name "smtp" destination address group "dmz_servers"
+    name "local 9"
+    priority manual 7
+    exit
+access-rule ipv4 from out to in action allow source address any service name "smtp" destination address group "dmz_servers"
+    name "local 9 2"
+    priority manual 7
+    exit
+access-rule ipv4 from out to lab action allow source address any service name "smtp" destination address group "dmz_servers"
+    name "local 9 3"
+    priority manual 7
+    exit
+access-rule ipv4 from out to labbridge action allow source address any service name "smtp" destination address group "dmz_servers"
+    name "local 9 4"
+    priority manual 7
+    exit
+access-rule ipv4 from out to out action allow source address any service name "smtp" destination address group "dmz_servers"
+    name "local 9 5"
+    priority manual 7
+    exit
+access-rule ipv4 from lab to dmz1 action allow source address name "lab_net" service group "lab_tools" destination address any
+    name "local 10"
+    priority manual 6
+    exit
+access-rule ipv4 from lab to in action allow source address name "lab_net" service group "lab_tools" destination address any
+    name "local 10 2"
+    priority manual 6
+    exit
+access-rule ipv4 from lab to lab action allow source address name "lab_net" service group "lab_tools" destination address any
+    name "local 10 3"
+    priority manual 6
+    exit
+access-rule ipv4 from lab to labbridge action allow source address name "lab_net" service group "lab_tools" destination address any
+    name "local 10 4"
+    priority manual 6
+    exit
+access-rule ipv4 from lab to out action allow source address name "lab_net" service group "lab_tools" destination address any
+    name "local 10 5"
+    priority manual 6
+    exit
+access-rule ipv4 from dmz1 to dmz1 action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11"
+    priority manual 6
+    no enable
+    exit
+access-rule ipv4 from dmz1 to in action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 2"
+    priority manual 6
+    no enable
+    exit
+access-rule ipv4 from dmz1 to lab action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 3"
+    priority manual 6
+    no enable
+    exit
+access-rule ipv4 from dmz1 to labbridge action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 4"
+    priority manual 6
+    no enable
+    exit
+access-rule ipv4 from dmz1 to out action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 5"
+    priority manual 6
+    no enable
+    exit
+access-rule ipv4 from in to dmz1 action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 6"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from in to in action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 7"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from in to lab action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 8"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from in to labbridge action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 9"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from in to out action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 10"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from lab to dmz1 action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 11"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from lab to in action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 12"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from lab to lab action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 13"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from lab to labbridge action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 14"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from lab to out action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 15"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from labbridge to dmz1 action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 16"
+    priority manual 6
+    no enable
+    exit
+access-rule ipv4 from labbridge to in action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 17"
+    priority manual 6
+    no enable
+    exit
+access-rule ipv4 from labbridge to lab action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 18"
+    priority manual 6
+    no enable
+    exit
+access-rule ipv4 from labbridge to labbridge action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 19"
+    priority manual 6
+    no enable
+    exit
+access-rule ipv4 from labbridge to out action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 20"
+    priority manual 6
+    no enable
+    exit
+access-rule ipv4 from out to dmz1 action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 21"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from out to in action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 22"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from out to lab action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 23"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from out to labbridge action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 24"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from out to out action allow source address name "lan" service group "web_ports" destination address group "dmz_servers"
+    name "local 11 25"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from dmz1 to dmz1 action allow source address name "lab_net" service any destination address any
+    name "local 12"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from dmz1 to in action allow source address name "lab_net" service any destination address any
+    name "local 12 2"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from dmz1 to lab action allow source address name "lab_net" service any destination address any
+    name "local 12 3"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from dmz1 to labbridge action allow source address name "lab_net" service any destination address any
+    name "local 12 4"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from dmz1 to out action allow source address name "lab_net" service any destination address any
+    name "local 12 5"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from in to dmz1 action allow source address name "lab_net" service any destination address any
+    name "local 12 6"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from in to in action allow source address name "lab_net" service any destination address any
+    name "local 12 7"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from in to lab action allow source address name "lab_net" service any destination address any
+    name "local 12 8"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from in to labbridge action allow source address name "lab_net" service any destination address any
+    name "local 12 9"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from in to out action allow source address name "lab_net" service any destination address any
+    name "local 12 10"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from lab to dmz1 action allow source address name "lab_net" service any destination address any
+    name "local 12 11"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from lab to in action allow source address name "lab_net" service any destination address any
+    name "local 12 12"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from lab to lab action allow source address name "lab_net" service any destination address any
+    name "local 12 13"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from lab to labbridge action allow source address name "lab_net" service any destination address any
+    name "local 12 14"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from lab to out action allow source address name "lab_net" service any destination address any
+    name "local 12 15"
+    priority manual 8
+    no enable
+    exit
+access-rule ipv4 from labbridge to dmz1 action allow source address name "lab_net" service any destination address any
+    name "local 12 16"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from labbridge to in action allow source address name "lab_net" service any destination address any
+    name "local 12 17"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from labbridge to lab action allow source address name "lab_net" service any destination address any
+    name "local 12 18"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from labbridge to labbridge action allow source address name "lab_net" service any destination address any
+    name "local 12 19"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from labbridge to out action allow source address name "lab_net" service any destination address any
+    name "local 12 20"
+    priority manual 7
+    no enable
+    exit
+access-rule ipv4 from out to dmz1 action allow source address name "lab_net" service any destination address any
+    name "local 12 21"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from out to in action allow source address name "lab_net" service any destination address any
+    name "local 12 22"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from out to lab action allow source address name "lab_net" service any destination address any
+    name "local 12 23"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from out to labbridge action allow source address name "lab_net" service any destination address any
+    name "local 12 24"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from out to out action allow source address name "lab_net" service any destination address any
+    name "local 12 25"
+    priority manual 9
+    no enable
+    exit
+access-rule ipv4 from dmz1 to dmz1 action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13"
+    priority manual 8
+    exit
+access-rule ipv6 from dmz1 to dmz1 action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 2"
+    priority manual 1
+    exit
+access-rule ipv4 from dmz1 to in action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 3"
+    priority manual 8
+    exit
+access-rule ipv6 from dmz1 to in action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 4"
+    priority manual 1
+    exit
+access-rule ipv4 from dmz1 to lab action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 5"
+    priority manual 8
+    exit
+access-rule ipv6 from dmz1 to lab action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 6"
+    priority manual 1
+    exit
+access-rule ipv4 from dmz1 to labbridge action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 7"
+    priority manual 8
+    exit
+access-rule ipv6 from dmz1 to labbridge action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 8"
+    priority manual 1
+    exit
+access-rule ipv4 from dmz1 to out action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 9"
+    priority manual 8
+    exit
+access-rule ipv6 from dmz1 to out action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 10"
+    priority manual 1
+    exit
+access-rule ipv4 from in to dmz1 action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 11"
+    priority manual 10
+    exit
+access-rule ipv6 from in to dmz1 action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 12"
+    priority manual 1
+    exit
+access-rule ipv4 from in to in action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 13"
+    priority manual 10
+    exit
+access-rule ipv6 from in to in action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 14"
+    priority manual 1
+    exit
+access-rule ipv4 from in to lab action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 15"
+    priority manual 10
+    exit
+access-rule ipv6 from in to lab action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 16"
+    priority manual 1
+    exit
+access-rule ipv4 from in to labbridge action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 17"
+    priority manual 10
+    exit
+access-rule ipv6 from in to labbridge action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 18"
+    priority manual 1
+    exit
+access-rule ipv4 from in to out action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 19"
+    priority manual 10
+    exit
+access-rule ipv6 from in to out action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 20"
+    priority manual 1
+    exit
+access-rule ipv4 from lab to dmz1 action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 21"
+    priority manual 9
+    exit
+access-rule ipv6 from lab to dmz1 action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 22"
+    priority manual 1
+    exit
+access-rule ipv4 from lab to in action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 23"
+    priority manual 9
+    exit
+access-rule ipv6 from lab to in action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 24"
+    priority manual 1
+    exit
+access-rule ipv4 from lab to lab action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 25"
+    priority manual 9
+    exit
+access-rule ipv6 from lab to lab action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 26"
+    priority manual 1
+    exit
+access-rule ipv4 from lab to labbridge action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 27"
+    priority manual 9
+    exit
+access-rule ipv6 from lab to labbridge action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 28"
+    priority manual 1
+    exit
+access-rule ipv4 from lab to out action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 29"
+    priority manual 9
+    exit
+access-rule ipv6 from lab to out action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 30"
+    priority manual 1
+    exit
+access-rule ipv4 from labbridge to dmz1 action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 31"
+    priority manual 8
+    exit
+access-rule ipv6 from labbridge to dmz1 action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 32"
+    priority manual 1
+    exit
+access-rule ipv4 from labbridge to in action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 33"
+    priority manual 8
+    exit
+access-rule ipv6 from labbridge to in action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 34"
+    priority manual 1
+    exit
+access-rule ipv4 from labbridge to lab action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 35"
+    priority manual 8
+    exit
+access-rule ipv6 from labbridge to lab action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 36"
+    priority manual 1
+    exit
+access-rule ipv4 from labbridge to labbridge action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 37"
+    priority manual 8
+    exit
+access-rule ipv6 from labbridge to labbridge action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 38"
+    priority manual 1
+    exit
+access-rule ipv4 from labbridge to out action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 39"
+    priority manual 8
+    exit
+access-rule ipv6 from labbridge to out action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 40"
+    priority manual 1
+    exit
+access-rule ipv4 from out to dmz1 action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 41"
+    priority manual 10
+    exit
+access-rule ipv6 from out to dmz1 action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 42"
+    priority manual 1
+    exit
+access-rule ipv4 from out to in action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 43"
+    priority manual 10
+    exit
+access-rule ipv6 from out to in action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 44"
+    priority manual 1
+    exit
+access-rule ipv4 from out to lab action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 45"
+    priority manual 10
+    exit
+access-rule ipv6 from out to lab action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 46"
+    priority manual 1
+    exit
+access-rule ipv4 from out to labbridge action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 47"
+    priority manual 10
+    exit
+access-rule ipv6 from out to labbridge action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 48"
+    priority manual 1
+    exit
+access-rule ipv4 from out to out action allow source address group "src local 13" service name "https 2" destination address name "updates.example.com"
+    name "local 13 49"
+    priority manual 10
+    exit
+access-rule ipv6 from out to out action allow source address any service name "https 2" destination address name "updates.example.com"
+    name "local 13 50"
+    priority manual 1
+    exit
+access-rule ipv6 from dmz1 to dmz1 action allow source address name "lan6" service any destination address any
+    name "local 14"
+    priority manual 2
+    exit
+access-rule ipv6 from dmz1 to in action allow source address name "lan6" service any destination address any
+    name "local 14 2"
+    priority manual 2
+    exit
+access-rule ipv6 from dmz1 to lab action allow source address name "lan6" service any destination address any
+    name "local 14 3"
+    priority manual 2
+    exit
+access-rule ipv6 from dmz1 to labbridge action allow source address name "lan6" service any destination address any
+    name "local 14 4"
+    priority manual 2
+    exit
+access-rule ipv6 from dmz1 to out action allow source address name "lan6" service any destination address any
+    name "local 14 5"
+    priority manual 2
+    exit
+access-rule ipv6 from in to dmz1 action allow source address name "lan6" service any destination address any
+    name "local 14 6"
+    priority manual 2
+    exit
+access-rule ipv6 from in to in action allow source address name "lan6" service any destination address any
+    name "local 14 7"
+    priority manual 2
+    exit
+access-rule ipv6 from in to lab action allow source address name "lan6" service any destination address any
+    name "local 14 8"
+    priority manual 2
+    exit
+access-rule ipv6 from in to labbridge action allow source address name "lan6" service any destination address any
+    name "local 14 9"
+    priority manual 2
+    exit
+access-rule ipv6 from in to out action allow source address name "lan6" service any destination address any
+    name "local 14 10"
+    priority manual 2
+    exit
+access-rule ipv6 from lab to dmz1 action allow source address name "lan6" service any destination address any
+    name "local 14 11"
+    priority manual 2
+    exit
+access-rule ipv6 from lab to in action allow source address name "lan6" service any destination address any
+    name "local 14 12"
+    priority manual 2
+    exit
+access-rule ipv6 from lab to lab action allow source address name "lan6" service any destination address any
+    name "local 14 13"
+    priority manual 2
+    exit
+access-rule ipv6 from lab to labbridge action allow source address name "lan6" service any destination address any
+    name "local 14 14"
+    priority manual 2
+    exit
+access-rule ipv6 from lab to out action allow source address name "lan6" service any destination address any
+    name "local 14 15"
+    priority manual 2
+    exit
+access-rule ipv6 from labbridge to dmz1 action allow source address name "lan6" service any destination address any
+    name "local 14 16"
+    priority manual 2
+    exit
+access-rule ipv6 from labbridge to in action allow source address name "lan6" service any destination address any
+    name "local 14 17"
+    priority manual 2
+    exit
+access-rule ipv6 from labbridge to lab action allow source address name "lan6" service any destination address any
+    name "local 14 18"
+    priority manual 2
+    exit
+access-rule ipv6 from labbridge to labbridge action allow source address name "lan6" service any destination address any
+    name "local 14 19"
+    priority manual 2
+    exit
+access-rule ipv6 from labbridge to out action allow source address name "lan6" service any destination address any
+    name "local 14 20"
+    priority manual 2
+    exit
+access-rule ipv6 from out to dmz1 action allow source address name "lan6" service any destination address any
+    name "local 14 21"
+    priority manual 2
+    exit
+access-rule ipv6 from out to in action allow source address name "lan6" service any destination address any
+    name "local 14 22"
+    priority manual 2
+    exit
+access-rule ipv6 from out to lab action allow source address name "lan6" service any destination address any
+    name "local 14 23"
+    priority manual 2
+    exit
+access-rule ipv6 from out to labbridge action allow source address name "lan6" service any destination address any
+    name "local 14 24"
+    priority manual 2
+    exit
+access-rule ipv6 from out to out action allow source address name "lan6" service any destination address any
+    name "local 14 25"
+    priority manual 2
+    exit
+access-rule ipv4 from dmz1 to dmz1 action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15"
+    priority manual 9
+    exit
+access-rule ipv4 from dmz1 to in action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 2"
+    priority manual 9
+    exit
+access-rule ipv4 from dmz1 to lab action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 3"
+    priority manual 9
+    exit
+access-rule ipv4 from dmz1 to labbridge action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 4"
+    priority manual 9
+    exit
+access-rule ipv4 from dmz1 to out action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 5"
+    priority manual 9
+    exit
+access-rule ipv4 from in to dmz1 action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 6"
+    priority manual 11
+    exit
+access-rule ipv4 from in to in action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 7"
+    priority manual 11
+    exit
+access-rule ipv4 from in to lab action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 8"
+    priority manual 11
+    exit
+access-rule ipv4 from in to labbridge action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 9"
+    priority manual 11
+    exit
+access-rule ipv4 from in to out action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 10"
+    priority manual 11
+    exit
+access-rule ipv4 from lab to dmz1 action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 11"
+    priority manual 10
+    exit
+access-rule ipv4 from lab to in action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 12"
+    priority manual 10
+    exit
+access-rule ipv4 from lab to lab action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 13"
+    priority manual 10
+    exit
+access-rule ipv4 from lab to labbridge action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 14"
+    priority manual 10
+    exit
+access-rule ipv4 from lab to out action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 15"
+    priority manual 10
+    exit
+access-rule ipv4 from labbridge to dmz1 action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 16"
+    priority manual 9
+    exit
+access-rule ipv4 from labbridge to in action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 17"
+    priority manual 9
+    exit
+access-rule ipv4 from labbridge to lab action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 18"
+    priority manual 9
+    exit
+access-rule ipv4 from labbridge to labbridge action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 19"
+    priority manual 9
+    exit
+access-rule ipv4 from labbridge to out action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 20"
+    priority manual 9
+    exit
+access-rule ipv4 from out to dmz1 action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 21"
+    priority manual 11
+    exit
+access-rule ipv4 from out to in action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 22"
+    priority manual 11
+    exit
+access-rule ipv4 from out to lab action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 23"
+    priority manual 11
+    exit
+access-rule ipv4 from out to labbridge action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 24"
+    priority manual 11
+    exit
+access-rule ipv4 from out to out action allow source address name "lan" service group "svc local 15" destination address name "www.example.org"
+    name "local 15 25"
+    priority manual 11
+    exit
+access-rule ipv4 from dmz1 to dmz1 action discard source address any service any destination address any
+    name "local 16"
+    priority manual 10
+    exit
+access-rule ipv6 from dmz1 to dmz1 action discard source address any service any destination address any
+    name "local 16 2"
+    priority manual 3
+    exit
+access-rule ipv4 from dmz1 to in action discard source address any service any destination address any
+    name "local 16 3"
+    priority manual 10
+    exit
+access-rule ipv6 from dmz1 to in action discard source address any service any destination address any
+    name "local 16 4"
+    priority manual 3
+    exit
+access-rule ipv4 from dmz1 to lab action discard source address any service any destination address any
+    name "local 16 5"
+    priority manual 10
+    exit
+access-rule ipv6 from dmz1 to lab action discard source address any service any destination address any
+    name "local 16 6"
+    priority manual 3
+    exit
+access-rule ipv4 from dmz1 to labbridge action discard source address any service any destination address any
+    name "local 16 7"
+    priority manual 10
+    exit
+access-rule ipv6 from dmz1 to labbridge action discard source address any service any destination address any
+    name "local 16 8"
+    priority manual 3
+    exit
+access-rule ipv4 from dmz1 to out action discard source address any service any destination address any
+    name "local 16 9"
+    priority manual 10
+    exit
+access-rule ipv6 from dmz1 to out action discard source address any service any destination address any
+    name "local 16 10"
+    priority manual 3
+    exit
+access-rule ipv4 from in to dmz1 action discard source address any service any destination address any
+    name "local 16 11"
+    priority manual 12
+    exit
+access-rule ipv6 from in to dmz1 action discard source address any service any destination address any
+    name "local 16 12"
+    priority manual 3
+    exit
+access-rule ipv4 from in to in action discard source address any service any destination address any
+    name "local 16 13"
+    priority manual 12
+    exit
+access-rule ipv6 from in to in action discard source address any service any destination address any
+    name "local 16 14"
+    priority manual 3
+    exit
+access-rule ipv4 from in to lab action discard source address any service any destination address any
+    name "local 16 15"
+    priority manual 12
+    exit
+access-rule ipv6 from in to lab action discard source address any service any destination address any
+    name "local 16 16"
+    priority manual 3
+    exit
+access-rule ipv4 from in to labbridge action discard source address any service any destination address any
+    name "local 16 17"
+    priority manual 12
+    exit
+access-rule ipv6 from in to labbridge action discard source address any service any destination address any
+    name "local 16 18"
+    priority manual 3
+    exit
+access-rule ipv4 from in to out action discard source address any service any destination address any
+    name "local 16 19"
+    priority manual 12
+    exit
+access-rule ipv6 from in to out action discard source address any service any destination address any
+    name "local 16 20"
+    priority manual 3
+    exit
+access-rule ipv4 from lab to dmz1 action discard source address any service any destination address any
+    name "local 16 21"
+    priority manual 11
+    exit
+access-rule ipv6 from lab to dmz1 action discard source address any service any destination address any
+    name "local 16 22"
+    priority manual 3
+    exit
+access-rule ipv4 from lab to in action discard source address any service any destination address any
+    name "local 16 23"
+    priority manual 11
+    exit
+access-rule ipv6 from lab to in action discard source address any service any destination address any
+    name "local 16 24"
+    priority manual 3
+    exit
+access-rule ipv4 from lab to lab action discard source address any service any destination address any
+    name "local 16 25"
+    priority manual 11
+    exit
+access-rule ipv6 from lab to lab action discard source address any service any destination address any
+    name "local 16 26"
+    priority manual 3
+    exit
+access-rule ipv4 from lab to labbridge action discard source address any service any destination address any
+    name "local 16 27"
+    priority manual 11
+    exit
+access-rule ipv6 from lab to labbridge action discard source address any service any destination address any
+    name "local 16 28"
+    priority manual 3
+    exit
+access-rule ipv4 from lab to out action discard source address any service any destination address any
+    name "local 16 29"
+    priority manual 11
+    exit
+access-rule ipv6 from lab to out action discard source address any service any destination address any
+    name "local 16 30"
+    priority manual 3
+    exit
+access-rule ipv4 from labbridge to dmz1 action discard source address any service any destination address any
+    name "local 16 31"
+    priority manual 10
+    exit
+access-rule ipv6 from labbridge to dmz1 action discard source address any service any destination address any
+    name "local 16 32"
+    priority manual 3
+    exit
+access-rule ipv4 from labbridge to in action discard source address any service any destination address any
+    name "local 16 33"
+    priority manual 10
+    exit
+access-rule ipv6 from labbridge to in action discard source address any service any destination address any
+    name "local 16 34"
+    priority manual 3
+    exit
+access-rule ipv4 from labbridge to lab action discard source address any service any destination address any
+    name "local 16 35"
+    priority manual 10
+    exit
+access-rule ipv6 from labbridge to lab action discard source address any service any destination address any
+    name "local 16 36"
+    priority manual 3
+    exit
+access-rule ipv4 from labbridge to labbridge action discard source address any service any destination address any
+    name "local 16 37"
+    priority manual 10
+    exit
+access-rule ipv6 from labbridge to labbridge action discard source address any service any destination address any
+    name "local 16 38"
+    priority manual 3
+    exit
+access-rule ipv4 from labbridge to out action discard source address any service any destination address any
+    name "local 16 39"
+    priority manual 10
+    exit
+access-rule ipv6 from labbridge to out action discard source address any service any destination address any
+    name "local 16 40"
+    priority manual 3
+    exit
+access-rule ipv4 from out to dmz1 action discard source address any service any destination address any
+    name "local 16 41"
+    priority manual 12
+    exit
+access-rule ipv6 from out to dmz1 action discard source address any service any destination address any
+    name "local 16 42"
+    priority manual 3
+    exit
+access-rule ipv4 from out to in action discard source address any service any destination address any
+    name "local 16 43"
+    priority manual 12
+    exit
+access-rule ipv6 from out to in action discard source address any service any destination address any
+    name "local 16 44"
+    priority manual 3
+    exit
+access-rule ipv4 from out to lab action discard source address any service any destination address any
+    name "local 16 45"
+    priority manual 12
+    exit
+access-rule ipv6 from out to lab action discard source address any service any destination address any
+    name "local 16 46"
+    priority manual 3
+    exit
+access-rule ipv4 from out to labbridge action discard source address any service any destination address any
+    name "local 16 47"
+    priority manual 12
+    exit
+access-rule ipv6 from out to labbridge action discard source address any service any destination address any
+    name "local 16 48"
+    priority manual 3
+    exit
+access-rule ipv4 from out to out action discard source address any service any destination address any
+    name "local 16 49"
+    priority manual 12
+    exit
+access-rule ipv6 from out to out action discard source address any service any destination address any
+    name "local 16 50"
+    priority manual 3
+    exit
+commit
+exit

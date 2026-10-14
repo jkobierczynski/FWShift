@@ -1,0 +1,69 @@
+FWShift conversion report
+  source: stormshield
+  target: barracuda
+
+Summary
+  Security rules:     18   exact 5, approximated 0, needs review 11 (8 emitted disabled), skipped 2
+  Addresses:          22   exact 22, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] STORMSHIELD_IMPLICIT: the implicit rules (administration, DNS, IPsec, SSL VPN and the other services the firewall answers itself) come before the policy and are not converted
+  [needs-review] STORMSHIELD_INTERNALS: rules with Network_internals or Internet, read as the networks of the protected interfaces and everything else: networks behind them by routes are not known: local 2, local 4, local 6
+  [needs-review] STORMSHIELD_PROTOCOL_ANALYSIS: rules that force the analysis of an application protocol: read as not narrowing what the rule matches: local 15
+  [needs-review] STORMSHIELD_NAT_NOT_READ: NAT rules of the slot are not read (the filter rules name the addresses as they arrive, so they do not depend on them): 1 lines in Filter/05
+  [needs-review] BARRACUDA_LOAD: the output is a shell script that creates network objects, service objects and forwarding rules through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. The rules go to the top of the rule list, above the rules the firewall has, deactivated, and are then activated in order, first rule first: if a call is refused the script stops, and only the rules above that one are active, with the rules the firewall had below them. Barracuda documents the API by examples: assumed are the keys of a service object and its entries (protocol, ports, client ports), the interface of an entry of a network object, the IP version and action types of a rule other than block, and names of up to 32 letters, digits, periods, underscores and hyphens
+  [needs-review] BLOCK_RULE_INACTIVE: the source blocks what no rule matches. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that do so follow the converted rules, deactivated: until they are activated, the rules the firewall has below them decide that traffic. Look at those rules (management access, the default rules) and activate the two
+  [info] STORMSHIELD_SOURCE: 5 interfaces as zones (out, in, dmz1, lab, labbridge); filter slot 05 after global slot 01: 16 rules, first match; what no rule matches is blocked
+  [info] STORMSHIELD_DELEG: global policies that end in a deleg of everything: the rest goes to the local policy: Global/Filter/01
+
+Security rules
+  local 1  ->  needs-review, emitted disabled  (emitted as local_1)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone in, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind in with --zone-network.
+  local 2  ->  needs-review  (emitted as local_2)
+      [needs-review] STORMSHIELD_INTERFACE_OBJECTS: Network_* and Firewall_* objects are read from the first IPv4 address of their interface
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+  local 4  ->  needs-review  (emitted as local_4)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (inspection=ips); attach equivalent inspection on the target
+      [info] NEGATION_EXPANDED: the firewall has no negation in a rule: 'not destination Network_internals' is written as the addresses that are left
+  local 5  ->  needs-review, emitted disabled  (emitted as local_5)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone in, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind in with --zone-network.
+  local 6  ->  needs-review  (emitted as local_6)
+      [needs-review] STORMSHIELD_INTERNALS: Network_internals and Internet are read as the networks of the protected interfaces (their first IPv4 address) and everything else; networks reached through them by routes, and their IPv6 networks, are not known
+  local 8  ->  needs-review, emitted disabled  (emitted as local_8)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone out, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind out with --zone-network.
+  local 9  ->  needs-review, emitted disabled  (emitted as local_9)
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone out, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind out with --zone-network.
+  local 10  ->  needs-review, emitted disabled  (emitted as local_10)
+      [needs-review] STORMSHIELD_BRIDGE: names a bridge or a port of one: read as that interface only; whether the firewall matches the bridge for its ports, or the reverse, is not documented
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lab, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind lab with --zone-network.
+  local 11  ->  needs-review, emitted disabled  (emitted as local_11)
+      [needs-review] USER_MATCH: source user match staff@corp.example is not converted.
+  local 13  ->  needs-review, emitted disabled  (emitted as local_13)
+      [info] NEGATION_EXPANDED: the firewall has no negation in a rule: 'not source lan' is written as the addresses that are left
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'updates.example.com': a host name: how the API spells a hostname object is not known.
+  local 15  ->  needs-review, emitted disabled  (emitted as local_15)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application protocol=http); attach equivalent inspection on the target
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'www.example.org': a host name: how the API spells a hostname object is not known.
+  local 16  ->  exact  (emitted as local_16, local_16-v6)
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  global 2  ->  skipped
+      [info] STORMSHIELD_DELEG: deleg of everything: the rest goes to the local policy
+  local 7  ->  skipped
+      [info] STORMSHIELD_NON_TERMINAL: action decrypt: the firewall goes on to the next rule; nothing is decided here
+
+Address groups
+  Internet  ->  exact  (emitted as Internet_2)
+      [info] RENAMED: renamed to 'Internet_2' to fit the target's naming rules
+
+Services
+  (rule) ipproto-icmp  ->  exact  (emitted as x_rule__ipproto-icmp)
+      [info] RENAMED: renamed to 'x_rule__ipproto-icmp' to fit the target's naming rules
+  (rule) dns_udp-udp  ->  exact  (emitted as x_rule__dns_udp-udp)
+      [info] RENAMED: renamed to 'x_rule__dns_udp-udp' to fit the target's naming rules
+  (rule) ipproto-proto_200  ->  exact  (emitted as x_rule__ipproto-proto_200)
+      [info] RENAMED: renamed to 'x_rule__ipproto-proto_200' to fit the target's naming rules

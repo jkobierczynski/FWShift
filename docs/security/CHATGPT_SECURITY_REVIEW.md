@@ -1,5 +1,5 @@
-<!-- Converted to Markdown from "FWShift - security review by ChatGPT.docx" (in this folder). The text is ChatGPT's,
-     unchanged; only the layout is Markdown. FWShift's reaction to it is SECURITY_REVIEW.md. -->
+<!-- ChatGPT's security review of FWShift. The text is ChatGPT's, unchanged; only the layout is Markdown.
+     FWShift's reaction to it is SECURITY_REVIEW.md. -->
 
 # FWShift — Security Review
 

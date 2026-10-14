@@ -94,7 +94,10 @@ commands for the zone-based firewall, written), and **0.29.0, Huawei USG**
 (`display current-configuration` of a USG6000, USG6000E or USG9500, read:
 security zones, address and service sets, `security-policy` with its
 defaults, `nat server` before it and `nat-policy` after it; commands for the
-system view, written).
+system view, written), and **0.30.0, Stormshield SNS** (the ConfigFiles of a
+firewall as the `.tgz` decbackup makes of a backup, read: interfaces, objects,
+the active filter slot after the global one; a script of serverd commands that
+writes one filter slot, written).
 What each rests on and what nobody has checked on a device is in
 the development log.
 
@@ -108,9 +111,17 @@ output back for `convert --compare`.
 
 Next, one release each, in this order:
 
-* **0.30.0, Stormshield** (SNS): filter and NAT slots, objects.
 * **0.31.0, Cisco Meraki MX**: the layer 3 firewall rules of the Dashboard
   API, VLANs, 1:1 NAT and port forwarding.
+
+Still open for Stormshield: the NAT rules of a slot (their syntax in the file),
+and the serverd outputs (`CONFIG FILTER EXPLICIT ... output=xml`, `CONFIG OBJECT
+LIST`) as a second input; checking on a firewall the syntax of rule lines
+(disabled rules, ICMP types, the outgoing interface, lists and negation), the
+layout of `slotinfo`, the IPv6 tokens of the commands that create objects and
+how a bridge and its ports are matched; `Network_internals` with the networks of
+static routes; NAT exemptions as a target; reading the script back for
+`convert --compare`.
 
 Still open for Huawei: virtual systems (each as its own policy, chosen as
 `--vsys` is for PAN-OS); destination NAT of `nat-policy` and NAT of ranges;
