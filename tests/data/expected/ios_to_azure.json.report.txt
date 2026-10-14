@@ -1,0 +1,539 @@
+FWShift conversion report
+  source: ios
+  target: azure
+
+Summary
+  Security rules:    204   exact 0, approximated 121, needs review 69 (65 emitted disabled), skipped 14
+  NAT rules:           3   exact 0, approximated 0, needs review 0, skipped 3
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IOS_STATELESS: access lists are stateless: on the router a connection also needs its replies let through by the lists of the other direction (established entries, reflexive lists, inspection). The converted policy is stateful and allows the replies of what it allows: where the router's lists did not let the replies through, it allows connections that did not work there
+  [needs-review] IOS_ZBFW_NAT: the zone-based firewall was read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check its class maps against the converted rules
+  [needs-review] IOS_VRF: interfaces in VRFs: the converted policy has one routing table, and does not know which zones reach each other: GigabitEthernet0 (vrf Mgmt-intf)
+  [needs-review] AZURE_LOAD: the output is an ARM template (section 10): look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode, never complete), then associate each group with the subnets of its zone (its networks are in the template's metadata). Deploying it replaces all rules of groups of the same name
+  [needs-review] AZURE_ONE_GROUP: no zone has networks (--zone-network): one group holds every rule, inbound and outbound; associate it with every subnet the policy is for
+  [info] IOS_SOURCE: 5 zones (OUTSIDE, INSIDE, DMZ, LAB, MGMT) from the interfaces and the zones of the zone-based firewall; 4 access lists bound to interfaces. A connection passes the inbound list of the interface it arrives on, the outbound list of the one it leaves by and the zone-based firewall. Traffic to and from the router itself is not converted
+  [info] IOS_PORT_MAP: match protocol was read as the ports of Port-to-Application Mapping (the system table, and ip port-map); the router inspects the application as well, the converted rules match the ports: mailsub, http, https, dns, ssh
+  [info] IOS_SELF_ZONE: zone pairs with the self zone filter traffic to and from the router itself and were not read: ZP-OUT-SELF
+  [info] IOS_INTERFACES_LEFT_OUT: interfaces that forward no traffic of their own (loopbacks, interfaces without an address) are not zones: Loopback0
+  [info] IOS_SKIPPED_ENTRIES: entries that match no packet that opens a connection were left out (the model allows the replies of what it allows): WAN-IN 30: established: it matches replies only
+  [info] IOS_COMPOSED: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one, for each pair: 25
+  [info] AZURE_DEFAULTS_OVERRIDDEN: each list ends in the default of the source, which comes before the default rules of Azure: they no longer let the virtual network, the load balancer's health probes or the internet through unless a rule does
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security rule does not. Flow logs of the virtual network record the connections instead
+
+Security rules
+  WAN-IN-10 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-20 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-40 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-50 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-60 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-70 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-80 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-90 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-100 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-110 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-120 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-130 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-140 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN implicit deny (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN6-IN-10 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN6-IN-20 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN6-IN-30 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN6-IN-40 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN6-IN-50 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN6-IN implicit deny (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-10 (OUTSIDE to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-20 (OUTSIDE to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  skipped
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-130 (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, INSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review  (emitted as security rules of FWShift)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'nat-177' translates '203.0.113.2' to. The target looks rules up after that translation, so traffic sent to '203.0.113.2' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review  (emitted as security rules of FWShift)
+      [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177', which translates only some of the services of this rule: for the others the rule now names '10.20.0.25', sent there directly, and no longer '203.0.113.2'
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-177' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-3  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN implicit deny (OUTSIDE to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  skipped
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  WAN6-IN-50 (OUTSIDE to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN6-IN implicit deny (OUTSIDE to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-10 (OUTSIDE to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-20 (OUTSIDE to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-40 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-50 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-60 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-100 + DMZ-OUT-30 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-100 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  skipped
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  skipped
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  WAN-IN-120 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-120 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-130 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-140 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'nat-177' translates '203.0.113.2' to. The target looks rules up after that translation, so traffic sent to '203.0.113.2' now matches this rule; on the source it did not
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-140 + DMZ-OUT-30 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)-2  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review  (emitted as security rules of FWShift)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.20.0.25', the address NAT rule 'nat-177' translates '203.0.113.2' to. The target looks rules up after that translation, so traffic sent to '203.0.113.2' now matches this rule; on the source it did not. This rule now blocks that traffic before the rules below see it
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review  (emitted as security rules of FWShift)
+      [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177', which translates only some of the services of this rule: for the others the rule now names '10.20.0.25', sent there directly, and no longer '203.0.113.2'
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'nat-177' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-3  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN implicit deny (OUTSIDE to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN6-IN-10 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN6-IN-20 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN6-IN-30 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  skipped
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  WAN6-IN-40 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  skipped
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  WAN6-IN-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN6-IN implicit deny (OUTSIDE to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-10 (OUTSIDE to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-20 (OUTSIDE to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-130 (OUTSIDE to LAB)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, LAB, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN implicit deny (OUTSIDE to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  skipped
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  WAN6-IN-50 (OUTSIDE to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN6-IN implicit deny (OUTSIDE to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-10 (OUTSIDE to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-20 (OUTSIDE to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-50 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-60 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.20.0.25' because of NAT rule 'nat-177'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-100 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.3' with post-NAT '10.20.0.10' because of NAT rule 'nat-176'; check that this rule is meant to cover the translated traffic
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  WAN-IN-120 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN-130 (OUTSIDE to MGMT)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone OUTSIDE, MGMT, and a security rule names no zone: give the networks behind it with --zone-network.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN-IN implicit deny (OUTSIDE to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN6-IN-10 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN6-IN-20 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  skipped
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  WAN6-IN-50 (OUTSIDE to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  WAN6-IN implicit deny (OUTSIDE to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone OUTSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-WEB (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone INSIDE, OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-WEB (INSIDE to OUTSIDE)-2  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone INSIDE, OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-DNS (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone INSIDE, OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-MAIL-SUB (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone INSIDE, OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-VPN (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] IOS_PASS: pass lets one direction through; the replies need a pass the other way
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone INSIDE, OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-PING (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone INSIDE, OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT class-default (INSIDE to OUTSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone INSIDE, OUTSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  INSIDE (in): no access list (INSIDE to INSIDE)  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone INSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  INSIDE (in): no access list + DMZ-OUT-10 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone INSIDE, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  INSIDE (in): no access list + DMZ-OUT-20 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone INSIDE, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  INSIDE (in): no access list + DMZ-OUT-30 + ZP-IN-DMZ CM-ADMIN (INSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone INSIDE, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  INSIDE (in): no access list + DMZ-OUT-40 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone INSIDE, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  INSIDE (in): no access list + DMZ-OUT-40 + ZP-IN-DMZ class-default (INSIDE to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone INSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  INSIDE (in): no access list + DMZ-OUT-50 (INSIDE to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone INSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone INSIDE, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)-2  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone INSIDE, DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ class-default (INSIDE to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone INSIDE, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  INSIDE (in): no access list + no outbound access list + no zone pair from INSIDE to LAB (INSIDE to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone INSIDE, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  INSIDE (in): no access list + no outbound access list + no zone pair from INSIDE to MGMT (INSIDE to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone INSIDE, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-DNS (DMZ to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone DMZ, OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-WEB (DMZ to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone DMZ, OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-WEB (DMZ to OUTSIDE)-2  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone DMZ, OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT class-default (DMZ to OUTSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone DMZ, OUTSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to INSIDE (DMZ to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone DMZ, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  DMZ (in): no access list + DMZ-OUT-10 (DMZ to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  DMZ (in): no access list + DMZ-OUT-20 (DMZ to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  DMZ (in): no access list + DMZ-OUT-30 (DMZ to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  DMZ (in): no access list + DMZ-OUT-40 (DMZ to DMZ)  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  DMZ (in): no access list + DMZ-OUT-50 (DMZ to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  DMZ (in): no access list + no outbound access list (DMZ to DMZ)  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone DMZ, and a security rule names no zone: give the networks behind it with --zone-network.
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to LAB (DMZ to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone DMZ, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  DMZ (in): no access list + no outbound access list + no zone pair from DMZ to MGMT (DMZ to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone DMZ, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110-10 + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAB, OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  110-20 + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAB, OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  110-30 + no outbound access list + ZP-LAB-OUT CM-DNS (LAB to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAB, OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  110-40 (LAB to OUTSIDE)  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, OUTSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to OUTSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, OUTSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110 implicit deny (LAB to OUTSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, OUTSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-DNS (LAB to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAB, OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAB, OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)-2  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAB, OUTSIDE, and a security rule names no zone: give the networks behind it with --zone-network.
+  LAB (in): no access list + no outbound access list + ZP-LAB-OUT class-default (LAB to OUTSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, OUTSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110-10 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110-20 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110-30 + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110-40 (LAB to INSIDE)  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110 implicit deny (LAB to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to INSIDE (LAB to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110-10 + DMZ-OUT-10 + no zone pair from LAB to DMZ (LAB to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110-10 + DMZ-OUT-50 (LAB to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110-20 + DMZ-OUT-10 + no zone pair from LAB to DMZ (LAB to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110-20 + DMZ-OUT-50 (LAB to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110-30 + DMZ-OUT-50 (LAB to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110-40 (LAB to DMZ)  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110 implicit deny (LAB to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to DMZ (LAB to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110-10 (LAB to LAB)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAB, and a security rule names no zone: give the networks behind it with --zone-network.
+  110-20 (LAB to LAB)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAB, and a security rule names no zone: give the networks behind it with --zone-network.
+  110-30 (LAB to LAB)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAB, and a security rule names no zone: give the networks behind it with --zone-network.
+  110-40 (LAB to LAB)  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110 implicit deny (LAB to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  LAB (in): no access list (LAB to LAB)  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone LAB, and a security rule names no zone: give the networks behind it with --zone-network.
+  110-10 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110-20 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110-30 + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110-40 (LAB to MGMT)  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-50 (LAB to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  110 implicit deny (LAB to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  LAB (in): no access list + no outbound access list + no zone pair from LAB to MGMT (LAB to MGMT)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone LAB, MGMT; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to OUTSIDE (MGMT to OUTSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone MGMT, OUTSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to INSIDE (MGMT to INSIDE)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone MGMT, INSIDE; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  MGMT (in): no access list + DMZ-OUT-10 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone MGMT, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  MGMT (in): no access list + DMZ-OUT-20 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone MGMT, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  MGMT (in): no access list + DMZ-OUT-30 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone MGMT, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  MGMT (in): no access list + DMZ-OUT-40 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ICMP_TYPE_WIDENED: the rule blocks certain ICMP types; a security rule matches all of ICMP, which blocks more
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone MGMT, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  MGMT (in): no access list + DMZ-OUT-50 (MGMT to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone MGMT, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone MGMT, DMZ; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  MGMT (in): no access list + no outbound access list + no zone pair from MGMT to LAB (MGMT to LAB)  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone MGMT, LAB; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  MGMT (in): no access list (MGMT to MGMT)  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone MGMT, and a security rule names no zone: give the networks behind it with --zone-network.
+
+NAT rules
+  nat-176  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  nat-177  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  nat-178  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see

@@ -1,0 +1,127 @@
+FWShift zone matrix
+  source: ios
+  security rules: 204 (0 disabled, 20 never match)
+
+What each zone may reach (rows: from, columns: to)
+           OUTSIDE           INSIDE            DMZ               LAB               MGMT
+  OUTSIDE  any~              any~              any~              any except icm…~  any except icm…~
+  INSIDE   icmp tcp/53 +6~   any               icmp type 8 +5    -                 -
+  DMZ      tcp/53 tcp/80 +2  -                 any               -                 -
+  LAB      any~              any~              any~              any~              any~
+  MGMT     -                 -                 -                 -                 any
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+OUTSIDE -> OUTSIDE (inside the zone)
+  allowed: any ~
+  rule 'WAN-IN-40 (OUTSIDE to OUTSIDE)': 0.0.0.0/0 -> 203.0.113.3: tcp/80
+  rule 'WAN-IN-50 (OUTSIDE to OUTSIDE)': 0.0.0.0/0 -> 203.0.113.3: tcp/443
+  rule 'WAN-IN-60 (OUTSIDE to OUTSIDE)': 0.0.0.0/0 -> 203.0.113.2: tcp/25
+  rule 'WAN-IN-70 (OUTSIDE to OUTSIDE)': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 0
+  rule 'WAN-IN-80 (OUTSIDE to OUTSIDE)': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 3
+  rule 'WAN-IN-90 (OUTSIDE to OUTSIDE)': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 11
+  rule 'WAN-IN-100 (OUTSIDE to OUTSIDE)': ALL-ADMIN -> 203.0.113.3: tcp/22
+  rule 'WAN-IN-110 (OUTSIDE to OUTSIDE)': 198.51.100.50 -> 0.0.0.0/0: ip/47 (gre)
+  rule 'WAN-IN-120 (OUTSIDE to OUTSIDE)': 0.0.0.0/0 -> 0.0.0.0/0: udp/53
+  rule 'WAN-IN-130 (OUTSIDE to OUTSIDE)': 0.0.0.0/0 -> 0.0.0.0/0: any (only with time-range OFFICE: active only part of the time, which is not in the model) ~
+  rule 'WAN-IN-140 (OUTSIDE to OUTSIDE)': 0.0.0.0/0 -> 0.0.0.0/0: any
+  rule 'WAN6-IN-10 (OUTSIDE to OUTSIDE)': ::/0 -> 2001:db8:20::10: tcp/80
+  rule 'WAN6-IN-20 (OUTSIDE to OUTSIDE)': ::/0 -> 2001:db8:20::10: tcp/443
+  rule 'WAN6-IN-30 (OUTSIDE to OUTSIDE)': ::/0 -> ::/0: icmp6 type 129
+  rule 'WAN6-IN-40 (OUTSIDE to OUTSIDE)': ::/0 -> ::/0: icmp6 type 2
+OUTSIDE -> INSIDE
+  allowed: any ~
+  rule 'WAN-IN-130 (OUTSIDE to INSIDE)': 0.0.0.0/0 -> 0.0.0.0/0: any (only with time-range OFFICE: active only part of the time, which is not in the model) ~
+OUTSIDE -> DMZ
+  allowed: any ~
+  rule 'WAN-IN-40 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)': 0.0.0.0/0 -> 203.0.113.3: tcp/80
+  rule 'WAN-IN-50 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)': 0.0.0.0/0 -> 203.0.113.3: tcp/443
+  rule 'WAN-IN-60 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)': 0.0.0.0/0 -> 203.0.113.2: tcp/25
+  rule 'WAN-IN-130 (OUTSIDE to DMZ)': 0.0.0.0/0 -> 0.0.0.0/0: any (only with time-range OFFICE: active only part of the time, which is not in the model) ~
+  rule 'WAN-IN-140 + DMZ-OUT-10 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)': 0.0.0.0/0 -> 10.20.0.10, 10.20.0.25, 10.20.0.40-10.20.0.45, 203.0.113.3: tcp/80, tcp/443, tcp/8000-8010
+  rule 'WAN-IN-140 + DMZ-OUT-20 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)': 0.0.0.0/0 -> 10.20.0.25: tcp/25
+  rule 'WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)': 0.0.0.0/0 -> 10.20.0.10, 10.20.0.25, 10.20.0.40-10.20.0.45, 203.0.113.3: icmp type 8
+  rule 'WAN6-IN-10 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)': ::/0 -> 2001:db8:20::10: tcp/80
+  rule 'WAN6-IN-20 + no outbound access list + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)': ::/0 -> 2001:db8:20::10: tcp/443
+OUTSIDE -> LAB
+  allowed: any except icmp type 0, icmp type 3, icmp type 11, udp/53 ~
+  rule 'WAN-IN-130 (OUTSIDE to LAB)': 0.0.0.0/0 -> 0.0.0.0/0: any except icmp type 0, icmp type 3, icmp type 11, udp/53 (only with time-range OFFICE: active only part of the time, which is not in the model) ~
+OUTSIDE -> MGMT
+  allowed: any except icmp type 0, icmp type 3, icmp type 11, udp/53 ~
+  rule 'WAN-IN-130 (OUTSIDE to MGMT)': 0.0.0.0/0 -> 0.0.0.0/0: any except icmp type 0, icmp type 3, icmp type 11, udp/53 (only with time-range OFFICE: active only part of the time, which is not in the model) ~
+INSIDE -> OUTSIDE
+  allowed: icmp, tcp/53, tcp/80, tcp/443, tcp/587, udp/53, ip/47 (gre), icmp6 ~
+  rule 'INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-WEB (INSIDE to OUTSIDE)': any -> any: tcp/80
+  rule 'INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-WEB (INSIDE to OUTSIDE)-2': any -> any: tcp/443
+  rule 'INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-DNS (INSIDE to OUTSIDE)': any -> any: tcp/53, udp/53
+  rule 'INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-MAIL-SUB (INSIDE to OUTSIDE)': any -> any: tcp/587
+  rule 'INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-VPN (INSIDE to OUTSIDE)': 0.0.0.0/0 -> 198.51.100.50: ip/47 (gre) ~
+  rule 'INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-PING (INSIDE to OUTSIDE)': any -> any: icmp, icmp6
+INSIDE -> INSIDE (inside the zone)
+  allowed: any
+  rule 'INSIDE (in): no access list (INSIDE to INSIDE)': any -> any: any
+INSIDE -> DMZ
+  allowed: icmp type 8, tcp/22, tcp/25, tcp/80, tcp/443, tcp/8000-8010
+  rule 'INSIDE (in): no access list + DMZ-OUT-10 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)': 0.0.0.0/0 -> SERVERS: tcp/80, tcp/443, tcp/8000-8010
+  rule 'INSIDE (in): no access list + DMZ-OUT-20 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)': 0.0.0.0/0 -> 10.20.0.25: tcp/25
+  rule 'INSIDE (in): no access list + DMZ-OUT-30 + ZP-IN-DMZ CM-ADMIN (INSIDE to DMZ)': ADMINS -> SERVERS: tcp/22
+  rule 'INSIDE (in): no access list + DMZ-OUT-40 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)': 0.0.0.0/0 -> SERVERS: icmp type 8
+  rule 'INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)': ::/0 -> SERVERS6: tcp/80
+  rule 'INSIDE (in): no access list + no outbound access list + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)-2': ::/0 -> SERVERS6: tcp/443
+DMZ -> OUTSIDE
+  allowed: tcp/53, tcp/80, tcp/443, udp/53
+  rule 'DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-DNS (DMZ to OUTSIDE)': any -> any: tcp/53, udp/53
+  rule 'DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-WEB (DMZ to OUTSIDE)': any -> any: tcp/80
+  rule 'DMZ (in): no access list + no outbound access list + ZP-DMZ-OUT CM-WEB (DMZ to OUTSIDE)-2': any -> any: tcp/443
+DMZ -> DMZ (inside the zone)
+  allowed: any
+  rule 'DMZ (in): no access list + DMZ-OUT-10 (DMZ to DMZ)': 0.0.0.0/0 -> SERVERS: tcp/80, tcp/443, tcp/8000-8010
+  rule 'DMZ (in): no access list + DMZ-OUT-20 (DMZ to DMZ)': 0.0.0.0/0 -> 10.20.0.25: tcp/25
+  rule 'DMZ (in): no access list + DMZ-OUT-30 (DMZ to DMZ)': ADMINS -> SERVERS: tcp/22
+  rule 'DMZ (in): no access list + DMZ-OUT-40 (DMZ to DMZ)': 0.0.0.0/0 -> 0.0.0.0/0: icmp type 8
+  rule 'DMZ (in): no access list + no outbound access list (DMZ to DMZ)': ::/0 -> ::/0: any
+LAB -> OUTSIDE
+  allowed: any ~
+  rule '110-10 + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)': 10.30.0.0/24 -> 0.0.0.0/0: tcp/80
+  rule '110-20 + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)': 10.30.0.0/24 -> 0.0.0.0/0: tcp/443
+  rule '110-30 + no outbound access list + ZP-LAB-OUT CM-DNS (LAB to OUTSIDE)': 10.30.0.0/24 -> 10.20.0.53: udp/53
+  rule '110-40 (LAB to OUTSIDE)': 0.0.0.0/0 -> 0.0.0.0/0: any (only with 'fragments' is not converted, which is not in the model) ~
+  rule 'LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-DNS (LAB to OUTSIDE)': ::/0 -> ::/0: tcp/53, udp/53
+  rule 'LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)': ::/0 -> ::/0: tcp/80
+  rule 'LAB (in): no access list + no outbound access list + ZP-LAB-OUT CM-WEB (LAB to OUTSIDE)-2': ::/0 -> ::/0: tcp/443
+LAB -> INSIDE
+  allowed: any ~
+  rule '110-40 (LAB to INSIDE)': 0.0.0.0/0 -> 0.0.0.0/0: any (only with 'fragments' is not converted, which is not in the model) ~
+LAB -> DMZ
+  allowed: any ~
+  rule '110-40 (LAB to DMZ)': 0.0.0.0/0 -> 0.0.0.0/0: any (only with 'fragments' is not converted, which is not in the model) ~
+LAB -> LAB (inside the zone)
+  allowed: any ~
+  rule '110-10 (LAB to LAB)': 10.30.0.0/24 -> 0.0.0.0/0: tcp/80
+  rule '110-20 (LAB to LAB)': 10.30.0.0/24 -> 0.0.0.0/0: tcp/443
+  rule '110-30 (LAB to LAB)': 10.30.0.0/24 -> 10.20.0.53: udp/53
+  rule '110-40 (LAB to LAB)': 0.0.0.0/0 -> 0.0.0.0/0: any (only with 'fragments' is not converted, which is not in the model) ~
+  rule 'LAB (in): no access list (LAB to LAB)': ::/0 -> ::/0: any
+LAB -> MGMT
+  allowed: any ~
+  rule '110-40 (LAB to MGMT)': 0.0.0.0/0 -> 0.0.0.0/0: any (only with 'fragments' is not converted, which is not in the model) ~
+MGMT -> MGMT (inside the zone)
+  allowed: any
+  rule 'MGMT (in): no access list (MGMT to MGMT)': any -> any: any
+
+From reading the configuration
+  IOS_SOURCE: 5 zones (OUTSIDE, INSIDE, DMZ, LAB, MGMT) from the interfaces and the zones of the zone-based firewall; 4 access lists bound to interfaces. A connection passes the inbound list of the interface it arrives on, the outbound list of the one it leaves by and the zone-based firewall. Traffic to and from the router itself is not converted
+  IOS_STATELESS: access lists are stateless: on the router a connection also needs its replies let through by the lists of the other direction (established entries, reflexive lists, inspection). The converted policy is stateful and allows the replies of what it allows: where the router's lists did not let the replies through, it allows connections that did not work there
+  IOS_ZBFW_NAT: the zone-based firewall was read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check its class maps against the converted rules
+  IOS_PORT_MAP: match protocol was read as the ports of Port-to-Application Mapping (the system table, and ip port-map); the router inspects the application as well, the converted rules match the ports: mailsub, http, https, dns, ssh
+  IOS_SELF_ZONE: zone pairs with the self zone filter traffic to and from the router itself and were not read: ZP-OUT-SELF
+  IOS_VRF: interfaces in VRFs: the converted policy has one routing table, and does not know which zones reach each other: GigabitEthernet0 (vrf Mgmt-intf)
+  IOS_INTERFACES_LEFT_OUT: interfaces that forward no traffic of their own (loopbacks, interfaces without an address) are not zones: Loopback0
+  IOS_SKIPPED_ENTRIES: entries that match no packet that opens a connection were left out (the model allows the replies of what it allows): WAN-IN 30: established: it matches replies only
+  IOS_COMPOSED: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one, for each pair: 25
+
+Notes
+  20 rule(s) never match and are left out; 'fwshift audit' names them.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

@@ -33,6 +33,7 @@ from .emitters import opnsense as emit_opnsense
 from .emitters import pfsense as emit_pfsense
 from .emitters import routeros as emit_routeros
 from .emitters import barracuda as emit_barracuda
+from .emitters import ios as emit_ios
 from .emitters import junos as emit_junos
 from .emitters import nftables as emit_nftables
 from .emitters import nsx as emit_nsx
@@ -57,6 +58,7 @@ from .parsers import opnsense as parse_opnsense
 from .parsers import pfsense as parse_pfsense
 from .parsers import routeros as parse_routeros
 from .parsers import barracuda as parse_barracuda
+from .parsers import ios as parse_ios
 from .parsers import junos as parse_junos
 from .parsers import nftables as parse_nftables
 from .parsers import nsx as parse_nsx
@@ -82,6 +84,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "routeros": emit_routeros.emit,
     "checkpoint": emit_checkpoint.emit,
     "asa": emit_asa.emit,
+    "ios": emit_ios.emit,
     "sophos": emit_sophos.emit,
     "pfsense": emit_pfsense.emit,
     "opnsense": emit_opnsense.emit,
@@ -93,7 +96,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "fmc": emit_cisco.emit_fmc,
     "fdm": emit_cisco.emit_fdm,
 }
-VENDORS = ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "pfsense", "opnsense", "sonicwall", "watchguard", "barracuda", "junos",
+VENDORS = ("panos", "fortios", "checkpoint", "asa", "ios", "fmc", "fdm", "sophos", "pfsense", "opnsense", "sonicwall", "watchguard", "barracuda", "junos",
            "iptables", "ip6tables", "nftables", "nsx", "aws", "azure", "terraform-aws", "terraform-azure", "terraform-google", "gcp", "routeros", "forcepoint")  # fmt: skip
 
 
@@ -102,8 +105,8 @@ def detect_format(data: bytes) -> str:
     Cisco manager or the Check Point API returns, told apart by the types of the objects in it; a zip is the export
     of a Cisco Firewall Device Manager; nft list ruleset output starts with "table" (its JSON with "nftables"), JSON of the NSX Policy API has the
     resource types of NSX,
-    iptables-save output starts with a table, an ASA configuration has lines
-    only an ASA writes; anything else is taken as FortiOS."""
+    iptables-save output starts with a table, an IOS configuration has lines only IOS writes (and none only an ASA writes),
+    an ASA configuration has lines only an ASA writes; anything else is taken as FortiOS."""
     if parse_cisco.is_zip(data):
         # The one zip that is read as it is: the configuration export of a Cisco Firewall Device Manager.
         try:
@@ -167,6 +170,8 @@ def detect_format(data: bytes) -> str:
             break
     if parse_junos.looks_like_junos(head):
         return "junos"
+    if parse_ios.looks_like_ios(head[:1_000_000].decode("utf-8", errors="replace")):
+        return "ios"
     if parse_asa.looks_like_asa(head[:1_000_000].decode("utf-8", errors="replace")):
         return "asa"
     return "fortios"
@@ -186,6 +191,8 @@ def load(
         return parse_checkpoint.parse(data, report, layer=layer)
     if source == "asa":
         return parse_asa.parse(data, report)
+    if source == "ios":
+        return parse_ios.parse(data, report)
     if source == "sophos":
         return parse_sophos.parse(data, report)
     if source == "pfsense":
@@ -503,7 +510,7 @@ def _source_options(parser: argparse.ArgumentParser, optional: bool = False) -> 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="fwshift",
-        description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall "
+        description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco IOS and IOS XE routers, Cisco Secure Firewall "
         "(Management Center and Device Manager), Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, iptables, "
         "nftables, VMware NSX, AWS security groups, Azure network security groups, Google Cloud firewall rules (these three also as Terraform), "
         "MikroTik RouterOS and Forcepoint NGFW, "
@@ -569,7 +576,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conv.add_argument(
         "--target-prefix", default="", metavar="TEXT",
-        help="Check Point, ASA, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Cisco Secure Firewall, NSX, AWS and Azure "
+        help="Check Point, ASA, IOS, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Cisco Secure Firewall, NSX, AWS and Azure "
              "targets (also as Terraform), and the policy Google Cloud targets create: prefix for the names of created objects",
     )  # fmt: skip
     conv.add_argument(

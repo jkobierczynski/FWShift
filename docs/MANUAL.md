@@ -1,14 +1,14 @@
 # FWShift user manual
 
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
-Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
+Check Point, Cisco ASA, Cisco IOS and IOS XE routers, Cisco Secure Firewall (managed by a Management Center
 or by its Device Manager), Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX, Linux iptables, Linux nftables, the VMware NSX
 distributed firewall, AWS security groups, Azure network security groups, Google Cloud firewall rules and network firewall policies (these three also as the resources of a Terraform state or plan, and as Terraform configuration), MikroTik RouterOS and Forcepoint NGFW (through its Security Management Center), and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; show what each zone may reach in each
 other zone; check a policy against a zone and conduit model kept as a file;
 and say which connections two policies decide differently.
-This manual covers version 0.27.
+This manual covers version 0.28.
 
 **Contents**
 
@@ -62,10 +62,10 @@ may reach (section 14), check a policy against a zone and conduit model kept
 as a file (section 16), and name every connection two policies decide
 differently, including a source and its conversion read back (section 17).
 
-> **Status.** Version 0.27 is tested against synthetic configurations. iptables
+> **Status.** Version 0.28 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). Output for PAN-OS, FortiOS, Check Point,
-> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS, Azure, Google Cloud, RouterOS and Forcepoint has
+> Cisco ASA, Cisco IOS, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS, Azure, Google Cloud, RouterOS and Forcepoint has
 > not been loaded on a device or management server yet, and the Terraform output has not been applied with Terraform; the Check Point input format follows the
 > API documentation, the ASA and FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
@@ -80,7 +80,9 @@ differently, including a source and its conversion read back (section 17).
 > and the dump program for it have only talked to a stand-in written for the tests; the JSON of Terraform from its
 > documentation and source, and the resources of the AWS, Azure and Google providers from their documentation and schemas;
 > the JSON of gcloud and what Google Cloud makes of its firewall rules and policies from Google's API reference and
-> documentation; no gcloud command of a script was run against a project.
+> documentation; no gcloud command of a script was run against a project. IOS and IOS XE syntax and behaviour are
+> taken from Cisco's configuration guides and command references and its IOS XE YANG models, with the grammars of
+> published readers of IOS configurations as corroboration; nothing was loaded on a router.
 > Use FWShift to produce a draft for a lab, and follow *Using it safely* in the README.
 
 ## 2. Installation
@@ -103,8 +105,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.27.0.pyz --version
-python3 fwshift-0.27.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.28.0.pyz --version
+python3 fwshift-0.28.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -333,6 +335,24 @@ bridge settings are read with the firewall. Neither `hide-sensitive` nor
 `show-sensitive` changes anything the conversion reads. The output of `print`
 is refused: it is a table, not a script, and it holds rules the router adds
 itself.
+
+**Cisco IOS and IOS XE.** FWShift reads the running configuration of a router (IOS 15 and IOS XE 16 and 17; ISR,
+ASR, Catalyst 8000 and the virtual routers):
+
+```
+terminal length 0
+show running-config
+```
+
+A saved copy (`copy running-config tftp:`, `more flash:startup-config`) is the same text. What is read: the interfaces
+(addresses, `ip access-group`, `ipv6 traffic-filter`, `zone-member security`, `ip nat inside`/`outside`), access lists
+(numbered and named, standard and extended, IPv6; with or without sequence numbers), object groups, the zone-based
+policy firewall (zones, zone pairs, `policy-map type inspect`, `class-map type inspect`, `ip port-map`) and NAT
+(`ip nat inside source`). A connection passes the inbound list of the interface it arrives on, then NAT, the outbound
+list of the one it leaves by and the zone-based firewall. The zones of the converted policy are the zones of the
+zone-based firewall, or the interfaces where it is not used (`IOS_SOURCE`). Traffic to and from the router itself
+(control plane, the `self` zone) is not policy here. The output of `show access-lists`, with its counters, is not a
+configuration and is not read.
 
 **Cisco ASA.** FWShift reads the running configuration as the ASA prints it:
 
@@ -895,7 +915,7 @@ TCP 502 and TCP 102, not the applications themselves.
 fwshift convert INPUT --to FORMAT [options]
 ```
 
-`FORMAT` is one of `panos`, `fortios`, `checkpoint`, `asa`, `fmc`, `fdm`,
+`FORMAT` is one of `panos`, `fortios`, `checkpoint`, `asa`, `ios`, `fmc`, `fdm`,
 `sophos`, `pfsense`, `opnsense`, `sonicwall`, `watchguard`, `barracuda`, `junos`,
 `iptables`, `ip6tables`, `nftables`, `nsx`, `aws`, `azure`, `gcp`, `terraform-aws`, `terraform-azure`, `terraform-google`, `routeros`, `forcepoint` and `json` (the neutral model; see `--to json` below).
 
@@ -905,7 +925,7 @@ fwshift convert INPUT --to FORMAT [options]
 
 | Option | Meaning |
 |---|---|
-| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: the JSON of `terraform show -json` or a raw state of Terraform is `terraform-aws`, `terraform-azure` or `terraform-google`, by the resources it holds; JSON that holds the answers of the SMC API for a firewall policy (list answers with `fwshift_list`, or hrefs into `/elements/fw_policy/`), or the XML export of an SMC (`<generic_import_export>`, which is refused), is Forcepoint; JSON of gcloud with objects of the kinds `compute#firewall` or `compute#firewallPolicy` (or firewall rules with `allowed` or `denied`, `IPProtocol` and `network`) is `gcp`; a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<opnsense>` is OPNsense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; JSON with network security groups of Azure (`Microsoft.Network/networkSecurityGroups`, or `securityRules` with priorities) is Azure; a file whose header says `by RouterOS`, or whose first line is a menu such as `/ip firewall filter` or `/interface list`, is RouterOS; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: the JSON of `terraform show -json` or a raw state of Terraform is `terraform-aws`, `terraform-azure` or `terraform-google`, by the resources it holds; JSON that holds the answers of the SMC API for a firewall policy (list answers with `fwshift_list`, or hrefs into `/elements/fw_policy/`), or the XML export of an SMC (`<generic_import_export>`, which is refused), is Forcepoint; JSON of gcloud with objects of the kinds `compute#firewall` or `compute#firewallPolicy` (or firewall rules with `allowed` or `denied`, `IPProtocol` and `network`) is `gcp`; a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<opnsense>` is OPNsense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; JSON with network security groups of Azure (`Microsoft.Network/networkSecurityGroups`, or `securityRules` with priorities) is Azure; a file whose header says `by RouterOS`, or whose first line is a menu such as `/ip firewall filter` or `/interface list`, is RouterOS; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with lines only IOS writes (`ip access-list standard|extended`, `ipv6 access-list`, ` ip access-group` under an interface, `zone security`, `zone-pair security`, `ip nat inside source`, `access-list 101 permit ...`, `version 15.4`) and none only an ASA writes is `ios`; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
@@ -941,6 +961,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to aws` | A shell script of AWS CLI calls that creates security groups for one VPC, without members, and says which addresses each is for (section 10). |
 | `--to azure` | An ARM template with one network security group per zone (section 10). |
 | `--to terraform-aws` | Terraform configuration (HCL, hashicorp/aws 5 or later): the security groups the `aws` target writes, as `aws_security_group` resources without members and one `aws_vpc_security_group_ingress_rule` or `_egress_rule` per address block and service, for the VPC in the variable `vpc_id` (section 10). |
+| `--to ios` | Configuration commands for the zone-based policy firewall of IOS and IOS XE: a zone per zone of the source, an access list and an inspect class map per rule, an inspect policy per zone pair in the order of the rules, ending in the default of the source (section 10). The `zone-member security` lines and NAT are comments to move into place. |
 | `--to gcp` | A shell script of gcloud commands that creates one new global network firewall policy with the rules, associated with no network (section 10). Each rule of the source becomes a rule per IP version, both ingress and egress, at priorities from 1000 in steps of 10; the last rules are the default of the source. Zones become the networks of `--zone-network`, as for NSX. |
 | `--to terraform-google` | Terraform configuration (HCL, hashicorp/google 5 or later): the policy and rules the `gcp` target writes, as a `google_compute_network_firewall_policy` and its `_rule` resources, in the project in the variable `project`; the association with a network is a comment (section 10). |
 | `--to terraform-azure` | Terraform configuration (HCL, hashicorp/azurerm 3 or later): the network security groups the `azure` target writes, as `azurerm_network_security_group` resources with their rules inline, in the resource group in the variable `resource_group_name` (section 10). |
@@ -958,7 +979,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--target-layer NAME` | Check Point: the access layer the rules are written to. Default `Network`. It must exist. |
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
-| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS, Azure (also as Terraform), Google Cloud (also as Terraform), RouterOS and Forcepoint: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on Azure every network security group; on Google Cloud the network firewall policy; on RouterOS every interface list and address list, instead of `fws-`) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
+| `--target-prefix TEXT` | Check Point, ASA, IOS, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS, Azure (also as Terraform), Google Cloud (also as Terraform), RouterOS and Forcepoint: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on Azure every network security group; on Google Cloud the network firewall policy; on IOS every zone, access list, object group, class map and policy map, instead of `FWS-`; on RouterOS every interface list and address list, instead of `fws-`) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
 | `--compare[=FILE]` | Read the output back (for the targets FWShift reads: `asa`, `azure`, `fdm`, `fortios`, `iptables`, `ip6tables`, `junos`, `nftables`, `nsx`, `routeros`, `sophos`, `watchguard`) and compare it with the policy as it was read: every connection the two decide differently is in the report (`COMPARE_OPENED`, `COMPARE_CLOSED`, section 17). With `FILE` the whole comparison is written there. Give `--zone-network` for every zone, so that only connections that can happen are compared. |
 | `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates; the script can be given another name when it is run (`--name`). NSX: the name of the security policy. Azure and `terraform-azure`: the name of the one network security group written when no zone has networks. `gcp` and `terraform-google`: the name of the network firewall policy, in lower case with hyphens (`fwshift` when not given). Default `FWShift`. Forcepoint: the name of the firewall policy the program creates (`--name` when it is run gives another). |
 | `--target-template NAME` | Forcepoint: the template the new firewall policy is based on (default `Firewall Template`, the predefined one). The loader stops when the SMC has no template of that name; it can be given another when it is run (`--template`). |
@@ -1816,6 +1837,39 @@ Findings and notes that only a Forcepoint source or target raises. A Forcepoint 
 | `APP_AND_SERVICE` | R | Target (on the rule): network applications and services in one rule of an SMC source: in one cell they would be ORed. Written disabled. |
 | `NAT_IPV4_ONLY` | A | Target (on the NAT rule): source NAT to the interface address for addresses of both IP versions is written for IPv4 only. |
 | `NAT_PORTS` | A | Target (on the NAT rule): dynamic NAT without port translation is written as dynamic NAT of an SMC, which translates ports as well. |
+
+Findings and notes that only an IOS source or target raises:
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `IOS_SOURCE` | I | Source: the zones read (zones of the zone-based firewall, or interfaces) and the lists bound to interfaces. Traffic to and from the router itself is not converted. |
+| `IOS_STATELESS` | R | Source: access lists are stateless. On the router a connection also needs its replies let through by the lists of the other direction; the converted policy is stateful and allows the replies of what it allows. Where the router's lists did not let the replies through, it allows connections that did not work there. |
+| `IOS_SKIPPED_ENTRIES` | I | Source: entries that match no packet that opens a connection (`established`, `evaluate`, a port operator that matches no port) were left out. |
+| `IOS_REFLEXIVE` | I | Source: reflexive lists: `reflect` permits like an entry of a stateful firewall; `evaluate` (the replies) is what the model does by itself. |
+| `IOS_ACL_UNDEFINED` | R | Source: lists bound to an interface are not in the configuration (or are of the other IP version): IOS passes everything through such an interface, and so does the converted policy. Check that the input is complete. |
+| `IOS_ACL_EMPTY` | R | Source: lists bound to an interface hold no entries: IOS passes everything, and so does the converted policy. |
+| `IOS_ACL_NOT_READ` | R | Source: lines that bind a list in a way FWShift does not read (a common list, an unknown form): the rules for that interface are not converted. |
+| `IOS_UNBOUND_ACL` | I | Source: lists bound to no interface (used for NAT, routing, management, class maps or nothing) are not security rules. |
+| `IOS_ZONE_SPLIT` | I | Source: zones whose interfaces have different lists or NAT roles: each such interface is a zone of the converted policy. |
+| `IOS_SELF_ZONE` | I | Source: zone pairs with the `self` zone filter traffic to and from the router and were not read. |
+| `IOS_POLICY_MISSING` | R | Source: zone pairs whose inspect policy is not in the configuration: nothing passes them. |
+| `IOS_PORT_MAP` | I | Source: `match protocol` was read as the ports of Port-to-Application Mapping (the system table FWShift knows, and `ip port-map`). The router inspects the application as well; the converted rules match the ports. |
+| `IOS_PASS` | R, A | Source (on the rule): `pass` lets one direction through; the replies need a pass the other way, and where there is none the converted rule allows what failed on the router. Target (on the rule): protocols other than TCP, UDP and ICMP are let through with `pass`; their replies are not written, so the converted rule allows less. |
+| `IOS_LAYER7` | R | Source (on the rule): a layer-7 policy (`service-policy` under an inspect class) drops or resets part of what the class inspects; it is not converted, and the converted rule allows more. |
+| `IOS_ZBFW_NAT` | R | Source and target: the zone-based firewall is read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check one translated connection. |
+| `IOS_VRF` | R | Source: interfaces in VRFs: the converted policy has one routing table and does not know which zones reach each other. |
+| `IOS_CBAC` | I | Source: classic inspection (`ip inspect`) lets the replies of inspected connections through the lists of the other direction; the converted policy is stateful anyway. |
+| `IOS_DHCP_ADDRESS` | I | Source: interfaces whose address comes from DHCP or PPP; NAT to such an interface is not read. |
+| `IOS_NVI` | R | Source: NAT of the NAT virtual interface (`ip nat enable`) is not read. |
+| `IOS_INTERFACES_LEFT_OUT` | I | Source: loopbacks and interfaces without an address, list or zone are not zones. |
+| `IOS_COMPOSED` | I | Source: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one for each pair. |
+| `IOS_COMPOSED_LEFT_OUT` | R | Source: more than 5,000 combinations of the lists of a pair of zones, or more than 100,000 rules in all: the rest of those pairs is blocked. |
+| `IOS_LOAD` | R | Target: the output is configuration commands (section 10); nothing changes until interfaces are put in the zones. Names start with `FWS-` (or the prefix): IOS adds entries to a list or class map of the same name, so check that none is taken. |
+| `IOS_ZONE_MEMBERS` | R | Target: an interface in a zone passes only what the zone pairs let through, and nothing to an interface in no zone; traffic to and from the router itself is not written. Put every interface that forwards traffic in a zone. |
+| `IOS_INTRAZONE` | I | Target: zone pairs from a zone to itself decide traffic inside a zone (IOS 15.0(1)M and IOS XE); IOS passes it otherwise. |
+| `IOS_LOG_ALLOW` | I | Target (on the rule): logging of what an allow rule inspects is not written (inspection logs through a parameter map); drop and pass log. |
+| `DISABLED_NOT_WRITTEN` | I, skipped | Target (on the rule): disabled in the source; a zone-based firewall has no disabled class, so it is not written. |
+| `SERVICE_NOT_WRITTEN` | R, disabled | Target (on the rule): its services are too many for one list, SCTP with ports (which IOS does not filter) or protocol 0. |
 
 Findings and notes that only a Google Cloud source or target raises (a Google Cloud target also raises
 `ZONE_NETWORK_MISSING`, `ZONE_WIDENED`, `ZONE_DYNAMIC`, `RULE_TYPE`, `INTRAZONE_DEFAULT`, `INTRAZONE_ALLOW` and
@@ -2779,6 +2833,62 @@ The second column matters too:
 * NAT rules are written as manual rules. Zones are left out of them
   (`NAT_ZONES`); source NAT to "the outgoing interface" needs the gateway
   object (`--target-gateway`).
+
+### Cisco IOS and IOS XE
+
+**What is read**
+
+* Interfaces with an address, a list or a zone; loopbacks are not zones (`IOS_INTERFACES_LEFT_OUT`). The zones of the
+  model are the zones of the zone-based firewall when all the interfaces of a zone have the same lists and NAT role,
+  else each interface (`IOS_ZONE_SPLIT`).
+* A connection from interface A to interface B passes the list bound `in` to A (as it arrives, before NAT), NAT, the
+  list bound `out` to B (after NAT), then the zone-based firewall of the zones of A and B. An interface without a list,
+  or with one that is not defined or holds no entries, passes everything (`IOS_ACL_UNDEFINED`, `IOS_ACL_EMPTY`); a list
+  with entries ends in an implicit deny. Where only inbound lists decide, each list becomes the rules of its zone; where
+  an outbound list or the zone-based firewall decides as well, the lists are composed for each pair of zones
+  (`IOS_COMPOSED`).
+* Access lists: numbered (1-199, 1300-2699) and named, standard (source only) and extended, IPv6; in the order of their
+  sequence numbers; wildcard masks, also non-contiguous ones (up to 256 ranges); `host`, `any`, object groups; port
+  operators `eq` (several ports), `neq`, `lt`, `gt`, `range` with the port names of each protocol; ICMP and ICMPv6
+  message names and numbers; protocols by name and number; `log`; remarks as descriptions. `established` and
+  `evaluate` match replies only and are left out (`IOS_SKIPPED_ENTRIES`); `reflect` permits as a stateful firewall
+  does (`IOS_REFLEXIVE`). `fragments`, `dscp`, `precedence`, `tos`, `ttl`, TCP flags, `time-range`, dynamic entries,
+  protocol 0 and anything not understood make the entry not converted. The implicit permits of neighbour discovery at
+  the end of an IPv6 list are not forwarded traffic and not read.
+* Object groups: `network` (hosts, networks with a subnet mask, ranges, nested groups) and `service` (TCP, UDP,
+  `tcp-udp`, source ports, ICMP types, protocols, nested groups), as the source, destination or protocol of an entry;
+  `v6-network`. A host name in a group is not resolved: its entries are not converted.
+* The zone-based firewall: between two zones the classes of the zone pair's inspect policy in order (`inspect` and
+  `pass` allow, `drop` blocks), then `class-default` (drop unless it says `pass`); without a zone pair nothing passes;
+  inside a zone everything passes unless a zone pair from the zone to itself says otherwise; between an interface in a
+  zone and one in none nothing passes; between two in none everything does; `zone security default` holds the
+  interfaces in no zone. A class map matches with `match-any` or `match-all`: `match access-group` takes what the
+  list permits (its denies take nothing), `match protocol` the ports of Port-to-Application Mapping (`IOS_PORT_MAP`),
+  `match class-map` another class. `pass` is one way (`IOS_PASS`); a layer-7 policy under a class is not converted
+  (`IOS_LAYER7`).
+* NAT: `ip nat inside source static` (an address, a network, a port; to an interface address), `list ... interface`
+  and `list ... pool` (with `overload`), for the zones whose interfaces are inside and outside. The model names
+  addresses as they arrive: an outbound list sees them after NAT and the zone-based firewall is read as seeing the
+  inside addresses (`IOS_ZBFW_NAT`), so their entries are rewritten through the static translations and, for sources,
+  port translation of a list of sources. NAT that is not read (a route map, outside NAT, `ip nat inside destination`,
+  NVI) makes the entries after it that it could change not converted.
+* Access lists are stateless (`IOS_STATELESS`); classic inspection (`ip inspect`, `IOS_CBAC`) and the zone-based
+  firewall's `inspect` are stateful, as the model is.
+
+**What is written**
+
+* Configuration commands for the zone-based firewall: a zone (`zone security`, with the prefix) for each zone of the
+  source; for each rule an access list (IPv4 with object groups for addresses, IPv6 with prefixes) and an inspect
+  class map that matches it; for each pair of zones a rule applies to, an inspect policy with the classes of its
+  rules in order and `class-default` with the default of the source, and a zone pair. Allow rules inspect TCP, UDP and
+  ICMP and pass the rest (`IOS_PASS`); blocking rules drop. Traffic inside a zone that the source decides otherwise
+  than IOS gets a zone pair from the zone to itself (`IOS_INTRAZONE`).
+* What negation leaves is written as the addresses left; "every service but some" as entries that deny those services
+  before one that permits the rest, which the class does not take.
+* The `zone-member security` lines (the interfaces from `--interface-map`), NAT (static translations of an address,
+  a network or a port; port translation to an interface or a pool for a list of sources and destinations) and the
+  interfaces' `ip nat inside`/`outside` are comments: they change traffic at once.
+* The class maps see the inside address of a static translation, so the rules are written for it.
 
 ### Cisco ASA
 
@@ -4179,6 +4289,26 @@ management server and in the SmartConsole installation.
 6. Assign the security zones to the interfaces of the gateway, and add proxy
    ARP for translated addresses (`NAT_MANUAL_RULES`).
 
+### Cisco IOS and IOS XE
+
+The output is configuration commands. Pasted in configuration mode they create zones, access lists, object groups,
+class maps, inspect policies and zone pairs; nothing changes until interfaces are put in the zones.
+
+1. Convert, with `--interface-map` for the interfaces of the router that the zones' interfaces stand for:
+
+   ```sh
+   fwshift convert policy.xml --to ios -o zbfw.cfg --report report.txt \
+       --interface-map ethernet1/1=GigabitEthernet0/0/0 --interface-map ethernet1/2=GigabitEthernet0/0/1
+   ```
+
+2. Check that no name the output uses is taken (`show running-config | include FWS-`): IOS adds entries to an access
+   list or class map of the same name. Use `--target-prefix` for another prefix.
+3. Paste the commands in configuration mode (`configure terminal`), or copy the file to the router and
+   `copy flash:zbfw.cfg running-config`.
+4. Put each interface in its zone, from the commented lines at the end, in a maintenance window and from the console:
+   between an interface in a zone and one in none nothing passes, and traffic to the router itself is not written
+   (`IOS_ZONE_MEMBERS`). Then the NAT lines, if any, with `ip nat inside` and `ip nat outside` on the interfaces.
+
 ### Cisco ASA
 
 The output is a list of commands for configuration mode.
@@ -4652,6 +4782,9 @@ the report is the list.)
 | `network firewall policy ...: two rules with one priority ...` / `... a rule without a priority that can be read` | Google Cloud: a policy as Google Cloud never holds it; export it again with `describe`. |
 | `network ...: enforcement order '...' is not one FWShift knows` | Google Cloud: an enforcement order other than `AFTER_CLASSIC_FIREWALL` and `BEFORE_CLASSIC_FIREWALL`. |
 | `instance ...: '...' is not an address` / `... alias range '...' cannot be read` | Google Cloud: an instance list that was edited, or of another format. |
+| `no interfaces and no access lists: not the running configuration of an IOS or IOS XE router` | IOS: give `show running-config` of the router (section 3). |
+| `line N: access list ... is an IPv4 and an IPv6 list` | IOS: a configuration that holds both under one name, which IOS refuses; the input is not one configuration. |
+| `--target-prefix for IOS: ...` | IOS target: up to 16 letters, digits, periods, underscores and hyphens, starting with a letter. |
 | `--policy is for a Management Center, Forcepoint, gcp, terraform-aws or terraform-google source` | `--policy` was given for a source that does not use it. |
 | `this is the output of 'print'; FWShift reads the output of '/export'` | RouterOS: give the output of `/export` (section 3). |
 | `line N: 'add' before any menu (such as /ip firewall filter)` | RouterOS: a partial export without its menu line; add the menu (`/ip firewall filter`) as the first line. |
@@ -4843,6 +4976,14 @@ deliberate: see *IPv4 and IPv6* in section 8.
   inside are read as connections to the internal one (`GCP_HAIRPIN`). To Google Cloud: one global policy, rules of one
   IP version, 5,000 address ranges on one side; ICMP types and source ports are not written. The formats follow
   Google's API reference and the gcloud documentation; nothing was read from or created in a real project.
+* Cisco IOS and IOS XE: forwarded traffic of one router; the control plane, the `self` zone, VRFs (one routing table),
+  policy routing, VPN and crypto maps, NVI NAT, outside NAT, route maps, dynamic and time-based entries, layer-7
+  inspection and the applications of `match protocol` beyond their ports are not converted. Composed lists are capped
+  (5,000 rules for a pair of zones, 100,000 in all). Which addresses the zone-based firewall sees under NAT, whether a
+  list of remarks only is empty, and how an empty class map matches are taken from the documentation or assumed and
+  said. To IOS: the zone-based firewall only (no interface lists), IPv6 addresses as prefixes in the list (no object
+  groups), no logging of inspected traffic, the zone membership and NAT left to you. The syntax follows Cisco's
+  documentation and its IOS XE YANG models; nothing was loaded on a router.
 * Terraform: the resources of hashicorp/aws, hashicorp/azurerm and hashicorp/google listed in section 3, as
   `terraform show -json` or a raw state of version 4 gives them, with what the AWS, Azure and Google Cloud sources cannot do. Resources made elsewhere (by
   hand, by another state, by a module whose state is apart) are not in the input; neither are the members of a group

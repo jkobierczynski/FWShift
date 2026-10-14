@@ -533,7 +533,7 @@ SAMPLES = ["asa_sample.cfg", "checkpoint_sample.json", "fortios_sample.conf", "i
            "watchguard_sample.xml", "barracuda_sample.json",
            "junos_sample.conf", "nftables_sample.nft", "nsx_sample.json", "aws_sample.json", "azure_sample.json",
            "routeros_sample.rsc", "opnsense_sample.xml", "forcepoint_sample.json",
-           "terraform_aws_sample.json", "terraform_azure_sample.json", "gcp_sample.json",
+           "terraform_aws_sample.json", "terraform_azure_sample.json", "gcp_sample.json", "ios_sample.cfg",
            "terraform_google_sample.json"]  # fmt: skip
 
 

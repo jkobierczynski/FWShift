@@ -1,0 +1,165 @@
+FWShift conversion report
+  source: ios
+  target: sonicwall
+
+Summary
+  Security rules:    204   exact 152, approximated 0, needs review 52 (52 emitted disabled), skipped 0
+  NAT rules:           3   exact 0, approximated 0, needs review 2, skipped 1
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 12, approximated 0, needs review 7, skipped 0
+
+Notes for the whole policy
+  [needs-review] IOS_STATELESS: access lists are stateless: on the router a connection also needs its replies let through by the lists of the other direction (established entries, reflexive lists, inspection). The converted policy is stateful and allows the replies of what it allows: where the router's lists did not let the replies through, it allows connections that did not work there
+  [needs-review] IOS_ZBFW_NAT: the zone-based firewall was read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check its class maps against the converted rules
+  [needs-review] IOS_VRF: interfaces in VRFs: the converted policy has one routing table, and does not know which zones reach each other: GigabitEthernet0 (vrf Mgmt-intf)
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: access-rule ipv6, address-object ipv6, nat-policy name and comment, priority manual
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): OUTSIDE, INSIDE, DMZ, LAB, MGMT
+  [info] IOS_SOURCE: 5 zones (OUTSIDE, INSIDE, DMZ, LAB, MGMT) from the interfaces and the zones of the zone-based firewall; 4 access lists bound to interfaces. A connection passes the inbound list of the interface it arrives on, the outbound list of the one it leaves by and the zone-based firewall. Traffic to and from the router itself is not converted
+  [info] IOS_PORT_MAP: match protocol was read as the ports of Port-to-Application Mapping (the system table, and ip port-map); the router inspects the application as well, the converted rules match the ports: mailsub, http, https, dns, ssh
+  [info] IOS_SELF_ZONE: zone pairs with the self zone filter traffic to and from the router itself and were not read: ZP-OUT-SELF
+  [info] IOS_INTERFACES_LEFT_OUT: interfaces that forward no traffic of their own (loopbacks, interfaces without an address) are not zones: Loopback0
+  [info] IOS_SKIPPED_ENTRIES: entries that match no packet that opens a connection were left out (the model allows the replies of what it allows): WAN-IN 30: established: it matches replies only
+  [info] IOS_COMPOSED: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one, for each pair: 25
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 20 rule(s) match IPv4 and IPv6 traffic and were written twice: SonicOS has address objects and access rules per IP version
+
+Security rules
+  WAN-IN-70 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-0': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  WAN-IN-80 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-3': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  WAN-IN-90 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-11': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  WAN-IN-110 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ip-47': IP protocol 47, for which FWShift does not know the command of SonicOS.
+  WAN-IN-130 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN6-IN-30 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp6-129': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  WAN6-IN-40 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp6-2': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-70 + no outbound access l)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-0': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as WAN-IN-70 + no outbound access 2)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-0': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-80 + no outbound access l)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-3': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as WAN-IN-80 + no outbound access 2)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-3': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-90 + no outbound access l)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-11': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as WAN-IN-90 + no outbound access 2)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-11': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-110 + no outbound access)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ip-47': IP protocol 47, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as WAN-IN-110 + no outbound acces 2)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ip-47': IP protocol 47, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as WAN-IN-140 + no outbound acces 2)
+      [needs-review] SERVICE_NEGATE: a negated service cannot be written: SonicOS has no negation. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as WAN6-IN-30 + no outbound access)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp6-129': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as WAN6-IN-40 + no outbound access)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp6-2': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as WAN-IN-70 + DMZ-OUT-50 (OUTSIDE)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-0': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as WAN-IN-70 + DMZ-OUT-50 (OUTSID 2)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-0': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as WAN-IN-80 + DMZ-OUT-50 (OUTSIDE)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-3': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as WAN-IN-80 + DMZ-OUT-50 (OUTSID 2)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-3': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as WAN-IN-90 + DMZ-OUT-50 (OUTSIDE)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-11': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as WAN-IN-90 + DMZ-OUT-50 (OUTSID 2)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-11': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as WAN-IN-110 + DMZ-OUT-50 (OUTSIDE)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ip-47': IP protocol 47, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as WAN-IN-110 + DMZ-OUT-50 (OUTSI 2)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ip-47': IP protocol 47, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as WAN-IN-140 + DMZ-OUT-50 (OUTSI 2)
+      [needs-review] SERVICE_NEGATE: a negated service cannot be written: SonicOS has no negation. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-30 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as WAN6-IN-30 + no outbound acces 2)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp6-129': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-40 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as WAN6-IN-40 + no outbound acces 2)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp6-2': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as WAN-IN-70 + no outbound access 3)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-0': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as WAN-IN-80 + no outbound access 3)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-3': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as WAN-IN-90 + no outbound access 3)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-11': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as WAN-IN-110 + no outbound acces 3)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ip-47': IP protocol 47, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to LAB)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as WAN6-IN-30 + no outbound acces 3)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp6-129': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as WAN6-IN-40 + no outbound acces 3)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp6-2': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as WAN-IN-70 + no outbound access 4)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-0': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as WAN-IN-80 + no outbound access 4)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-3': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as WAN-IN-90 + no outbound access 4)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-11': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as WAN-IN-110 + no outbound acces 4)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ip-47': IP protocol 47, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to MGMT)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as WAN6-IN-30 + no outbound acces 4)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp6-129': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as WAN6-IN-40 + no outbound acces 4)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp6-2': ICMP other than echo request, for which FWShift does not know the command of SonicOS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-VPN (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as INSIDE (in): no access list + 5)
+      [needs-review] IOS_PASS: pass lets one direction through; the replies need a pass the other way
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'ip-47': IP protocol 47, for which FWShift does not know the command of SonicOS.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-PING (INSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as INSIDE (in): no access list + 6, INSIDE (in): no access list + 22)
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp_icmp6': ICMP other than echo request, for which FWShift does not know the command of SonicOS.
+  110-40 (LAB to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to INSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to LAB)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to MGMT)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+NAT rules
+  nat-176  ->  needs-review  (emitted as nat-176, nat-176 in)
+      [approximated] NAT_ZONES: the rule applied to traffic from INSIDE, DMZ only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [needs-review] NAT_ZONES: the rule applied to traffic to OUTSIDE only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface. Name them with --interface-map
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a source NAT policy plus policy 'nat-176 in' for the inbound direction
+  nat-177  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from OUTSIDE only. A SonicOS NAT policy matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  nat-178  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface needs one outgoing interface of SonicOS (X1, ...): name it with --interface-map
+
+Services
+  WEB-SVC  ->  exact  (emitted as WEB-SVC, WEB-SVC tcp 80, WEB-SVC tcp 443, WEB-SVC tcp 8000-8010)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'WEB-SVC' of 'WEB-SVC tcp 80', 'WEB-SVC tcp 443', 'WEB-SVC tcp 8000-8010'
+  MAIL-SVC  ->  exact  (emitted as MAIL-SVC, MAIL-SVC tcp 25, MAIL-SVC tcp 587)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'MAIL-SVC' of 'MAIL-SVC tcp 25', 'MAIL-SVC tcp 587'
+  icmp-0  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  icmp-3  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  icmp-11  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  ip-47  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: IP protocol 47, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  icmp-8  ->  exact
+      [info] ICMP_AS_DEFAULT: ICMP echo request is written as the default service 'Ping' of SonicOS, which is taken to be that
+  icmp6-129  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  icmp6-2  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  tcp-53_udp-53  ->  exact  (emitted as tcp-53_udp-53, tcp-53_udp-53 tcp 53, tcp-53_udp-53 udp 53)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'tcp-53_udp-53' of 'tcp-53_udp-53 tcp 53', 'tcp-53_udp-53 udp 53'
+  icmp_icmp6  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
