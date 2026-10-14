@@ -1,0 +1,68 @@
+FWShift conversion report
+  source: terraform-google (vpc-shop)
+  target: terraform-aws
+
+Summary
+  Security rules:     28   exact 25, approximated 0, needs review 1, skipped 2
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] TERRAFORM_MEMBERS: the instances a rule applies to, and that its source tags and service accounts stand for, are those of this state: instances made elsewhere (another state, by hand, a managed instance group) are not known to the converted policy
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: google_compute_security_policy. The converted policy does not hold what they do
+  [needs-review] AWS_RULE_QUOTA: these groups have more rules than the default quota of 60 per direction and IP version; AWS refuses the call that goes over it unless the quota was raised (a group whose addresses are not in the VPC is never attached, and its call can be taken out of the script): fwshift-addresses-3 (339 outbound IPv4), fwshift-addresses-4 (339 outbound IPv4), fwshift-sources-account-app-example-shop.iam.gserviceaccount.com (357 outbound IPv4), fwshift-addresses-5 (354 outbound IPv4), fwshift-addresses-6 (356 outbound IPv4), fwshift-sources-tag-web-ipv6 (129 outbound IPv6)
+  [needs-review] TERRAFORM_LOAD: the output is Terraform configuration (section 10): terraform plan -var vpc_id=... shows what it creates, terraform apply creates new security groups and their rules; a group of the same name in the VPC makes it fail. The groups have no members when it is done: nothing changes until they are attached
+  [needs-review] TERRAFORM_ATTACH: 16 groups: attach each to the network interfaces whose private addresses its '# attach' comment (and the output fwshift_attach) lists, and take the other groups off those interfaces: vpc_security_group_ids of the instances, security_groups of the network interfaces, or aws_network_interface_sg_attachment. A group applies to the whole interface: give the addresses of one interface the same group
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the Google Cloud command line for the same resources: 11 google_compute_firewall, 5 google_compute_instance, 1 google_compute_network, 1 google_compute_network_firewall_policy, 1 google_compute_network_firewall_policy_association, 6 google_compute_network_firewall_policy_rule, 1 google_compute_region_network_firewall_policy, 1 google_compute_region_network_firewall_policy_association, 1 google_compute_region_network_firewall_policy_rule. Resources outside this state (made by hand, or by another state) are not in it
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security group does not. VPC Flow Logs record the connections of the interfaces instead
+
+Security rules
+  db-to-vpc+implied deny ingress  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  db-no-internet (between instances)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  pol-shop:deny-smtp-out (between instances)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  implied allow egress+allow-https-web  ->  exact  (emitted as security groups fwshift-addresses-3, fwshift-addresses-4, fwshift-sources-account-app-example-shop.iam.gserviceaccount.com, fwshift-addresses-5, fwshift-addresses-6)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  implied allow egress+implied deny ingress  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  allow-app-from-web  ->  skipped
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  allow-db-from-app  ->  skipped
+      [info] SHADOWED_BY_DENY: everything the rule allows is blocked by the rules above it; there is nothing to write
+  deny-ssh-blocked  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  allow-https-web  ->  exact  (emitted as security groups fwshift-addresses, fwshift-addresses-2, fwshift-addresses-3, fwshift-addresses-4, fwshift-addresses-7, fwshift-addresses-8, fwshift-addresses-9, fwshift-addresses-10, fwshift-addresses-11)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  allow-https-web-v6  ->  exact  (emitted as security groups fwshift-addresses-ipv6, fwshift-sources-tag-web-ipv6, fwshift-addresses-ipv6-2)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  pol-shop:deny-tor (in)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  implied deny ingress (in)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  deny-egress-doc  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  db-to-vpc  ->  exact  (emitted as security groups fwshift-addresses-2, fwshift-targets-tag-db)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+  db-no-internet  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  pol-shop:deny-smtp-out (out)  ->  exact  (emitted as taken out of the rules below it)
+      [info] ACTION_DROP: action deny: a security group drops what it does not allow, without an answer
+  implied allow egress (out)  ->  needs-review  (emitted as security groups fwshift-addresses, fwshift-addresses-2, fwshift-addresses-3, fwshift-addresses-4, fwshift-sources-account-app-example-shop.iam.gserviceaccount.com, fwshift-addresses-5, fwshift-addresses-6, fwshift-addresses-9, fwshift-addresses-10, fwshift-addresses-11, fwshift-addresses-ipv6, fwshift-sources-tag-web-ipv6, fwshift-addresses-ipv6-2)
+      [info] DENY_SUBTRACTED: a security group cannot block: the rule is written without what the blocking rules above it match
+      [needs-review] AWS_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security group (every protocol but some, a range of source ports, ports of SCTP or many ICMP codes) and is not written; the converted rule allows less
+
+NAT rules
+  external-192.0.2.10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  external-192.0.2.5  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see

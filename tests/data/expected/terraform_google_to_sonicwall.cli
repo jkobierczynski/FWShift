@@ -1,0 +1,84 @@
+configure terminal
+address-object ipv4 "n 10.50.1.10_31" network 10.50.1.10 255.255.255.254 zone LAN
+address-object ipv4 "h 10.50.2.20" host 10.50.2.20 zone LAN
+address-object ipv4 "h 10.50.3.30" host 10.50.3.30 zone LAN
+address-object ipv4 "h 10.50.9.5" host 10.50.9.5 zone LAN
+address-object ipv4 "n 10.60.0.0_24" network 10.60.0.0 255.255.255.0 zone LAN
+address-object ipv6 "h 2001:db8:50:1::10" host 2001:db8:50:1::10 zone LAN
+address-object ipv4 "h 10.50.1.10" host 10.50.1.10 zone LAN
+address-object ipv4 "h 192.0.2.10" host 192.0.2.10 zone LAN
+address-object ipv4 "h 192.0.2.5" host 192.0.2.5 zone LAN
+address-group ipv4 "targets every instance"
+    address-object ipv4 "n 10.50.1.10_31"
+    address-object ipv4 "h 10.50.2.20"
+    address-object ipv4 "h 10.50.3.30"
+    address-object ipv4 "h 10.50.9.5"
+    address-object ipv4 "n 10.60.0.0_24"
+    exit
+address-group ipv6 "targets every instance v6"
+    address-object ipv6 "h 2001:db8:50:1::10"
+    exit
+address-group ipv4 "targets tag:db"
+    address-object ipv4 "h 10.50.3.30"
+    exit
+address-group ipv4 "targets tag:app"
+    address-object ipv4 "h 10.50.2.20"
+    address-object ipv4 "n 10.60.0.0_24"
+    exit
+address-group ipv4 "sources tag:web"
+    address-object ipv4 "n 10.50.1.10_31"
+    exit
+address-group ipv6 "sources tag:web v6"
+    address-object ipv6 "h 2001:db8:50:1::10"
+    exit
+address-group ipv4 "sources account:app@example-shop"
+    address-object ipv4 "h 10.50.2.20"
+    exit
+address-group ipv4 "targets every instance in europe"
+    address-object ipv4 "h 10.50.1.10"
+    address-object ipv4 "h 10.50.2.20"
+    address-object ipv4 "h 10.50.3.30"
+    address-object ipv4 "h 10.50.9.5"
+    address-object ipv4 "n 10.60.0.0_24"
+    exit
+address-group ipv6 "targets every instance in eur v6"
+    address-object ipv6 "h 2001:db8:50:1::10"
+    exit
+service-object "tcp-5432" TCP 5432 5432
+service-object "tcp-22" TCP 22 22
+service-object "tcp-443,8443-8444 tcp 443" TCP 443 443
+service-object "tcp-443,8443-8444 tcp 8443-8444" TCP 8443 8444
+service-group "tcp-443,8443-8444"
+    service-object "tcp-443,8443-8444 tcp 443"
+    service-object "tcp-443,8443-8444 tcp 8443-8444"
+    exit
+service-object "tcp-443" TCP 443 443
+service-object "udp-53" UDP 53 53
+service-object "tcp-9100" TCP 9100 9100
+service-object "udp-53_tcp-53 udp 53" UDP 53 53
+service-object "udp-53_tcp-53 tcp 53" TCP 53 53
+service-group "udp-53_tcp-53"
+    service-object "udp-53_tcp-53 udp 53"
+    service-object "udp-53_tcp-53 tcp 53"
+    exit
+service-object "tcp-all" TCP 1 65535
+service-object "tcp-25" TCP 25 25
+service-object "tcp-80" TCP 80 80
+nat-policy inbound any outbound any source name "h 10.50.1.10" translated-source name "h 192.0.2.10" destination any translated-destination original service any translated-service original
+    name "external-192.0.2.10"
+    comment "external address of instance web"
+    exit
+nat-policy inbound any outbound any source any translated-source original destination name "h 192.0.2.10" translated-destination name "h 10.50.1.10" service any translated-service original
+    name "external-192.0.2.10 in"
+    comment "inbound of external-192.0.2.10"
+    exit
+nat-policy inbound any outbound any source name "h 10.50.9.5" translated-source name "h 192.0.2.5" destination any translated-destination original service any translated-service original
+    name "external-192.0.2.5"
+    comment "external address of instance bas"
+    exit
+nat-policy inbound any outbound any source any translated-source original destination name "h 192.0.2.5" translated-destination name "h 10.50.9.5" service any translated-service original
+    name "external-192.0.2.5 in"
+    comment "inbound of external-192.0.2.5"
+    exit
+commit
+exit

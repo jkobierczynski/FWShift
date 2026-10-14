@@ -8,13 +8,13 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.26.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Terraform for AWS and Azure (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm; write HCL that creates the groups) |
-| Tests | 4938, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
+| Version | 0.27.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
+| Tests | 5146, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a Google Cloud project, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
 | Analysis | the audit, the zone matrix, rule usage from hit counters and logs, the zone and conduit model as a gate (`fwshift conduits`), the equivalence check (`fwshift compare`, `convert --compare`) |
 | Security | an outside review (ChatGPT, October 2026) and the measures taken: `docs/security/SECURITY_REVIEW.md` |
-| Next | the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
+| Next | Cisco IOS (0.28), Huawei USG (0.29), Stormshield (0.30), Cisco Meraki MX (0.31); the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
 
 ## Layout
 
@@ -63,9 +63,14 @@ src/fwshift/
         azure.py      Azure JSON (CLI, REST, template, Resource Graph) -> model
                       (a zone per group; the outbound and inbound lists of
                       two groups composed; templates worked out)
-        terraform.py  Terraform state or plan JSON -> the answers of the AWS or
-                      the Azure CLI, read by aws.py or azure.py (echoes of a
-                      refresh once, unknowns of a plan from the configuration)
+        gcp.py        gcloud JSON for one VPC network -> model (the steps in
+                      Google Cloud's order, goto_next cut out, tags and service
+                      accounts as the addresses of the instances, egress and
+                      ingress composed between instances)
+        terraform.py  Terraform state or plan JSON -> the answers of the AWS
+                      CLI, the Azure CLI or gcloud, read by aws.py, azure.py or
+                      gcp.py (echoes of a refresh once, unknowns of a plan from
+                      the configuration)
         routeros.py   RouterOS /export -> model (interface lists as zones;
                       chains flattened with the conditions of nftables.py,
                       returns taken away exactly; the !dstnat exception)
@@ -106,8 +111,11 @@ src/fwshift/
                       address)
         azure.py      model -> an ARM template (a group per zone, each list in
                       blocks per remote zone, with the default of the source)
+        gcp.py        model -> a gcloud script: one global network firewall
+                      policy, each rule per IP version for ingress and egress
         terraform.py  model -> HCL: the groups of aws.py (a subclass of its
-                      emitter) or of the template of azure.py, as resources
+                      emitter), the template of azure.py or the policy of
+                      gcp.py, as resources
         routeros.py   model -> a script for /import (chains of its own, the
                       jumps to them disabled; NAT through the iptables planner)
     regions.py        sets of connections as boxes (IP version, sources,
@@ -163,7 +171,7 @@ tests/
                       FortiOS logs (and panos_logged.xml), the two
                       Cisco Secure Firewall samples and the SonicWall,
                       WatchGuard, Barracuda and Juniper samples, the nftables
-                      sample (written by nft itself), the NSX, AWS, Azure, RouterOS and OPNsense samples, the zone model,
+                      sample (written by nft itself), the NSX, AWS, Azure, Google Cloud, Terraform, RouterOS and OPNsense samples, the zone model,
                       and the kernel checks for iptables and nftables
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
                       Check Point, ASA, Sophos and Cisco Secure Firewall output;
@@ -187,10 +195,13 @@ tests/
     test_azure.py     Azure both ways: a judge of groups as Azure decides
                       them (two lists in priority order) and a judge of the
                       emitted template
-    test_terraform.py Terraform both ways: random VPCs and groups of test_aws.py
-                      and test_azure.py written as states and plans, against
-                      their judges; the HCL read by a reader of its own and
-                      judged by the script and template judges
+    test_gcp.py       Google Cloud both ways: a judge of a network (the steps,
+                      tags, instances) and a judge of the emitted script
+    test_terraform.py Terraform both ways: random VPCs, groups and networks of
+                      test_aws.py, test_azure.py and test_gcp.py written as
+                      states and plans, against their judges; the HCL read by a
+                      reader of its own and judged by the script and template
+                      judges
     test_routeros.py  RouterOS both ways: a judge that walks filter chains as
                       the router does, for random exports and for the script
     test_checkpoint.py Check Point both ways, with simulators for an export
@@ -651,6 +662,9 @@ there for an old tag whose tests no longer run on today's tools.
 | Terraform: what a plan does not know is worked out from the configuration, or not converted | An id that is not known yet still names one resource, and the configuration says which: the address stands for it, and two references to it agree. Anything else (a variable, a data source, a dynamic block) could be any value, so what holds it is not converted rather than guessed. |
 | Terraform: a separate rule resource wins over the inline copy of it | After a refresh both say the same; where they differ, the state is stale, and the separate resource is what Terraform will make true. Said, not silently chosen. |
 | Terraform output is plain HCL for a root module, new resources only | An apply then fails on a name that exists instead of adopting or replacing it (AWS refuses a duplicate group; azurerm a resource it does not manage). Attaching the groups is a change to resources the output does not know, as for the CLI targets. |
+| Google Cloud: one list without zones, egress and ingress composed between instances | A connection between two instances passes the egress rules of the sender and the ingress rules of the receiver, each list with its own steps. The model has one first-match list: from outside the ingress rules, to outside the egress rules, and between instances the egress rules that deny, then for each that allows the ingress rules cut to it, as for AWS and Azure. |
+| Google Cloud: `goto_next` becomes the rules below it without what it matches | It leaves the policy for the next step, which in one list is "the rules after this policy". Subtracting its match from the rules below it in the same policy says exactly that; when that cannot be worked out, the rules after it are not converted. |
+| Google Cloud output is a new global policy, associated with nothing | Creating it changes no traffic; associating it, and putting it before the VPC rules, are two changes a person makes after reading the report. Each rule is written for ingress and egress, so a connection between instances meets the model's verdict at both ends. |
 | Standard library only | Runs on a bare RHEL box and is easy to audit. |
 | GPL-3.0-or-later | Copyleft: changes to a tool that rewrites security policy stay open to inspection. |
 
@@ -765,6 +779,11 @@ policy behaves unexpectedly.
 | `terraform show -json`: format version 1; resources with `address`, `mode`, `type`, `name`, `index`, `values`, `deposed_key`; child modules; a plan's `planned_values` without unknown values (unknown list elements null), `resource_changes` with `actions`, `before` and `after_unknown`, `configuration` with `references` and `constant_value`, nested blocks as lists; `errored` and `complete` | Terraform parser |
 | A refresh fills the inline `ingress`/`egress` of an `aws_security_group`, the `security_rule` of an `azurerm_network_security_group` and the `subnet_ids` of an `aws_network_acl` from the cloud, so that they repeat the separate resources; Terraform takes away the outbound rule AWS gives a new group (and the rules of a default group) unless declared | Terraform parser |
 | The protocols of a rule as the providers keep them (names or numbers, `-1`, `all` for `aws_security_group_rule`); ports `0`/`0` or null for every protocol; ICMP type and code in `from_port` and `to_port`; Azure fields `""` and `[]` where not used, protocol names `Tcp`, `Udp`, `Icmp`, `Esp`, `Ah`, `*` | Terraform parser and emitter |
+| Google Cloud, all rows below: from Google's Compute Engine API reference (`Firewall`, `FirewallPolicy`, `FirewallPolicyRule`, `Network`, `Instance`), the documentation of VPC firewall rules, network and hierarchical firewall policies and the gcloud reference; nothing was run against a project | Google Cloud parser and emitter |
+| Order: hierarchical policies, regional system policies, then with `AFTER_CLASSIC_FIREWALL` (the default) the VPC firewall rules, the global network policy, the regional network policy, and the implied rules (ingress to an instance denied, egress allowed); `BEFORE_CLASSIC_FIREWALL` puts the two network policies before the VPC rules. A step that matches nothing goes to the next | Google Cloud parser and emitter |
+| VPC firewall rules: lowest priority number first, a deny before an allow of the same priority; an ingress rule without a source is `0.0.0.0/0` (taken as every address of the rule's IP version); target and source tags match primary internal addresses; source ranges and tags are ORed; one IP version per rule; protocol `all`, numbers, ICMPv6 as `58`; no ICMP types, no source ports | Google Cloud parser and emitter |
+| Network firewall policies: priorities unique per policy, user rules 0 to 2147483547, Google's `goto_next` rules after; one global policy per network; a rule needs a source (ingress) or destination (egress); `goto_next`; target service accounts, secure tags (ineffective ones ignore the rule); the match kinds that need Google's data (FQDN, geography, threat intelligence, address groups, network context) | Google Cloud parser and emitter |
+| `get-effective-firewalls`: `firewalls` and `firewallPolicys` with `type` (`HIERARCHY`, `NETWORK`, `NETWORK_REGIONAL`, `SYSTEM_*`) and `rules`; hashicorp/google 5 and later for `google_compute_network_firewall_policy_rule` (major version 8 when written) | Google Cloud parser, Terraform emitter |
 | `aws_vpc_security_group_ingress_rule` and `_egress_rule` take ports for TCP, UDP, ICMP and ICMPv6 only; a group of the same name in the VPC fails the apply; azurerm refuses to create a resource that exists and is not in the state; azurerm 4 needs a subscription id | Terraform emitter |
 
 ## Development log
@@ -2075,6 +2094,90 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-14: version 0.27.0
+
+The second of the two releases asked for after Forcepoint: **Google Cloud**, its VPC firewall rules and network
+firewall policies, both ways, and its Terraform resources (`terraform-google`).
+
+**Built**
+
+* `parsers/gcp.py`: the JSON of gcloud for one VPC network (`firewall-rules list`, `network-firewall-policies describe`
+  global and regional, `networks describe`, `instances list`), in one object, an array or alone; also the answer of
+  `networks get-effective-firewalls` and hierarchical policies (`firewall-policies describe`). The steps in Google
+  Cloud's order (hierarchical, system, then the VPC rules and the network policies in the enforcement order of the
+  network, then the implied rules); VPC rules by priority with a deny first at a tie; policy rules by priority, with
+  `goto_next` cut out of the rules below it; targets (tags, service accounts, regions of a regional policy) and source
+  tags as the addresses of the instances; egress and ingress composed between instances; external addresses as static
+  NAT. What the export does not resolve (secure tags, address groups, FQDN, geography, threat intelligence, network
+  context) makes its rule not converted.
+* `emitters/gcp.py`: a shell script of gcloud commands (`DRY_RUN`, `GCLOUD_OPTS`, stops on a policy of the same name)
+  that creates one global network firewall policy, associated with nothing: each rule of the model per IP version for
+  ingress and egress, at priorities from 1000 in steps of 10, ending in the default of the source. Zones become the
+  networks of `--zone-network`, as for NSX. ICMP types and source ports cannot be written: left out of an allow rule,
+  widened in a blocking one.
+* `terraform-google`: `parsers/terraform.py` turns `google_compute_firewall`, `google_compute_network`, the global and
+  regional network firewall policies (with their rule, association and `_with_rules` resources) and
+  `google_compute_instance` into the answers of gcloud, which `parsers/gcp.py` reads; what a plan does not know is
+  handed on by name (`fwshiftUnknown`). `emitters/terraform.py` writes the policy of the gcp emitter as a
+  `google_compute_network_firewall_policy` and its `_rule` resources.
+* `--from` and `--to gcp` and `terraform-google`, detection, `--policy` for the network; the samples (`gcp_sample.json`
+  by `tests/tools/make_gcp_sample.py`, `terraform_google_sample.json` by `make_terraform_samples.py`), 96 golden
+  conversions, their audit and matrix.
+
+**What the work made necessary**
+
+* *Two lists per connection.* As for AWS and Azure, a connection between two instances passes two lists. Google Cloud
+  adds steps within each list, so each list is first flattened (steps, `goto_next`), then the two are composed.
+* *`goto_next` as subtraction.* It is the one action a first-match list has no word for; the rules after it in its
+  policy, less what it matches, say the same. Where the subtraction gets too complex, the rules after it are not
+  converted rather than guessed.
+* *A judge of its own.* `test_gcp.py` decides packets from the gcloud JSON directly (steps, tags, instances, regions,
+  external addresses), sharing no code with the parser; a second judge reads the emitted script.
+
+**Review**
+
+*Round 35* by the independent reviewer, with probe scripts.
+
+| | Finding | Fix |
+|---|---|---|
+| high | The answer of `get-effective-firewalls` lost its policies (`firewallPolicys`) | read: hierarchical and system policies first (`GCP_EFFECTIVE`) |
+| high | terraform-google: regional policies of one name in different regions were merged, their rules mixed | named by region and name; a name several regions have, without a region, is not read and said (`TERRAFORM_POLICY_AMBIGUOUS`) |
+| medium | Target or source tags and service accounts a plan does not know became a text that names no instance: a deny vanished | handed on as not known: the rule is not converted; so is a tag rule while an instance's tags are not known |
+| medium | A hierarchical policy was left out as not associated with the network | read as the first step (`GCP_HIERARCHICAL_READ`); its rules for other networks (`targetResources`) left out |
+| medium | The emitter's limit on address ranges could write the IPv4 half of a rule and refuse the IPv6 half, and counted intervals, not ranges | checked first, for both versions, in ranges |
+| low | Services the model cannot name after the rules above made a rule vanish | the rule is written not converted |
+| low | `null` or empty entries in lists of ranges, tags and ports were left out: a list could become any | never any: the rule is not converted |
+| low | A rule that applies to no instance vanished without a word | skipped and said (`GCP_NO_INSTANCE`) |
+| low | The network was named from the policies before the VPC rules | VPC rules first |
+| low | Docstrings of the Terraform files named AWS and Azure only | updated |
+
+Acted on as well, from the reviewer's open questions: an ingress rule without a source whose destination ranges are
+IPv6 is every IPv6 address (and an egress rule without a destination likewise), in the parser and in the judge; a
+`disabled` that is neither true nor false makes the rule not converted; a policy without its rules (the answer of
+`list`) is said (`GCP_POLICY_WITHOUT_RULES`).
+
+The fixes were not reviewed again; they have tests (`test_r35_*` in `test_gcp.py` and `test_terraform.py`).
+
+**Verified, and not**
+
+* The tests: 83 in `test_gcp.py`, 146 in `test_terraform.py`, the suite 5146. The parser against the judge:
+  250 random networks (VPC rules of both directions with tags, service accounts, ranges of both versions, disabled
+  rules; global and regional policies with `goto_next`; instances in several regions with IPv6, alias ranges and
+  external addresses), 300 packets each, and the sample with 5,000; the same networks as Terraform states and raw
+  states (100); the emitter against the model through the script judge: 65 random models, exactly where no narrowing
+  finding is raised and never allowing more where one is; the HCL of terraform-google likewise (25).
+* A mutation check with 47 ways to break the parsers and the emitter: 38 caught at first; tests were added for 7 of
+  the other 9, which catch them (ports on ICMP, source tags while an instance's tags are not known, a policy rule
+  without a source, `goto_next` cut and not worked out, a regional policy without a region, a policy rule whose
+  `disabled` a plan does not know); the random judge test was widened, as the cut of `goto_next` mattered in few of its
+  packets. The last 2 change nothing an input can show: Google's own rules sit at the end of a policy (from
+  2147483644), so reading a few priorities more of the reserved range finds none; and no input of the tests leaves
+  services after the cuts that the model cannot name.
+* **Not verified**: no gcloud command of a script was run, no Terraform has read the output, and no export of a real
+  project was read: the inputs were written from Google's API reference and documentation. The order of the steps, what
+  a tag matches, the default source of a rule and the shape of the answers are taken from there; the tests rest on the
+  same reading.
 
 ### 2026-10-14: version 0.26.0
 

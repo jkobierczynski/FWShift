@@ -1,0 +1,97 @@
+FWShift conversion report
+  source: gcp (vpc-shop)
+  target: pfsense
+
+Summary
+  Security rules:     28   exact 0, approximated 0, needs review 1 (1 emitted disabled), skipped 27
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] PFSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of a pfSense configuration. Under Diagnostics > Backup & Restore, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every rule, every alias, every NAT rule that is there now is gone, with the separators, the rules pfSense linked to port forwards and the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. There is no NAT area in the file: the NAT of the firewall stays as it is. Keep a backup, and look at the rules before anything depends on them: pfSense does not check what it restores, and a rule it cannot resolve is not loaded. Written for pfSense 2.7 and later
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+
+Security rules
+  db-to-vpc+allow-https-web  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  db-to-vpc+implied deny ingress  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  db-no-internet (between instances)  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  pol-shop:deny-smtp-out (between instances)  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  implied allow egress+allow-app-from-web  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  implied allow egress+allow-db-from-app  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  implied allow egress+allow-https-web  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  implied allow egress+allow-https-web-v6  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  implied allow egress+implied deny ingress  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  allow-app-from-web  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  allow-db-from-app  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  deny-ssh-blocked  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  allow-https-web  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  allow-https-web-v6  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  old-dns  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  allow-ssh-admins  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  allow-mgmt-v6  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  pol-shop:deny-tor (in)  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  pol-shop:allow-monitoring (in)  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  pol-shop:geo-and-fqdn (in)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: matches srcFqdns, srcRegionCodes, which the export does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  pol-ew1:allow-lb-health (in)  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  implied deny ingress (in)  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  deny-egress-doc  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  db-to-vpc  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  db-no-internet  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  pol-shop:allow-dns-out (out)  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  pol-shop:deny-smtp-out (out)  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  implied allow egress (out)  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+
+NAT rules
+  external-192.0.2.10  ->  skipped
+      [needs-review] NAT_INTERFACE: the rule names no zone its outside address lies in: name the interface with --target-nat-zone
+  external-192.0.2.5  ->  skipped
+      [needs-review] NAT_INTERFACE: the rule names no zone its outside address lies in: name the interface with --target-nat-zone
+
+Address groups
+  targets every instance  ->  exact  (emitted as targets_every_instance)
+      [info] RENAMED: renamed to 'targets_every_instance' to fit the target's naming rules
+  targets tag:db  ->  exact  (emitted as targets_tag_db)
+      [info] RENAMED: renamed to 'targets_tag_db' to fit the target's naming rules
+  targets tag:app  ->  exact  (emitted as targets_tag_app)
+      [info] RENAMED: renamed to 'targets_tag_app' to fit the target's naming rules
+  sources tag:web  ->  exact  (emitted as sources_tag_web)
+      [info] RENAMED: renamed to 'sources_tag_web' to fit the target's naming rules
+  sources account:app@example-shop.iam.gserviceaccount.com  ->  exact  (emitted as sources_account_app_example_sho)
+      [info] RENAMED: renamed to 'sources_account_app_example_sho' to fit the target's naming rules
+  targets every instance in europe-west1  ->  exact  (emitted as targets_every_instance_in_europ)
+      [info] RENAMED: renamed to 'targets_every_instance_in_europ' to fit the target's naming rules

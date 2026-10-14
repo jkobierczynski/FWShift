@@ -2,7 +2,7 @@
 # Copyright (C) 2026 Jurgen Kobierczynski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Terraform parser: the resources of a Terraform state or plan -> neutral model, for the AWS and the Azure provider.
+"""Terraform parser: the resources of a Terraform state or plan -> neutral model, for the AWS, the Azure and the Google provider.
 
 What is read: the JSON of ``terraform show -json`` (of the state, or of a saved plan) and the raw state of
 ``terraform state pull`` (``terraform.tfstate``, version 4). Of the resources of the provider asked for:
@@ -14,10 +14,14 @@ What is read: the JSON of ``terraform show -json`` (of the state, or of a saved 
 * Azure (hashicorp/azurerm): ``azurerm_network_security_group`` with its inline rules, ``azurerm_network_security_rule``,
   the associations of a group with subnets and network interfaces, application security groups and their associations,
   ``azurerm_network_interface``, ``azurerm_subnet``, ``azurerm_virtual_network`` (with inline subnets) and its peerings.
+* Google Cloud (hashicorp/google): ``google_compute_firewall``, ``google_compute_network`` (the enforcement order), the
+  global and regional network firewall policies (``google_compute_network_firewall_policy``, ``_rule``,
+  ``_association``, ``_with_rules`` and their ``region_`` forms) and ``google_compute_instance``. A regional policy is
+  named by its region and its name.
 
 The resources are turned into the answers the cloud's own CLI gives for the same things (``describe-security-groups``
-and the others for AWS, ``az network nsg list`` and the others for Azure), and those are read by the parser of that
-cloud: what the AWS and the Azure parsers say about how the cloud decides holds here as well.
+and the others for AWS, ``az network nsg list`` and the others for Azure, ``gcloud compute firewall-rules list`` and the
+others for Google Cloud), and those are read by the parser of that cloud: what the AWS, Azure and Google Cloud parsers say about how the cloud decides holds here as well.
 
 What Terraform adds:
 
@@ -26,7 +30,8 @@ What Terraform adds:
 * A group Terraform created has no outbound rule unless one is declared: Terraform takes away the one AWS adds. The
   state says so (the group has no outbound rule), and so does the model.
 * A plan does not know what is not created yet: an id that is not known is the address of the resource, from the
-  references of the configuration; what cannot be worked out that way is not read, and said.
+  references of the configuration; what cannot be worked out that way is not read, and said. For Google Cloud the
+  attributes not known are handed on by name (``fwshiftUnknown``), and the rules they touch are not converted.
 * The members of a security group are the interfaces and instances of this state; others are not known.
 """
 
@@ -43,13 +48,20 @@ from ..model import Policy
 from ..report import Report, Severity
 from . import aws as parse_aws
 from . import azure as parse_azure
+from . import gcp as parse_gcp
 
 _AWS_GROUPS = ("aws_security_group", "aws_default_security_group")
 _AWS_RULES = ("aws_security_group_rule", "aws_vpc_security_group_ingress_rule", "aws_vpc_security_group_egress_rule")
 _AWS_ACLS = ("aws_network_acl", "aws_default_network_acl")
+_GOOGLE = ("google_compute_firewall", "google_compute_network_firewall_policy", "google_compute_region_network_firewall_policy",
+           "google_compute_network_firewall_policy_with_rules", "google_compute_region_network_firewall_policy_with_rules",
+           "google_compute_network_firewall_policy_rule", "google_compute_region_network_firewall_policy_rule")  # fmt: skip
+_AZURE = ("azurerm_network_security_group", "azurerm_network_security_rule")
+_PROVIDERS = {"aws": "AWS", "azure": "Azure", "google": "Google Cloud"}
 # Resource types that filter traffic and are not read: said, so that nobody takes the conversion for all of it.
 _NOT_READ = re.compile(r"^(aws_networkfirewall_|aws_wafv2?_|aws_shield|aws_lb_listener_rule|azurerm_firewall|azurerm_web_application_firewall"
-                       r"|azurerm_network_manager_|aws_vpc_security_group_vpc_association|aws_route53_resolver_firewall_)")  # fmt: skip
+                       r"|azurerm_network_manager_|aws_vpc_security_group_vpc_association|aws_route53_resolver_firewall_|google_compute_firewall_policy"
+                       r"|google_compute_security_policy|google_compute_organization_security_policy|google_network_security_)")  # fmt: skip
 _PROTOCOL_NAMES = {"tcp": "tcp", "udp": "udp", "icmp": "icmp", "icmpv6": "icmpv6", "icmp6": "icmpv6", "-1": "-1", "all": "-1",
                    "6": "tcp", "17": "udp", "1": "icmp", "58": "icmpv6", "esp": "50", "ah": "51", "gre": "47", "sctp": "132"}  # fmt: skip
 _ACL_PROTOCOLS = {"tcp": "6", "udp": "17", "icmp": "1", "icmpv6": "58", "icmp6": "58", "all": "-1", "-1": "-1", "esp": "50", "ah": "51",
@@ -71,7 +83,7 @@ def looks_like_terraform(data: bytes) -> bool:
 
 
 def providers_of(data: bytes) -> Set[str]:
-    """Which of the providers FWShift reads the input holds firewall resources of: "aws", "azure"."""
+    """Which of the providers FWShift reads the input holds firewall resources of: "aws", "azure", "google"."""
     out: Set[str] = set()
     managed = rb'"mode"\s*:\s*"managed"\s*,\s*"type"\s*:\s*"'  # (a resource, not a data source: Terraform writes the mode first)
     if re.search(managed + rb'(aws_security_group|aws_default_security_group|aws_network_acl|aws_default_network_acl'
@@ -79,6 +91,8 @@ def providers_of(data: bytes) -> Set[str]:
         out.add("aws")
     if re.search(managed + rb'(azurerm_network_security_group|azurerm_network_security_rule)"', data):
         out.add("azure")
+    if re.search(managed + rb'(google_compute_firewall|google_compute_(?:region_)?network_firewall_policy(?:_rule|_with_rules)?)"', data):
+        out.add("google")
     return out
 
 
@@ -260,6 +274,16 @@ _KNOWN_ATTRIBUTES: Dict[str, Tuple[str, ...]] = {
     "azurerm_network_interface_application_security_group_association": ("network_interface_id", "application_security_group_id"),
     "azurerm_network_interface": ("id", "ip_configuration"), "azurerm_subnet": ("id", "address_prefixes"),
     "azurerm_virtual_network": ("id", "subnet"), "azurerm_virtual_network_peering": ("remote_virtual_network_id",),
+    "google_compute_firewall": ("network", "direction", "priority", "allow", "deny", "source_ranges", "destination_ranges", "source_tags",
+                                "target_tags", "source_service_accounts", "target_service_accounts", "disabled"),
+    "google_compute_network_firewall_policy_rule": ("firewall_policy", "priority", "direction", "action", "match", "target_service_accounts",
+                                                    "disabled"),
+    "google_compute_region_network_firewall_policy_rule": ("firewall_policy", "priority", "direction", "action", "match", "target_service_accounts",
+                                                           "disabled", "region"),
+    "google_compute_network_firewall_policy_association": ("firewall_policy", "attachment_target"),
+    "google_compute_region_network_firewall_policy_association": ("firewall_policy", "attachment_target", "region"),
+    "google_compute_network_firewall_policy_with_rules": ("rule",), "google_compute_region_network_firewall_policy_with_rules": ("rule", "region"),
+    "google_compute_region_network_firewall_policy": ("region",), "google_compute_instance": ("network_interface", "tags", "service_account"),
 }  # fmt: skip
 
 
@@ -273,21 +297,27 @@ def parse(data: bytes, report: Report, provider: str = "", vpc: str = "") -> Pol
     try:
         state = _State(document)
         found = {i.type for i in state.instances}
+        wanted = {"aws": set(_AWS_GROUPS + _AWS_RULES + _AWS_ACLS), "azure": set(_AZURE), "google": set(_GOOGLE)}
         if not provider:
-            held = ({"aws"} if found & set(_AWS_GROUPS + _AWS_RULES + _AWS_ACLS) else set()) | \
-                ({"azure"} if found & {"azurerm_network_security_group", "azurerm_network_security_rule"} else set())  # fmt: skip
+            held = {name for name, kinds in wanted.items() if found & kinds}
             if len(held) != 1:
-                raise ParseError(f"the {state.kind} holds resources of AWS and of Azure: read it with --from terraform-aws or --from "
-                                 "terraform-azure" if held else f"the {state.kind} holds no security groups (AWS) or network security groups (Azure)")  # fmt: skip
+                raise ParseError(f"the {state.kind} holds resources of " + " and of ".join(_PROVIDERS[h] for h in sorted(held))
+                                 + ": read it with --from terraform-aws, terraform-azure or terraform-google" if held else
+                                 f"the {state.kind} holds no security groups (AWS), network security groups (Azure) or firewall rules "
+                                 "(Google Cloud)")  # fmt: skip
             provider = held.pop()
-        wanted = {"aws": set(_AWS_GROUPS + _AWS_RULES), "azure": {"azurerm_network_security_group", "azurerm_network_security_rule"}}
+        wanted["aws"] = set(_AWS_GROUPS + _AWS_RULES)
         if not found & wanted.get(provider, set()):
-            raise ParseError(f"the {state.kind} holds no " + ("security groups or security group rules of AWS" if provider == "aws" else
-                             "network security groups or rules of Azure"))  # fmt: skip
+            raise ParseError(f"the {state.kind} holds no " + {"aws": "security groups or security group rules of AWS",
+                                                               "azure": "network security groups or rules of Azure",
+                                                               "google": "firewall rules or network firewall policies of Google Cloud"}[provider])  # fmt: skip
         reader = _Reader(state, report, vpc)
-        answers = reader.aws() if provider == "aws" else reader.azure()
-        body = json.dumps(answers).encode("utf-8")
-        policy = parse_aws.parse(body, report) if provider == "aws" else parse_azure.parse(body, report)
+        if provider == "google":
+            policy = parse_gcp.parse(json.dumps(reader.google()).encode("utf-8"), report, network=vpc)
+        else:
+            answers = reader.aws() if provider == "aws" else reader.azure()
+            body = json.dumps(answers).encode("utf-8")
+            policy = parse_aws.parse(body, report) if provider == "aws" else parse_azure.parse(body, report)
         reader.notes(provider)
         return policy
     except ParseError:
@@ -318,6 +348,11 @@ def _list(value: Any) -> List[Any]:
 def _text(value: Any) -> str:
     """A text value, or "" for one that is not text or not known."""
     return value.strip() if isinstance(value, str) and not isinstance(value, _Unknown) else ""
+
+
+def _last(value: Any) -> str:
+    """The last part of a self link or an id (its name), or "" for one that is not text or not known."""
+    return _text(value).rstrip("/").rsplit("/", 1)[-1]
 
 
 def _int(value: Any) -> Optional[int]:
@@ -353,6 +388,12 @@ _BLOCK_KEYS: Dict[Tuple[str, str], Tuple[str, ...]] = {
         "destination_address_prefixes", "source_application_security_group_ids", "destination_application_security_group_ids"),
     ("azurerm_network_interface", "ip_configuration"): ("subnet_id",),
     ("azurerm_virtual_network", "subnet"): ("name", "address_prefixes"),
+    ("google_compute_firewall", "allow"): ("protocol",), ("google_compute_firewall", "deny"): ("protocol",),
+    ("google_compute_network_firewall_policy_rule", "match"): ("layer4_configs",),
+    ("google_compute_region_network_firewall_policy_rule", "match"): ("layer4_configs",),
+    ("google_compute_network_firewall_policy_with_rules", "rule"): ("priority", "direction", "action", "match"),
+    ("google_compute_region_network_firewall_policy_with_rules", "rule"): ("priority", "direction", "action", "match"),
+    ("google_compute_instance", "network_interface"): ("network",),
 }  # fmt: skip
 _ATTRIBUTE = re.compile(r"^(?P<head>.+)\.(?P<attr>[a-z_][a-z0-9_]*)$")
 
@@ -412,7 +453,7 @@ class _Reader:
             if found is None or target is None:
                 return None
             attribute = found.group("attr")
-            if attribute == "id":
+            if attribute == "id" or (attribute in ("self_link", "self_link_with_id") and (attribute not in target.values or attribute in target.unknown)):
                 value: Any = self.ident[target.address]
             elif attribute in target.values and attribute not in target.unknown:
                 value = target.values[attribute]
@@ -1037,6 +1078,224 @@ class _Reader:
 
         return plain(one) == plain(other)
 
+    # -- Google Cloud ----------------------------------------------------------------------------
+
+    def _network_name(self, value: Any) -> str:
+        """The name of the network a value names: a self link, an id, a name, or (in a plan) the address of its resource."""
+        text = _text(value)
+        if not text:
+            return ""
+        for instance in self.state.instances:
+            if instance.type == "google_compute_network" and text in (instance.address, instance.base, self.ident[instance.address],
+                                                                      _text(instance.values.get("self_link"))):  # fmt: skip
+                return _text(instance.values.get("name")) or text.rstrip("/").rsplit("/", 1)[-1]
+        return text.rstrip("/").rsplit("/", 1)[-1]
+
+    @staticmethod
+    def _gcp_l4(blocks: Any, key: str = "protocol") -> List[Dict[str, Any]]:
+        out = []
+        for block in _list(blocks):
+            if not isinstance(block, dict):
+                continue
+            protocol = block.get(key)
+            item: Dict[str, Any] = {"IPProtocol" if key == "protocol" else "ipProtocol": protocol if protocol is not _UNKNOWN else "(not known)"}
+            ports = block.get("ports")
+            if ports is _UNKNOWN:
+                item["ports"] = ["(not known)"]
+            elif _list(ports):
+                item["ports"] = [str(p) for p in _list(ports)]
+            out.append(item)
+        return out
+
+    def _gcp_match(self, block: Dict[str, Any], singular: bool = False) -> Dict[str, Any]:
+        match: Dict[str, Any] = {}
+        for snake, camel in (("src_ip_ranges", "srcIpRanges"), ("dest_ip_ranges", "destIpRanges"), ("src_fqdns", "srcFqdns"),
+                             ("dest_fqdns", "destFqdns"), ("src_region_codes", "srcRegionCodes"), ("dest_region_codes", "destRegionCodes"),
+                             ("src_threat_intelligences", "srcThreatIntelligences"), ("dest_threat_intelligences", "destThreatIntelligences"),
+                             ("src_address_groups", "srcAddressGroups"), ("dest_address_groups", "destAddressGroups"),
+                             ("src_networks", "srcNetworks")):  # fmt: skip
+            value = block.get(snake)
+            if value is _UNKNOWN:
+                match[camel] = ["(not known)"]
+                if camel.endswith("IpRanges"):
+                    match.setdefault("srcFqdns" if camel.startswith("src") else "destFqdns", []).append("(not known)")
+            elif _list(value):
+                match[camel] = [str(v) for v in _list(value)]
+        tags = block.get("src_secure_tag" if singular else "src_secure_tags")
+        if _list(tags):
+            match["srcSecureTags"] = [{"name": _text(t.get("name")) if isinstance(t, dict) else "?"} for t in _list(tags)]
+        for snake, camel in (("src_network_context", "srcNetworkContext"), ("dest_network_context", "destNetworkContext"),
+                             ("src_network_type", "srcNetworkType"), ("dest_network_type", "destNetworkType")):  # fmt: skip
+            if block.get(snake) not in (None, ""):
+                match[camel] = "(not known)" if block.get(snake) is _UNKNOWN else str(block.get(snake))
+        match["layer4Configs"] = self._gcp_l4(block.get("layer4_config" if singular else "layer4_configs"), "ip_protocol")
+        return match
+
+    def _gcp_rule(self, values: Dict[str, Any], singular: bool = False) -> Dict[str, Any]:
+        matches = [m for m in _list(values.get("match")) if isinstance(m, dict)]
+        rule: Dict[str, Any] = {"kind": "compute#firewallPolicyRule", "priority": values.get("priority") if values.get("priority") is not _UNKNOWN else None,
+                                "direction": values.get("direction"), "action": values.get("action"),
+                                "match": self._gcp_match(matches[0], singular) if len(matches) == 1 else {"layer4Configs": []},
+                                "disabled": values.get("disabled") is True, "enableLogging": values.get("enable_logging") is True,
+                                "ruleName": _text(values.get("rule_name")), "description": _text(values.get("description"))}  # fmt: skip
+        unknown = [key for key in ("direction", "action", "disabled", "target_service_accounts") if values.get(key) is _UNKNOWN]
+        for key in ("direction", "action"):
+            if rule[key] is _UNKNOWN:
+                rule[key] = "(not known)"
+        if unknown:
+            rule["fwshiftUnknown"] = unknown
+        accounts = values.get("target_service_accounts")
+        if accounts is _UNKNOWN:
+            pass
+        elif _list(accounts):
+            rule["targetServiceAccounts"] = [str(a) for a in _list(accounts)]
+        tags = values.get("target_secure_tag" if singular else "target_secure_tags")
+        if _list(tags):
+            rule["targetSecureTags"] = [{"name": _text(t.get("name")) if isinstance(t, dict) else "?", "state": _text(t.get("state")) or "EFFECTIVE"}
+                                        if isinstance(t, dict) else {"name": "?"} for t in _list(tags)]  # fmt: skip
+        if values.get("target_type") not in (None, ""):
+            rule["targetType"] = str(values.get("target_type"))
+        return rule
+
+    def google(self) -> Dict[str, Any]:
+        networks = []
+        for instance in self.of("google_compute_network"):
+            order = instance.values.get("network_firewall_policy_enforcement_order")
+            networks.append({"kind": "compute#network", "name": _text(instance.values.get("name")) or instance.address,
+                             "networkFirewallPolicyEnforcementOrder": _text(order) or "AFTER_CLASSIC_FIREWALL"})  # fmt: skip
+        firewalls = []
+        for instance in self.of("google_compute_firewall"):
+            values = self.resolved(instance, _KNOWN_ATTRIBUTES["google_compute_firewall"])
+            rule: Dict[str, Any] = {"kind": "compute#firewall", "name": _text(values.get("name")) or instance.address,
+                                    "network": self._network_name(values.get("network")) or "default",
+                                    "direction": _text(values.get("direction")) or "INGRESS", "disabled": values.get("disabled") is True,
+                                    "description": _text(values.get("description")),
+                                    "logConfig": {"enable": bool(_list(values.get("log_config")))}}  # fmt: skip
+            priority = values.get("priority")
+            rule["priority"] = priority if isinstance(priority, int) else (1000 if priority is None else "(not known)")
+            unknown = [key for key in ("direction", "disabled", "network") if values.get(key) is _UNKNOWN]
+            for key, camel in (("allow", "allowed"), ("deny", "denied")):
+                found = self.blocks(instance, key)
+                if found is None:
+                    rule[camel] = [{"IPProtocol": "(not known)"}]
+                elif found:
+                    rule[camel] = self._gcp_l4(found)
+            for snake, camel in (("source_ranges", "sourceRanges"), ("destination_ranges", "destinationRanges"), ("source_tags", "sourceTags"),
+                                 ("target_tags", "targetTags"), ("source_service_accounts", "sourceServiceAccounts"),
+                                 ("target_service_accounts", "targetServiceAccounts")):  # fmt: skip
+                value = values.get(snake)
+                if value is _UNKNOWN:
+                    unknown.append(snake)  # (never a text that names no instance: a deny would match nothing)
+                elif any(isinstance(v, _Unknown) for v in _list(value)):
+                    unknown.append(snake)
+                elif _list(value):
+                    rule[camel] = [v if isinstance(v, str) else json.dumps(v) for v in _list(value)]
+            if unknown:
+                rule["fwshiftUnknown"] = unknown
+            firewalls.append(rule)
+        policies: Dict[str, Dict[str, Any]] = {}
+        unique: Dict[str, str] = {}  # addresses, self links and ids of policies -> their key
+        named: Dict[Tuple[str, str], List[str]] = {}  # (region, or "" for a global policy; name) -> keys
+        for kind in ("google_compute_network_firewall_policy", "google_compute_region_network_firewall_policy",
+                     "google_compute_network_firewall_policy_with_rules", "google_compute_region_network_firewall_policy_with_rules"):  # fmt: skip
+            for instance in self.of(kind):
+                name = _text(instance.values.get("name")) or instance.address
+                key = instance.address
+                policy: Dict[str, Any] = {"kind": "compute#firewallPolicy", "name": name, "rules": [], "associations": []}
+                region = ""
+                if "region" in kind:
+                    region = _last(instance.values.get("region")) or "(not known)"
+                    policy["region"] = region
+                    if region == "(not known)":
+                        policy["fwshiftUnknown"] = ["region"]
+                policies[key] = policy
+                named.setdefault((region, name), []).append(key)
+                for alias in (instance.address, instance.base, self.ident[instance.address], _text(instance.values.get("self_link")),
+                              _text(instance.values.get("network_firewall_policy_id")), _text(instance.values.get("region_network_firewall_policy_id"))):  # fmt: skip
+                    if alias:
+                        unique.setdefault(alias, key)
+                if kind.endswith("_with_rules"):
+                    found = self.blocks(instance, "rule")
+                    if found is None:
+                        policy["rules"].append({"priority": 0, "direction": "INGRESS", "action": "(not known)", "match": {"layer4Configs": []}})
+                    for block in found or []:
+                        policy["rules"].append(self._gcp_rule(block, singular=True))
+
+        def owner_of(values: Dict[str, Any], regional: bool) -> Optional[str]:
+            """The policy a rule or an association names: by its address, self link or id, else by its name (and region)."""
+            owner = _text(values.get("firewall_policy"))
+            if owner in unique:
+                return unique[owner]
+            name = _last(owner)
+            if regional:
+                region = _last(values.get("region"))
+                found = [k for (r, n), ks in named.items() if r and n == name and (not region or r in (region, "(not known)")) for k in ks]
+            else:
+                found = named.get(("", name), [])
+            if len(found) > 1:
+                self.report.note(Severity.REVIEW, "TERRAFORM_POLICY_AMBIGUOUS",
+                                 f"a rule or an association names network firewall policy {name[:60]}, and the {self.state.kind} holds "
+                                 "several of that name (in different regions): it is not read")  # fmt: skip
+                return ""
+            return found[0] if found else unique.get(name)
+        for kind in ("google_compute_network_firewall_policy_rule", "google_compute_region_network_firewall_policy_rule"):
+            for instance in self.of(kind):
+                values = self.resolved(instance, _KNOWN_ATTRIBUTES[kind])
+                owner = _text(values.get("firewall_policy"))
+                holder = owner_of(values, "region" in kind)
+                if not holder:
+                    if owner and holder is None:
+                        self.report.note(Severity.REVIEW, "TERRAFORM_GROUP_NOT_IN_STATE",
+                                         f"rules of the {self.state.kind} belong to network firewall policy {owner}, which it does not hold: "
+                                         "they are not read")  # fmt: skip
+                    continue
+                block = dict(values)
+                block["match"] = self.blocks(instance, "match")
+                policies[holder]["rules"].append(self._gcp_rule(block))
+        for kind in ("google_compute_network_firewall_policy_association", "google_compute_region_network_firewall_policy_association"):
+            for instance in self.of(kind):
+                values = self.resolved(instance, _KNOWN_ATTRIBUTES[kind])
+                holder = owner_of(values, "region" in kind)
+                target = self._network_name(values.get("attachment_target"))
+                if holder and target:
+                    policies[holder]["associations"].append({"name": _text(values.get("name")), "attachmentTarget": target})
+        instances = []
+        for instance in self.of("google_compute_instance"):
+            values = instance.values
+            nics = []
+            for block in self.blocks(instance, "network_interface") or []:
+                nic: Dict[str, Any] = {"network": self._network_name(block.get("network")) or "default", "networkIP": _text(block.get("network_ip"))}
+                if _text(block.get("ipv6_address")):
+                    nic["ipv6Address"] = _text(block.get("ipv6_address"))
+                nic["accessConfigs"] = [{"natIP": _text(c.get("nat_ip"))} for c in _list(block.get("access_config"))
+                                        if isinstance(c, dict) and _text(c.get("nat_ip"))]  # fmt: skip
+                nic["aliasIpRanges"] = [{"ipCidrRange": _text(a.get("ip_cidr_range"))} for a in _list(block.get("alias_ip_range"))
+                                        if isinstance(a, dict) and _text(a.get("ip_cidr_range"))]  # fmt: skip
+                if not nic["networkIP"]:
+                    self.unresolved.append(f"{instance.address}.network_interface.network_ip")
+                    continue
+                nics.append(nic)
+            tags = values.get("tags")
+            unknown = []
+            if tags is _UNKNOWN or "tags" in instance.unknown or any(isinstance(t, _Unknown) or t is _UNKNOWN for t in _list(tags)):
+                self.unresolved.append(f"{instance.address}.tags")
+                unknown.append("tags")
+            accounts = values.get("service_account")
+            if accounts is _UNKNOWN or "service_account" in instance.unknown or any(
+                    isinstance(a, dict) and (a.get("email") is _UNKNOWN or isinstance(a.get("email"), _Unknown)) for a in _list(accounts)):
+                self.unresolved.append(f"{instance.address}.service_account")
+                unknown.append("service_account")
+            instances.append({"kind": "compute#instance", "name": _text(values.get("name")) or instance.address, "fwshiftUnknown": unknown,
+                              "zone": _text(values.get("zone")) or "unknown-zone-a",
+                              "tags": {"items": [str(t) for t in _list(tags) if isinstance(t, str) and not isinstance(t, _Unknown)]},
+                              "serviceAccounts": [{"email": _text(a.get("email"))} for a in _list(values.get("service_account"))
+                                                  if isinstance(a, dict) and _text(a.get("email"))],
+                              "networkInterfaces": nics})  # fmt: skip
+        out: Dict[str, Any] = {"networks": networks, "firewall-rules": firewalls, "network-firewall-policies": list(policies.values())}
+        if self.read.get("google_compute_instance"):
+            out["instances"] = instances
+        return out
+
     # -- notes ---------------------------------------------------------------------------------
 
     def notes(self, provider: str) -> None:
@@ -1044,7 +1303,7 @@ class _Reader:
         read = ", ".join(f"{count} {name}" for name, count in sorted(self.read.items()))
         self.report.note(Severity.INFO, "TERRAFORM_SOURCE",
                          f"read from a Terraform {kind}" + (f" (Terraform {self.state.version})" if self.state.version else "")
-                         + f", as the answers of the {'AWS' if provider == 'aws' else 'Azure'} CLI for the same resources: {read or 'nothing'}. "
+                         + f", as the answers of the {_PROVIDERS[provider]} command line for the same resources: {read or 'nothing'}. "
                          f"Resources outside this {kind} (made by hand, or by another state) are not in it")  # fmt: skip
         if self.state.plan:
             self.report.note(Severity.REVIEW, "TERRAFORM_PLAN",
@@ -1077,6 +1336,11 @@ class _Reader:
                              f"the members of the security groups are the network interfaces and instances of this {kind}: a group "
                              "attached to interfaces elsewhere (another state, a load balancer, made by hand) has those members "
                              "as well, and the converted policy does not know them")  # fmt: skip
+        if provider == "google" and self.read.get("google_compute_instance"):
+            self.report.note(Severity.REVIEW, "TERRAFORM_MEMBERS",
+                             f"the instances a rule applies to, and that its source tags and service accounts stand for, are those "
+                             f"of this {kind}: instances made elsewhere (another state, by hand, a managed instance group) are not "
+                             "known to the converted policy")  # fmt: skip
         if provider == "aws" and not (self.read.get("aws_network_interface") or self.read.get("aws_instance")):
             self.report.retract("note", {"AWS_NO_INTERFACES"})
             self.report.note(Severity.REVIEW, "TERRAFORM_NO_MEMBERS",

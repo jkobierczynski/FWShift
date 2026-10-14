@@ -1,0 +1,805 @@
+{
+  "networks": [
+    {
+      "kind": "compute#network",
+      "id": "1111111111111111111",
+      "name": "vpc-shop",
+      "selfLink": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+      "autoCreateSubnetworks": false,
+      "networkFirewallPolicyEnforcementOrder": "AFTER_CLASSIC_FIREWALL"
+    }
+  ],
+  "firewall-rules": [
+    {
+      "kind": "compute#firewall",
+      "id": "1000000004077753780",
+      "creationTimestamp": "2026-09-01T00:00:00.000-07:00",
+      "name": "allow-https-web",
+      "network": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+      "priority": 1000,
+      "direction": "INGRESS",
+      "allowed": [
+        {
+          "IPProtocol": "tcp",
+          "ports": [
+            "443",
+            "8443-8444"
+          ]
+        }
+      ],
+      "disabled": false,
+      "logConfig": {
+        "enable": true,
+        "metadata": "EXCLUDE_ALL_METADATA"
+      },
+      "selfLink": "https://www.googleapis.com/compute/v1/projects/example-shop/global/firewalls/allow-https-web",
+      "sourceRanges": [
+        "0.0.0.0/0"
+      ],
+      "targetTags": [
+        "web"
+      ],
+      "description": "https to the web servers"
+    },
+    {
+      "kind": "compute#firewall",
+      "id": "1000000003386577813",
+      "creationTimestamp": "2026-09-01T00:00:00.000-07:00",
+      "name": "allow-https-web-v6",
+      "network": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+      "priority": 1000,
+      "direction": "INGRESS",
+      "allowed": [
+        {
+          "IPProtocol": "tcp",
+          "ports": [
+            "443"
+          ]
+        }
+      ],
+      "disabled": false,
+      "logConfig": {
+        "enable": false
+      },
+      "selfLink": "https://www.googleapis.com/compute/v1/projects/example-shop/global/firewalls/allow-https-web-v6",
+      "sourceRanges": [
+        "::/0"
+      ],
+      "targetTags": [
+        "web"
+      ]
+    },
+    {
+      "kind": "compute#firewall",
+      "id": "1000000000881093954",
+      "creationTimestamp": "2026-09-01T00:00:00.000-07:00",
+      "name": "deny-ssh-blocked",
+      "network": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+      "priority": 1000,
+      "direction": "INGRESS",
+      "denied": [
+        {
+          "IPProtocol": "tcp",
+          "ports": [
+            "22"
+          ]
+        }
+      ],
+      "disabled": false,
+      "logConfig": {
+        "enable": false
+      },
+      "selfLink": "https://www.googleapis.com/compute/v1/projects/example-shop/global/firewalls/deny-ssh-blocked",
+      "sourceRanges": [
+        "203.0.113.0/24"
+      ]
+    },
+    {
+      "kind": "compute#firewall",
+      "id": "1000000002218694389",
+      "creationTimestamp": "2026-09-01T00:00:00.000-07:00",
+      "name": "allow-ssh-admins",
+      "network": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+      "priority": 1010,
+      "direction": "INGRESS",
+      "allowed": [
+        {
+          "IPProtocol": "tcp",
+          "ports": [
+            "22"
+          ]
+        }
+      ],
+      "disabled": false,
+      "logConfig": {
+        "enable": false
+      },
+      "selfLink": "https://www.googleapis.com/compute/v1/projects/example-shop/global/firewalls/allow-ssh-admins",
+      "sourceRanges": [
+        "198.51.100.0/24"
+      ]
+    },
+    {
+      "kind": "compute#firewall",
+      "id": "1000000004292544137",
+      "creationTimestamp": "2026-09-01T00:00:00.000-07:00",
+      "name": "allow-app-from-web",
+      "network": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+      "priority": 900,
+      "direction": "INGRESS",
+      "allowed": [
+        {
+          "IPProtocol": "tcp",
+          "ports": [
+            "8080"
+          ]
+        },
+        {
+          "IPProtocol": "icmp"
+        }
+      ],
+      "disabled": false,
+      "logConfig": {
+        "enable": false
+      },
+      "selfLink": "https://www.googleapis.com/compute/v1/projects/example-shop/global/firewalls/allow-app-from-web",
+      "sourceTags": [
+        "web"
+      ],
+      "targetTags": [
+        "app"
+      ]
+    },
+    {
+      "kind": "compute#firewall",
+      "id": "1000000003908151517",
+      "creationTimestamp": "2026-09-01T00:00:00.000-07:00",
+      "name": "allow-db-from-app",
+      "network": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+      "priority": 900,
+      "direction": "INGRESS",
+      "allowed": [
+        {
+          "IPProtocol": "tcp",
+          "ports": [
+            "5432"
+          ]
+        }
+      ],
+      "disabled": false,
+      "logConfig": {
+        "enable": false
+      },
+      "selfLink": "https://www.googleapis.com/compute/v1/projects/example-shop/global/firewalls/allow-db-from-app",
+      "sourceServiceAccounts": [
+        "app@example-shop.iam.gserviceaccount.com"
+      ],
+      "targetServiceAccounts": [
+        "db@example-shop.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "kind": "compute#firewall",
+      "id": "1000000002181033699",
+      "creationTimestamp": "2026-09-01T00:00:00.000-07:00",
+      "name": "allow-mgmt-v6",
+      "network": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+      "priority": 1100,
+      "direction": "INGRESS",
+      "allowed": [
+        {
+          "IPProtocol": "tcp",
+          "ports": [
+            "22"
+          ]
+        },
+        {
+          "IPProtocol": "58"
+        }
+      ],
+      "disabled": false,
+      "logConfig": {
+        "enable": false
+      },
+      "selfLink": "https://www.googleapis.com/compute/v1/projects/example-shop/global/firewalls/allow-mgmt-v6",
+      "sourceRanges": [
+        "2001:db8:900::/48"
+      ],
+      "targetServiceAccounts": [
+        "web@example-shop.iam.gserviceaccount.com"
+      ]
+    },
+    {
+      "kind": "compute#firewall",
+      "id": "1000000000934940011",
+      "creationTimestamp": "2026-09-01T00:00:00.000-07:00",
+      "name": "deny-egress-doc",
+      "network": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+      "priority": 500,
+      "direction": "EGRESS",
+      "denied": [
+        {
+          "IPProtocol": "all"
+        }
+      ],
+      "disabled": false,
+      "logConfig": {
+        "enable": false
+      },
+      "selfLink": "https://www.googleapis.com/compute/v1/projects/example-shop/global/firewalls/deny-egress-doc",
+      "destinationRanges": [
+        "192.0.2.0/24"
+      ]
+    },
+    {
+      "kind": "compute#firewall",
+      "id": "1000000003839546617",
+      "creationTimestamp": "2026-09-01T00:00:00.000-07:00",
+      "name": "db-no-internet",
+      "network": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+      "priority": 600,
+      "direction": "EGRESS",
+      "denied": [
+        {
+          "IPProtocol": "all"
+        }
+      ],
+      "disabled": false,
+      "logConfig": {
+        "enable": false
+      },
+      "selfLink": "https://www.googleapis.com/compute/v1/projects/example-shop/global/firewalls/db-no-internet",
+      "destinationRanges": [
+        "0.0.0.0/0"
+      ],
+      "targetTags": [
+        "db"
+      ]
+    },
+    {
+      "kind": "compute#firewall",
+      "id": "1000000002840837826",
+      "creationTimestamp": "2026-09-01T00:00:00.000-07:00",
+      "name": "db-to-vpc",
+      "network": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+      "priority": 590,
+      "direction": "EGRESS",
+      "allowed": [
+        {
+          "IPProtocol": "all"
+        }
+      ],
+      "disabled": false,
+      "logConfig": {
+        "enable": false
+      },
+      "selfLink": "https://www.googleapis.com/compute/v1/projects/example-shop/global/firewalls/db-to-vpc",
+      "destinationRanges": [
+        "10.50.0.0/16"
+      ],
+      "targetTags": [
+        "db"
+      ]
+    },
+    {
+      "kind": "compute#firewall",
+      "id": "1000000003705835374",
+      "creationTimestamp": "2026-09-01T00:00:00.000-07:00",
+      "name": "old-dns",
+      "network": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+      "priority": 1000,
+      "direction": "INGRESS",
+      "allowed": [
+        {
+          "IPProtocol": "udp",
+          "ports": [
+            "53"
+          ]
+        }
+      ],
+      "disabled": true,
+      "logConfig": {
+        "enable": false
+      },
+      "selfLink": "https://www.googleapis.com/compute/v1/projects/example-shop/global/firewalls/old-dns",
+      "sourceRanges": [
+        "10.0.0.0/8"
+      ]
+    }
+  ],
+  "network-firewall-policies": [
+    {
+      "kind": "compute#firewallPolicy",
+      "id": "3333333333333333301",
+      "name": "pol-shop",
+      "description": "the global policy of vpc-shop",
+      "fingerprint": "AAAAAAAAAAA=",
+      "selfLink": "https://www.googleapis.com/compute/v1/projects/example-shop/global/firewallPolicies/pol-shop",
+      "ruleTupleCount": 30,
+      "associations": [
+        {
+          "name": "pol-shop-vpc-shop",
+          "attachmentTarget": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+          "firewallPolicyId": "3333333333333333301"
+        }
+      ],
+      "rules": [
+        {
+          "kind": "compute#firewallPolicyRule",
+          "ruleName": "deny-tor",
+          "priority": 100,
+          "direction": "INGRESS",
+          "action": "deny",
+          "match": {
+            "srcIpRanges": [
+              "203.0.113.128/25"
+            ],
+            "layer4Configs": [
+              {
+                "ipProtocol": "all"
+              }
+            ]
+          },
+          "enableLogging": true,
+          "description": "a blocked range"
+        },
+        {
+          "kind": "compute#firewallPolicyRule",
+          "ruleName": "rfc1918-next",
+          "priority": 200,
+          "direction": "INGRESS",
+          "action": "goto_next",
+          "match": {
+            "srcIpRanges": [
+              "10.0.0.0/8",
+              "172.16.0.0/12",
+              "192.168.0.0/16"
+            ],
+            "layer4Configs": [
+              {
+                "ipProtocol": "all"
+              }
+            ]
+          },
+          "enableLogging": false
+        },
+        {
+          "kind": "compute#firewallPolicyRule",
+          "ruleName": "allow-monitoring",
+          "priority": 300,
+          "direction": "INGRESS",
+          "action": "allow",
+          "match": {
+            "srcIpRanges": [
+              "10.0.0.0/8",
+              "198.51.100.200/32"
+            ],
+            "layer4Configs": [
+              {
+                "ipProtocol": "tcp",
+                "ports": [
+                  "9100"
+                ]
+              }
+            ]
+          },
+          "enableLogging": false
+        },
+        {
+          "kind": "compute#firewallPolicyRule",
+          "ruleName": "allow-dns-out",
+          "priority": 400,
+          "direction": "EGRESS",
+          "action": "allow",
+          "match": {
+            "destIpRanges": [
+              "198.51.100.53/32"
+            ],
+            "layer4Configs": [
+              {
+                "ipProtocol": "udp",
+                "ports": [
+                  "53"
+                ]
+              },
+              {
+                "ipProtocol": "tcp",
+                "ports": [
+                  "53"
+                ]
+              }
+            ]
+          },
+          "enableLogging": false,
+          "targetServiceAccounts": [
+            "app@example-shop.iam.gserviceaccount.com"
+          ]
+        },
+        {
+          "kind": "compute#firewallPolicyRule",
+          "ruleName": "geo-and-fqdn",
+          "priority": 500,
+          "direction": "INGRESS",
+          "action": "deny",
+          "match": {
+            "srcRegionCodes": [
+              "XX"
+            ],
+            "srcFqdns": [
+              "blocked.example.com"
+            ],
+            "layer4Configs": [
+              {
+                "ipProtocol": "tcp"
+              }
+            ]
+          },
+          "enableLogging": false,
+          "disabled": true
+        },
+        {
+          "kind": "compute#firewallPolicyRule",
+          "ruleName": "deny-smtp-out",
+          "priority": 600,
+          "direction": "EGRESS",
+          "action": "deny",
+          "match": {
+            "destIpRanges": [
+              "0.0.0.0/0"
+            ],
+            "layer4Configs": [
+              {
+                "ipProtocol": "tcp",
+                "ports": [
+                  "25"
+                ]
+              }
+            ]
+          },
+          "enableLogging": false
+        },
+        {
+          "kind": "compute#firewallPolicyRule",
+          "priority": 2147483644,
+          "direction": "EGRESS",
+          "action": "goto_next",
+          "enableLogging": false,
+          "match": {
+            "destIpRanges": [
+              "::/0"
+            ],
+            "layer4Configs": [
+              {
+                "ipProtocol": "all"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "compute#firewallPolicyRule",
+          "priority": 2147483645,
+          "direction": "INGRESS",
+          "action": "goto_next",
+          "enableLogging": false,
+          "match": {
+            "srcIpRanges": [
+              "::/0"
+            ],
+            "layer4Configs": [
+              {
+                "ipProtocol": "all"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "compute#firewallPolicyRule",
+          "priority": 2147483646,
+          "direction": "EGRESS",
+          "action": "goto_next",
+          "enableLogging": false,
+          "match": {
+            "destIpRanges": [
+              "0.0.0.0/0"
+            ],
+            "layer4Configs": [
+              {
+                "ipProtocol": "all"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "compute#firewallPolicyRule",
+          "priority": 2147483647,
+          "direction": "INGRESS",
+          "action": "goto_next",
+          "enableLogging": false,
+          "match": {
+            "srcIpRanges": [
+              "0.0.0.0/0"
+            ],
+            "layer4Configs": [
+              {
+                "ipProtocol": "all"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "compute#firewallPolicy",
+      "id": "3333333333333333302",
+      "name": "pol-ew1",
+      "region": "https://www.googleapis.com/compute/v1/projects/example-shop/regions/europe-west1",
+      "selfLink": "https://www.googleapis.com/compute/v1/projects/example-shop/regions/europe-west1/firewallPolicies/pol-ew1",
+      "ruleTupleCount": 10,
+      "associations": [
+        {
+          "name": "pol-ew1-vpc-shop",
+          "attachmentTarget": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+          "firewallPolicyId": "3333333333333333302"
+        }
+      ],
+      "rules": [
+        {
+          "kind": "compute#firewallPolicyRule",
+          "ruleName": "allow-lb-health",
+          "priority": 100,
+          "direction": "INGRESS",
+          "action": "allow",
+          "match": {
+            "srcIpRanges": [
+              "192.0.2.64/26"
+            ],
+            "layer4Configs": [
+              {
+                "ipProtocol": "tcp",
+                "ports": [
+                  "80"
+                ]
+              }
+            ]
+          },
+          "enableLogging": false
+        },
+        {
+          "kind": "compute#firewallPolicyRule",
+          "priority": 2147483644,
+          "direction": "EGRESS",
+          "action": "goto_next",
+          "enableLogging": false,
+          "match": {
+            "destIpRanges": [
+              "::/0"
+            ],
+            "layer4Configs": [
+              {
+                "ipProtocol": "all"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "compute#firewallPolicyRule",
+          "priority": 2147483645,
+          "direction": "INGRESS",
+          "action": "goto_next",
+          "enableLogging": false,
+          "match": {
+            "srcIpRanges": [
+              "::/0"
+            ],
+            "layer4Configs": [
+              {
+                "ipProtocol": "all"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "compute#firewallPolicyRule",
+          "priority": 2147483646,
+          "direction": "EGRESS",
+          "action": "goto_next",
+          "enableLogging": false,
+          "match": {
+            "destIpRanges": [
+              "0.0.0.0/0"
+            ],
+            "layer4Configs": [
+              {
+                "ipProtocol": "all"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "compute#firewallPolicyRule",
+          "priority": 2147483647,
+          "direction": "INGRESS",
+          "action": "goto_next",
+          "enableLogging": false,
+          "match": {
+            "srcIpRanges": [
+              "0.0.0.0/0"
+            ],
+            "layer4Configs": [
+              {
+                "ipProtocol": "all"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "instances": [
+    {
+      "kind": "compute#instance",
+      "id": "1000000003146746216",
+      "name": "web-1",
+      "zone": "https://www.googleapis.com/compute/v1/projects/example-shop/zones/europe-west1-b",
+      "status": "RUNNING",
+      "tags": {
+        "items": [
+          "web"
+        ]
+      },
+      "networkInterfaces": [
+        {
+          "kind": "compute#networkInterface",
+          "name": "nic0",
+          "network": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+          "networkIP": "10.50.1.10",
+          "subnetwork": "https://www.googleapis.com/compute/v1/projects/example-shop/regions/europe-west1/subnetworks/shop",
+          "ipv6Address": "2001:db8:50:1::10",
+          "stackType": "IPV4_IPV6",
+          "accessConfigs": [
+            {
+              "kind": "compute#accessConfig",
+              "name": "External NAT",
+              "natIP": "192.0.2.10",
+              "type": "ONE_TO_ONE_NAT"
+            }
+          ]
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "email": "web@example-shop.iam.gserviceaccount.com",
+          "scopes": [
+            "https://www.googleapis.com/auth/cloud-platform"
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "compute#instance",
+      "id": "1000000000579262674",
+      "name": "web-2",
+      "zone": "https://www.googleapis.com/compute/v1/projects/example-shop/zones/europe-west4-a",
+      "status": "RUNNING",
+      "tags": {
+        "items": [
+          "web"
+        ]
+      },
+      "networkInterfaces": [
+        {
+          "kind": "compute#networkInterface",
+          "name": "nic0",
+          "network": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+          "networkIP": "10.50.1.11",
+          "subnetwork": "https://www.googleapis.com/compute/v1/projects/example-shop/regions/europe-west4/subnetworks/shop"
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "email": "web@example-shop.iam.gserviceaccount.com",
+          "scopes": [
+            "https://www.googleapis.com/auth/cloud-platform"
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "compute#instance",
+      "id": "1000000000743062521",
+      "name": "app-1",
+      "zone": "https://www.googleapis.com/compute/v1/projects/example-shop/zones/europe-west1-c",
+      "status": "RUNNING",
+      "tags": {
+        "items": [
+          "app"
+        ]
+      },
+      "networkInterfaces": [
+        {
+          "kind": "compute#networkInterface",
+          "name": "nic0",
+          "network": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+          "networkIP": "10.50.2.20",
+          "subnetwork": "https://www.googleapis.com/compute/v1/projects/example-shop/regions/europe-west1/subnetworks/shop",
+          "aliasIpRanges": [
+            {
+              "ipCidrRange": "10.60.0.0/24",
+              "subnetworkRangeName": "pods"
+            }
+          ]
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "email": "app@example-shop.iam.gserviceaccount.com",
+          "scopes": [
+            "https://www.googleapis.com/auth/cloud-platform"
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "compute#instance",
+      "id": "1000000002947021523",
+      "name": "db-1",
+      "zone": "https://www.googleapis.com/compute/v1/projects/example-shop/zones/europe-west1-b",
+      "status": "RUNNING",
+      "tags": {
+        "items": [
+          "db"
+        ]
+      },
+      "networkInterfaces": [
+        {
+          "kind": "compute#networkInterface",
+          "name": "nic0",
+          "network": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+          "networkIP": "10.50.3.30",
+          "subnetwork": "https://www.googleapis.com/compute/v1/projects/example-shop/regions/europe-west1/subnetworks/shop"
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "email": "db@example-shop.iam.gserviceaccount.com",
+          "scopes": [
+            "https://www.googleapis.com/auth/cloud-platform"
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "compute#instance",
+      "id": "1000000000397096961",
+      "name": "bastion",
+      "zone": "https://www.googleapis.com/compute/v1/projects/example-shop/zones/europe-west1-d",
+      "status": "RUNNING",
+      "tags": {},
+      "networkInterfaces": [
+        {
+          "kind": "compute#networkInterface",
+          "name": "nic0",
+          "network": "https://www.googleapis.com/compute/v1/projects/example-shop/global/networks/vpc-shop",
+          "networkIP": "10.50.9.5",
+          "subnetwork": "https://www.googleapis.com/compute/v1/projects/example-shop/regions/europe-west1/subnetworks/shop",
+          "accessConfigs": [
+            {
+              "kind": "compute#accessConfig",
+              "name": "External NAT",
+              "natIP": "192.0.2.5",
+              "type": "ONE_TO_ONE_NAT"
+            }
+          ]
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "email": "bastion@example-shop.iam.gserviceaccount.com",
+          "scopes": [
+            "https://www.googleapis.com/auth/cloud-platform"
+          ]
+        }
+      ]
+    }
+  ]
+}

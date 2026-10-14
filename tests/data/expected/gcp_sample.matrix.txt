@@ -1,0 +1,40 @@
+FWShift zone matrix
+  source: gcp (vpc-shop)
+  security rules: 28 (2 disabled, 2 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 (other zones)
+  (other zones)  any
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+(other zones) -> (other zones)
+  allowed: any
+  rule 'db-to-vpc+allow-https-web': targets tag:db -> 10.50.1.10/31: tcp/443, tcp/8443-8444
+  rule 'implied allow egress+allow-app-from-web': 10.50.1.10/31 -> targets tag:app: icmp, tcp/8080
+  rule 'implied allow egress+allow-db-from-app': sources account:app@example-shop.iam.gserviceaccount.com -> targets tag:db: tcp/5432
+  rule 'implied allow egress+allow-https-web': 10.50.1.10/31, 10.50.2.20, 10.50.3.30, 10.50.9.5 and 1 more -> 10.50.1.10/31: tcp/443, tcp/8443-8444
+  rule 'implied allow egress+allow-https-web-v6': 2001:db8:50:1::10 -> 2001:db8:50:1::10: tcp/443
+  rule 'allow-https-web': 0.0.0.0/0 -> 10.50.1.10/31: tcp/443, tcp/8443-8444
+  rule 'allow-https-web-v6': ::/0 -> 2001:db8:50:1::10: tcp/443
+  rule 'allow-ssh-admins': 198.51.100.0/24 -> 10.50.1.10/31, 10.50.2.20, 10.50.3.30, 10.50.9.5 and 1 more: tcp/22
+  rule 'allow-mgmt-v6': 2001:db8:900::/48 -> 2001:db8:50:1::10: tcp/22, icmp6
+  rule 'pol-shop:allow-monitoring (in)': 198.51.100.200 -> 10.50.1.10/31, 10.50.2.20, 10.50.3.30, 10.50.9.5 and 1 more: tcp/9100
+  rule 'pol-ew1:allow-lb-health (in)': 192.0.2.64/26 -> 10.50.1.10, 10.50.2.20, 10.50.3.30, 10.50.9.5 and 1 more: tcp/80
+  rule 'db-to-vpc': targets tag:db -> 10.50.0.0/16: any
+  rule 'pol-shop:allow-dns-out (out)': targets tag:app -> 198.51.100.53: tcp/53, udp/53
+  rule 'implied allow egress (out)': 10.50.1.10/31, 10.50.2.20, 10.50.3.30, 10.50.9.5 and 2 more -> 0.0.0.0/0, ::/0: any
+
+From reading the configuration
+  GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+
+Notes
+  The policy names no zones, so the matrix has one cell. Give zones as networks with --network-zone NAME=NETWORK[,NETWORK...] to see who reaches whom.
+  2 rule(s) never match and are left out; 'fwshift audit' names them.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

@@ -214,6 +214,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <li><a href="#nsx">VMware NSX</a></li>
       <li><a href="#aws">AWS security groups</a></li>
       <li><a href="#azure">Azure network security groups</a></li>
+      <li><a href="#gcp">Google Cloud firewall</a></li>
       <li><a href="#routeros">MikroTik RouterOS</a></li>
       <li><a href="#forcepoint">Forcepoint NGFW</a></li>
       <li><a href="#terraform">Terraform</a></li>
@@ -233,7 +234,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
 
 <main id="top">
 <header class="mast">
-  <div class="eyebrow">Field guide · version 0.26</div>
+  <div class="eyebrow">Field guide · version 0.27</div>
   <h1>FWShift, feature by feature</h1>
   <p class="lead">FWShift converts firewall policies between nineteen platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
   <div class="facts">
@@ -316,7 +317,8 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <tr><td>Azure network security groups</td><td><code>azure</code></td><td>Azure CLI, REST, template or Resource Graph JSON</td><td>ARM template</td></tr>
       <tr><td>MikroTik RouterOS (6 and 7)</td><td><code>routeros</code></td><td>the output of <code>/export</code></td><td>script for <code>/import</code></td></tr>
       <tr><td>Forcepoint NGFW (SMC 6.10 to 7.4)</td><td><code>forcepoint</code></td><td>SMC REST API answers (<code>fwshift script forcepoint-dump</code>)</td><td>Python loader script</td></tr>
-      <tr><td>Terraform (hashicorp/aws, hashicorp/azurerm)</td><td><code>terraform-aws</code>, <code>terraform-azure</code></td><td><code>terraform show -json</code> of a state or a plan, or the raw state</td><td>HCL that creates the groups</td></tr>
+      <tr><td>Google Cloud firewall rules and network firewall policies</td><td><code>gcp</code></td><td>gcloud JSON of one VPC network</td><td>script of gcloud commands</td></tr>
+      <tr><td>Terraform (hashicorp/aws, hashicorp/azurerm, hashicorp/google)</td><td><code>terraform-aws</code>, <code>terraform-azure</code>, <code>terraform-google</code></td><td><code>terraform show -json</code> of a state or a plan, or the raw state</td><td>HCL that creates the groups or the policy</td></tr>
       <tr><td>Neutral model</td><td><code>json</code> (target only)</td><td>—</td><td>the model, with source IDs, targets, hits</td></tr>
     </tbody>
   </table></div>
@@ -327,11 +329,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
   <h2><span class="num">2</span>Install and run</h2>
   <p>Each release has three packages: the project as a zip, a single file that runs with any Python 3.9 or newer, and a wheel for <code>pip</code>. Nothing else needs installing.</p>
   <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># one file, nothing to install</span>
-python3 fwshift-0.26.0.pyz --version
-python3 fwshift-0.26.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.27.0.pyz --version
+python3 fwshift-0.27.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 
 <span class="c"># or with pip</span>
-pip install fwshift-0.26.0-py3-none-any.whl
+pip install fwshift-0.27.0-py3-none-any.whl
 fwshift convert running-config.xml --to fortios -o fortigate.conf</pre></div>
   <p>The input may be <code>-</code> for standard input. The source format is detected (XML root elements, JSON keys, CLI keywords); give <code>--from</code> when detection could be ambiguous, for example <code>--from ip6tables</code>.</p>
 </section>
@@ -395,10 +397,10 @@ findings while reading:
   <div class="tablewrap"><table>
     <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure terraform-aws terraform-azure routeros forcepoint json</code>.</td></tr>
+      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure gcp terraform-aws terraform-azure terraform-google routeros forcepoint json</code>.</td></tr>
       <tr><td><code>--zone-map SRC=DST</code></td><td>Rename a zone or interface. For iptables, nftables and ASA, this is how a zone becomes an interface.</td></tr>
       <tr><td><code>--interface-map SRC=DST</code></td><td>Map a source interface to a target interface: FortiOS zone members, interface NAT, Sophos/SonicWall/FDM NAT interfaces, Barracuda source interfaces.</td></tr>
-      <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Terraform; SonicWall object zones).</td></tr>
+      <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Google Cloud, Terraform; SonicWall object zones).</td></tr>
       <tr><td><code>--compare[=FILE]</code></td><td>Reads the output back (eleven targets) and reports every connection it decides differently from the source (section 13).</td></tr>
       <tr><td><code>--inside-zone ZONE</code></td><td>AWS, Azure and Terraform: a zone inside the VPC or the virtual network; only its addresses get security groups.</td></tr>
       <tr><td><code>--app-map FILE</code></td><td>JSON of extra application-to-port mappings.</td></tr>
@@ -407,8 +409,8 @@ findings while reading:
       <tr><td><code>--target-vdom</code>, <code>--policy-id-start N</code></td><td>FortiOS VDOM wrapper; first policy ID (0 lets the FortiGate pick).</td></tr>
       <tr><td><code>--target-layer</code>, <code>--target-package</code>, <code>--target-gateway</code></td><td>Check Point layer (default <code>Network</code>), package (default <code>Standard</code>), hide-NAT gateway.</td></tr>
       <tr><td><code>--target-nat-zone ZONE</code></td><td>Destination zone for NAT rules of a source that names none; ASA interface for "NAT to the outgoing interface".</td></tr>
-      <tr><td><code>--target-prefix TEXT</code></td><td>Prefix for created objects (Check Point, ASA, Sophos, Cisco SF, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, NSX, AWS, Azure, RouterOS, Forcepoint).</td></tr>
-      <tr><td><code>--target-policy NAME</code></td><td>Name of the FMC access and NAT policy created, of the NSX security policy, of the Forcepoint firewall policy (default <code>FWShift</code>).</td></tr>
+      <tr><td><code>--target-prefix TEXT</code></td><td>Prefix for created objects (Check Point, ASA, Sophos, Cisco SF, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, NSX, AWS, Azure, Google Cloud, RouterOS, Forcepoint).</td></tr>
+      <tr><td><code>--target-policy NAME</code></td><td>Name of the FMC access and NAT policy created, of the NSX security policy, of the Forcepoint firewall policy, of the Google Cloud network firewall policy (default <code>FWShift</code>; <code>fwshift</code> for Google Cloud).</td></tr>
       <tr><td><code>--target-template NAME</code></td><td>Forcepoint: the template the new policy is based on (default <code>Firewall Template</code>).</td></tr>
       <tr><td><code>--prune-unused</code></td><td>Leave out objects no rule uses.</td></tr>
       <tr><td><code>-o FILE</code>, <code>--report FILE</code>, <code>--report-json FILE</code></td><td>Output, text report (default: standard error), JSON report.</td></tr>
@@ -578,9 +580,10 @@ m add nat-rule package Standard position bottom original-destination web-public 
     <a href="#nsx"><b>VMware NSX</b><span>Policy API → PATCH</span></a>
     <a href="#aws"><b>AWS security groups</b><span>AWS CLI → script</span></a>
     <a href="#azure"><b>Azure NSG</b><span>Azure JSON → ARM template</span></a>
+    <a href="#gcp"><b>Google Cloud</b><span>gcloud JSON → gcloud script</span></a>
     <a href="#routeros"><b>MikroTik RouterOS</b><span>/export → /import</span></a>
     <a href="#forcepoint"><b>Forcepoint NGFW</b><span>SMC REST → Python loader</span></a>
-    <a href="#terraform"><b>Terraform</b><span>state or plan → HCL</span></a>
+    <a href="#terraform"><b>Terraform</b><span>state or plan → HCL (AWS, Azure, Google)</span></a>
   </div>
 
   <div class="filterbar">
@@ -1121,6 +1124,40 @@ az network vnet subnet update -g rg-net --vnet-name vnet-hub -n snet-dmz --netwo
   "direction": "Inbound", "sourcePortRange": "*", "destinationPortRange": "443",
   "sourceAddressPrefix": "*", "destinationAddressPrefix": "10.20.0.10/32", "priority": 200}}</pre></div>
   </article>
+  <!-- gcp -->
+  <article class="brand" id="gcp">
+    <h3>Google Cloud firewall</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>gcloud JSON of one VPC network</span></span><span class="port"><i>OUT</i><span>script of gcloud commands</span></span><span class="port"><i>ID</i><span>gcp</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>The VPC firewall rules, the network firewall policies associated with the network (<code>describe</code>, not <code>list</code>, which leaves out the rules), the network (its enforcement order) and the instances (what a tag or a service account stands for), in one JSON object. Hierarchical policies are not in a project's export: add <code>gcloud compute networks get-effective-firewalls</code> instead of the rules and policies, or the <code>firewall-policies describe</code> of each.</p>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>gcloud compute networks describe vpc-shop --format=json &gt; network.json
+gcloud compute firewall-rules list --format=json &gt; rules.json
+gcloud compute network-firewall-policies describe pol-shop --global --format=json &gt; global.json
+gcloud compute instances list --format=json &gt; instances.json
+jq -s '{networks: [.[0]], "firewall-rules": .[1], "network-firewall-policies": [.[2]], instances: .[3]}' \
+    network.json rules.json global.json instances.json &gt; gcp.json
+fwshift convert gcp.json --to fortios -o fortigate.conf --report report.txt</pre></div>
+    <h4 class="sub">Options</h4>
+    <p>Source: <code>--policy</code> with the network when the rules of several are in the file. Target: <code>--zone-network</code> for every zone (a rule names addresses), <code>--target-policy</code> for the name of the policy (default <code>fwshift</code>), <code>--target-prefix</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to gcp -o policy.sh --report report.txt \
+    --zone-network trust=10.10.0.0/16 --zone-network untrust=0.0.0.0/0,::/0 --target-policy shop-policy
+DRY_RUN=1 sh policy.sh                                    <span class="c"># prints the gcloud commands</span>
+GCLOUD_OPTS='--project my-project' sh policy.sh           <span class="c"># creates the policy, associated with nothing</span>
+gcloud compute networks update vpc-shop --network-firewall-policy-enforcement-order=BEFORE_CLASSIC_FIREWALL
+gcloud compute network-firewall-policies associations create --firewall-policy shop-policy --network vpc-shop --global-firewall-policy</pre></div>
+    <div class="callout"><b>Associated with nothing.</b> The script creates one new global network firewall policy and stops if one of that name exists. It decides every connection of the network once associated, and ends in the default of the source; with the default enforcement order the VPC firewall rules still decide first (<code>GCP_LOAD</code>, <code>GCP_ORDER</code>).</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>The steps in Google Cloud's order: hierarchical policies, then (by the enforcement order) the VPC rules and the global and regional policies, then the implied deny ingress and allow egress (<code>GCP_SOURCE</code>). Hierarchical policies left out of the export decide before all of them (<code>GCP_NOT_IN_EXPORT</code>, <code>GCP_HIERARCHICAL_READ</code>).</li>
+      <li>Tags and service accounts are the addresses of the instances in the export; without the instances those rules are not converted (<code>GCP_NO_INSTANCES</code>). A rule that applies to no instance is left out (<code>GCP_NO_INSTANCE</code>).</li>
+      <li>Between two instances a connection passes the egress rules of one and the ingress rules of the other: composed into one list (<code>GCP_COMPOSED</code>), capped at 5,000 rules (<code>GCP_COMPOSED_LEFT_OUT</code>). <code>goto_next</code> becomes the rules below it without what it matches.</li>
+      <li>Secure tags, address groups, FQDN, geography and threat intelligence matches are not converted. External addresses are static NAT (<code>GCP_EXTERNAL_ADDRESSES</code>); traffic to them from inside is read as to the internal address (<code>GCP_HAIRPIN</code>).</li>
+      <li>To Google Cloud: no ICMP types and no source ports; an allow rule leaves them out (<code>GCP_PART_NOT_WRITTEN</code>), a blocking rule blocks more (<code>GCP_BLOCKS_MORE</code>). Each rule is written for ingress and egress and per IP version.</li>
+    </ul>
+    <div class="codebox"><span class="label">output · gcp (one rule, both directions)</span><button class="copy" type="button">Copy</button><pre>run compute network-firewall-policies rules create 1000 --firewall-policy="$POLICY" --global-firewall-policy --direction=INGRESS --action=deny --src-ip-ranges=10.20.1.0/24 --dest-ip-ranges=10.20.3.0/24 --layer4-configs=tcp --description=db-acl-in-db
+run compute network-firewall-policies rules create 1010 --firewall-policy="$POLICY" --global-firewall-policy --direction=EGRESS --action=deny --src-ip-ranges=10.20.1.0/24 --dest-ip-ranges=10.20.3.0/24 --layer4-configs=tcp --description=db-acl-in-db</pre></div>
+  </article>
   <!-- routeros -->
   <article class="brand" id="routeros">
     <h3>MikroTik RouterOS</h3>
@@ -1173,20 +1210,21 @@ fwshift convert router.rsc --to fortios -o fortigate.conf --report report.txt</p
   </article>
   <!-- terraform -->
   <article class="brand" id="terraform">
-    <h3>Terraform (AWS and Azure)</h3>
-    <div class="ports"><span class="port"><i>IN</i><span><code>terraform show -json</code> of a state or a plan; the raw state</span></span><span class="port"><i>OUT</i><span>HCL (hashicorp/aws, hashicorp/azurerm)</span></span><span class="port"><i>ID</i><span>terraform-aws · terraform-azure</span></span></div>
+    <h3>Terraform (AWS, Azure and Google Cloud)</h3>
+    <div class="ports"><span class="port"><i>IN</i><span><code>terraform show -json</code> of a state or a plan; the raw state</span></span><span class="port"><i>OUT</i><span>HCL (hashicorp/aws, hashicorp/azurerm, hashicorp/google)</span></span><span class="port"><i>ID</i><span>terraform-aws · terraform-azure · terraform-google</span></span></div>
     <h4 class="sub">Export</h4>
-    <p><code>terraform show -json &gt; state.json</code> (refresh first: <code>terraform apply -refresh-only</code>), <code>terraform show -json plan.out &gt; plan.json</code> for a plan, or <code>terraform state pull</code>. FWShift reads the security groups, their rules, network ACLs, interfaces, instances, Elastic IPs, subnets and prefix lists of AWS, and the network security groups, rules, associations, application security groups, interfaces and virtual networks of Azure, and reads them as the AWS and Azure sources read the CLI answers.</p>
+    <p><code>terraform show -json &gt; state.json</code> (refresh first: <code>terraform apply -refresh-only</code>), <code>terraform show -json plan.out &gt; plan.json</code> for a plan, or <code>terraform state pull</code>. FWShift reads the security groups, their rules, network ACLs, interfaces, instances, Elastic IPs, subnets and prefix lists of AWS, and the network security groups, rules, associations, application security groups, interfaces and virtual networks of Azure, and the firewall rules, network firewall policies, networks and instances of Google Cloud, and reads them as the AWS, Azure and Google Cloud sources read the CLI answers.</p>
     <h4 class="sub">Options</h4>
-    <p>Source: <code>--from terraform-aws</code> or <code>terraform-azure</code> for a state with both; <code>--policy</code> with the VPC (its id or <code>aws_vpc.NAME</code>) when the groups are in several. Target: as for <code>aws</code> and <code>azure</code>: <code>--zone-network</code>, <code>--inside-zone</code>, <code>--target-prefix</code>.</p>
+    <p>Source: <code>--from terraform-aws</code>, <code>terraform-azure</code> or <code>terraform-google</code> for a state with more than one; <code>--policy</code> with the VPC (its id or <code>aws_vpc.NAME</code>) or the Google Cloud network when there are several. Target: as for <code>aws</code>, <code>azure</code> and <code>gcp</code>: <code>--zone-network</code>, <code>--inside-zone</code>, <code>--target-prefix</code>, <code>--target-policy</code>.</p>
     <h4 class="sub">Output and loading</h4>
-    <p>A root module: <code>terraform init</code>, <code>terraform plan -var vpc_id=vpc-...</code> (AWS) or <code>-var resource_group_name=... -var subscription_id=...</code> (Azure), then <code>terraform apply</code>. It creates new groups only; a group of the same name makes the apply fail. <strong>The groups are attached to nothing</strong>: the <code># attach</code> comments and the outputs <code>fwshift_attach</code> and <code>fwshift_networks</code> say where they go.</p>
+    <p>A root module: <code>terraform init</code>, <code>terraform plan -var vpc_id=vpc-...</code> (AWS), <code>-var resource_group_name=... -var subscription_id=...</code> (Azure) or <code>-var project=...</code> (Google Cloud), then <code>terraform apply</code>. It creates new groups or a new policy only; one of the same name makes the apply fail. <strong>The groups are attached to nothing, the policy associated with nothing</strong> (a commented association at the end): the <code># attach</code> comments and the outputs <code>fwshift_attach</code> and <code>fwshift_networks</code> say where they go.</p>
     <h4 class="sub">Watch for</h4>
     <ul class="watch">
       <li>Members are the interfaces and instances of the same state (<code>TERRAFORM_MEMBERS</code>); a state with groups only converts nothing (<code>TERRAFORM_NO_MEMBERS</code>).</li>
       <li>Inline rules repeat the separate rule resources after a refresh: each is read once; where they differ, the separate resource wins (<code>TERRAFORM_CONFLICT</code>).</li>
       <li>In a plan, ids not known yet stand for the resources the configuration names (<code>TERRAFORM_REFERENCES</code>); a variable, a data source or a dynamic block makes what holds it not converted (<code>TERRAFORM_UNKNOWN</code>).</li>
       <li>AWS Network Firewall, WAF and Azure Firewall in the state are named, not read (<code>TERRAFORM_NOT_READ</code>).</li>
+      <li>Google Cloud: a regional policy is named by region and name; a rule that names one by a name several regions share, without a region, is not read (<code>TERRAFORM_POLICY_AMBIGUOUS</code>). Tags a plan does not know make the rules that name tags not converted.</li>
     </ul>
     <div class="codebox"><span class="label">output · terraform-aws (one rule)</span><button class="copy" type="button">Copy</button><pre>resource "aws_vpc_security_group_ingress_rule" "g2_in_1" {
   security_group_id = aws_security_group.g2.id
@@ -1426,9 +1464,10 @@ fwshift usage rules.v4 --logs kern.log --log-year 2026 --unchanged-since 2026-01
       <tr><td>NSX</td><td>Services, groups and the policy of the same id</td><td><code>--target-prefix</code>; a lab manager (no dry run)</td></tr>
       <tr><td>AWS</td><td>Nothing: new groups, attached to nothing; stops if a name exists</td><td><code>DRY_RUN=1</code>, then <code>CHECK=1</code>; attach by hand</td></tr>
       <tr><td>Azure</td><td>All rules of a group of the same name; associates nothing</td><td><code>what-if</code>; incremental mode; associate by hand</td></tr>
+      <tr><td>Google Cloud</td><td>Nothing: a new policy, associated with nothing; stops if a policy of that name exists</td><td><code>DRY_RUN=1</code>; set the enforcement order, associate by hand</td></tr>
       <tr><td>RouterOS</td><td>Nothing: chains and lists of its own; the jumps that switch it on are disabled</td><td>Import with <code>verbose=yes</code>; enable the jumps in Safe Mode</td></tr>
       <tr><td>Forcepoint</td><td>Nothing: a new policy on a template, installed on no engine; stops on a name that matches anything else</td><td><code>--show</code>, then <code>--dry-run</code>; keep the journal for <code>--undo</code></td></tr>
-      <tr><td>Terraform</td><td>Nothing: new groups, attached to nothing; the apply fails on a name that exists</td><td><code>terraform plan</code>; attach or associate by hand</td></tr>
+      <tr><td>Terraform</td><td>Nothing: new groups or a policy, attached to nothing; the apply fails on a name that exists</td><td><code>terraform plan</code>; attach or associate by hand</td></tr>
       <tr><td>pfSense</td><td>Each restored area (Aliases, NAT, Rules)</td><td>A full backup</td></tr>
       <tr><td>OPNsense</td><td>Each restored area (Aliases; NAT with NPt; the rules of both pages)</td><td>A full backup; <code>--target-version</code> of the firewall</td></tr>
       <tr><td>ASA</td><td>Interface <code>access-group</code> bindings; <code>global_access</code> on every interface</td><td>Read the <code>access-group</code> lines</td></tr>

@@ -1,0 +1,20 @@
+FWShift audit
+  source: terraform-google (vpc-shop)
+  security rules: 28 (2 disabled), NAT rules: 2
+
+Summary
+  high 0, medium 2, low 7, info 3
+
+Findings in the policy as it was read
+  [medium] ANY_SERVICE: rule 'db-to-vpc' allows any service between its addresses, from any zone to any zone
+  [medium] ANY_SERVICE: rule 'implied allow egress (out)' allows any service to any destination, from any zone to any zone
+  [low] ANY_SOURCE: rule 'allow-https-web' allows any source, from any zone to any zone
+  [low] ANY_SOURCE: rule 'allow-https-web-v6' allows any source, from any zone to any zone
+  [low] REDUNDANT_RULE: rule 'allow-app-from-web' never matches: 'implied allow egress+allow-app-from-web' above it already allows everything it could match
+  [low] REDUNDANT_RULE: rule 'allow-db-from-app' never matches: 'implied allow egress+allow-db-from-app' above it already allows everything it could match
+  [low] REDUNDANT_RULE: rule 'db-to-vpc+implied deny ingress' adds nothing: 'db-no-internet (between instances)' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'pol-shop:deny-smtp-out (between instances)' adds nothing: 'implied allow egress+implied deny ingress' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [low] REDUNDANT_RULE: rule 'pol-shop:allow-dns-out (out)' adds nothing: 'implied allow egress (out)' below it handles everything it matches the same way, and no rule in between decides any of it otherwise
+  [info] DISABLED_RULE: rule 'old-dns' is disabled: remove it, or note why it is kept
+  [info] DISABLED_RULE: rule 'pol-shop:geo-and-fqdn (in)' is disabled: remove it, or note why it is kept
+  [info] UNUSED_OBJECT: 2 address groups no rule uses: 'sources tag:web', 'targets every instance in europe-west1'
