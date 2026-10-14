@@ -200,6 +200,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <li><a href="#fortios">FortiOS</a></li>
       <li><a href="#checkpoint">Check Point</a></li>
       <li><a href="#asa">Cisco ASA</a></li>
+      <li><a href="#ios">Cisco IOS</a></li>
       <li><a href="#fmc">Cisco FMC</a></li>
       <li><a href="#fdm">Cisco FDM</a></li>
       <li><a href="#sophos">Sophos Firewall</a></li>
@@ -234,7 +235,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
 
 <main id="top">
 <header class="mast">
-  <div class="eyebrow">Field guide · version 0.27</div>
+  <div class="eyebrow">Field guide · version 0.28</div>
   <h1>FWShift, feature by feature</h1>
   <p class="lead">FWShift converts firewall policies between nineteen platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
   <div class="facts">
@@ -301,6 +302,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <tr><td>FortiOS</td><td><code>fortios</code></td><td>full backup (CLI)</td><td>CLI configuration</td></tr>
       <tr><td>Check Point</td><td><code>checkpoint</code></td><td>Management API JSON</td><td><code>mgmt_cli</code> script</td></tr>
       <tr><td>Cisco ASA (and FTD running-config)</td><td><code>asa</code></td><td><code>show running-config</code></td><td>ASA 9.x commands</td></tr>
+      <tr><td>Cisco IOS and IOS XE (routers)</td><td><code>ios</code></td><td><code>show running-config</code></td><td>zone-based firewall commands</td></tr>
       <tr><td>Cisco Secure Firewall, Management Center</td><td><code>fmc</code></td><td>REST API answers</td><td>Python loader script</td></tr>
       <tr><td>Cisco Secure Firewall, Device Manager</td><td><code>fdm</code></td><td>config export (zip) or API</td><td>import file</td></tr>
       <tr><td>Sophos Firewall (SFOS 18+)</td><td><code>sophos</code></td><td><code>Entities.xml</code> / <code>.tar</code></td><td><code>Entities.xml</code> / <code>.tar</code></td></tr>
@@ -329,11 +331,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
   <h2><span class="num">2</span>Install and run</h2>
   <p>Each release has three packages: the project as a zip, a single file that runs with any Python 3.9 or newer, and a wheel for <code>pip</code>. Nothing else needs installing.</p>
   <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># one file, nothing to install</span>
-python3 fwshift-0.27.0.pyz --version
-python3 fwshift-0.27.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.28.0.pyz --version
+python3 fwshift-0.28.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 
 <span class="c"># or with pip</span>
-pip install fwshift-0.27.0-py3-none-any.whl
+pip install fwshift-0.28.0-py3-none-any.whl
 fwshift convert running-config.xml --to fortios -o fortigate.conf</pre></div>
   <p>The input may be <code>-</code> for standard input. The source format is detected (XML root elements, JSON keys, CLI keywords); give <code>--from</code> when detection could be ambiguous, for example <code>--from ip6tables</code>.</p>
 </section>
@@ -397,7 +399,7 @@ findings while reading:
   <div class="tablewrap"><table>
     <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure gcp terraform-aws terraform-azure terraform-google routeros forcepoint json</code>.</td></tr>
+      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa ios fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure gcp terraform-aws terraform-azure terraform-google routeros forcepoint json</code>.</td></tr>
       <tr><td><code>--zone-map SRC=DST</code></td><td>Rename a zone or interface. For iptables, nftables and ASA, this is how a zone becomes an interface.</td></tr>
       <tr><td><code>--interface-map SRC=DST</code></td><td>Map a source interface to a target interface: FortiOS zone members, interface NAT, Sophos/SonicWall/FDM NAT interfaces, Barracuda source interfaces.</td></tr>
       <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Google Cloud, Terraform; SonicWall object zones).</td></tr>
@@ -409,7 +411,7 @@ findings while reading:
       <tr><td><code>--target-vdom</code>, <code>--policy-id-start N</code></td><td>FortiOS VDOM wrapper; first policy ID (0 lets the FortiGate pick).</td></tr>
       <tr><td><code>--target-layer</code>, <code>--target-package</code>, <code>--target-gateway</code></td><td>Check Point layer (default <code>Network</code>), package (default <code>Standard</code>), hide-NAT gateway.</td></tr>
       <tr><td><code>--target-nat-zone ZONE</code></td><td>Destination zone for NAT rules of a source that names none; ASA interface for "NAT to the outgoing interface".</td></tr>
-      <tr><td><code>--target-prefix TEXT</code></td><td>Prefix for created objects (Check Point, ASA, Sophos, Cisco SF, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, NSX, AWS, Azure, Google Cloud, RouterOS, Forcepoint).</td></tr>
+      <tr><td><code>--target-prefix TEXT</code></td><td>Prefix for created objects (Check Point, ASA, IOS, Sophos, Cisco SF, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, NSX, AWS, Azure, Google Cloud, RouterOS, Forcepoint).</td></tr>
       <tr><td><code>--target-policy NAME</code></td><td>Name of the FMC access and NAT policy created, of the NSX security policy, of the Forcepoint firewall policy, of the Google Cloud network firewall policy (default <code>FWShift</code>; <code>fwshift</code> for Google Cloud).</td></tr>
       <tr><td><code>--target-template NAME</code></td><td>Forcepoint: the template the new policy is based on (default <code>Firewall Template</code>).</td></tr>
       <tr><td><code>--prune-unused</code></td><td>Leave out objects no rule uses.</td></tr>
@@ -566,6 +568,7 @@ m add nat-rule package Standard position bottom original-destination web-public 
     <a href="#fortios"><b>FortiOS</b><span>backup → CLI</span></a>
     <a href="#checkpoint"><b>Check Point</b><span>API JSON → mgmt_cli</span></a>
     <a href="#asa"><b>Cisco ASA</b><span>running-config → CLI</span></a>
+    <a href="#ios"><b>Cisco IOS</b><span>running-config → zone-based firewall</span></a>
     <a href="#fmc"><b>Cisco FMC</b><span>REST → Python loader</span></a>
     <a href="#fdm"><b>Cisco FDM</b><span>export zip → import</span></a>
     <a href="#sophos"><b>Sophos Firewall</b><span>Entities.xml</span></a>
@@ -717,6 +720,39 @@ access-list eth2_access_in remark FWSHIFT: inactive, see the conversion report
 access-list eth2_access_in extended deny ip any any inactive
 access-group eth0_access_in in interface eth0
 access-group global_access global</pre></div>
+  </article>
+
+  <!-- ios -->
+  <article class="brand" id="ios">
+    <h3>Cisco IOS and IOS XE</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>show running-config of a router</span></span><span class="port"><i>OUT</i><span>zone-based firewall commands</span></span><span class="port"><i>ID</i><span>ios</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p><code>terminal length 0</code>, then <code>show running-config</code> (IOS 15, IOS XE 16 and 17). Interface access lists in and out (numbered, named, IPv6), object groups, the zone-based firewall and <code>ip nat inside source</code> are read; a connection passes the inbound list, NAT, the outbound list and the zone-based firewall.</p>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert router-running.cfg --to fortios -o fortigate.conf --report report.txt</pre></div>
+    <h4 class="sub">Options</h4>
+    <p>Target: <code>--interface-map</code> (the router's interfaces for the zones' interfaces, in the commented <code>zone-member</code> lines and NAT), <code>--target-prefix</code> instead of <code>FWS-</code>, <code>--zone-map</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre>fwshift convert policy.xml --to ios -o zbfw.cfg --report report.txt --interface-map ethernet1/1=GigabitEthernet0/0/0
+show running-config | include FWS-                         <span class="c"># on the router: no name may be taken</span>
+configure terminal                                         <span class="c"># paste; nothing changes yet</span></pre></div>
+    <div class="callout"><b>Zones change traffic.</b> The output creates zones, access lists, class maps, inspect policies and zone pairs. Putting an interface in a zone (the commented <code>zone-member security</code> lines) changes traffic at once: between an interface in a zone and one in none nothing passes, and traffic to the router is not written (<code>IOS_LOAD</code>, <code>IOS_ZONE_MEMBERS</code>).</div>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Access lists are stateless: the converted policy allows the replies of what it allows (<code>IOS_STATELESS</code>); <code>established</code> and <code>evaluate</code> entries are left out (<code>IOS_SKIPPED_ENTRIES</code>).</li>
+      <li>An undefined or empty list passes everything, on the router and in the conversion (<code>IOS_ACL_UNDEFINED</code>, <code>IOS_ACL_EMPTY</code>).</li>
+      <li>Where an outbound list or the zone-based firewall decides as well, the lists are composed for each pair of zones (<code>IOS_COMPOSED</code>); outbound lists see addresses after NAT and are rewritten through it; the zone-based firewall is read as seeing inside addresses (<code>IOS_ZBFW_NAT</code>).</li>
+      <li><code>match protocol</code> is its ports (<code>IOS_PORT_MAP</code>); <code>pass</code> is one way (<code>IOS_PASS</code>); a layer-7 policy under a class is not converted (<code>IOS_LAYER7</code>); the self zone is not policy (<code>IOS_SELF_ZONE</code>).</li>
+      <li><code>time-range</code>, <code>fragments</code>, <code>dscp</code>, TCP flags, route-map and outside NAT and NVI NAT are not converted; VRFs are one routing table (<code>IOS_VRF</code>).</li>
+    </ul>
+    <div class="codebox"><span class="label">output · ios (one rule)</span><button class="copy" type="button">Copy</button><pre>ip access-list extended FWS-R2
+ permit tcp any host 10.20.0.25 eq 8443
+class-map type inspect match-any FWS-R2
+ match access-group name FWS-R2
+policy-map type inspect FWS-PM3
+ class type inspect FWS-R2
+  inspect
+ class class-default
+  drop</pre></div>
   </article>
 
   <!-- FMC -->
@@ -1471,6 +1507,7 @@ fwshift usage rules.v4 --logs kern.log --log-year 2026 --unchanged-since 2026-01
       <tr><td>pfSense</td><td>Each restored area (Aliases, NAT, Rules)</td><td>A full backup</td></tr>
       <tr><td>OPNsense</td><td>Each restored area (Aliases; NAT with NPt; the rules of both pages)</td><td>A full backup; <code>--target-version</code> of the firewall</td></tr>
       <tr><td>ASA</td><td>Interface <code>access-group</code> bindings; <code>global_access</code> on every interface</td><td>Read the <code>access-group</code> lines</td></tr>
+      <tr><td>IOS</td><td>Nothing until interfaces join the zones; entries are added to a list or class map of the same name</td><td>Check that no <code>FWS-</code> name is taken; zone the interfaces in a window</td></tr>
       <tr><td>FortiOS</td><td>Objects of the same name; central NAT changes existing NAT</td><td>A lab device for <code>central-nat enable</code></td></tr>
       <tr><td>Sophos</td><td>Objects of the same name</td><td>Compare counts with the report after import</td></tr>
       <tr><td>Check Point</td><td>Nothing until you publish; the script stops on a name that is taken (predefined objects)</td><td><code>--target-prefix</code>; <code>mgmt_cli discard</code> on error</td></tr>

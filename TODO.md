@@ -86,7 +86,11 @@ VPC firewall rules, global and regional network firewall policies with
 service accounts as the addresses of the instances, egress and ingress
 composed between instances; a gcloud script that creates a new global network
 firewall policy, written; the same from and to Terraform as
-`terraform-google`).
+`terraform-google`), and **0.28.0, Cisco IOS and IOS XE** (`show running-config`
+of a router, read: interface access lists in and out, numbered, named and IPv6,
+object groups, the zone-based firewall with its zone pairs and class maps, NAT,
+composed for each pair of zones where more than the inbound list decides;
+commands for the zone-based firewall, written).
 What each rests on and what nobody has checked on a device is in
 the development log.
 
@@ -100,13 +104,18 @@ output back for `convert --compare`.
 
 Next, one release each, in this order:
 
-* **0.28.0, Cisco IOS** (IOS and IOS XE routers): access lists on interfaces
-  and the zone-based firewall, objects, NAT.
 * **0.29.0, Huawei USG**: security policies between zones, address and service
   sets, NAT policies.
 * **0.30.0, Stormshield** (SNS): filter and NAT slots, objects.
 * **0.31.0, Cisco Meraki MX**: the layer 3 firewall rules of the Dashboard
   API, VLANs, 1:1 NAT and port forwarding.
+
+Still open for IOS: interface access lists as a target (for routers without the
+zone-based firewall); NAT of the NAT virtual interface, outside NAT and route
+maps; VRFs as separate routing tables; time ranges as schedules; checking on a
+router which addresses the zone-based firewall sees under NAT, how an empty class
+map matches and whether a list of remarks only is empty; reading the output back
+for `convert --compare`.
 
 Still open for Google Cloud: the region of a regional policy in the answer of
 `get-effective-firewalls`; secure tags (resolved through the instances' tag

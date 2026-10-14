@@ -1,0 +1,180 @@
+FWShift conversion report
+  source: ios
+  target: panos
+
+Summary
+  Security rules:    204   exact 145, approximated 46, needs review 13 (12 emitted disabled), skipped 0
+  NAT rules:           3   exact 1, approximated 1, needs review 0, skipped 1
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IOS_STATELESS: access lists are stateless: on the router a connection also needs its replies let through by the lists of the other direction (established entries, reflexive lists, inspection). The converted policy is stateful and allows the replies of what it allows: where the router's lists did not let the replies through, it allows connections that did not work there
+  [needs-review] IOS_ZBFW_NAT: the zone-based firewall was read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check its class maps against the converted rules
+  [needs-review] IOS_VRF: interfaces in VRFs: the converted policy has one routing table, and does not know which zones reach each other: GigabitEthernet0 (vrf Mgmt-intf)
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): OUTSIDE, INSIDE, DMZ, LAB, MGMT
+  [info] IOS_SOURCE: 5 zones (OUTSIDE, INSIDE, DMZ, LAB, MGMT) from the interfaces and the zones of the zone-based firewall; 4 access lists bound to interfaces. A connection passes the inbound list of the interface it arrives on, the outbound list of the one it leaves by and the zone-based firewall. Traffic to and from the router itself is not converted
+  [info] IOS_PORT_MAP: match protocol was read as the ports of Port-to-Application Mapping (the system table, and ip port-map); the router inspects the application as well, the converted rules match the ports: mailsub, http, https, dns, ssh
+  [info] IOS_SELF_ZONE: zone pairs with the self zone filter traffic to and from the router itself and were not read: ZP-OUT-SELF
+  [info] IOS_INTERFACES_LEFT_OUT: interfaces that forward no traffic of their own (loopbacks, interfaces without an address) are not zones: Loopback0
+  [info] IOS_SKIPPED_ENTRIES: entries that match no packet that opens a connection were left out (the model allows the replies of what it allows): WAN-IN 30: established: it matches replies only
+  [info] IOS_COMPOSED: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one, for each pair: 25
+  [info] INTRAZONE_DENY_ADDED: appended 'fwshift-intrazone-deny': PAN-OS allows traffic inside a zone by default, the source denies it
+
+Security rules
+  WAN-IN-70 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as WAN-IN-70 _OUTSIDE to OUTSIDE_)
+      [approximated] ICMP_TYPE: service 'icmp-0' matches ICMP type 0; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-80 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as WAN-IN-80 _OUTSIDE to OUTSIDE_)
+      [approximated] ICMP_TYPE: service 'icmp-3' matches ICMP type 3; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-90 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as WAN-IN-90 _OUTSIDE to OUTSIDE_)
+      [approximated] ICMP_TYPE: service 'icmp-11' matches ICMP type 11; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-110 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as WAN-IN-110 _OUTSIDE to OUTSIDE_)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: gre. Verify these names against the App-ID release in use
+  WAN-IN-130 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-130 _OUTSIDE to OUTSIDE_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN6-IN-30 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as WAN6-IN-30 _OUTSIDE to OUTSIDE_)
+      [approximated] ICMP_TYPE: service 'icmp6-129' matches ICMP type 129; App-ID 'ipv6-icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ipv6-icmp. Verify these names against the App-ID release in use
+  WAN6-IN-40 (OUTSIDE to OUTSIDE)  ->  approximated  (emitted as WAN6-IN-40 _OUTSIDE to OUTSIDE_)
+      [approximated] ICMP_TYPE: service 'icmp6-2' matches ICMP type 2; App-ID 'ipv6-icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ipv6-icmp. Verify these names against the App-ID release in use
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN-IN-70 _ no outbound access list _ no zone pair from OUTSIDE)
+      [approximated] ICMP_TYPE: service 'icmp-0' matches ICMP type 0; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as WAN-IN-70 _ no outbound access list _ no zone pair from OUTSI_2)
+      [approximated] ICMP_TYPE: service 'icmp-0' matches ICMP type 0; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN-IN-80 _ no outbound access list _ no zone pair from OUTSIDE)
+      [approximated] ICMP_TYPE: service 'icmp-3' matches ICMP type 3; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as WAN-IN-80 _ no outbound access list _ no zone pair from OUTSI_2)
+      [approximated] ICMP_TYPE: service 'icmp-3' matches ICMP type 3; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN-IN-90 _ no outbound access list _ no zone pair from OUTSIDE)
+      [approximated] ICMP_TYPE: service 'icmp-11' matches ICMP type 11; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as WAN-IN-90 _ no outbound access list _ no zone pair from OUTSI_2)
+      [approximated] ICMP_TYPE: service 'icmp-11' matches ICMP type 11; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN-IN-110 _ no outbound access list _ no zone pair from OUTSID)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: gre. Verify these names against the App-ID release in use
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  approximated  (emitted as WAN-IN-110 _ no outbound access list _ no zone pair from OUTS_2)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: gre. Verify these names against the App-ID release in use
+  WAN-IN-130 (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-130 _OUTSIDE to INSIDE_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled  (emitted as WAN-IN-140 _ no outbound access list _ no zone pair from OUTS_2)
+      [needs-review] SERVICE_NEGATE: a negated service match does not exist on PAN-OS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN6-IN-30 _ no outbound access list _ no zone pair from OUTSID)
+      [approximated] ICMP_TYPE: service 'icmp6-129' matches ICMP type 129; App-ID 'ipv6-icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ipv6-icmp. Verify these names against the App-ID release in use
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)  ->  approximated  (emitted as WAN6-IN-40 _ no outbound access list _ no zone pair from OUTSID)
+      [approximated] ICMP_TYPE: service 'icmp6-2' matches ICMP type 2; App-ID 'ipv6-icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ipv6-icmp. Verify these names against the App-ID release in use
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-70 _ DMZ-OUT-50 _OUTSIDE to DMZ_)
+      [approximated] ICMP_TYPE: service 'icmp-0' matches ICMP type 0; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-70 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as WAN-IN-70 _ DMZ-OUT-50 _OUTSIDE to DMZ_-2)
+      [approximated] ICMP_TYPE: service 'icmp-0' matches ICMP type 0; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-80 _ DMZ-OUT-50 _OUTSIDE to DMZ_)
+      [approximated] ICMP_TYPE: service 'icmp-3' matches ICMP type 3; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-80 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as WAN-IN-80 _ DMZ-OUT-50 _OUTSIDE to DMZ_-2)
+      [approximated] ICMP_TYPE: service 'icmp-3' matches ICMP type 3; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-90 _ DMZ-OUT-50 _OUTSIDE to DMZ_)
+      [approximated] ICMP_TYPE: service 'icmp-11' matches ICMP type 11; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-90 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as WAN-IN-90 _ DMZ-OUT-50 _OUTSIDE to DMZ_-2)
+      [approximated] ICMP_TYPE: service 'icmp-11' matches ICMP type 11; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-110 _ DMZ-OUT-50 _OUTSIDE to DMZ_)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: gre. Verify these names against the App-ID release in use
+  WAN-IN-110 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  approximated  (emitted as WAN-IN-110 _ DMZ-OUT-50 _OUTSIDE to DMZ_-2)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: gre. Verify these names against the App-ID release in use
+  WAN-IN-130 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as WAN-IN-130 _OUTSIDE to DMZ_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ CM-TO-SERVERS (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-140 _ DMZ-OUT-40 _ ZP-OUT-DMZ CM-TO-SERVERS _OUTSIDE to)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping. Verify these names against the App-ID release in use
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN-IN-140 _ DMZ-OUT-40 _ ZP-OUT-DMZ class-default _OUTSIDE to)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping. Verify these names against the App-ID release in use
+  WAN-IN-140 + DMZ-OUT-40 + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)-2  ->  approximated  (emitted as WAN-IN-140 _ DMZ-OUT-40 _ ZP-OUT-DMZ class-default _OUTSIDE t_2)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping. Verify these names against the App-ID release in use
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled  (emitted as WAN-IN-140 _ DMZ-OUT-50 _OUTSIDE to DMZ_-2)
+      [needs-review] SERVICE_NEGATE: a negated service match does not exist on PAN-OS. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN6-IN-30 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN6-IN-30 _ no outbound access list _ ZP-OUT-DMZ class-default)
+      [approximated] ICMP_TYPE: service 'icmp6-129' matches ICMP type 129; App-ID 'ipv6-icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ipv6-icmp. Verify these names against the App-ID release in use
+  WAN6-IN-40 + no outbound access list + ZP-OUT-DMZ class-default (OUTSIDE to DMZ)  ->  approximated  (emitted as WAN6-IN-40 _ no outbound access list _ ZP-OUT-DMZ class-default)
+      [approximated] ICMP_TYPE: service 'icmp6-2' matches ICMP type 2; App-ID 'ipv6-icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ipv6-icmp. Verify these names against the App-ID release in use
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN-IN-70 _ no outbound access list _ no zone pair from OUTSI_3)
+      [approximated] ICMP_TYPE: service 'icmp-0' matches ICMP type 0; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN-IN-80 _ no outbound access list _ no zone pair from OUTSI_3)
+      [approximated] ICMP_TYPE: service 'icmp-3' matches ICMP type 3; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN-IN-90 _ no outbound access list _ no zone pair from OUTSI_3)
+      [approximated] ICMP_TYPE: service 'icmp-11' matches ICMP type 11; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN-IN-110 _ no outbound access list _ no zone pair from OUTS_3)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: gre. Verify these names against the App-ID release in use
+  WAN-IN-130 (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as WAN-IN-130 _OUTSIDE to LAB_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN6-IN-30 _ no outbound access list _ no zone pair from OUTS_2)
+      [approximated] ICMP_TYPE: service 'icmp6-129' matches ICMP type 129; App-ID 'ipv6-icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ipv6-icmp. Verify these names against the App-ID release in use
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to LAB (OUTSIDE to LAB)  ->  approximated  (emitted as WAN6-IN-40 _ no outbound access list _ no zone pair from OUTS_2)
+      [approximated] ICMP_TYPE: service 'icmp6-2' matches ICMP type 2; App-ID 'ipv6-icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ipv6-icmp. Verify these names against the App-ID release in use
+  WAN-IN-70 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN-IN-70 _ no outbound access list _ no zone pair from OUTSI_4)
+      [approximated] ICMP_TYPE: service 'icmp-0' matches ICMP type 0; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-80 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN-IN-80 _ no outbound access list _ no zone pair from OUTSI_4)
+      [approximated] ICMP_TYPE: service 'icmp-3' matches ICMP type 3; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-90 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN-IN-90 _ no outbound access list _ no zone pair from OUTSI_4)
+      [approximated] ICMP_TYPE: service 'icmp-11' matches ICMP type 11; App-ID 'icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp. Verify these names against the App-ID release in use
+  WAN-IN-110 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN-IN-110 _ no outbound access list _ no zone pair from OUTS_4)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: gre. Verify these names against the App-ID release in use
+  WAN-IN-130 (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as WAN-IN-130 _OUTSIDE to MGMT_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN6-IN-30 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN6-IN-30 _ no outbound access list _ no zone pair from OUTS_3)
+      [approximated] ICMP_TYPE: service 'icmp6-129' matches ICMP type 129; App-ID 'ipv6-icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ipv6-icmp. Verify these names against the App-ID release in use
+  WAN6-IN-40 + no outbound access list + no zone pair from OUTSIDE to MGMT (OUTSIDE to MGMT)  ->  approximated  (emitted as WAN6-IN-40 _ no outbound access list _ no zone pair from OUTS_3)
+      [approximated] ICMP_TYPE: service 'icmp6-2' matches ICMP type 2; App-ID 'ipv6-icmp' matches every type
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ipv6-icmp. Verify these names against the App-ID release in use
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-VPN (INSIDE to OUTSIDE)  ->  needs-review  (emitted as INSIDE _in__ no access list _ no outbound access list _ ZP-IN_5)
+      [needs-review] IOS_PASS: pass lets one direction through; the replies need a pass the other way
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: gre. Verify these names against the App-ID release in use
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-PING (INSIDE to OUTSIDE)  ->  approximated  (emitted as INSIDE _in__ no access list _ no outbound access list _ ZP-IN_6)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: icmp, ping, ipv6-icmp, ping6. Verify these names against the App-ID release in use
+  INSIDE (in): no access list + DMZ-OUT-40 + ZP-IN-DMZ CM-TO-SERVERS (INSIDE to DMZ)  ->  approximated  (emitted as INSIDE _in__ no access list _ DMZ-OUT-40 _ ZP-IN-DMZ CM-TO-SERV)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping. Verify these names against the App-ID release in use
+  INSIDE (in): no access list + DMZ-OUT-40 + ZP-IN-DMZ class-default (INSIDE to DMZ)  ->  approximated  (emitted as INSIDE _in__ no access list _ DMZ-OUT-40 _ ZP-IN-DMZ class-defa)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping. Verify these names against the App-ID release in use
+  DMZ (in): no access list + DMZ-OUT-40 (DMZ to DMZ)  ->  approximated  (emitted as DMZ _in__ no access list _ DMZ-OUT-40 _DMZ to DMZ_)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping. Verify these names against the App-ID release in use
+  110-40 (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as 110-40 _LAB to OUTSIDE_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to INSIDE)  ->  needs-review, emitted disabled  (emitted as 110-40 _LAB to INSIDE_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to DMZ)  ->  needs-review, emitted disabled  (emitted as 110-40 _LAB to DMZ_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as 110-40 _LAB to LAB_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to MGMT)  ->  needs-review, emitted disabled  (emitted as 110-40 _LAB to MGMT_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  MGMT (in): no access list + DMZ-OUT-40 + no zone pair from MGMT to DMZ (MGMT to DMZ)  ->  approximated  (emitted as MGMT _in__ no access list _ DMZ-OUT-40 _ no zone pair from MGMT)
+      [approximated] PROTOCOL_AS_APP: ICMP and IP-protocol services are matched as App-IDs on PAN-OS: ping. Verify these names against the App-ID release in use
+
+NAT rules
+  nat-177  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a PAN-OS NAT rule needs a destination zone and the source rule names none; give the zone the traffic is routed to before translation with --target-nat-zone
+  nat-178  ->  approximated
+      [approximated] NAT_INTERFACE_ADDRESS: translates to 203.0.113.2, the address interface 'OUTSIDE' has today; use --interface-map OUTSIDE=<PAN-OS interface> to follow the interface instead

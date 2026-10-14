@@ -1,0 +1,65 @@
+FWShift conversion report
+  source: ios
+  target: sophos
+
+Summary
+  Security rules:    204   exact 193, approximated 0, needs review 11 (10 emitted disabled), skipped 0
+  NAT rules:           3   exact 0, approximated 1, needs review 2, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IOS_STATELESS: access lists are stateless: on the router a connection also needs its replies let through by the lists of the other direction (established entries, reflexive lists, inspection). The converted policy is stateful and allows the replies of what it allows: where the router's lists did not let the replies through, it allows connections that did not work there
+  [needs-review] IOS_ZBFW_NAT: the zone-based firewall was read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check its class maps against the converted rules
+  [needs-review] IOS_VRF: interfaces in VRFs: the converted policy has one routing table, and does not know which zones reach each other: GigabitEthernet0 (vrf Mgmt-intf)
+  [needs-review] SOPHOS_LOAD: the output is an Entities.xml. Put it in a tar archive under that name (or let FWShift do it: give -o a name that ends in .tar) and import it under Backup & firmware > Import export. Rules are added below the rules the firewall has: a firewall rule or NAT rule that is there already, such as the default source NAT rule of a new firewall, comes first. An import can stop at the first object the firewall does not take: compare the number of rules and objects with this report, on a firewall that is not in production
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): OUTSIDE, INSIDE, DMZ, LAB, MGMT. Zones are not created: an import would overwrite the device access of a zone that exists
+  [info] IOS_SOURCE: 5 zones (OUTSIDE, INSIDE, DMZ, LAB, MGMT) from the interfaces and the zones of the zone-based firewall; 4 access lists bound to interfaces. A connection passes the inbound list of the interface it arrives on, the outbound list of the one it leaves by and the zone-based firewall. Traffic to and from the router itself is not converted
+  [info] IOS_PORT_MAP: match protocol was read as the ports of Port-to-Application Mapping (the system table, and ip port-map); the router inspects the application as well, the converted rules match the ports: mailsub, http, https, dns, ssh
+  [info] IOS_SELF_ZONE: zone pairs with the self zone filter traffic to and from the router itself and were not read: ZP-OUT-SELF
+  [info] IOS_INTERFACES_LEFT_OUT: interfaces that forward no traffic of their own (loopbacks, interfaces without an address) are not zones: Loopback0
+  [info] IOS_SKIPPED_ENTRIES: entries that match no packet that opens a connection were left out (the model allows the replies of what it allows): WAN-IN 30: established: it matches replies only
+  [info] IOS_COMPOSED: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one, for each pair: 25
+  [info] EXISTING_OBJECTS: an import overwrites what the firewall has under the same name: a host, a service or a rule that is in this output replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] IP_VERSION_SPLIT: 20 rule(s) match IPv4 and IPv6 traffic and were written twice: Sophos Firewall keeps a rulebase per IP version. The name of the IPv6 rule ends in _v6
+
+Security rules
+  WAN-IN-130 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-130 _OUTSIDE to OUTSIDE_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-130 (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled  (emitted as WAN-IN-130 _OUTSIDE to INSIDE_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-130 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled  (emitted as WAN-IN-130 _OUTSIDE to DMZ_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-130 (OUTSIDE to LAB)  ->  needs-review, emitted disabled  (emitted as WAN-IN-130 _OUTSIDE to LAB_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-130 (OUTSIDE to MGMT)  ->  needs-review, emitted disabled  (emitted as WAN-IN-130 _OUTSIDE to MGMT_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-VPN (INSIDE to OUTSIDE)  ->  needs-review  (emitted as INSIDE _in__ no access list _ no outbound access list _ ZP_5)
+      [needs-review] IOS_PASS: pass lets one direction through; the replies need a pass the other way
+  110-40 (LAB to OUTSIDE)  ->  needs-review, emitted disabled  (emitted as 110-40 _LAB to OUTSIDE_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to INSIDE)  ->  needs-review, emitted disabled  (emitted as 110-40 _LAB to INSIDE_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to DMZ)  ->  needs-review, emitted disabled  (emitted as 110-40 _LAB to DMZ_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to LAB)  ->  needs-review, emitted disabled  (emitted as 110-40 _LAB to LAB_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to MGMT)  ->  needs-review, emitted disabled  (emitted as 110-40 _LAB to MGMT_)
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+NAT rules
+  nat-176  ->  needs-review  (emitted as nat-176, nat-176-in)
+      [approximated] NAT_ZONES: the rule applied to traffic from INSIDE, DMZ only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [needs-review] NAT_ZONES: the rule applied to traffic to OUTSIDE only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface, so that it now translates traffic towards every other zone as well. Name the interfaces with --interface-map, or put a rule without translation above it for the traffic that must keep its addresses
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a source NAT rule plus rule 'nat-176-in' for the inbound direction
+  nat-177  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from OUTSIDE only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+  nat-178  ->  needs-review
+      [approximated] NAT_ZONES: the rule applied to traffic from INSIDE, DMZ only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any inbound interface. Name them with --interface-map
+      [needs-review] NAT_ZONES: the rule applied to traffic to OUTSIDE only. A Sophos NAT rule matches interfaces, and the interfaces of that zone on the target are not known: written for any outbound interface, so that it now translates traffic towards every other zone as well. Name the interfaces with --interface-map, or put a rule without translation above it for the traffic that must keep its addresses
+
+Services
+  tcp  ->  exact  (emitted as tcp_2)
+      [info] RENAMED: renamed to 'tcp_2' to fit the target's naming rules
+  icmp_icmp6  ->  exact  (emitted as icmp_icmp6, icmp_icmp6-icmp, icmp_icmp6-icmpv6)
+      [info] SERVICE_SPLIT: a Sophos service holds one kind of protocol (TCP and UDP ports, IP protocols, ICMP or ICMPv6): written as service group 'icmp_icmp6' of 'icmp_icmp6-icmp', 'icmp_icmp6-icmpv6'

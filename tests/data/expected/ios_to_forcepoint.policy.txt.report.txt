@@ -1,0 +1,66 @@
+FWShift conversion report
+  source: ios
+  target: forcepoint
+
+Summary
+  Security rules:    204   exact 191, approximated 0, needs review 13 (12 emitted disabled), skipped 0
+  NAT rules:           3   exact 0, approximated 0, needs review 3, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:           19   exact 19, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IOS_STATELESS: access lists are stateless: on the router a connection also needs its replies let through by the lists of the other direction (established entries, reflexive lists, inspection). The converted policy is stateful and allows the replies of what it allows: where the router's lists did not let the replies through, it allows connections that did not work there
+  [needs-review] IOS_ZBFW_NAT: the zone-based firewall was read as seeing the inside addresses of NAT (the destination after translation for connections from outside, the source before it for connections to outside). Cisco does not document this; check its class maps against the converted rules
+  [needs-review] IOS_VRF: interfaces in VRFs: the converted policy has one routing table, and does not know which zones reach each other: GigabitEthernet0 (vrf Mgmt-intf)
+  [needs-review] SMC_LOADER: the output is a Python program that loads the policy into a Security Management Center through its REST API (python3 FILE --help). It creates the elements and a new firewall policy 'FWShift' on template 'Firewall Template', checks first that every name is free, and uploads the policy to no engine: review it in the Management Client, then install it yourself. --undo deletes what a run created
+  [needs-review] TEMPLATE_RULES: the rules are written at the insert point of template 'Firewall Template': its rules above the insert point (the traffic of the engine with the SMC) come first, and its rules below come after the rules of the policy (the predefined templates refuse Ident and discard and log the rest)
+  [needs-review] ZONES_REQUIRED: the rules use these zones, which must be set on the interfaces of the engine (or renamed with --zone-map); a zone the SMC does not have is created without interfaces: OUTSIDE, INSIDE, DMZ, LAB, MGMT
+  [needs-review] SMC_NAT: NAT rules are written in order to the policy, used on every engine. Element-based NAT and the default NAT of an engine apply after them, to what they do not translate: check those on the engines
+  [info] IOS_SOURCE: 5 zones (OUTSIDE, INSIDE, DMZ, LAB, MGMT) from the interfaces and the zones of the zone-based firewall; 4 access lists bound to interfaces. A connection passes the inbound list of the interface it arrives on, the outbound list of the one it leaves by and the zone-based firewall. Traffic to and from the router itself is not converted
+  [info] IOS_PORT_MAP: match protocol was read as the ports of Port-to-Application Mapping (the system table, and ip port-map); the router inspects the application as well, the converted rules match the ports: mailsub, http, https, dns, ssh
+  [info] IOS_SELF_ZONE: zone pairs with the self zone filter traffic to and from the router itself and were not read: ZP-OUT-SELF
+  [info] IOS_INTERFACES_LEFT_OUT: interfaces that forward no traffic of their own (loopbacks, interfaces without an address) are not zones: Loopback0
+  [info] IOS_SKIPPED_ENTRIES: entries that match no packet that opens a connection were left out (the model allows the replies of what it allows): WAN-IN 30: established: it matches replies only
+  [info] IOS_COMPOSED: pairs of zones where an outbound list or the zone-based firewall decides as well: the lists composed into one, for each pair: 25
+  [info] MATCH_EXPRESSIONS: rules that limit a side by zones and addresses name a match expression per zone and address element (its parts must all match): 38 were written
+  [info] NAME_COLLISIONS: an SMC predefines many elements (HTTPS, SSH, ...). An element of the same name that says the same is used by the loader; one that says something else stops it: convert again with --target-prefix
+
+Security rules
+  WAN-IN-130 (OUTSIDE to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-130 (OUTSIDE to INSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + no outbound access list + no zone pair from OUTSIDE to INSIDE (OUTSIDE to INSIDE)-2  ->  needs-review, emitted disabled
+      [needs-review] NEGATED_SERVICE: a negated service cannot be written: a cell of an SMC has no negation. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-140 + DMZ-OUT-50 (OUTSIDE to DMZ)-2  ->  needs-review, emitted disabled
+      [needs-review] NEGATED_SERVICE: a negated service cannot be written: a cell of an SMC has no negation. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  WAN-IN-130 (OUTSIDE to LAB)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  WAN-IN-130 (OUTSIDE to MGMT)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: time-range OFFICE: active only part of the time.
+  INSIDE (in): no access list + no outbound access list + ZP-IN-OUT CM-VPN (INSIDE to OUTSIDE)  ->  needs-review
+      [needs-review] IOS_PASS: pass lets one direction through; the replies need a pass the other way
+  110-40 (LAB to OUTSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to INSIDE)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to DMZ)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to LAB)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  110-40 (LAB to MGMT)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: 'fragments' is not converted. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+NAT rules
+  nat-176  ->  needs-review
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as two NAT rules, one for each direction
+      [approximated] NAT_ZONES: the rule applied to traffic from INSIDE, DMZ only; a NAT rule of an SMC names no zone, and it is written without
+      [needs-review] NAT_ZONES: the rule applied to traffic to OUTSIDE only; a NAT rule of an SMC names no zone, and it is written without
+  nat-177  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from OUTSIDE only; a NAT rule of an SMC names no zone, and it is written without
+  nat-178  ->  needs-review
+      [approximated] NAT_INTERFACE_ALIAS: source NAT to the address of the outgoing interface is written as NAT to the alias '$$ Default NAT Address' of the engine: check that the default NAT address is the one the traffic should leave with
+      [approximated] NAT_ZONES: the rule applied to traffic from INSIDE, DMZ only; a NAT rule of an SMC names no zone, and it is written without
+      [needs-review] NAT_ZONES: the rule applied to traffic to OUTSIDE only; a NAT rule of an SMC names no zone, and it is written without

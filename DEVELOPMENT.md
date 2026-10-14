@@ -8,13 +8,13 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.27.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
-| Tests | 5146, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a Google Cloud project, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
+| Version | 0.28.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
+| Tests | 5262, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, an IOS router, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a Google Cloud project, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
 | Analysis | the audit, the zone matrix, rule usage from hit counters and logs, the zone and conduit model as a gate (`fwshift conduits`), the equivalence check (`fwshift compare`, `convert --compare`) |
 | Security | an outside review (ChatGPT, October 2026) and the measures taken: `docs/security/SECURITY_REVIEW.md` |
-| Next | Cisco IOS (0.28), Huawei USG (0.29), Stormshield (0.30), Cisco Meraki MX (0.31); the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
+| Next | Huawei USG (0.29), Stormshield (0.30), Cisco Meraki MX (0.31); the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
 
 ## Layout
 
@@ -26,6 +26,9 @@ src/fwshift/
         fortios.py    FortiOS configuration  -> model
         checkpoint.py Management API JSON    -> model (inline layers flattened)
         asa.py        ASA running-config     -> model (bound access lists, NAT sections)
+        ios.py        IOS / IOS XE running-config -> model (interface lists in and
+                      out, the zone-based firewall and NAT, composed for each
+                      pair of zones where more than the inbound list decides)
         cisco.py      JSON of a Management Center or a Device Manager -> model
                       (sections and inheritance, the prefilter policy, NAT in
                       the order of the device)
@@ -79,6 +82,8 @@ src/fwshift/
         fortios.py    model -> FortiOS CLI configuration
         checkpoint.py model -> shell script of mgmt_cli calls
         asa.py        model -> ASA commands (access lists per interface, twice NAT)
+        ios.py        model -> commands for the IOS zone-based firewall (an
+                      access list and class map per rule, a policy per zone pair)
         cisco.py      model -> the script for a Management Center (fmc_loader.py
                       and the policy as data), or the import file of a Device
                       Manager
@@ -171,7 +176,7 @@ tests/
                       FortiOS logs (and panos_logged.xml), the two
                       Cisco Secure Firewall samples and the SonicWall,
                       WatchGuard, Barracuda and Juniper samples, the nftables
-                      sample (written by nft itself), the NSX, AWS, Azure, Google Cloud, Terraform, RouterOS and OPNsense samples, the zone model,
+                      sample (written by nft itself), the NSX, AWS, Azure, Google Cloud, Terraform, IOS, RouterOS and OPNsense samples, the zone model,
                       and the kernel checks for iptables and nftables
     helpers.py        loaders, and readers for emitted PAN-OS, FortiOS,
                       Check Point, ASA, Sophos and Cisco Secure Firewall output;
@@ -206,6 +211,10 @@ tests/
                       the router does, for random exports and for the script
     test_checkpoint.py Check Point both ways, with simulators for an export
                       and for an emitted script
+    test_ios.py       Cisco IOS both ways: random routers written as running
+                      configurations and a judge of their own (lists, NAT, the
+                      zone-based firewall); the emitted commands read back and
+                      judged the same way
     test_asa.py       Cisco ASA both ways, with a random ASA that judges
                       packets itself and a strict reader of emitted commands
     test_sophos.py    Sophos Firewall both ways, against a strict reader of
@@ -665,6 +674,9 @@ there for an old tag whose tests no longer run on today's tools.
 | Google Cloud: one list without zones, egress and ingress composed between instances | A connection between two instances passes the egress rules of the sender and the ingress rules of the receiver, each list with its own steps. The model has one first-match list: from outside the ingress rules, to outside the egress rules, and between instances the egress rules that deny, then for each that allows the ingress rules cut to it, as for AWS and Azure. |
 | Google Cloud: `goto_next` becomes the rules below it without what it matches | It leaves the policy for the next step, which in one list is "the rules after this policy". Subtracting its match from the rules below it in the same policy says exactly that; when that cannot be worked out, the rules after it are not converted. |
 | Google Cloud output is a new global policy, associated with nothing | Creating it changes no traffic; associating it, and putting it before the VPC rules, are two changes a person makes after reading the report. Each rule is written for ingress and egress, so a connection between instances meets the model's verdict at both ends. |
+| IOS: the zones are the zone-based firewall's, or the interfaces; lists composed per pair of zones | A connection meets up to three lists (inbound, outbound, zone pair), each first match. Where only inbound lists decide, each stays the rules of its zone, as written; otherwise the three are composed for each pair of zones, as AWS and Azure lists are, with what an entry above already takes left out. Interfaces of one zone with different lists are zones of their own. |
+| IOS: the model names addresses as they arrive; outbound lists and the zone-based firewall are rewritten through NAT | An inbound list sees the packet before NAT, an outbound list after it, and the zone-based firewall is read as seeing inside addresses. Rewriting their entries through the static translations and the port translation of a list of sources gives one address space; NAT that is not read makes the entries it could change not converted. |
+| IOS output is the zone-based firewall, with the zone membership as comments | Interface access lists are stateless and need rules for the replies; inspection is stateful, as the model is. Creating zones, lists and policies changes nothing; putting an interface in a zone does, so it is left to a person, as are the NAT lines. |
 | Standard library only | Runs on a bare RHEL box and is easy to audit. |
 | GPL-3.0-or-later | Copyleft: changes to a tool that rewrites security policy stay open to inspection. |
 
@@ -700,6 +712,11 @@ policy behaves unexpectedly.
 | Shape of `show access-rulebase` / `show nat-rulebase` answers: `rulebase`, `objects-dictionary`, sections, `from`/`to`/`total` (with `total` counting rules, not section titles), `inline-layer`, the field names of each object type; objects of data domains are predefined | Check Point parser |
 | `mgmt_cli` syntax of every call the script makes (`add host`, `add network`, `add address-range`, `add dns-domain`, `add group`, `add service-tcp/-udp/-sctp/-icmp/-icmp6/-other`, `add service-group`, `add security-zone`, `add access-layer ... add-default-rule false`, `add access-rule ... position N`, `add nat-rule ... position bottom`), switches after the command, a non-zero exit status when the server refuses a call | Check Point emitter |
 | Check Point accepts an address range `0.0.0.0`-`255.255.255.255`, domain objects as group members, empty groups as placeholders, and object names made of letters, digits, `.`, `_` and `-` | Check Point emitter |
+| IOS, all rows below: from Cisco's IOS 12.2/15 command references and configuration guides (IP access lists, object groups, sequence numbers, IPv6 access lists, the zone-based policy firewall, Port-to-Application Mapping, NAT and its order of operation, document 6209), the IOS XE 17.15 YANG models, and the grammars of Batfish and Ansible cisco.ios (read, never run); nothing was run on a router | IOS parser and emitter |
+| A packet from A to B: inbound list of A, NAT (outside to inside before routing, inside to outside after), outbound list of B, then the zone-based firewall; an undefined or empty list passes everything; a list with entries ends in an implicit deny; IPv6 lists end in permits of neighbour discovery and a deny | IOS parser |
+| Zone-based firewall: no zone pair between two zones drops, inside one zone passes unless a zone pair from the zone to itself (15.0(1)M) says otherwise, zoned to unzoned drops, unzoned to unzoned passes, `self` is the router; `class-default` drops; `inspect` is stateful, `pass` one way; a class map's list takes what it permits | IOS parser and emitter |
+| Port names per protocol (TCP 514 `cmd`, UDP 514 `syslog`); IOS writes ports as names; `sctp` only in IPv6 lists; `ahp` for AH; ICMPv6 as `icmp` with `echo-request`; object groups of networks take subnet masks, entries wildcard masks | IOS parser and emitter |
+| Assumed, not documented: which addresses the zone-based firewall sees under NAT (the inside ones, after a Cisco employee's answer, disputed); that a list of remarks only is empty; that a class map without match statements matches nothing (read as not converted) | IOS parser and emitter |
 | ASA: interface list, then global list, then deny; an interface without list (and no global one) permits to lower security levels; `any` is both IP versions from 9.0; access lists name real addresses and ports from 8.3. (Checked against Cisco's configuration guide in review.) | ASA parser |
 | ASA never forwards back out of the arrival interface or between equal security levels unless `same-security-traffic` permits it, whatever the lists say; an FTD forwards between and within all interfaces | `_blocked`, `_place` |
 | ASA picks the outgoing interface by its routing table (connected networks, static routes) for real addresses; a NAT rule does not send traffic elsewhere than the route would. (Not verified, and known to be too simple: an ASA takes the outgoing interface from the NAT rule that translates the destination unless `route-lookup` is set, so this holds where the routes agree with the NAT rules.) | `_routed`, `_egress` |
@@ -2094,6 +2111,86 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-14: version 0.28.0
+
+The first of four brands asked for after Google Cloud: **Cisco IOS and IOS XE** routers, both ways.
+
+**Built**
+
+* `parsers/ios.py`: the running configuration of a router. Interfaces (addresses, the lists bound in and out for
+  IPv4 and IPv6, the zone, the NAT role, VRFs, classic inspection); access lists numbered and named, standard,
+  extended and IPv6, in the order of their sequence numbers, with wildcard masks (non-contiguous ones as up to 256
+  ranges), object groups of networks and services, port operators and the port names of each protocol, ICMP names,
+  remarks; the zone-based firewall (zones, zone pairs, inspect policies, class maps with access lists, `match
+  protocol` through Port-to-Application Mapping and `ip port-map`, nested class maps, `class-default`); NAT
+  (`ip nat inside source` static, network, port, to an interface; a list to an interface or a pool). A connection
+  passes the inbound list, NAT, the outbound list and the zone-based firewall: where only inbound lists decide each
+  becomes the rules of its zone, otherwise the lists are composed for each pair of zones, with the outbound list and
+  the zone-based firewall rewritten through NAT into the addresses as they arrive. What is not understood makes its
+  entry not converted.
+* `emitters/ios.py`: commands for the zone-based firewall. A zone per zone (prefixed), an access list (IPv4 with
+  object groups, IPv6 with prefixes) and an inspect class map per rule, an inspect policy per zone pair in the order
+  of the rules with `class-default` and, for a default that allows, a class that inspects the rest; allow rules
+  inspect TCP, UDP and ICMP and pass the rest; zone pairs from a zone to itself where the source decides traffic
+  inside a zone otherwise. The zone membership and NAT (static address, network and port; port translation to an
+  interface or a pool) are comments.
+* `--from` and `--to ios`, detection before the ASA (which shares some lines with IOS); the sample
+  (`ios_sample.cfg`, written by `tests/tools/make_ios_sample.py`), 49 golden conversions, their audit and matrix.
+
+**What the work made necessary**
+
+* *Three lists per connection.* An IOS router decides a connection with up to three first-match lists, and the
+  second one sees other addresses than the first. The parser keeps the common case (inbound lists only) as it is
+  written and composes only where it must; composing leaves out what an entry above already takes, so that rules
+  that can never match are not written.
+* *Grouping without names.* The composed lists of the pairs of zones that are alike are made once; their keys leave
+  out what names an interface, or every pair would differ.
+* *A judge of the router.* `test_ios.py` builds random routers as plain descriptions, writes them as running
+  configurations in the classic and the IOS XE form, and decides packets from the description: lists, NAT
+  (static, port, dynamic with a list), the zone-based firewall. The emitted commands are read back by a strict reader
+  of their own into the same description.
+
+**Review**
+
+*Round 36* by the independent reviewer, with probe scripts.
+
+| | Finding | Fix |
+|---|---|---|
+| high | A reflexive list that holds only `evaluate` was read as empty, so it passed everything | `evaluate` is an entry that matches no new connection: the list ends in its implicit deny |
+| medium-high | NAT the parser does not read (`ip nat inside destination`, a route map, a port translation to a DHCP interface, outside NAT) was ignored for connections from outside: denies of an outbound list or the zone-based firewall written for the inside address were lost | NAT not read makes the entries it could change not converted, in both directions; `ip nat inside destination` is read as not converted |
+| medium | `ip port-map` took every number on its line: `from 8000 to 8100` became two ports, a number in the description a port | read by its grammar; anything else makes the protocol not converted |
+| medium | Emitted zone names had no prefix: a zone `default` became the default zone of IOS XE, a zone that exists took in its zone pairs | zone names prefixed; `default` and `self` reserved |
+| medium | Composed lists were not grouped (the name of the empty outbound list named the interface): 55,000 rules for 50 interfaces | the name left out of the key; at most 100,000 rules, then the pairs left are blocked (`IOS_COMPOSED_LEFT_OUT`) |
+| low | Ports above 65535 in `ip port-map` or a port translation ended in a traceback | read as not converted; the parser catches what slips through |
+| low | `ip access-group common ...` was ignored, so the interface passed everything | not converted and said (`IOS_ACL_NOT_READ`) |
+| low | A layer-7 policy under an inspect class was ignored without a word | said on the rule (`IOS_LAYER7`) |
+| low | Text of zone and interface names went into the output as it was; `intrazone_allow` of a zone was ignored | non-printable characters replaced; the zone's own default honoured |
+
+Acted on as well, from the reviewer's suspicions: a class map without match statements, or over a list without
+entries, is not converted; `zone security default` alone puts the interfaces in no zone into it; protocol 0 is not
+converted (IOS may read it as every protocol) and not written; a banner is not configuration; the pool of a port
+translation is written with a prefix of at most /30.
+
+The fixes were not reviewed again; they have tests (`test_r36_*` in `test_ios.py`).
+
+**Verified, and not**
+
+* The tests: 65 in `test_ios.py`, the suite 5262. The parser against the judge: 480 random routers (120 each with
+  lists only, with the zone-based firewall, with NAT, and mixed), 300 packets each; the emitter against the model
+  through the reader of its output: 40 random models, exactly where no narrowing finding is raised and never allowing
+  more where one is.
+* A mutation check with 54 ways to break the parser and the emitter: 38 caught at first; for 14 of the other 16 the
+  random routers were widened (port boundaries, UDP port names, wildcards of all ones and with host bits, ICMP codes,
+  denies in the lists of class maps) and tests were added (a class-default without an action, outside addresses of
+  NAT in an outbound list, the denies of a NAT list, the default of the source in the output), which catch them; the
+  emitter's comparison is now exact also where it lets protocols through with pass. The last 2 change nothing: a
+  wildcard of all ones read in two halves is the same, and the services of one IP version never hold the ICMP of
+  the other.
+* **Not verified**: nothing was loaded on a router, and no configuration of a real router was read: the inputs were
+  written from Cisco's documentation. Which addresses the zone-based firewall sees under NAT, how `show
+  running-config` prints numbers it has names for, and the system table of Port-to-Application Mapping are taken
+  from there or assumed; the tests rest on the same reading.
 
 ### 2026-10-14: version 0.27.0
 

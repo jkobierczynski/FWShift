@@ -1,0 +1,71 @@
+FWShift conversion report
+  source: panos (vsys1)
+  target: ios
+
+Summary
+  Security rules:     14   exact 3, approximated 5, needs review 6 (5 emitted disabled), skipped 0
+  NAT rules:           5   exact 4, approximated 0, needs review 0, skipped 1
+  Addresses:          16   exact 14, approximated 0, needs review 2, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:            5   exact 5, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] IOS_LOAD: the output is configuration commands for the zone-based firewall (section 10): paste them in configuration mode; nothing changes until interfaces are put in the zones (zone-member security, commented at the end). Names start with FWS-: IOS adds to an access list or class map that exists
+  [needs-review] IOS_ZONE_MEMBERS: an interface in a zone passes only what the zone pairs let through, and nothing to an interface in no zone; traffic to and from the router itself (the self zone) is not written. Put every interface that forwards traffic in a zone
+  [needs-review] IOS_ZBFW_NAT: the class maps were written for the inside address of a static translation (the destination after translation), as the zone-based firewall is read to see it. Cisco does not document this; check one translated connection on the router
+  [info] IOS_INTRAZONE: zone pairs from a zone to itself decide traffic inside a zone (IOS 15.0(1)M and IOS XE); IOS passes it otherwise
+  [info] LOGGING_CONVERTED: rules of the source log; their drop and pass actions log
+
+Security rules
+  Allow-Web-Out  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (group=default-profiles); attach equivalent inspection on the target
+      [approximated] APP_TO_PORTS: applications web-browsing, ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  Allow-DNS  ->  approximated
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  Inbound-Web  ->  needs-review
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web-public' with post-NAT 'web-1' because of NAT rule 'Inbound-Web-DNAT'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Inbound-Web-DNAT' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] APP_FILTER_DROPPED: application match ssl dropped; the rule now matches everything on its services
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  Inbound-Mail  ->  approximated
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'mail-public' with post-NAT 'mail-1' because of NAT rule 'Mail-Static'; check that this rule is meant to cover the translated traffic
+      [approximated] APP_TO_PORTS: applications smtp reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  Admin-SSH  ->  needs-review, emitted disabled
+      [approximated] APP_TO_PORTS: applications ssh reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] USER_MATCH: source user match example\netadmins is not converted.
+  Engineering to PLCs  ->  approximated
+      [approximated] APP_TO_PORTS: applications modbus, siemens-s7 reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  Block-Torrents  ->  needs-review, emitted disabled
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) bittorrent; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] SERVICE_UNKNOWN: a service of the rule cannot be read. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block-Region  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'KP': not defined in the input. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: the destination 'KP' holds members only its platform knows; an access list names addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  App-Server-Ports  ->  exact
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  Tagged-Servers-Updates  ->  needs-review, emitted disabled
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'tagged-servers': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: the source 'tagged-servers' holds members only its platform knows; an access list names addresses.
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates.example.com: an access list of IOS names addresses.
+  Not-From-Guests  ->  approximated
+      [approximated] APP_TO_PORTS: applications ping reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [info] IOS_LOG_ALLOW: logging of what the rule allows is not written (inspect logs through a parameter map)
+  Old-Rule  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'odd-hosts': wildcard mask 10.20.1.2/0.0.254.0.
+      [needs-review] ZONE_DYNAMIC: the source 'odd-hosts' holds members only its platform knows; an access list names addresses.
+
+NAT rules
+  No-NAT-Partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: IOS writes static translations of one address, network or port, and port translation to an interface or a pool for a list of sources and destinations
+
+Addresses
+  odd-hosts  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard mask 10.20.1.2/0.0.254.0 cannot be converted
+  KP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'Block-Region' but not an address object in the input (a region, an external list or a missing object); emitted as a placeholder that matches nothing
