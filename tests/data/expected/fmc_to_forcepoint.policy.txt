@@ -1,0 +1,2014 @@
+# The policy, as data. Do not change it here: convert again.
+#
+#: {
+#:  "format": 1,
+#:  "generator": "FWShift (this version)",
+#:  "policy": "FWShift",
+#:  "template": "Firewall Template",
+#:  "comment": "Converted by FWShift from fmc",
+#:  "zones": [
+#:   "inside",
+#:   "dmz",
+#:   "outside"
+#:  ],
+#:  "existing": [
+#:   {
+#:    "type": "default_nat_address_alias",
+#:    "name": "$$ Default NAT Address"
+#:   }
+#:  ],
+#:  "elements": [
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "any-ipv4",
+#:     "ipv4_network": "0.0.0.0/0",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "any-ipv6",
+#:     "ipv6_network": "::/0",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "IPv4-Private-10.0.0.0-8",
+#:     "ipv4_network": "10.0.0.0/8",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "lan-net",
+#:     "ipv4_network": "10.10.0.0/24",
+#:     "broadcast": true,
+#:     "comment": "Office LAN"
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "dmz-net",
+#:     "ipv4_network": "10.20.0.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "ot-net",
+#:     "ipv4_network": "10.30.0.0/24",
+#:     "broadcast": true,
+#:     "comment": "Production cell"
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "partner-net",
+#:     "ipv4_network": "198.51.100.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "branch-v6",
+#:     "ipv6_network": "2001:db8:10::/48",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "web-srv",
+#:     "address": "10.20.0.10"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "web-srv-pub",
+#:     "address": "203.0.113.10"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "mail-srv",
+#:     "address": "10.20.0.25"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "mail-srv-pub",
+#:     "address": "203.0.113.25"
+#:    }
+#:   },
+#:   {
+#:    "type": "address_range",
+#:    "body": {
+#:     "name": "admin-pcs",
+#:     "ip_range": "10.10.0.100-10.10.0.120"
+#:    }
+#:   },
+#:   {
+#:    "type": "address_range",
+#:    "body": {
+#:     "name": "nat-pool",
+#:     "ip_range": "203.0.113.100-203.0.113.110"
+#:    }
+#:   },
+#:   {
+#:    "type": "domain_name",
+#:    "body": {
+#:     "name": "updates.example.com"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "outside-interface",
+#:     "address": "203.0.113.2",
+#:     "comment": "address of interface outside when the configuration was read"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-10.20.0.30",
+#:     "address": "10.20.0.30"
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "servers",
+#:     "element": [
+#:      {
+#:       "@ref": "host",
+#:       "name": "web-srv"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "mail-srv"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-10.20.0.30"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "internal",
+#:     "element": [
+#:      {
+#:       "@ref": "network",
+#:       "name": "lan-net"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "dmz-net"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "servers"
+#:      }
+#:     ],
+#:     "comment": "Everything behind the firewall"
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "HTTP",
+#:     "min_dst_port": 80,
+#:     "max_dst_port": 80
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "HTTPS",
+#:     "min_dst_port": 443,
+#:     "max_dst_port": 443
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "SSH",
+#:     "min_dst_port": 22,
+#:     "max_dst_port": 22
+#:    }
+#:   },
+#:   {
+#:    "type": "udp_service",
+#:    "body": {
+#:     "name": "DNS_over_UDP",
+#:     "min_dst_port": 53,
+#:     "max_dst_port": 53
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "DNS_over_TCP",
+#:     "min_dst_port": 53,
+#:     "max_dst_port": 53
+#:    }
+#:   },
+#:   {
+#:    "type": "udp_service",
+#:    "body": {
+#:     "name": "NTP-UDP",
+#:     "min_dst_port": 123,
+#:     "max_dst_port": 123
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "web-alt",
+#:     "min_dst_port": 8080,
+#:     "max_dst_port": 8081
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "smtp",
+#:     "min_dst_port": 25,
+#:     "max_dst_port": 25
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "backup",
+#:     "min_dst_port": 10000,
+#:     "max_dst_port": 10000
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "http-8080",
+#:     "min_dst_port": 8080,
+#:     "max_dst_port": 8080
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "http-8443",
+#:     "min_dst_port": 8443,
+#:     "max_dst_port": 8443
+#:    }
+#:   },
+#:   {
+#:    "type": "ip_service",
+#:    "body": {
+#:     "name": "ipsec-esp",
+#:     "protocol_number": 50
+#:    }
+#:   },
+#:   {
+#:    "type": "icmp_service",
+#:    "body": {
+#:     "name": "echo",
+#:     "icmp_type": 8
+#:    }
+#:   },
+#:   {
+#:    "type": "icmp_ipv6_service",
+#:    "body": {
+#:     "name": "echo6",
+#:     "icmp_type": 128
+#:    }
+#:   },
+#:   {
+#:    "type": "ip_service",
+#:    "body": {
+#:     "name": "gre",
+#:     "protocol_number": 47
+#:    }
+#:   },
+#:   {
+#:    "type": "ip_service",
+#:    "body": {
+#:     "name": "ipinip",
+#:     "protocol_number": 4
+#:    }
+#:   },
+#:   {
+#:    "type": "ip_service",
+#:    "body": {
+#:     "name": "proto-41",
+#:     "protocol_number": 41
+#:    }
+#:   },
+#:   {
+#:    "type": "udp_service",
+#:    "body": {
+#:     "name": "udp-3544",
+#:     "min_dst_port": 3544,
+#:     "max_dst_port": 3544
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-3389",
+#:     "min_dst_port": 3389,
+#:     "max_dst_port": 3389
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-8443",
+#:     "min_dst_port": 8443,
+#:     "max_dst_port": 8443
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-21",
+#:     "min_dst_port": 21,
+#:     "max_dst_port": 21
+#:    }
+#:   },
+#:   {
+#:    "type": "udp_service",
+#:    "body": {
+#:     "name": "udp-53",
+#:     "min_dst_port": 53,
+#:     "max_dst_port": 53
+#:    }
+#:   },
+#:   {
+#:    "type": "udp_service",
+#:    "body": {
+#:     "name": "udp-1024-65535",
+#:     "min_dst_port": 1024,
+#:     "max_dst_port": 65535
+#:    }
+#:   },
+#:   {
+#:    "type": "udp_service",
+#:    "body": {
+#:     "name": "udp-src-53-dst-1024-65535",
+#:     "min_dst_port": 1024,
+#:     "max_dst_port": 65535,
+#:     "min_src_port": 53,
+#:     "max_src_port": 53
+#:    }
+#:   },
+#:   {
+#:    "type": "service_group",
+#:    "body": {
+#:     "name": "web",
+#:     "element": [
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "HTTP"
+#:      },
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "HTTPS"
+#:      },
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "web-alt"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "service_group",
+#:    "body": {
+#:     "name": "mgmt",
+#:     "element": [
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "SSH"
+#:      },
+#:      {
+#:       "@ref": "icmp_service",
+#:       "name": "echo"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "inside and lan-net",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "inside"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "lan-net"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "dmz and mail-srv",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "dmz"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "mail-srv"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "dmz and mail-srv-pub",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "dmz"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "mail-srv-pub"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and IPv4-Private-10.0.0.0-8",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "IPv4-Private-10.0.0.0-8"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and partner-net",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "partner-net"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "dmz and web-srv",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "dmz"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "web-srv"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "dmz and web-srv-pub",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "dmz"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "web-srv-pub"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "inside and ot-net",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "inside"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "ot-net"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and updates.example.com",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "domain_name",
+#:       "name": "updates.example.com"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "inside and admin-pcs",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "inside"
+#:      },
+#:      {
+#:       "@ref": "address_range",
+#:       "name": "admin-pcs"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "dmz and servers",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "dmz"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "servers"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "address_range",
+#:    "body": {
+#:     "name": "r-10.10.0.200-10.10.0.250",
+#:     "ip_range": "10.10.0.200-10.10.0.250"
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "inside and r-10.10.0.200-10.10.0.250",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "inside"
+#:      },
+#:      {
+#:       "@ref": "address_range",
+#:       "name": "r-10.10.0.200-10.10.0.250"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-10.20.0.53",
+#:     "address": "10.20.0.53"
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "dmz and h-10.20.0.53",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "dmz"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-10.20.0.53"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and branch-v6",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "branch-v6"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-2001.db8.20..10",
+#:     "ipv6_address": "2001:db8:20::10"
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "dmz and h-2001.db8.20..10",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "dmz"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-2001.db8.20..10"
+#:      }
+#:     ]
+#:    }
+#:   }
+#:  ],
+#:  "rules": {
+#:   "fw_ipv4_access_rule": [
+#:    {
+#:     "name": "pre-backup",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "inside and lan-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and mail-srv"
+#:       },
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and mail-srv-pub"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "backup"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "pre-spoofed",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and IPv4-Private-10.0.0.0-8"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "pre-partner-gre",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and partner-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and web-srv"
+#:       },
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and web-srv-pub"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "gre"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "pre-partner-gre-reverse",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and web-srv"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and partner-net"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "gre"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "prefilter-default-block-tunnels",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "gre"
+#:       },
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "ipinip"
+#:       },
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "proto-41"
+#:       },
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-3544"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Default action of the prefilter policy: block tunnel traffic."
+#:    },
+#:    {
+#:     "name": "Block OT outbound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "inside and ot-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "No production cell talks to the Internet"
+#:    },
+#:    {
+#:     "name": "LAN web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "inside and lan-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "web"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "LAN DNS and NTP",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "inside and lan-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "DNS_over_UDP"
+#:       },
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "DNS_over_TCP"
+#:       },
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "NTP-UDP"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Updates",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "inside"
+#:       },
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "dmz"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and updates.example.com"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "HTTPS"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Inbound web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and web-srv"
+#:       },
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and web-srv-pub"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "HTTP"
+#:       },
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "HTTPS"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Inbound mail",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and mail-srv"
+#:       },
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and mail-srv-pub"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "smtp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Admin access",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "inside and admin-pcs"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and servers"
+#:       },
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and mail-srv-pub"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "mgmt"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Helpdesk RDP",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "inside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and servers"
+#:       },
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and mail-srv-pub"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-3389"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "Staff social media",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "inside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "Partner service",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and partner-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and web-srv"
+#:       },
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and web-srv-pub"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "ipsec-esp"
+#:       },
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Uncategorised web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "inside and r-10.10.0.200-10.10.0.250"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "HTTP"
+#:       },
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "HTTPS"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Old FTP",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "inside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-21"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "DNS answers to resolver",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and h-10.20.0.53"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-src-53-dst-1024-65535"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Ping out",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "inside"
+#:       },
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "dmz"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "icmp_service",
+#:        "name": "echo"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Reset the rest from inside",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "inside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "refuse"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    }
+#:   ],
+#:   "fw_ipv6_access_rule": [
+#:    {
+#:     "name": "prefilter-default-block-tunnels",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "gre"
+#:       },
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "ipinip"
+#:       },
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "proto-41"
+#:       },
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-3544"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Default action of the prefilter policy: block tunnel traffic."
+#:    },
+#:    {
+#:     "name": "Updates",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "inside"
+#:       },
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "dmz"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and updates.example.com"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "HTTPS"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Staff social media",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "inside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "Old FTP",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "inside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-21"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Branch IPv6",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and branch-v6"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "dmz and h-2001.db8.20..10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "HTTPS"
+#:       },
+#:       {
+#:        "@ref": "icmp_ipv6_service",
+#:        "name": "echo6"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Reset the rest from inside",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "inside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "refuse"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    }
+#:   ]
+#:  },
+#:  "nat": {
+#:   "fw_ipv4_nat_rule": [
+#:    {
+#:     "name": "nat-1",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "lan-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "partner-net"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined"
+#:     },
+#:     "comment": "No NAT towards the partner"
+#:    },
+#:    {
+#:     "name": "nat-2",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "any-ipv4"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "web-srv-pub"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "static_dst_nat": {
+#:       "automatic_proxy": true,
+#:       "original_value": {
+#:        "element": {
+#:         "@ref": "host",
+#:         "name": "web-srv-pub"
+#:        }
+#:       },
+#:       "translated_value": {
+#:        "element": {
+#:         "@ref": "host",
+#:         "name": "web-srv"
+#:        }
+#:       }
+#:      }
+#:     },
+#:     "comment": "Web server"
+#:    },
+#:    {
+#:     "name": "nat-3",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "outside-interface"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "http-8443"
+#:       }
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "static_dst_nat": {
+#:       "automatic_proxy": true,
+#:       "original_value": {
+#:        "element": {
+#:         "@ref": "host",
+#:         "name": "outside-interface"
+#:        },
+#:        "min_port": "8443",
+#:        "max_port": "8443"
+#:       },
+#:       "translated_value": {
+#:        "element": {
+#:         "@ref": "host",
+#:         "name": "web-srv"
+#:        },
+#:        "min_port": "8080",
+#:        "max_port": "8080"
+#:       }
+#:      }
+#:     },
+#:     "comment": "Test site on the interface address"
+#:    },
+#:    {
+#:     "name": "nat-4",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "lan-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "dynamic_src_nat": {
+#:       "automatic_proxy": true,
+#:       "translation_values": [
+#:        {
+#:         "element": {
+#:          "@ref": "address_range",
+#:          "name": "nat-pool"
+#:         },
+#:         "min_port": 1024,
+#:         "max_port": 65535
+#:        }
+#:       ]
+#:      }
+#:     }
+#:    },
+#:    {
+#:     "name": "nat-mail-srv",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "mail-srv"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "static_src_nat": {
+#:       "automatic_proxy": true,
+#:       "original_value": {
+#:        "element": {
+#:         "@ref": "host",
+#:         "name": "mail-srv"
+#:        }
+#:       },
+#:       "translated_value": {
+#:        "element": {
+#:         "@ref": "host",
+#:         "name": "mail-srv-pub"
+#:        }
+#:       }
+#:      }
+#:     }
+#:    },
+#:    {
+#:     "name": "nat-mail-srv (inbound)",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "mail-srv-pub"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "static_dst_nat": {
+#:       "automatic_proxy": true,
+#:       "original_value": {
+#:        "element": {
+#:         "@ref": "host",
+#:         "name": "mail-srv-pub"
+#:        }
+#:       },
+#:       "translated_value": {
+#:        "element": {
+#:         "@ref": "host",
+#:         "name": "mail-srv"
+#:        }
+#:       }
+#:      }
+#:     }
+#:    },
+#:    {
+#:     "name": "nat-dmz-net",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "dmz-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "dynamic_src_nat": {
+#:       "automatic_proxy": true,
+#:       "translation_values": [
+#:        {
+#:         "element": {
+#:          "@ref": "default_nat_address_alias",
+#:          "name": "$$ Default NAT Address"
+#:         },
+#:         "min_port": 1024,
+#:         "max_port": 65535
+#:        }
+#:       ]
+#:      }
+#:     }
+#:    },
+#:    {
+#:     "name": "nat-after-auto-1",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "group",
+#:        "name": "internal"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "dynamic_src_nat": {
+#:       "automatic_proxy": true,
+#:       "translation_values": [
+#:        {
+#:         "element": {
+#:          "@ref": "default_nat_address_alias",
+#:          "name": "$$ Default NAT Address"
+#:         },
+#:         "min_port": 1024,
+#:         "max_port": 65535
+#:        }
+#:       ]
+#:      }
+#:     },
+#:     "comment": "Whatever else leaves"
+#:    }
+#:   ],
+#:   "fw_ipv6_nat_rule": []
+#:  }
+#: }

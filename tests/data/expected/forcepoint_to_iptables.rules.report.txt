@@ -1,0 +1,87 @@
+FWShift conversion report
+  source: forcepoint (Branch Policy)
+  target: iptables
+
+Summary
+  Security rules:     32   exact 13, approximated 3, needs review 10 (7 emitted disabled), skipped 6
+  NAT rules:           5   exact 3, approximated 1, needs review 1, skipped 0
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FORCEPOINT_ELEMENT_NAT: element-based NAT (NAT set on an element) and the default NAT of the engine are not in the policy, and not read: they translate after the NAT rules, and an element with static NAT also matches its public address in the access rules
+  [needs-review] IPTABLES_LOAD: the output holds the FORWARD chain only. Plain 'iptables-restore' replaces the whole filter table, INPUT and OUTPUT included: check it with 'iptables-restore --test', then load it with 'iptables-restore --noflush' on a host whose FORWARD chain is empty, or merge it by hand
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names; map each zone to its interface with --zone-map: Internal, External
+  [info] CONTINUE_RULE: Continue rules decide nothing: they set defaults (logging, inspection, timeouts) for the rules below them that match the same traffic. Their logging was given to those rules: 'lan defaults'
+  [info] NONE_CELL: rules with a cell set to NONE, which the engine ignores; converted disabled: 'unfinished'
+  [info] AUTOMATIC_RULES: the automatic rules of the engine (at the insert point for them) are for traffic to and from the engine itself, and are not converted
+  [info] SOURCE_VPN_NONE: rules that match traffic that comes through no VPN (Source VPN: not via VPN); converted for all traffic, as the model has no VPNs: 'ping out'
+  [info] NETWORK_BROADCAST: networks without 'broadcast' in groups: Forcepoint documents the option for rule cells, and in a group they were taken whole: grp-inside
+  [info] FORCEPOINT_ZONES: zones are bound to interfaces on the engine, which the input does not hold: the zones of the policy have no interfaces here
+  [info] FORCEPOINT_AUTOMATIC: what the engine does by itself is not converted: antispoofing (from its routing), the automatic rules for its own traffic, and replies of allowed connections, which the model allows with them
+  [info] OTHER_IP_VERSION: 6 rules match the other IP version only; convert with --to ip6tables as well
+  [info] LOGGING_NOT_CONVERTED: logging settings of the rules are not converted; add LOG or NFLOG rules where needed
+
+Security rules
+  Rule @900.0  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: source '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+  allow web  ->  needs-review  (emitted as 3 FORWARD rules)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '192.168.10.10', the address NAT rule 'publish web' translates 'pub-web' to. The target looks rules up after that translation, so traffic sent to 'pub-web' now matches this rule; on the source it did not
+  admins in  ->  exact  (emitted as 1 FORWARD rule)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  others out  ->  exact  (emitted as 1 FORWARD rule)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  refuse admins 8443  ->  approximated  (emitted as 1 FORWARD rule)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+  internal zone out  ->  needs-review  (emitted as 1 FORWARD rule)
+      [needs-review] NAT_PORT_EXPOSED: the service covers the post-NAT port of NAT rule 'publish web' (which translates the port to 8443) but not the pre-NAT one. The source looks rules up before the translation and did not apply this rule to that traffic; the target looks them up after it, and there the rule applies
+  not to dmz  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (pub-web, 192.168.10.10).
+  updates by name  ->  approximated  (emitted as 2 FORWARD rules)
+      [approximated] FQDN_RESOLVED_ONCE: 'updates.example.com' is a host name: iptables resolves it once, when the rules are loaded, and keeps the addresses it got then
+      [approximated] FQDN_RESOLVED_ONCE: 'cdn.example.com' is a host name: iptables resolves it once, when the rules are loaded, and keeps the addresses it got then
+  zone or web host out  ->  exact  (emitted as 1 FORWARD rule)
+      [info] RULE_SPLIT: the cells hold zones, addresses, users or applications side by side (ORed): the rule is 2 rules, one per combination
+  vpn only  ->  needs-review, emitted disabled
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '192.168.10.10', the address NAT rule 'publish web' translates 'pub-web' to. The target looks rules up after that translation, so traffic sent to 'pub-web' now matches this rule; on the source it did not
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches traffic of VPNs only (Source VPN).
+  no social  ->  needs-review, emitted disabled
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) Facebook; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  helpdesk to dmz  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match helpdesk is not converted.
+  office web  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Office hours' is not converted; the rule would apply at all times.
+  limited guests  ->  needs-review  (emitted as 1 FORWARD rule)
+      [approximated] CONNECTION_LIMIT: the rule limits concurrent connections (src_limit 50): connections beyond it are refused or discarded, which is not converted
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (deep_inspection=on); attach equivalent inspection on the target
+  block list  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: it has a block list (it discards what the dynamic block list holds, and lets the rest go on). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Rule @902.0  ->  approximated  (emitted as 1 FORWARD rule)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+  v6 web  ->  skipped
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  v6 ping  ->  skipped
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  v6 mail  ->  skipped
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  v6 guests  ->  skipped
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  Rule @952.0  ->  skipped
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+  Rule @953.0  ->  skipped
+      [info] NOT_THIS_IP_VERSION: nothing in this rule can match IPv4; it is written for the other IP version only
+
+NAT rules
+  publish web  ->  needs-review  (emitted as 1 PREROUTING)
+      [needs-review] NAT_ORDER: on the source, the traffic this rule forwards to 192.168.10.10 keeps its source address. The target translates sources apart from destinations, after the destination: there NAT rules 'mail static', 'guests hide' translate the source of that traffic as well
+  guests hide  ->  approximated  (emitted as 1 POSTROUTING)
+      [info] NAT_ENGINE: the NAT rule applies on engine 'fw-branch' only
+      [approximated] NAT_INTERFACE_ALIAS: the source is translated to $$ Default NAT Address, the address of an interface of the engine: converted as the address of the interface the traffic leaves by

@@ -1,0 +1,75 @@
+FWShift conversion report
+  source: forcepoint (Branch Policy)
+  target: forcepoint
+
+Summary
+  Security rules:     32   exact 22, approximated 5, needs review 5 (5 emitted disabled), skipped 0
+  NAT rules:           5   exact 4, approximated 1, needs review 0, skipped 0
+  Addresses:          15   exact 15, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FORCEPOINT_ELEMENT_NAT: element-based NAT (NAT set on an element) and the default NAT of the engine are not in the policy, and not read: they translate after the NAT rules, and an element with static NAT also matches its public address in the access rules
+  [needs-review] SMC_LOADER: the output is a Python program that loads the policy into a Security Management Center through its REST API (python3 FILE --help). It creates the elements and a new firewall policy 'FWShift' on template 'Firewall Template', checks first that every name is free, and uploads the policy to no engine: review it in the Management Client, then install it yourself. --undo deletes what a run created
+  [needs-review] TEMPLATE_RULES: the rules are written at the insert point of template 'Firewall Template': its rules above the insert point (the traffic of the engine with the SMC) come first, and its rules below come after the rules of the policy (the predefined templates refuse Ident and discard and log the rest)
+  [needs-review] ZONES_REQUIRED: the rules use these zones, which must be set on the interfaces of the engine (or renamed with --zone-map); a zone the SMC does not have is created without interfaces: Internal, External
+  [needs-review] SMC_NAT: NAT rules are written in order to the policy, used on every engine. Element-based NAT and the default NAT of an engine apply after them, to what they do not translate: check those on the engines
+  [info] CONTINUE_RULE: Continue rules decide nothing: they set defaults (logging, inspection, timeouts) for the rules below them that match the same traffic. Their logging was given to those rules: 'lan defaults'
+  [info] NONE_CELL: rules with a cell set to NONE, which the engine ignores; converted disabled: 'unfinished'
+  [info] AUTOMATIC_RULES: the automatic rules of the engine (at the insert point for them) are for traffic to and from the engine itself, and are not converted
+  [info] SOURCE_VPN_NONE: rules that match traffic that comes through no VPN (Source VPN: not via VPN); converted for all traffic, as the model has no VPNs: 'ping out'
+  [info] NETWORK_BROADCAST: networks without 'broadcast' in groups: Forcepoint documents the option for rule cells, and in a group they were taken whole: grp-inside
+  [info] FORCEPOINT_ZONES: zones are bound to interfaces on the engine, which the input does not hold: the zones of the policy have no interfaces here
+  [info] FORCEPOINT_AUTOMATIC: what the engine does by itself is not converted: antispoofing (from its routing), the automatic rules for its own traffic, and replies of allowed connections, which the model allows with them
+  [info] MATCH_EXPRESSIONS: rules that limit a side by zones and addresses name a match expression per zone and address element (its parts must all match): 1 were written
+  [info] DOMAIN_NAMES: host names are written as domain name elements; the engine resolves them only with DNS servers in its properties: cdn.example.com, updates.example.com
+
+Security rules
+  Rule @900.0  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: source '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references '_$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references '_$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+  admins in  ->  exact  (emitted as to admin sub-policy / admins in)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  others out  ->  exact  (emitted as to admin sub-policy / others out)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  refuse admins 8443  ->  approximated
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+  zone or web host out  ->  exact
+      [info] RULE_SPLIT: the cells hold zones, addresses, users or applications side by side (ORed): the rule is 2 rules, one per combination
+  vpn only  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches traffic of VPNs only (Source VPN).
+  helpdesk to dmz  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match helpdesk is not converted.
+  office web  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Office hours' is not converted; the rule would apply at all times.
+  limited guests  ->  approximated
+      [approximated] CONNECTION_LIMIT: the rule limits concurrent connections (src_limit 50): connections beyond it are refused or discarded, which is not converted
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (deep_inspection=on); attach equivalent inspection on the target
+  block list  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: it has a block list (it discards what the dynamic block list holds, and lets the rest go on). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Rule @902.0  ->  approximated
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+  v6 guests  ->  approximated
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+  Rule @952.0  ->  approximated
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+
+NAT rules
+  guests hide  ->  approximated
+      [info] NAT_ENGINE: the NAT rule applies on engine 'fw-branch' only
+      [approximated] NAT_INTERFACE_ALIAS: the source is translated to $$ Default NAT Address, the address of an interface of the engine: converted as the address of the interface the traffic leaves by
+      [approximated] NAT_INTERFACE_ALIAS: source NAT to the address of the outgoing interface is written as NAT to the alias '$$ Default NAT Address' of the engine: check that the default NAT address is the one the traffic should leave with
+
+Addresses
+  $$ Management Servers  ->  exact  (emitted as _$ Management Servers)
+      [info] RENAMED: renamed to '_$ Management Servers' to fit the target's naming rules
+  $$ Local Cluster  ->  exact  (emitted as _$ Local Cluster)
+      [info] RENAMED: renamed to '_$ Local Cluster' to fit the target's naming rules
+  _$ Management Servers  ->  exact
+      [info] NOT_CREATED: not created (an alias, whose value is set per engine, and the input holds no engine); rules that use it are written disabled
+  _$ Local Cluster  ->  exact
+      [info] NOT_CREATED: not created (an alias, whose value is set per engine, and the input holds no engine); rules that use it are written disabled

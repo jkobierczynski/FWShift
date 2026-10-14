@@ -26,6 +26,7 @@ what was approximated and what a person has to look at.
 | AWS EC2 security groups (and network ACLs) | the JSON of the AWS CLI for one VPC: security groups, network interfaces, subnets, network ACLs, prefix lists | a shell script of AWS CLI calls that creates new security groups |
 | Azure network security groups | the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph: groups, network interfaces, virtual networks, service tags | an ARM template with a group per zone |
 | MikroTik RouterOS (6 and 7) | the output of `/export` | a script for `/import`, switched on by one change |
+| Forcepoint NGFW (SMC 6.10 to 7.4) | the answers of the SMC REST API for one policy, as `fwshift script forcepoint-dump` fetches them | a Python script that creates a new policy through the SMC REST API |
 
 It also **audits** a policy, of any of these formats: rules that allow too
 much, rules that never match because earlier rules cover them, unused and
@@ -40,7 +41,7 @@ change, or a source and its conversion read back (the **equivalence check**).
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.24).** The converter is tested against synthetic
+> **Status: alpha (0.25).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -51,7 +52,7 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   are sent through them. Generated nftables rulesets are also listed back
 >   by nft, as text and as JSON, and both listings must give the same model.
 > * **PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall,
->   Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, VMware NSX, AWS, Azure and RouterOS** output has **not been loaded on a
+>   Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, VMware NSX, AWS, Azure, RouterOS and Forcepoint** output has **not been loaded on a
 >   device or management server**. The Check Point input format is taken from the API
 >   documentation, not from a real export, the ASA and FTD syntax from Cisco's
 >   command references, and the Sophos format from the documentation of its
@@ -77,11 +78,27 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   documentation; Azure from Microsoft's REST API specifications, the Azure
 >   CLI and the documentation; RouterOS from MikroTik's documentation, the
 >   schemas of the Ansible collection and the Terraform provider for it, and
->   exports published as test data. Several conversion rules rest on
+>   exports published as test data; the Forcepoint SMC API from its API guide and the
+>   Python library and Terraform provider Forcepoint publishes for it (the loader and the
+>   dump program have only talked to a stand-in written for the tests). Several conversion rules rest on
 >   vendor behaviour taken from documentation rather than from a lab.
 >
 > Treat the output as a draft for a lab, read the report, and never load it in
 > production unreviewed.
+
+## Using it safely
+
+1. **Work on a trusted workstation; treat exports, outputs and reports as confidential (they map your network).**
+2. **Convert with `--strict` and read the whole report: every *needs review* and *approximated* line, every disabled rule.**
+3. **Prove the result: the equivalence check (`--compare`, or `fwshift compare` on the output read back); accept each difference explicitly.**
+4. **Treat every output as privileged code: read it before running it, and run loaders with `--show` and `--dry-run` first.**
+5. **Load into a lab or a new, unassigned policy first; outputs that act when loaded (iptables, nft, restored areas) only with console access.**
+6. **Give keys and passwords through the environment or the prompt, to a least-privilege API account; never use `--insecure`.**
+7. **Keep the journal of a loader run until the change is accepted: `--undo` removes exactly what that run created.**
+8. **After loading, read the policy back from the target, compare it again, and test the critical flows on the device.**
+9. **Install only release packages whose checksums match `SHA256SUMS`; publish, install or deploy on the target yourself.**
+
+The reasons, and what an outside security review found, are in [docs/security/SECURITY_REVIEW.md](docs/security/SECURITY_REVIEW.md).
 
 ## Documentation
 
@@ -95,6 +112,8 @@ Pure Python, standard library only, Python 3.9 or newer.
 * **[DEVELOPMENT.md](DEVELOPMENT.md)**: architecture, the rules the code
   follows, how to add a vendor, testing, and the development log.
 * **[TODO.md](TODO.md)**: what is planned, release by release.
+* **[Security review](docs/security/SECURITY_REVIEW.md)**: an outside review of the project (by ChatGPT, October 2026), and what
+  was done about each point.
 
 ## Why
 
@@ -135,8 +154,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.24.0.pyz --version
-python3 fwshift-0.24.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.25.0.pyz --version
+python3 fwshift-0.25.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -217,6 +236,15 @@ fwshift convert opnsense.xml --to fortios -o fortigate.conf --report report.txt
 fwshift convert running-config.xml --to opnsense --target-version 26.1 -o restore.xml --report report.txt \
     --zone-map trust=lan --zone-map untrust=wan \
     --zone-network lan=10.10.0.0/16 --zone-network wan=0.0.0.0/0,::/0
+
+# Forcepoint NGFW: write the read-only dump program, let it fetch one policy
+# from the SMC REST API, and convert that. To a Forcepoint, the output is a
+# program that creates a new policy on a template; it installs nothing
+fwshift script forcepoint-dump -o smc_dump.py
+SMC_API_KEY=... python3 smc_dump.py --host smc.example.com --policy "Branch Policy" -o branch.json
+fwshift convert branch.json --to asa -o asa.cfg --report report.txt
+fwshift convert running-config.xml --to forcepoint -o load_smc.py --report report.txt
+python3 load_smc.py --show
 
 # SonicWall: the settings export (.exp) is read as it is. To a SonicWall,
 # the output is commands to paste into an SSH session; NAT policies need the
@@ -317,7 +345,8 @@ for a pfSense the backup under *Diagnostics > Backup & Restore*, for an
 OPNsense the one under *System > Configuration > Backups*, for a
 SonicWall *Export Settings*, for a WatchGuard the file Policy Manager saves,
 for a Barracuda a few `curl` calls to its REST API, for an SRX
-`show configuration | display inheritance no-comments | display set`.
+`show configuration | display inheritance no-comments | display set`, for a
+Forcepoint the program `fwshift script forcepoint-dump` writes.
 
 The report starts with a summary and then lists every rule that is not exact:
 
@@ -517,6 +546,15 @@ FWShift reads) and does the same for the conversion. See
 | NAT | port forwards in both forms (with *Pass* and *Register rule*), Source NAT rules and manual outbound rules in every mode, automatic outbound NAT, 1:1 NAT both ways and one way |
 | Scope | the whole configuration, OPNsense 24.7 to 26.7. Written for one of them (`--target-version`) |
 
+| | Forcepoint NGFW |
+|---|---|
+| Address objects | hosts and routers (with their other addresses), networks (without network and broadcast address in a rule cell where *broadcast* is off), ranges, domain names, expressions (union, intersection, the exclusion of one element) |
+| Address groups | groups, nested; a rule takes the part of a group of its IP version |
+| Services | TCP and UDP (destination and source ports), ICMP and ICMPv6 types and codes, IP protocols, service groups; network applications and URL categories by name |
+| Security rules | the IPv4 and IPv6 lists of the policy and its templates in the order of the insert points; sections; zones and match expressions; Allow, Discard, Refuse; Continue (its logging); jumps to sub-policies, flattened; NONE cells; disabled rules. Written: zones, match expressions and expressions for negation, into the list of each IP version a rule can match |
+| NAT | static destination NAT (with ports), static and dynamic source NAT, `$$ Default NAT Address`, rules without translation. Written the same, used on every engine |
+| Scope | one firewall policy with its templates and the sub-policies its rules jump to. Written as a new policy on a template (`--target-template`) |
+
 | | SonicWall |
 |---|---|
 | Address objects | host, range, network, FQDN; the objects SonicOS has by itself (`X1 IP`, `X0 Subnet`, `LAN Subnets`, `Firewalled Subnets`, ...) worked out from the interfaces of the export. Written: host, network, range, FQDN, with a zone |
@@ -627,7 +665,9 @@ Manager's admin rules, an interface behind two network security groups
 (reported), VPN gateways between virtual networks, RouterOS `input` and
 `output` chains, raw and mangle rules, layer-7, content, TLS host and rate
 matches, marks, address lists filled at run time, IPsec policy matches,
-schedules, `redirect` and IPv6 NAT, routing, interfaces, VPN,
+schedules, `redirect` and IPv6 NAT, Forcepoint aliases, element-based and
+default NAT, VPN actions and matches, block lists, rule validity times and
+connection limits, routing, interfaces, VPN,
 and everything else outside the policy.
 
 ## Roadmap
@@ -638,7 +678,7 @@ and everything else outside the policy.
   Firewall (formerly Firepower) 0.7, pfSense 0.8, SonicWall 0.9, WatchGuard
   0.10, Barracuda 0.11, Juniper SRX 0.12, nftables 0.18, VMware NSX 0.19,
   AWS security groups 0.20, Azure network security groups 0.21, MikroTik
-  RouterOS 0.23, OPNsense 0.24; next Forcepoint NGFW 0.25 (see TODO.md).
+  RouterOS 0.23, OPNsense 0.24, Forcepoint NGFW 0.25 (see TODO.md).
 * **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](docs/RULE_USAGE.md)):
   rule identities and hit counters (0.13), Check Point logs (0.14),
   connections without a rule uid and iptables logs (0.15), PAN-OS and FortiOS logs (0.16) and

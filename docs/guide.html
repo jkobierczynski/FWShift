@@ -215,6 +215,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <li><a href="#aws">AWS security groups</a></li>
       <li><a href="#azure">Azure network security groups</a></li>
       <li><a href="#routeros">MikroTik RouterOS</a></li>
+      <li><a href="#forcepoint">Forcepoint NGFW</a></li>
     </ul>
     <h4>Analysis</h4>
     <ul>
@@ -231,7 +232,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
 
 <main id="top">
 <header class="mast">
-  <div class="eyebrow">Field guide · version 0.24</div>
+  <div class="eyebrow">Field guide · version 0.25</div>
   <h1>FWShift, feature by feature</h1>
   <p class="lead">FWShift converts firewall policies between nineteen platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
   <div class="facts">
@@ -313,6 +314,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <tr><td>AWS security groups (and network ACLs)</td><td><code>aws</code></td><td>AWS CLI JSON of one VPC</td><td>script of AWS CLI calls</td></tr>
       <tr><td>Azure network security groups</td><td><code>azure</code></td><td>Azure CLI, REST, template or Resource Graph JSON</td><td>ARM template</td></tr>
       <tr><td>MikroTik RouterOS (6 and 7)</td><td><code>routeros</code></td><td>the output of <code>/export</code></td><td>script for <code>/import</code></td></tr>
+      <tr><td>Forcepoint NGFW (SMC 6.10 to 7.4)</td><td><code>forcepoint</code></td><td>SMC REST API answers (<code>fwshift script forcepoint-dump</code>)</td><td>Python loader script</td></tr>
       <tr><td>Neutral model</td><td><code>json</code> (target only)</td><td>—</td><td>the model, with source IDs, targets, hits</td></tr>
     </tbody>
   </table></div>
@@ -323,11 +325,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
   <h2><span class="num">2</span>Install and run</h2>
   <p>Each release has three packages: the project as a zip, a single file that runs with any Python 3.9 or newer, and a wheel for <code>pip</code>. Nothing else needs installing.</p>
   <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># one file, nothing to install</span>
-python3 fwshift-0.24.0.pyz --version
-python3 fwshift-0.24.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.25.0.pyz --version
+python3 fwshift-0.25.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 
 <span class="c"># or with pip</span>
-pip install fwshift-0.24.0-py3-none-any.whl
+pip install fwshift-0.25.0-py3-none-any.whl
 fwshift convert running-config.xml --to fortios -o fortigate.conf</pre></div>
   <p>The input may be <code>-</code> for standard input. The source format is detected (XML root elements, JSON keys, CLI keywords); give <code>--from</code> when detection could be ambiguous, for example <code>--from ip6tables</code>.</p>
 </section>
@@ -391,7 +393,7 @@ findings while reading:
   <div class="tablewrap"><table>
     <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure routeros json</code>.</td></tr>
+      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure routeros forcepoint json</code>.</td></tr>
       <tr><td><code>--zone-map SRC=DST</code></td><td>Rename a zone or interface. For iptables, nftables and ASA, this is how a zone becomes an interface.</td></tr>
       <tr><td><code>--interface-map SRC=DST</code></td><td>Map a source interface to a target interface: FortiOS zone members, interface NAT, Sophos/SonicWall/FDM NAT interfaces, Barracuda source interfaces.</td></tr>
       <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure; SonicWall object zones).</td></tr>
@@ -403,8 +405,9 @@ findings while reading:
       <tr><td><code>--target-vdom</code>, <code>--policy-id-start N</code></td><td>FortiOS VDOM wrapper; first policy ID (0 lets the FortiGate pick).</td></tr>
       <tr><td><code>--target-layer</code>, <code>--target-package</code>, <code>--target-gateway</code></td><td>Check Point layer (default <code>Network</code>), package (default <code>Standard</code>), hide-NAT gateway.</td></tr>
       <tr><td><code>--target-nat-zone ZONE</code></td><td>Destination zone for NAT rules of a source that names none; ASA interface for "NAT to the outgoing interface".</td></tr>
-      <tr><td><code>--target-prefix TEXT</code></td><td>Prefix for created objects (Check Point, ASA, Sophos, Cisco SF, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper).</td></tr>
-      <tr><td><code>--target-policy NAME</code></td><td>Name of the FMC access and NAT policy created (default <code>FWShift</code>).</td></tr>
+      <tr><td><code>--target-prefix TEXT</code></td><td>Prefix for created objects (Check Point, ASA, Sophos, Cisco SF, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, NSX, AWS, Azure, RouterOS, Forcepoint).</td></tr>
+      <tr><td><code>--target-policy NAME</code></td><td>Name of the FMC access and NAT policy created, of the NSX security policy, of the Forcepoint firewall policy (default <code>FWShift</code>).</td></tr>
+      <tr><td><code>--target-template NAME</code></td><td>Forcepoint: the template the new policy is based on (default <code>Firewall Template</code>).</td></tr>
       <tr><td><code>--prune-unused</code></td><td>Leave out objects no rule uses.</td></tr>
       <tr><td><code>-o FILE</code>, <code>--report FILE</code>, <code>--report-json FILE</code></td><td>Output, text report (default: standard error), JSON report.</td></tr>
       <tr><td><code>--strict</code>, <code>-q</code></td><td>Exit 2 when anything needs review; quiet.</td></tr>
@@ -574,6 +577,7 @@ m add nat-rule package Standard position bottom original-destination web-public 
     <a href="#aws"><b>AWS security groups</b><span>AWS CLI → script</span></a>
     <a href="#azure"><b>Azure NSG</b><span>Azure JSON → ARM template</span></a>
     <a href="#routeros"><b>MikroTik RouterOS</b><span>/export → /import</span></a>
+    <a href="#forcepoint"><b>Forcepoint NGFW</b><span>SMC REST → Python loader</span></a>
   </div>
 
   <div class="filterbar">
@@ -1140,6 +1144,30 @@ fwshift convert router.rsc --to fortios -o fortigate.conf --report report.txt</p
     <div class="codebox"><span class="label">output · routeros (one rule and its port forward)</span><button class="copy" type="button">Copy</button><pre>/ip firewall filter add chain=fwshift-forward in-interface-list=fws-untrust out-interface-list=fws-dmz dst-address=10.20.0.10 protocol=tcp dst-port=443 action=accept log=yes log-prefix="Inbound-Web" comment="Inbound-Web"
 /ip firewall nat add chain=fwshift-dstnat in-interface-list=fws-untrust dst-address=203.0.113.10 protocol=tcp dst-port=443 action=dst-nat to-addresses=10.20.0.10 to-ports=8443 comment="Inbound-Web-DNAT"</pre></div>
   </article>
+  <!-- forcepoint -->
+  <article class="brand" id="forcepoint">
+    <h3>Forcepoint NGFW</h3>
+    <div class="ports"><span class="port"><i>IN</i><span>SMC REST API answers for one policy</span></span><span class="port"><i>OUT</i><span>Python loader script</span></span><span class="port"><i>ID</i><span>forcepoint</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p>The SMC has no documented export of a policy (its XML export is refused). <code>fwshift script forcepoint-dump -o smc_dump.py</code> writes a read-only program; with the key of an API client in <code>SMC_API_KEY</code>, <code>python3 smc_dump.py --host smc.example.com --policy "Branch Policy" -o branch.json</code> fetches the policy, its templates, rule lists, rules, sub-policies and every element they name.</p>
+    <h4 class="sub">Options</h4>
+    <p>Source: <code>--policy</code> when the file holds several policies. Target: <code>--target-policy</code> (default <code>FWShift</code>), <code>--target-template</code> (default <code>Firewall Template</code>), <code>--target-prefix</code>, <code>--zone-map</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <p>A Python program (3.8+): <code>--show</code>, then <code>--host smc.example.com --dry-run</code>, then without it. It reuses an element only when it matches exactly what it would create, stops on any other name that is taken, creates zones without interfaces, the elements and a new policy, adds the rules one after the other at the insert point of the template, reads them back, and keeps a journal for <code>--undo</code>. <strong>It installs nothing on an engine.</strong></p>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>The rules of the templates come with the policy, in the order of their insert points; Continue rules decide nothing and give their logging to the rules below (<code>CONTINUE_RULE</code>); a jump becomes the rules of the sub-policy limited to the jump rule (<code>JUMP_FLATTENED</code>).</li>
+      <li>A zone in a cell is ORed with the addresses (<code>RULE_SPLIT</code>); a match expression ANDs them. A network without <em>broadcast</em> leaves out its network and broadcast address in a rule cell.</li>
+      <li>Refuse is converted as a reset to the client; what it sends to TCP is not documented (<code>REFUSE_ACTION</code>).</li>
+      <li>Aliases, element-based and default NAT live on the engine and are not read (<code>FORCEPOINT_ELEMENT_NAT</code>); users, VPN matches, schedules and block lists disable their rules.</li>
+      <li>To Forcepoint: a rule goes into the IPv4 and the IPv6 list as far as it can match them; zones and addresses on one side become match expressions (<code>MATCH_EXPRESSIONS</code>); NAT rules name no zone (<code>NAT_ZONES</code>); interface NAT goes to <code>$$ Default NAT Address</code> (<code>NAT_INTERFACE_ALIAS</code>).</li>
+    </ul>
+    <div class="codebox"><span class="label">output · forcepoint (one rule of the plan)</span><button class="copy" type="button">Copy</button><pre>{"name": "Allow-DNS", "is_disabled": false,
+ "sources": {"src": [{"@ref": "interface_zone", "name": "trust"}, {"@ref": "interface_zone", "name": "dmz"}]},
+ "destinations": {"dst": [{"@ref": "match_expression", "name": "untrust and dns-servers"}]},
+ "services": {"service": [{"@ref": "service_group", "name": "app-dns"}]},
+ "action": {"action": ["allow"]}, "options": {"log_level": "stored", "log_closing_mode": true}}</pre></div>
+  </article>
   <p id="nowatch" hidden>No watch item matches that filter.</p>
 </section>
 
@@ -1370,6 +1398,7 @@ fwshift usage rules.v4 --logs kern.log --log-year 2026 --unchanged-since 2026-01
       <tr><td>AWS</td><td>Nothing: new groups, attached to nothing; stops if a name exists</td><td><code>DRY_RUN=1</code>, then <code>CHECK=1</code>; attach by hand</td></tr>
       <tr><td>Azure</td><td>All rules of a group of the same name; associates nothing</td><td><code>what-if</code>; incremental mode; associate by hand</td></tr>
       <tr><td>RouterOS</td><td>Nothing: chains and lists of its own; the jumps that switch it on are disabled</td><td>Import with <code>verbose=yes</code>; enable the jumps in Safe Mode</td></tr>
+      <tr><td>Forcepoint</td><td>Nothing: a new policy on a template, installed on no engine; stops on a name that matches anything else</td><td><code>--show</code>, then <code>--dry-run</code>; keep the journal for <code>--undo</code></td></tr>
       <tr><td>pfSense</td><td>Each restored area (Aliases, NAT, Rules)</td><td>A full backup</td></tr>
       <tr><td>OPNsense</td><td>Each restored area (Aliases; NAT with NPt; the rules of both pages)</td><td>A full backup; <code>--target-version</code> of the firewall</td></tr>
       <tr><td>ASA</td><td>Interface <code>access-group</code> bindings; <code>global_access</code> on every interface</td><td>Read the <code>access-group</code> lines</td></tr>

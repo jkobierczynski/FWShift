@@ -1,0 +1,79 @@
+FWShift conversion report
+  source: sophos (API version 2000.1)
+  target: forcepoint
+
+Summary
+  Security rules:     17   exact 3, approximated 10, needs review 3 (3 emitted disabled), skipped 1
+  NAT rules:           6   exact 1, approximated 0, needs review 5, skipped 0
+  Addresses:          14   exact 12, approximated 0, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SMC_LOADER: the output is a Python program that loads the policy into a Security Management Center through its REST API (python3 FILE --help). It creates the elements and a new firewall policy 'FWShift' on template 'Firewall Template', checks first that every name is free, and uploads the policy to no engine: review it in the Management Client, then install it yourself. --undo deletes what a run created
+  [needs-review] TEMPLATE_RULES: the rules are written at the insert point of template 'Firewall Template': its rules above the insert point (the traffic of the engine with the SMC) come first, and its rules below come after the rules of the policy (the predefined templates refuse Ident and discard and log the rest)
+  [needs-review] ZONES_REQUIRED: the rules use these zones, which must be set on the interfaces of the engine (or renamed with --zone-map); a zone the SMC does not have is created without interfaces: LAN, WAN, DMZ, OT
+  [needs-review] SMC_NAT: NAT rules are written in order to the policy, used on every engine. Element-based NAT and the default NAT of an engine apply after them, to what they do not translate: check those on the engines
+  [info] MATCH_EXPRESSIONS: rules that limit a side by zones and addresses name a match expression per zone and address element (its parts must all match): 14 were written
+  [info] DOMAIN_NAMES: host names are written as domain name elements; the engine resolves them only with DNS servers in its properties: mirror.example.net, updates.example.com
+  [info] NAME_COLLISIONS: an SMC predefines many elements (HTTPS, SSH, ...). An element of the same name that says the same is used by the loader; one that says something else stops it: convert again with --target-prefix
+
+Security rules
+  Block countries  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocked countries': country group. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to Internet web  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy, ScanVirus=Enable, WebFilter=Default Policy); attach equivalent inspection on the target
+  Admins to DMZ  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN to DMZ web not mail  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN SSH out  ->  approximated
+      [info] RULE_SPLIT: the rule has exclusions of 2 kinds, which Sophos Firewall applies together (the rule is skipped only for traffic that matches all of them): written as 2 rule(s), one per kind, that match the same traffic between them: 'LAN SSH out-2'
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  LAN SSH out-2  ->  approximated
+      [info] EXCLUSION_AS_ADDRESSES: source lan-net without the excluded admin-range: written as the addresses that are left (10.10.0.0-10.10.5.9, 10.10.5.21-10.11.255.255)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  Internet to web  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ); attach equivalent inspection on the target
+  Internet to mail  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ, ScanSMTP=Enable); attach equivalent inspection on the target
+  DMZ updates  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (WebFilter=Default Policy); attach equivalent inspection on the target
+  Finance to app  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match Finance is not converted.
+  DNS in office hours  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Work hours (5 Day week)' is not converted; the rule would apply at all times.
+  Reject the rest from LAN  ->  approximated
+      [approximated] REFUSE_ACTION: action reset-client becomes Refuse, which answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented)
+  LAN6 to Internet  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+  Web shop  ->  skipped
+      [needs-review] WAF_RULE: web server protection rule: the firewall answers for the web server itself (a reverse proxy), which is not a forwarding rule and is not converted. Publish the server on the target in its own way
+
+NAT rules
+  Publish web  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from WAN only; a NAT rule of an SMC names no zone, and it is written without
+      [approximated] NAT_ZONES: the rule applied to traffic to WAN only; a NAT rule of an SMC names no zone, and it is written without
+  Publish mail  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from WAN only; a NAT rule of an SMC names no zone, and it is written without
+      [approximated] NAT_ZONES: the rule applied to traffic to WAN only; a NAT rule of an SMC names no zone, and it is written without
+  Mail server out  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic to WAN only; a NAT rule of an SMC names no zone, and it is written without
+  NAT of LAN to Internet web  ->  needs-review
+      [info] NAT_LINKED: linked NAT rule of firewall rule 'LAN to Internet web': it has no match of its own and is written with the zones, addresses and services of that rule
+      [approximated] NAT_INTERFACE_ALIAS: source NAT to the address of the outgoing interface is written as NAT to the alias '$$ Default NAT Address' of the engine: check that the default NAT address is the one the traffic should leave with
+      [approximated] NAT_ZONES: the rule applied to traffic from LAN only; a NAT rule of an SMC names no zone, and it is written without
+      [needs-review] NAT_ZONES: the rule applied to traffic to WAN only; a NAT rule of an SMC names no zone, and it is written without
+  Default SNAT IPv4  ->  needs-review
+      [approximated] NAT_IPV4_ONLY: source NAT to the address of the outgoing interface, for addresses of both IP versions: written for IPv4 only; IPv6 traffic leaves with its own address
+      [approximated] NAT_INTERFACE_ALIAS: source NAT to the address of the outgoing interface is written as NAT to the alias '$$ Default NAT Address' of the engine: check that the default NAT address is the one the traffic should leave with
+      [needs-review] NAT_ZONES: the rule applied to traffic to WAN only; a NAT rule of an SMC names no zone, and it is written without
+
+Addresses
+  any-example-org  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard host name '*.example.org' cannot be converted
+      [info] NOT_CREATED: not created (wildcard host name *.example.org); rules that use it are written disabled
+  Blocked countries  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: country group cannot be converted
+      [info] NOT_CREATED: not created (country group); rules that use it are written disabled

@@ -1,0 +1,103 @@
+FWShift conversion report
+  source: forcepoint (Branch Policy)
+  target: sophos
+
+Summary
+  Security rules:     32   exact 21, approximated 5, needs review 6 (6 emitted disabled), skipped 0
+  NAT rules:           5   exact 4, approximated 1, needs review 0, skipped 0
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FORCEPOINT_ELEMENT_NAT: element-based NAT (NAT set on an element) and the default NAT of the engine are not in the policy, and not read: they translate after the NAT rules, and an element with static NAT also matches its public address in the access rules
+  [needs-review] SOPHOS_LOAD: the output is an Entities.xml. Put it in a tar archive under that name (or let FWShift do it: give -o a name that ends in .tar) and import it under Backup & firmware > Import export. Rules are added below the rules the firewall has: a firewall rule or NAT rule that is there already, such as the default source NAT rule of a new firewall, comes first. An import can stop at the first object the firewall does not take: compare the number of rules and objects with this report, on a firewall that is not in production
+  [needs-review] ZONES_REQUIRED: the rules name these zones, which must exist on the target (or be renamed with --zone-map): Internal, External. Zones are not created: an import would overwrite the device access of a zone that exists
+  [info] CONTINUE_RULE: Continue rules decide nothing: they set defaults (logging, inspection, timeouts) for the rules below them that match the same traffic. Their logging was given to those rules: 'lan defaults'
+  [info] NONE_CELL: rules with a cell set to NONE, which the engine ignores; converted disabled: 'unfinished'
+  [info] AUTOMATIC_RULES: the automatic rules of the engine (at the insert point for them) are for traffic to and from the engine itself, and are not converted
+  [info] SOURCE_VPN_NONE: rules that match traffic that comes through no VPN (Source VPN: not via VPN); converted for all traffic, as the model has no VPNs: 'ping out'
+  [info] NETWORK_BROADCAST: networks without 'broadcast' in groups: Forcepoint documents the option for rule cells, and in a group they were taken whole: grp-inside
+  [info] FORCEPOINT_ZONES: zones are bound to interfaces on the engine, which the input does not hold: the zones of the policy have no interfaces here
+  [info] FORCEPOINT_AUTOMATIC: what the engine does by itself is not converted: antispoofing (from its routing), the automatic rules for its own traffic, and replies of allowed connections, which the model allows with them
+  [info] EXISTING_OBJECTS: an import overwrites what the firewall has under the same name: a host, a service or a rule that is in this output replaces the one on the target. --target-prefix gives every object that is created a name of its own
+
+Security rules
+  Rule @900.0  ->  needs-review, emitted disabled  (emitted as Rule _900.0)
+      [needs-review] UNSUPPORTED_MATCH: not converted: source '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'x__ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'x__ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+  admins in  ->  exact  (emitted as to admin sub-policy _ admins in)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  others out  ->  exact  (emitted as to admin sub-policy _ others out)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  refuse admins 8443  ->  approximated
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+  zone or web host out  ->  exact
+      [info] RULE_SPLIT: the cells hold zones, addresses, users or applications side by side (ORed): the rule is 2 rules, one per combination
+  vpn only  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches traffic of VPNs only (Source VPN).
+  no social  ->  needs-review, emitted disabled
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) Facebook; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  helpdesk to dmz  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match helpdesk is not converted.
+  office web  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Office hours' is not converted; the rule would apply at all times.
+  limited guests  ->  approximated
+      [approximated] CONNECTION_LIMIT: the rule limits concurrent connections (src_limit 50): connections beyond it are refused or discarded, which is not converted
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (deep_inspection=on); attach equivalent inspection on the target
+  block list  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: it has a block list (it discards what the dynamic block list holds, and lets the rest go on). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Rule @902.0  ->  approximated  (emitted as Rule _902.0)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+  v6 guests  ->  approximated
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+  Rule @952.0  ->  approximated  (emitted as Rule _952.0)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+
+NAT rules
+  guests hide  ->  approximated
+      [info] NAT_ENGINE: the NAT rule applies on engine 'fw-branch' only
+      [approximated] NAT_INTERFACE_ALIAS: the source is translated to $$ Default NAT Address, the address of an interface of the engine: converted as the address of the interface the traffic leaves by
+
+Addresses
+  $$ Management Servers  ->  exact  (emitted as x__ Management Servers)
+      [info] RENAMED: renamed to 'x__ Management Servers' to fit the target's naming rules
+  $$ Local Cluster  ->  exact  (emitted as x__ Local Cluster)
+      [info] RENAMED: renamed to 'x__ Local Cluster' to fit the target's naming rules
+  net-lan (in rules)  ->  exact  (emitted as net-lan _in rules_)
+      [info] RENAMED: renamed to 'net-lan _in rules_' to fit the target's naming rules
+
+Address groups
+  updates.example.com (names)  ->  exact  (emitted as updates.example.com _names_)
+      [info] RENAMED: renamed to 'updates.example.com _names_' to fit the target's naming rules
+  net-guest  ->  exact  (emitted as net-guest, net-guest_v6)
+      [info] GROUP_SPLIT: Sophos Firewall keeps IPv4 hosts, IPv6 hosts and host names in groups of their own: written as 'net-guest', 'net-guest_v6'
+  grp-inside  ->  exact  (emitted as grp-inside, grp-inside_v6)
+      [info] GROUP_SPLIT: Sophos Firewall keeps IPv4 hosts, IPv6 hosts and host names in groups of their own: written as 'grp-inside', 'grp-inside_v6'
+  mail-01  ->  exact  (emitted as mail-01, mail-01_v6)
+      [info] GROUP_SPLIT: Sophos Firewall keeps IPv4 hosts, IPv6 hosts and host names in groups of their own: written as 'mail-01', 'mail-01_v6'
+
+Services
+  DNS (UDP)  ->  exact  (emitted as DNS _UDP_)
+      [info] RENAMED: renamed to 'DNS _UDP_' to fit the target's naming rules
+  DNS (TCP)  ->  exact  (emitted as DNS _TCP_)
+      [info] RENAMED: renamed to 'DNS _TCP_' to fit the target's naming rules
+  HTTPS  ->  exact  (emitted as HTTPS_2)
+      [info] RENAMED: renamed to 'HTTPS_2' to fit the target's naming rules
+  SSH  ->  exact  (emitted as SSH_2)
+      [info] RENAMED: renamed to 'SSH_2' to fit the target's naming rules
+  HTTP  ->  exact  (emitted as HTTP_2)
+      [info] RENAMED: renamed to 'HTTP_2' to fit the target's naming rules
+  GRE  ->  exact  (emitted as GRE_2)
+      [info] RENAMED: renamed to 'GRE_2' to fit the target's naming rules
+  NetBIOS (UDP)  ->  exact  (emitted as NetBIOS _UDP_)
+      [info] RENAMED: renamed to 'NetBIOS _UDP_' to fit the target's naming rules
+  NetBIOS (TCP)  ->  exact  (emitted as NetBIOS _TCP_)
+      [info] RENAMED: renamed to 'NetBIOS _TCP_' to fit the target's naming rules
+
+Service groups
+  DNS  ->  exact  (emitted as DNS_2)
+      [info] RENAMED: renamed to 'DNS_2' to fit the target's naming rules

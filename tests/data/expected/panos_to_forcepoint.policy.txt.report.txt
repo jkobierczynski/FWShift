@@ -1,0 +1,81 @@
+FWShift conversion report
+  source: panos (vsys1)
+  target: forcepoint
+
+Summary
+  Security rules:     14   exact 3, approximated 6, needs review 5 (5 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 1, needs review 4, skipped 0
+  Addresses:          16   exact 14, approximated 0, needs review 2, skipped 0
+  Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
+  Services:            5   exact 5, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SMC_LOADER: the output is a Python program that loads the policy into a Security Management Center through its REST API (python3 FILE --help). It creates the elements and a new firewall policy 'FWShift' on template 'Firewall Template', checks first that every name is free, and uploads the policy to no engine: review it in the Management Client, then install it yourself. --undo deletes what a run created
+  [needs-review] TEMPLATE_RULES: the rules are written at the insert point of template 'Firewall Template': its rules above the insert point (the traffic of the engine with the SMC) come first, and its rules below come after the rules of the policy (the predefined templates refuse Ident and discard and log the rest)
+  [needs-review] ZONES_REQUIRED: the rules use these zones, which must be set on the interfaces of the engine (or renamed with --zone-map); a zone the SMC does not have is created without interfaces: trust, untrust, dmz, ot
+  [needs-review] SMC_NAT: NAT rules are written in order to the policy, used on every engine. Element-based NAT and the default NAT of an engine apply after them, to what they do not translate: check those on the engines
+  [info] INTRAZONE_RULES_ADDED: rules for traffic inside a zone were added at the end of the policy, as the source decides it when no rule does: trust (allowed), untrust (allowed), dmz (allowed), ot (allowed)
+  [info] MATCH_EXPRESSIONS: rules that limit a side by zones and addresses name a match expression per zone and address element (its parts must all match): 14 were written
+  [info] DOMAIN_NAMES: host names are written as domain name elements; the engine resolves them only with DNS servers in its properties: updates.example.com
+  [info] NAME_COLLISIONS: an SMC predefines many elements (HTTPS, SSH, ...). An element of the same name that says the same is used by the loader; one that says something else stops it: convert again with --target-prefix
+  [info] TAGS_NOT_CONVERTED: tags of rules and objects are not converted
+
+Security rules
+  Allow-Web-Out  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (group=default-profiles); attach equivalent inspection on the target
+      [approximated] APP_TO_PORTS: applications web-browsing, ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Allow-DNS  ->  approximated
+      [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Inbound-Web  ->  approximated
+      [approximated] APP_FILTER_DROPPED: application match ssl dropped; the rule now matches everything on its services
+  Inbound-Mail  ->  approximated
+      [approximated] APP_TO_PORTS: applications smtp reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Admin-SSH  ->  needs-review, emitted disabled
+      [approximated] APP_TO_PORTS: applications ssh reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] USER_MATCH: source user match example\netadmins is not converted.
+  Engineering to PLCs  ->  approximated
+      [approximated] APP_TO_PORTS: applications modbus, siemens-s7 reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Block-Torrents  ->  needs-review, emitted disabled
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) bittorrent; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Block-Region  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'KP': not defined in the input. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Tagged-Servers-Updates  ->  needs-review, emitted disabled
+      [approximated] APP_TO_PORTS: applications ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'tagged-servers': dynamic address group, members are not known statically.
+  Not-From-Guests  ->  approximated
+      [approximated] APP_TO_PORTS: applications ping reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
+  Old-Rule  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'odd-hosts': wildcard mask 10.20.1.2/0.0.254.0.
+
+NAT rules
+  No-NAT-Partner  ->  approximated
+      [approximated] NAT_ZONES: the rule applied to traffic from trust only; a NAT rule of an SMC names no zone, and it is written without
+      [approximated] NAT_ZONES: the rule applied to traffic to untrust only; a NAT rule of an SMC names no zone, and it is written without
+  Inbound-Web-DNAT  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from untrust only; a NAT rule of an SMC names no zone, and it is written without
+      [approximated] NAT_ZONES: the rule applied to traffic to untrust only; a NAT rule of an SMC names no zone, and it is written without
+  Mail-Static  ->  needs-review
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as two NAT rules, one for each direction
+      [approximated] NAT_ZONES: the rule applied to traffic from dmz only; a NAT rule of an SMC names no zone, and it is written without
+      [needs-review] NAT_ZONES: the rule applied to traffic to untrust only; a NAT rule of an SMC names no zone, and it is written without
+  DMZ-Out-Pool  ->  needs-review
+      [approximated] NAT_ZONES: the rule applied to traffic from dmz only; a NAT rule of an SMC names no zone, and it is written without
+      [needs-review] NAT_ZONES: the rule applied to traffic to untrust only; a NAT rule of an SMC names no zone, and it is written without
+  Outbound-PAT  ->  needs-review
+      [approximated] NAT_IPV4_ONLY: source NAT to the address of the outgoing interface, for addresses of both IP versions: written for IPv4 only; IPv6 traffic leaves with its own address
+      [approximated] NAT_INTERFACE_ALIAS: source NAT to the address of the outgoing interface is written as NAT to the alias '$$ Default NAT Address' of the engine: check that the default NAT address is the one the traffic should leave with
+      [needs-review] NAT_ZONES: the rule applied to traffic from trust only; a NAT rule of an SMC names no zone, and it is written without
+      [needs-review] NAT_ZONES: the rule applied to traffic to untrust only; a NAT rule of an SMC names no zone, and it is written without
+
+Addresses
+  odd-hosts  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard mask 10.20.1.2/0.0.254.0 cannot be converted
+      [info] NOT_CREATED: not created (wildcard mask 10.20.1.2/0.0.254.0); rules that use it are written disabled
+  KP  ->  needs-review
+      [needs-review] UNDEFINED_REFERENCE: used by rule 'Block-Region' but not an address object in the input (a region, an external list or a missing object); emitted as a placeholder that matches nothing
+      [info] NOT_CREATED: not created (not defined in the input); rules that use it are written disabled
+
+Address groups
+  tagged-servers  ->  exact
+      [info] NOT_CREATED: not created (dynamic address group, members are not known statically); rules that use it are written disabled

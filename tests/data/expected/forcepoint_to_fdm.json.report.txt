@@ -1,0 +1,126 @@
+FWShift conversion report
+  source: forcepoint (Branch Policy)
+  target: fdm
+
+Summary
+  Security rules:     32   exact 16, approximated 4, needs review 3, skipped 9
+  NAT rules:           5   exact 4, approximated 0, needs review 0, skipped 1
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FORCEPOINT_ELEMENT_NAT: element-based NAT (NAT set on an element) and the default NAT of the engine are not in the policy, and not read: they translate after the NAT rules, and an element with static NAT also matches its public address in the access rules
+  [needs-review] FDM_LOAD: the output is a file for the configuration import of a Firewall Device Manager (POST /action/uploadconfigfile, then /action/configimport). Its first object must say the hardware model and software version of the target: copy both from the first object of an export of the target device. The import adds to what the device has: its access rules stay above the rules of this file and decide first, its default action stays what it is, and its NAT rules come first. Nothing is in force until the changes are deployed: look at them in the pending changes before that
+  [needs-review] ZONES_REQUIRED: the rules name these security zones, which must exist on the target (or be renamed with --zone-map): Internal, External. Zones are not written: an import would take the interfaces out of a zone that exists
+  [info] CONTINUE_RULE: Continue rules decide nothing: they set defaults (logging, inspection, timeouts) for the rules below them that match the same traffic. Their logging was given to those rules: 'lan defaults'
+  [info] NONE_CELL: rules with a cell set to NONE, which the engine ignores; converted disabled: 'unfinished'
+  [info] AUTOMATIC_RULES: the automatic rules of the engine (at the insert point for them) are for traffic to and from the engine itself, and are not converted
+  [info] SOURCE_VPN_NONE: rules that match traffic that comes through no VPN (Source VPN: not via VPN); converted for all traffic, as the model has no VPNs: 'ping out'
+  [info] NETWORK_BROADCAST: networks without 'broadcast' in groups: Forcepoint documents the option for rule cells, and in a group they were taken whole: grp-inside
+  [info] FORCEPOINT_ZONES: zones are bound to interfaces on the engine, which the input does not hold: the zones of the policy have no interfaces here
+  [info] FORCEPOINT_AUTOMATIC: what the engine does by itself is not converted: antispoofing (from its routing), the automatic rules for its own traffic, and replies of allowed connections, which the model allows with them
+  [info] EXISTING_OBJECTS: an import changes what the device has under the same name: an object or a rule of this file replaces the one on the target. --target-prefix gives every object that is created a name of its own
+  [info] FQDN_DNS: FQDN objects need name resolution on the device (a DNS server group in its platform settings)
+
+Security rules
+  Rule @900.0  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: source '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine. The rule is left out: a Device Manager has no rules that are switched off.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine. The rule is left out: a Device Manager has no rules that are switched off.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'x___Management_Servers': an alias, whose value is set per engine, and the input holds no engine. The rule is left out: a Device Manager has no rules that are switched off.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'x___Local_Cluster': an alias, whose value is set per engine, and the input holds no engine. The rule is left out: a Device Manager has no rules that are switched off.
+  allow web  ->  needs-review  (emitted as allow_web)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '192.168.10.10', the address NAT rule 'publish_web' translates 'pub-web' to. The target looks rules up after that translation, so traffic sent to 'pub-web' now matches this rule; on the source it did not
+  admins in  ->  exact  (emitted as to_admin_sub-policy___admins_in)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  others out  ->  exact  (emitted as to_admin_sub-policy___others_out)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  refuse admins 8443  ->  approximated  (emitted as refuse_admins_8443)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] RESET_ACTION: action reset-client becomes Block, which drops without an answer: a Device Manager has no rule that resets
+  old block  ->  skipped
+      [info] DISABLED_RULE: disabled on the source: a Device Manager has no rules that are switched off, so it is left out
+  internal zone out  ->  needs-review  (emitted as internal_zone_out)
+      [needs-review] NAT_PORT_EXPOSED: the service covers the post-NAT port of NAT rule 'publish_web' (which translates the port to 8443) but not the pre-NAT one. The source looks rules up before the translation and did not apply this rule to that traffic; the target looks them up after it, and there the rule applies
+  not to dmz  ->  skipped
+      [info] NEGATION_AS_ADDRESSES: an access rule cannot negate: 'not destination net-dmz' is written as the addresses that are left (3 range(s))
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish_web' (pub-web, 192.168.10.10). The rule is left out: a Device Manager has no rules that are switched off.
+  zone or web host out  ->  exact  (emitted as zone_or_web_host_out)
+      [info] RULE_SPLIT: the cells hold zones, addresses, users or applications side by side (ORed): the rule is 2 rules, one per combination
+  vpn only  ->  skipped
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '192.168.10.10', the address NAT rule 'publish_web' translates 'pub-web' to. The target looks rules up after that translation, so traffic sent to 'pub-web' now matches this rule; on the source it did not
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches traffic of VPNs only (Source VPN). The rule is left out: a Device Manager has no rules that are switched off.
+  no social  ->  skipped
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) Facebook; supply one with --app-map. The rule is left out: a Device Manager has no rules that are switched off. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  helpdesk to dmz  ->  skipped
+      [needs-review] USER_MATCH: source user match helpdesk is not converted. The rule is left out: a Device Manager has no rules that are switched off.
+  unfinished  ->  skipped
+      [info] DISABLED_RULE: disabled on the source: a Device Manager has no rules that are switched off, so it is left out
+  office web  ->  skipped
+      [needs-review] SCHEDULE: schedule 'Office hours' is not converted; the rule would apply at all times. The rule is left out: a Device Manager has no rules that are switched off.
+  limited guests  ->  needs-review  (emitted as limited_guests)
+      [approximated] CONNECTION_LIMIT: the rule limits concurrent connections (src_limit 50): connections beyond it are refused or discarded, which is not converted
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish_web' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (deep_inspection=on); attach equivalent inspection on the target
+  block list  ->  skipped
+      [needs-review] UNSUPPORTED_MATCH: not converted: it has a block list (it discards what the dynamic block list holds, and lets the rest go on). The rule is left out: a Device Manager has no rules that are switched off. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  lan but admins  ->  exact  (emitted as lan_but_admins, lan_but_admins-2)
+      [info] RULE_SPLIT: written as 2 rules: source ports and destination ports are two conditions of an access rule that must both hold, so each set of source ports gets a rule of its own
+  Rule @902.0  ->  approximated  (emitted as Rule__902.0)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] RESET_ACTION: action reset-client becomes Block, which drops without an answer: a Device Manager has no rule that resets
+  v6 guests  ->  approximated  (emitted as v6_guests)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] RESET_ACTION: action reset-client becomes Block, which drops without an answer: a Device Manager has no rule that resets
+  Rule @952.0  ->  approximated  (emitted as Rule__952.0)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] RESET_ACTION: action reset-client becomes Block, which drops without an answer: a Device Manager has no rule that resets
+
+NAT rules
+  guests hide  ->  skipped
+      [info] NAT_ENGINE: the NAT rule applies on engine 'fw-branch' only
+      [approximated] NAT_INTERFACE_ALIAS: the source is translated to $$ Default NAT Address, the address of an interface of the engine: converted as the address of the interface the traffic leaves by
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface, which the rule does not name; give its zone with --target-nat-zone
+
+Addresses
+  $$ Management Servers  ->  exact  (emitted as x___Management_Servers)
+      [info] RENAMED: renamed to 'x___Management_Servers' to fit the target's naming rules
+  $$ Local Cluster  ->  exact  (emitted as x___Local_Cluster)
+      [info] RENAMED: renamed to 'x___Local_Cluster' to fit the target's naming rules
+  net-lan (in rules)  ->  exact  (emitted as net-lan__in_rules_)
+      [info] RENAMED: renamed to 'net-lan__in_rules_' to fit the target's naming rules
+
+Address groups
+  updates.example.com (names)  ->  exact  (emitted as updates.example.com, cdn.example.com)
+      [info] RENAMED: renamed to 'updates.example.com__names_' to fit the target's naming rules
+      [info] GROUP_SPLIT: a network group of a Cisco Secure Firewall holds no FQDN objects: the group is not written, and the rules that use it name 'updates.example.com', 'cdn.example.com' themselves
+  lan without admins  ->  exact  (emitted as lan_without_admins)
+      [info] RENAMED: renamed to 'lan_without_admins' to fit the target's naming rules
+  mail-01 IPv4  ->  exact  (emitted as mail-01_IPv4)
+      [info] RENAMED: renamed to 'mail-01_IPv4' to fit the target's naming rules
+  net-guest IPv4  ->  exact  (emitted as net-guest_IPv4)
+      [info] RENAMED: renamed to 'net-guest_IPv4' to fit the target's naming rules
+
+Services
+  SG Control  ->  exact  (emitted as SG_Control)
+      [info] RENAMED: renamed to 'SG_Control' to fit the target's naming rules
+  DNS (UDP)  ->  exact  (emitted as DNS__UDP_)
+      [info] RENAMED: renamed to 'DNS__UDP_' to fit the target's naming rules
+  DNS (TCP)  ->  exact  (emitted as DNS__TCP_)
+      [info] RENAMED: renamed to 'DNS__TCP_' to fit the target's naming rules
+  HTTPS  ->  exact  (emitted as HTTPS_2)
+      [info] RENAMED: renamed to 'HTTPS_2' to fit the target's naming rules
+  SSH  ->  exact  (emitted as SSH_2)
+      [info] RENAMED: renamed to 'SSH_2' to fit the target's naming rules
+  HTTP  ->  exact  (emitted as HTTP_2)
+      [info] RENAMED: renamed to 'HTTP_2' to fit the target's naming rules
+  Echo Request  ->  exact  (emitted as Echo_Request)
+      [info] RENAMED: renamed to 'Echo_Request' to fit the target's naming rules
+  NetBIOS (UDP)  ->  exact  (emitted as NetBIOS__UDP_)
+      [info] RENAMED: renamed to 'NetBIOS__UDP_' to fit the target's naming rules
+  NetBIOS (TCP)  ->  exact  (emitted as NetBIOS__TCP_)
+      [info] RENAMED: renamed to 'NetBIOS__TCP_' to fit the target's naming rules
+  IPv6 Echo Request  ->  exact  (emitted as IPv6_Echo_Request)
+      [info] RENAMED: renamed to 'IPv6_Echo_Request' to fit the target's naming rules
+      [info] ICMP_CODE: code 0 of an ICMP type for which a Device Manager has no codes is written as the type alone: 0 is the only code that type has

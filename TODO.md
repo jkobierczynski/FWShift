@@ -69,18 +69,22 @@ one change, written), and **0.24.0, OPNsense** (`config.xml` of 24.7 to
 26.7, read: both kinds of rule in the order of OPNsense's priorities, flags
 as each series reads them, aliases with exclusions worked out as pf tables,
 port forwards of both forms, Source NAT, 1:1 NAT, *received-on*; the areas
-Aliases, NAT and Firewall Rules for one series, written).
+Aliases, NAT and Firewall Rules for one series, written), and **0.25.0,
+Forcepoint NGFW** (the answers of the SMC REST API for one policy, fetched by
+a read-only program FWShift writes, read: templates and insert points,
+sections, Continue and Jump, zones and match expressions, expressions,
+networks without broadcast, NONE cells, NAT rules; a program for the REST API
+that creates elements and a new policy on a template, written).
 What each rests on and what nobody has checked on a device is in
 the development log.
 
 The brands planned in 2026 are done, and so is the zone and conduit model
 with the equivalence check (0.22.0, under Audit and matrix below).
 
-Next, one release each:
-
-- **0.25.0, Forcepoint NGFW**: the JSON of the SMC REST API (and its XML
-  export), rules with their Continue and Jump semantics; written as a script
-  of calls to that API.
+Still open for Forcepoint: the XML export of the SMC (refused until a real
+export shows its format), the engine (aliases resolved per engine, zones with
+their interfaces, element-based and default NAT), IPv6 NAT, and reading the
+output back for `convert --compare`.
 
 Not planned yet: Huawei USG, Stormshield, Google Cloud firewall rules.
 
@@ -367,12 +371,27 @@ back and compared with the source): items 1, 2, 5 and 10 of the list before.
    tab, *received-on*, the link-local network in rules for IPv6, aliases with
    `!` entries, a disabled alias, Source NAT in each outbound mode, *Register
    rule*.
-16. The equivalence check on real changes: two exports of one firewall
+16. Forcepoint, with an SMC (7.x) and an engine in a lab: run the dump
+   program against a policy built by hand and compare its answers with
+   `forcepoint_sample.json` (the shape of rules, insert points, sections,
+   match expressions, NAT values; what the XML export holds); load
+   `panos_to_forcepoint` and `forcepoint_to_forcepoint` with the loader
+   (`--dry-run` first) and record what the API refuses (names, a TCP service
+   of ports 1 to 65535, an expression in a match expression, a rule posted to
+   `add_after`); send packets through: Refuse on TCP, a network without
+   broadcast, Continue logging, an exclusion of two elements.
+17. The equivalence check on real changes: two exports of one firewall
    before and after a change made by hand, compared, and the differences
    checked against what was changed; a conversion loaded on a target, its
    running configuration exported again and compared with the source.
 
 ## Project
+
+0. Security, after the outside review of October 2026
+   ([docs/security/SECURITY_REVIEW.md](docs/security/SECURITY_REVIEW.md)): signed build provenance for the releases
+   and protected release tags (repository settings); a journal and undo for the AWS and Barracuda scripts; a fuzzing
+   suite for the parsers (truncated, huge and deeply nested inputs); a test of the loaders against a TLS server with a
+   certificate that does not verify; a limit on the number of rules and objects read.
 
 1. Publish the wheel on PyPI from the release workflow (trusted publishing),
    once the output has been loaded on a device of each platform.

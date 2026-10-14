@@ -1,0 +1,81 @@
+FWShift zone matrix
+  source: forcepoint (Branch Policy)
+  security rules: 32 (2 disabled, 1 never match)
+
+What each zone may reach (rows: from, columns: to)
+                 Internal          External          (other zones)
+  Internal       any~              any~              any~
+  External       any~              any~              any~
+  (other zones)  any~              any~              any~
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+In every conduit
+  rule 'Rule @900.0': $$ Management Servers -> $$ Local Cluster: any (only with source '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine, destination '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine, which is not in the model) ~
+  rule 'dns to resolver': 0.0.0.0/0 -> dns-01: tcp/53, udp/53
+  rule 'allow web': 0.0.0.0/0 -> grp-web: tcp/443, tcp/8000-8010, tcp/8443
+  rule 'to admin sub-policy / admins in': admins -> net-dmz: tcp/22
+  rule 'not to dmz': net-lan (in rules) -> not net-dmz: tcp/443
+  rule 'vpn only': net-lan (in rules) -> net-dmz: any except tcp/22 (only with it matches traffic of VPNs only (Source VPN), which is not in the model) ~
+  rule 'ping out': grp-inside -> 0.0.0.0/0: icmp type 8
+  rule 'helpdesk to dmz': 0.0.0.0/0 -> net-dmz: tcp/22 (users helpdesk)
+  rule 'office web': net-lan (in rules) -> 0.0.0.0/0: tcp/80 (schedule Office hours)
+  rule 'limited guests': net-guest -> 0.0.0.0/0: tcp/443 ~
+  rule 'block list': 0.0.0.0/0 -> any: any (only with it has a block list (it discards what the dynamic block list holds, and lets the rest go on), which is not in the model) ~
+  rule 'gre to isp': net-lan (in rules) -> isp-gw: ip/47 (gre)
+  rule 'lan but admins': lan without admins -> mail-01: icmp type 8, udp/514 from port 514
+  rule 'v6 web': net-lan-v6 -> web-01-v6: tcp/443
+  rule 'v6 ping': net-lan-v6 -> ::/0: icmp6 type 128 code 0
+  rule 'v6 mail': ::/0 -> mail-01: tcp/443
+
+Conduits
+Internal -> Internal (inside the zone)
+  allowed: any ~
+  rule 'internal zone out': net-lan (in rules) -> 0.0.0.0/0: tcp/8000-8010, tcp/8443
+  and the 16 listed under 'In every conduit'
+Internal -> External
+  allowed: any ~
+  rule 'internal zone out': net-lan (in rules) -> 0.0.0.0/0: tcp/8000-8010, tcp/8443
+  rule 'zone or web host out': 0.0.0.0/0 -> any: tcp/80
+  rule 'zone or web host out (2)': web-01 -> 0.0.0.0/0: tcp/80
+  and the 16 listed under 'In every conduit'
+Internal -> (other zones)
+  allowed: any ~
+  rule 'internal zone out': net-lan (in rules) -> 0.0.0.0/0: tcp/8000-8010, tcp/8443
+  and the 16 listed under 'In every conduit'
+External -> Internal
+  allowed: any ~
+  and the 16 listed under 'In every conduit'
+External -> External (inside the zone)
+  allowed: any ~
+  rule 'zone or web host out (2)': web-01 -> 0.0.0.0/0: tcp/80
+  and the 16 listed under 'In every conduit'
+External -> (other zones)
+  allowed: any ~
+  and the 16 listed under 'In every conduit'
+(other zones) -> Internal
+  allowed: any ~
+  and the 16 listed under 'In every conduit'
+(other zones) -> External
+  allowed: any ~
+  rule 'zone or web host out (2)': web-01 -> 0.0.0.0/0: tcp/80
+  and the 16 listed under 'In every conduit'
+(other zones) -> (other zones)
+  allowed: any ~
+  and the 16 listed under 'In every conduit'
+
+From reading the configuration
+  CONTINUE_RULE: Continue rules decide nothing: they set defaults (logging, inspection, timeouts) for the rules below them that match the same traffic. Their logging was given to those rules: 'lan defaults'
+  NONE_CELL: rules with a cell set to NONE, which the engine ignores; converted disabled: 'unfinished'
+  AUTOMATIC_RULES: the automatic rules of the engine (at the insert point for them) are for traffic to and from the engine itself, and are not converted
+  SOURCE_VPN_NONE: rules that match traffic that comes through no VPN (Source VPN: not via VPN); converted for all traffic, as the model has no VPNs: 'ping out'
+  NETWORK_BROADCAST: networks without 'broadcast' in groups: Forcepoint documents the option for rule cells, and in a group they were taken whole: grp-inside
+  FORCEPOINT_ZONES: zones are bound to interfaces on the engine, which the input does not hold: the zones of the policy have no interfaces here
+  FORCEPOINT_ELEMENT_NAT: element-based NAT (NAT set on an element) and the default NAT of the engine are not in the policy, and not read: they translate after the NAT rules, and an element with static NAT also matches its public address in the access rules
+  FORCEPOINT_AUTOMATIC: what the engine does by itself is not converted: antispoofing (from its routing), the automatic rules for its own traffic, and replies of allowed connections, which the model allows with them
+
+Notes
+  (other zones): zones the policy does not name. A rule for 'any' zone applies to them as well.
+  1 rule(s) never match and are left out; 'fwshift audit' names them.
+  A rule the model does not hold exactly (its findings say why) is shown wherever its zones reach, on every service, whatever its action, marked ~: what it really does is not known.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

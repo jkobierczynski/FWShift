@@ -1,0 +1,104 @@
+FWShift conversion report
+  source: forcepoint (Branch Policy)
+  target: checkpoint
+
+Summary
+  Security rules:     32   exact 21, approximated 5, needs review 6 (6 emitted disabled), skipped 0
+  NAT rules:           5   exact 4, approximated 0, needs review 0, skipped 1
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FORCEPOINT_ELEMENT_NAT: element-based NAT (NAT set on an element) and the default NAT of the engine are not in the policy, and not read: they translate after the NAT rules, and an element with static NAT also matches its public address in the access rules
+  [needs-review] CHECKPOINT_SCRIPT: the output is a shell script of mgmt_cli calls. It changes one session and publishes nothing: log in, run it, review the session in SmartConsole, then publish and install the policy yourself. It stops at the first call the server refuses; discard the session before running it again
+  [needs-review] IMPLIED_RULES: Check Point applies implied rules (Global Properties) next to the rulebase, and every ordered layer of the policy package must accept a connection. Neither is part of the conversion: check that they allow no more and no less than intended
+  [needs-review] ZONES_REQUIRED: the rules use these security zones, which must be assigned to the interfaces of the gateway (or renamed with --zone-map): Internal, External. Rules that name a zone and addresses on the same side are sorted into 3 inline layers, one per pair of zones. An interface without a zone only reaches the rules that name no zone
+  [needs-review] NAT_MANUAL_RULES: 4 NAT rules are written as manual rules at the bottom of the NAT rulebase, below the automatic ones. Manual NAT does not answer ARP for translated addresses: add proxy ARP on the gateway for every translated address that is not routed to it
+  [info] CONTINUE_RULE: Continue rules decide nothing: they set defaults (logging, inspection, timeouts) for the rules below them that match the same traffic. Their logging was given to those rules: 'lan defaults'
+  [info] NONE_CELL: rules with a cell set to NONE, which the engine ignores; converted disabled: 'unfinished'
+  [info] AUTOMATIC_RULES: the automatic rules of the engine (at the insert point for them) are for traffic to and from the engine itself, and are not converted
+  [info] SOURCE_VPN_NONE: rules that match traffic that comes through no VPN (Source VPN: not via VPN); converted for all traffic, as the model has no VPNs: 'ping out'
+  [info] NETWORK_BROADCAST: networks without 'broadcast' in groups: Forcepoint documents the option for rule cells, and in a group they were taken whole: grp-inside
+  [info] FORCEPOINT_ZONES: zones are bound to interfaces on the engine, which the input does not hold: the zones of the policy have no interfaces here
+  [info] FORCEPOINT_AUTOMATIC: what the engine does by itself is not converted: antispoofing (from its routing), the automatic rules for its own traffic, and replies of allowed connections, which the model allows with them
+  [info] LAYER_PLACEMENT: the rules are written to the top of access layer 'Network', in order, and end in a cleanup rule; rules the layer held before stay below it and are no longer reached. Choose another layer with --target-layer
+  [info] NAME_COLLISIONS: Check Point predefines several hundred objects (http, https, ssh, ...). If the script stops because a name exists already, convert again with --target-prefix to give every created object a prefix
+  [info] DOMAIN_OBJECTS: host names are written as domain objects, named after the domain with a leading dot; the gateway needs DNS to enforce them: .updates.example.com, .cdn.example.com
+  [info] TAGS_NOT_CONVERTED: tags of rules and objects are not converted
+  [info] ANY_ONE_IP_VERSION: 'any address of one IP version' is written as a range object covering that version (All-IPv4, All-IPv6)
+
+Security rules
+  Rule @900.0  ->  needs-review, emitted disabled  (emitted as layer Network_Internal_to_External, layer Network_Internal_to_any, layer Network_any_to_External, layer Network)
+      [needs-review] UNSUPPORTED_MATCH: not converted: source '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'x___Management_Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'x___Local_Cluster': an alias, whose value is set per engine, and the input holds no engine.
+  admins in  ->  exact  (emitted as layer Network_Internal_to_External, layer Network_Internal_to_any, layer Network_any_to_External, layer Network)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  others out  ->  exact  (emitted as layer Network_Internal_to_External, layer Network_Internal_to_any, layer Network_any_to_External, layer Network)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  refuse admins 8443  ->  approximated  (emitted as layer Network_Internal_to_External, layer Network_Internal_to_any, layer Network_any_to_External, layer Network)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+  zone or web host out  ->  exact  (emitted as layer Network_Internal_to_External)
+      [info] RULE_SPLIT: the cells hold zones, addresses, users or applications side by side (ORed): the rule is 2 rules, one per combination
+  vpn only  ->  needs-review, emitted disabled  (emitted as layer Network_Internal_to_External, layer Network_Internal_to_any, layer Network_any_to_External, layer Network)
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches traffic of VPNs only (Source VPN).
+  no social  ->  needs-review, emitted disabled  (emitted as layer Network_Internal_to_External, layer Network_Internal_to_any, layer Network_any_to_External, layer Network)
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) Facebook; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  helpdesk to dmz  ->  needs-review, emitted disabled  (emitted as layer Network_Internal_to_External, layer Network_Internal_to_any, layer Network_any_to_External, layer Network)
+      [needs-review] USER_MATCH: source user match helpdesk is not converted.
+  office web  ->  needs-review, emitted disabled  (emitted as layer Network_Internal_to_External, layer Network_Internal_to_any, layer Network_any_to_External, layer Network)
+      [needs-review] SCHEDULE: schedule 'Office hours' is not converted; the rule would apply at all times.
+  limited guests  ->  approximated  (emitted as layer Network_Internal_to_External, layer Network_Internal_to_any, layer Network_any_to_External, layer Network)
+      [approximated] CONNECTION_LIMIT: the rule limits concurrent connections (src_limit 50): connections beyond it are refused or discarded, which is not converted
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (deep_inspection=on); attach equivalent inspection on the target
+  block list  ->  needs-review, emitted disabled  (emitted as layer Network_Internal_to_External, layer Network_Internal_to_any, layer Network_any_to_External, layer Network)
+      [needs-review] UNSUPPORTED_MATCH: not converted: it has a block list (it discards what the dynamic block list holds, and lets the rest go on). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Rule @902.0  ->  approximated  (emitted as layer Network_Internal_to_External, layer Network_Internal_to_any, layer Network_any_to_External, layer Network)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+  v6 guests  ->  approximated  (emitted as layer Network_Internal_to_External, layer Network_Internal_to_any, layer Network_any_to_External, layer Network)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+  Rule @952.0  ->  approximated  (emitted as layer Network_Internal_to_External, layer Network_Internal_to_any, layer Network_any_to_External, layer Network)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+
+NAT rules
+  guests hide  ->  skipped
+      [info] NAT_ENGINE: the NAT rule applies on engine 'fw-branch' only
+      [approximated] NAT_INTERFACE_ALIAS: the source is translated to $$ Default NAT Address, the address of an interface of the engine: converted as the address of the interface the traffic leaves by
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface; name the gateway object to hide behind with --target-gateway
+
+Addresses
+  $$ Management Servers  ->  exact  (emitted as x___Management_Servers)
+      [info] RENAMED: renamed to 'x___Management_Servers' to fit the target's naming rules
+  $$ Local Cluster  ->  exact  (emitted as x___Local_Cluster)
+      [info] RENAMED: renamed to 'x___Local_Cluster' to fit the target's naming rules
+  net-lan (in rules)  ->  exact  (emitted as net-lan__in_rules_)
+      [info] RENAMED: renamed to 'net-lan__in_rules_' to fit the target's naming rules
+
+Address groups
+  updates.example.com (names)  ->  exact  (emitted as updates.example.com__names_)
+      [info] RENAMED: renamed to 'updates.example.com__names_' to fit the target's naming rules
+  lan without admins  ->  exact  (emitted as lan_without_admins)
+      [info] RENAMED: renamed to 'lan_without_admins' to fit the target's naming rules
+  mail-01 IPv4  ->  exact  (emitted as mail-01_IPv4)
+      [info] RENAMED: renamed to 'mail-01_IPv4' to fit the target's naming rules
+  net-guest IPv4  ->  exact  (emitted as net-guest_IPv4)
+      [info] RENAMED: renamed to 'net-guest_IPv4' to fit the target's naming rules
+
+Services
+  SG Control  ->  exact  (emitted as SG_Control)
+      [info] RENAMED: renamed to 'SG_Control' to fit the target's naming rules
+  DNS (UDP)  ->  exact  (emitted as DNS__UDP_)
+      [info] RENAMED: renamed to 'DNS__UDP_' to fit the target's naming rules
+  DNS (TCP)  ->  exact  (emitted as DNS__TCP_)
+      [info] RENAMED: renamed to 'DNS__TCP_' to fit the target's naming rules
+  Echo Request  ->  exact  (emitted as Echo_Request)
+      [info] RENAMED: renamed to 'Echo_Request' to fit the target's naming rules
+  NetBIOS (UDP)  ->  exact  (emitted as NetBIOS__UDP_)
+      [info] RENAMED: renamed to 'NetBIOS__UDP_' to fit the target's naming rules
+  NetBIOS (TCP)  ->  exact  (emitted as NetBIOS__TCP_)
+      [info] RENAMED: renamed to 'NetBIOS__TCP_' to fit the target's naming rules
+  IPv6 Echo Request  ->  exact  (emitted as IPv6_Echo_Request)
+      [info] RENAMED: renamed to 'IPv6_Echo_Request' to fit the target's naming rules

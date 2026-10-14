@@ -1,0 +1,1605 @@
+# The policy, as data. Do not change it here: convert again.
+#
+#: {
+#:  "format": 1,
+#:  "generator": "FWShift (this version)",
+#:  "policy": "FWShift",
+#:  "template": "Firewall Template",
+#:  "comment": "Converted by FWShift from checkpoint",
+#:  "zones": [
+#:   "InternalZone",
+#:   "ExternalZone"
+#:  ],
+#:  "existing": [
+#:   {
+#:    "type": "default_nat_address_alias",
+#:    "name": "$$ Default NAT Address"
+#:   }
+#:  ],
+#:  "elements": [
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "lan-net",
+#:     "ipv4_network": "10.10.0.0/16",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "dmz-net",
+#:     "ipv4_network": "10.20.0.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "dns-1",
+#:     "address": "192.0.2.53"
+#:    }
+#:   },
+#:   {
+#:    "type": "address_range",
+#:    "body": {
+#:     "name": "admin-range",
+#:     "ip_range": "10.10.5.10-10.10.5.20"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "web-1",
+#:     "address": "10.20.0.10",
+#:     "comment": "Web server in the DMZ"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "web-1_valid_address",
+#:     "address": "203.0.113.10",
+#:     "comment": "address automatic NAT gives web-1"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "mail-1",
+#:     "address": "10.20.0.25"
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "guest-net",
+#:     "ipv4_network": "10.10.200.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "plc-net",
+#:     "ipv4_network": "10.30.1.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "domain_name",
+#:    "body": {
+#:     "name": "updates.example.com"
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "lan6-net",
+#:     "ipv6_network": "2001:db8:10::/48",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "gw-edge",
+#:     "address": "198.51.100.1"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "mail-public",
+#:     "address": "203.0.113.25"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "nat-out",
+#:     "address": "198.51.100.20"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-192.0.2.54",
+#:     "address": "192.0.2.54"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-2001.db8.53..54",
+#:     "ipv6_address": "2001:db8:53::54"
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "dns-2",
+#:     "element": [
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-192.0.2.54"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-2001.db8.53..54"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "dns-servers",
+#:     "element": [
+#:      {
+#:       "@ref": "host",
+#:       "name": "dns-1"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "dns-2"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "dmz-servers",
+#:     "element": [
+#:      {
+#:       "@ref": "host",
+#:       "name": "web-1"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "web-1_valid_address"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "mail-1"
+#:      }
+#:     ],
+#:     "comment": "Everything in the DMZ"
+#:    }
+#:   },
+#:   {
+#:    "type": "udp_service",
+#:    "body": {
+#:     "name": "domain-udp",
+#:     "min_dst_port": 53,
+#:     "max_dst_port": 53
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "domain-tcp",
+#:     "min_dst_port": 53,
+#:     "max_dst_port": 53
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "ssh",
+#:     "min_dst_port": 22,
+#:     "max_dst_port": 22
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "http",
+#:     "min_dst_port": 80,
+#:     "max_dst_port": 80
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "https",
+#:     "min_dst_port": 443,
+#:     "max_dst_port": 443
+#:    }
+#:   },
+#:   {
+#:    "type": "udp_service",
+#:    "body": {
+#:     "name": "syslog-from-high",
+#:     "min_dst_port": 514,
+#:     "max_dst_port": 514,
+#:     "min_src_port": 1024,
+#:     "max_src_port": 65535
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-high",
+#:     "min_dst_port": 9000,
+#:     "max_dst_port": 9010,
+#:     "comment": "Application ports"
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "smtp",
+#:     "min_dst_port": 25,
+#:     "max_dst_port": 25
+#:    }
+#:   },
+#:   {
+#:    "type": "icmp_service",
+#:    "body": {
+#:     "name": "echo-request",
+#:     "icmp_type": 8
+#:    }
+#:   },
+#:   {
+#:    "type": "ip_service",
+#:    "body": {
+#:     "name": "gre",
+#:     "protocol_number": 47
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "ident",
+#:     "min_dst_port": 113,
+#:     "max_dst_port": 113
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-2525",
+#:     "min_dst_port": 2525,
+#:     "max_dst_port": 2525
+#:    }
+#:   },
+#:   {
+#:    "type": "service_group",
+#:    "body": {
+#:     "name": "app-ports",
+#:     "element": [
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "https"
+#:      },
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "tcp-high"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "dns-2 IPv4",
+#:     "element": [
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-192.0.2.54"
+#:      }
+#:     ],
+#:     "comment": "the IPv4 addresses of dns-2"
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "dns-servers IPv4",
+#:     "element": [
+#:      {
+#:       "@ref": "host",
+#:       "name": "dns-1"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "dns-2 IPv4"
+#:      }
+#:     ],
+#:     "comment": "the IPv4 addresses of dns-servers"
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "dns-2 IPv6",
+#:     "element": [
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-2001.db8.53..54"
+#:      }
+#:     ],
+#:     "comment": "the IPv6 addresses of dns-2"
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "dns-servers IPv6",
+#:     "element": [
+#:      {
+#:       "@ref": "group",
+#:       "name": "dns-2 IPv6"
+#:      }
+#:     ],
+#:     "comment": "the IPv6 addresses of dns-servers"
+#:    }
+#:   },
+#:   {
+#:    "type": "expression",
+#:    "body": {
+#:     "name": "not dns-servers IPv4",
+#:     "operator": "exclusion",
+#:     "ne_ref": [
+#:      {
+#:       "@ref": "group",
+#:       "name": "dns-servers IPv4"
+#:      }
+#:     ],
+#:     "sub_expression": []
+#:    }
+#:   },
+#:   {
+#:    "type": "expression",
+#:    "body": {
+#:     "name": "not dns-servers IPv6",
+#:     "operator": "exclusion",
+#:     "ne_ref": [
+#:      {
+#:       "@ref": "group",
+#:       "name": "dns-servers IPv6"
+#:      }
+#:     ],
+#:     "sub_expression": []
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-10.20.0.10",
+#:     "address": "10.20.0.10"
+#:    }
+#:   }
+#:  ],
+#:  "rules": {
+#:   "fw_ipv4_access_rule": [
+#:    {
+#:     "name": "DNS",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "lan-net"
+#:       },
+#:       {
+#:        "@ref": "network",
+#:        "name": "dmz-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "group",
+#:        "name": "dns-servers IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "domain-udp"
+#:       },
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "domain-tcp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Name resolution"
+#:    },
+#:    {
+#:     "name": "rule-2",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "address_range",
+#:        "name": "admin-range"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "group",
+#:        "name": "dmz-servers"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "ssh"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Web out",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "InternalZone"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "ExternalZone"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "http"
+#:       },
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "https"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Guests stay out",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "guest-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "expression",
+#:        "name": "not dns-servers IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Social",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "lan-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "none": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "Admins",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "none": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "plc-net"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "PLC access",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "address_range",
+#:        "name": "admin-range"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "plc-net"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "https"
+#:       },
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "ssh"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Operators from the office, vendor support from anywhere"
+#:    },
+#:    {
+#:     "name": "PLC access (plc-operators)",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "lan-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "plc-net"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "https"
+#:       },
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "ssh"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report. Operators from the office, vendor support from anywhere"
+#:    },
+#:    {
+#:     "name": "PLC access (vendor-support)",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "plc-net"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "https"
+#:       },
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "ssh"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report. Operators from the office, vendor support from anywhere"
+#:    },
+#:    {
+#:     "name": "DMZ users",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "dmz-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "https"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "Updates",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "group",
+#:        "name": "dmz-servers"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "domain_name",
+#:        "name": "updates.example.com"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "https"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "Old rule",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "none": true
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "syslog-from-high"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "Partners",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "lan-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "plc-net"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "Public web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "web-1"
+#:       },
+#:       {
+#:        "@ref": "host",
+#:        "name": "web-1_valid_address"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "https"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "web-1 has automatic static NAT"
+#:    },
+#:    {
+#:     "name": "DMZ access / Web in",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "h-10.20.0.10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "app-ports"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "DMZ access / Mail in",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "mail-1"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "smtp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "DMZ access / Ping from LAN",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "lan-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "dmz-net"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "icmp_service",
+#:        "name": "echo-request"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "DMZ access (cleanup of DMZ-Layer)",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "dmz-net"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "implicit cleanup of inline layer DMZ-Layer"
+#:    },
+#:    {
+#:     "name": "Tunnels",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "gw-edge"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "gre"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "No ident",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "ident"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "refuse"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Cleanup rule",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    }
+#:   ],
+#:   "fw_ipv6_access_rule": [
+#:    {
+#:     "name": "Web out",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "InternalZone"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "ExternalZone"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "http"
+#:       },
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "https"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "IPv6 out",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "lan6-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "https"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "No ident",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "ident"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "refuse"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "Cleanup rule",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "stored",
+#:      "log_closing_mode": true,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    }
+#:   ]
+#:  },
+#:  "nat": {
+#:   "fw_ipv4_nat_rule": [
+#:    {
+#:     "name": "nat-1",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "web-1"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "static_src_nat": {
+#:       "automatic_proxy": true,
+#:       "original_value": {
+#:        "element": {
+#:         "@ref": "host",
+#:         "name": "web-1"
+#:        }
+#:       },
+#:       "translated_value": {
+#:        "element": {
+#:         "@ref": "host",
+#:         "name": "web-1_valid_address"
+#:        }
+#:       }
+#:      }
+#:     },
+#:     "comment": "automatic NAT rule"
+#:    },
+#:    {
+#:     "name": "nat-2",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "web-1_valid_address"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "static_dst_nat": {
+#:       "automatic_proxy": true,
+#:       "original_value": {
+#:        "element": {
+#:         "@ref": "host",
+#:         "name": "web-1_valid_address"
+#:        }
+#:       },
+#:       "translated_value": {
+#:        "element": {
+#:         "@ref": "host",
+#:         "name": "web-1"
+#:        }
+#:       }
+#:      }
+#:     },
+#:     "comment": "automatic NAT rule"
+#:    },
+#:    {
+#:     "name": "nat-3",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "plc-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "plc-net"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined"
+#:     },
+#:     "comment": "automatic NAT rule"
+#:    },
+#:    {
+#:     "name": "nat-4",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "plc-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "dynamic_src_nat": {
+#:       "automatic_proxy": true,
+#:       "translation_values": [
+#:        {
+#:         "element": {
+#:          "@ref": "default_nat_address_alias",
+#:          "name": "$$ Default NAT Address"
+#:         },
+#:         "min_port": 1024,
+#:         "max_port": 65535
+#:        }
+#:       ]
+#:      }
+#:     },
+#:     "comment": "automatic NAT rule"
+#:    },
+#:    {
+#:     "name": "nat-5",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "lan-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "dmz-net"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined"
+#:     },
+#:     "comment": "No NAT towards the DMZ"
+#:    },
+#:    {
+#:     "name": "nat-6",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "any": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "host",
+#:        "name": "mail-public"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-2525"
+#:       }
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "static_dst_nat": {
+#:       "automatic_proxy": true,
+#:       "original_value": {
+#:        "element": {
+#:         "@ref": "host",
+#:         "name": "mail-public"
+#:        },
+#:        "min_port": "2525",
+#:        "max_port": "2525"
+#:       },
+#:       "translated_value": {
+#:        "element": {
+#:         "@ref": "host",
+#:         "name": "mail-1"
+#:        },
+#:        "min_port": "25",
+#:        "max_port": "25"
+#:       }
+#:      }
+#:     },
+#:     "comment": "Mail on an alternative port"
+#:    },
+#:    {
+#:     "name": "nat-7",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "dmz-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "dynamic_src_nat": {
+#:       "automatic_proxy": true,
+#:       "translation_values": [
+#:        {
+#:         "element": {
+#:          "@ref": "host",
+#:          "name": "nat-out"
+#:         },
+#:         "min_port": 1024,
+#:         "max_port": 65535
+#:        }
+#:       ]
+#:      }
+#:     }
+#:    },
+#:    {
+#:     "name": "nat-8",
+#:     "is_disabled": false,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "lan-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "dynamic_src_nat": {
+#:       "automatic_proxy": true,
+#:       "translation_values": [
+#:        {
+#:         "element": {
+#:          "@ref": "default_nat_address_alias",
+#:          "name": "$$ Default NAT Address"
+#:         },
+#:         "min_port": 1024,
+#:         "max_port": 65535
+#:        }
+#:       ]
+#:      }
+#:     },
+#:     "comment": "Hide behind the gateway"
+#:    },
+#:    {
+#:     "name": "nat-9",
+#:     "is_disabled": true,
+#:     "used_on": {
+#:      "any": true
+#:     },
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "network",
+#:        "name": "guest-net"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "any": true
+#:     },
+#:     "services": {
+#:      "any": true
+#:     },
+#:     "options": {
+#:      "log_level": "undefined",
+#:      "dynamic_src_nat": {
+#:       "automatic_proxy": true,
+#:       "translation_values": [
+#:        {
+#:         "element": {
+#:          "@ref": "host",
+#:          "name": "nat-out"
+#:         },
+#:         "min_port": 1024,
+#:         "max_port": 65535
+#:        }
+#:       ]
+#:      }
+#:     }
+#:    }
+#:   ],
+#:   "fw_ipv6_nat_rule": []
+#:  }
+#: }

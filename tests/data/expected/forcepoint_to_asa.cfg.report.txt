@@ -1,0 +1,114 @@
+FWShift conversion report
+  source: forcepoint (Branch Policy)
+  target: asa
+
+Summary
+  Security rules:     32   exact 17, approximated 4, needs review 11 (8 emitted disabled), skipped 0
+  NAT rules:           5   exact 4, approximated 0, needs review 0, skipped 1
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FORCEPOINT_ELEMENT_NAT: element-based NAT (NAT set on an element) and the default NAT of the engine are not in the policy, and not read: they translate after the NAT rules, and an element with static NAT also matches its public address in the access rules
+  [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
+  [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: Internal, External. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
+  [info] CONTINUE_RULE: Continue rules decide nothing: they set defaults (logging, inspection, timeouts) for the rules below them that match the same traffic. Their logging was given to those rules: 'lan defaults'
+  [info] NONE_CELL: rules with a cell set to NONE, which the engine ignores; converted disabled: 'unfinished'
+  [info] AUTOMATIC_RULES: the automatic rules of the engine (at the insert point for them) are for traffic to and from the engine itself, and are not converted
+  [info] SOURCE_VPN_NONE: rules that match traffic that comes through no VPN (Source VPN: not via VPN); converted for all traffic, as the model has no VPNs: 'ping out'
+  [info] NETWORK_BROADCAST: networks without 'broadcast' in groups: Forcepoint documents the option for rule cells, and in a group they were taken whole: grp-inside
+  [info] FORCEPOINT_ZONES: zones are bound to interfaces on the engine, which the input does not hold: the zones of the policy have no interfaces here
+  [info] FORCEPOINT_AUTOMATIC: what the engine does by itself is not converted: antispoofing (from its routing), the automatic rules for its own traffic, and replies of allowed connections, which the model allows with them
+  [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
+  [info] FQDN_DNS: objects with a host name need name resolution on the ASA ('dns domain-lookup' and a DNS server group)
+
+Security rules
+  Rule @900.0  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] UNSUPPORTED_MATCH: not converted: source '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'x___Management_Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'x___Local_Cluster': an alias, whose value is set per engine, and the input holds no engine.
+  allow web  ->  needs-review  (emitted as global_access)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '192.168.10.10', the address NAT rule 'publish_web' translates 'pub-web' to. The target looks rules up after that translation, so traffic sent to 'pub-web' now matches this rule; on the source it did not
+  admins in  ->  exact  (emitted as global_access)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  others out  ->  exact  (emitted as global_access)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  refuse admins 8443  ->  approximated  (emitted as global_access)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] RESET_ACTION: action reset-client becomes deny; an ASA resets denied TCP connections only with 'service resetinbound' or 'service resetoutside'
+  internal zone out  ->  needs-review  (emitted as Internal_access_in)
+      [needs-review] NAT_PORT_EXPOSED: the service covers the post-NAT port of NAT rule 'publish_web' (which translates the port to 8443) but not the pre-NAT one. The source looks rules up before the translation and did not apply this rule to that traffic; the target looks them up after it, and there the rule applies
+  not to dmz  ->  needs-review, emitted disabled  (emitted as global_access)
+      [info] NEGATION_EXPANDED: an access list cannot negate: the negated destination is written as the 3 address ranges it leaves
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish_web' (pub-web, 192.168.10.10).
+  zone or web host out  ->  exact  (emitted as Internal_access_in)
+      [info] RULE_SPLIT: the cells hold zones, addresses, users or applications side by side (ORed): the rule is 2 rules, one per combination
+  zone or web host out (2)  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by External, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind Internal, External with --zone-network.
+  vpn only  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '192.168.10.10', the address NAT rule 'publish_web' translates 'pub-web' to. The target looks rules up after that translation, so traffic sent to 'pub-web' now matches this rule; on the source it did not
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches traffic of VPNs only (Source VPN).
+  no social  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) Facebook; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  helpdesk to dmz  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] USER_MATCH: source user match helpdesk is not converted.
+  office web  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] SCHEDULE: schedule 'Office hours' is not converted; the rule would apply at all times.
+  limited guests  ->  needs-review  (emitted as global_access)
+      [approximated] CONNECTION_LIMIT: the rule limits concurrent connections (src_limit 50): connections beyond it are refused or discarded, which is not converted
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish_web' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (deep_inspection=on); attach equivalent inspection on the target
+  block list  ->  needs-review, emitted disabled  (emitted as global_access)
+      [needs-review] UNSUPPORTED_MATCH: not converted: it has a block list (it discards what the dynamic block list holds, and lets the rest go on). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Rule @902.0  ->  approximated  (emitted as global_access)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] RESET_ACTION: action reset-client becomes deny; an ASA resets denied TCP connections only with 'service resetinbound' or 'service resetoutside'
+  v6 guests  ->  approximated  (emitted as global_access)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] RESET_ACTION: action reset-client becomes deny; an ASA resets denied TCP connections only with 'service resetinbound' or 'service resetoutside'
+  Rule @952.0  ->  approximated  (emitted as global_access)
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] RESET_ACTION: action reset-client becomes deny; an ASA resets denied TCP connections only with 'service resetinbound' or 'service resetoutside'
+
+NAT rules
+  guests hide  ->  skipped
+      [info] NAT_ENGINE: the NAT rule applies on engine 'fw-branch' only
+      [approximated] NAT_INTERFACE_ALIAS: the source is translated to $$ Default NAT Address, the address of an interface of the engine: converted as the address of the interface the traffic leaves by
+      [needs-review] NAT_NOT_CONVERTED: not converted: source NAT to the address of the outgoing interface, which the rule does not name; give it with --target-nat-zone
+
+Addresses
+  $$ Management Servers  ->  exact  (emitted as x___Management_Servers)
+      [info] RENAMED: renamed to 'x___Management_Servers' to fit the target's naming rules
+  $$ Local Cluster  ->  exact  (emitted as x___Local_Cluster)
+      [info] RENAMED: renamed to 'x___Local_Cluster' to fit the target's naming rules
+  net-lan (in rules)  ->  exact  (emitted as net-lan__in_rules_)
+      [info] RENAMED: renamed to 'net-lan__in_rules_' to fit the target's naming rules
+
+Address groups
+  updates.example.com (names)  ->  exact  (emitted as updates.example.com__names_)
+      [info] RENAMED: renamed to 'updates.example.com__names_' to fit the target's naming rules
+  lan without admins  ->  exact  (emitted as lan_without_admins)
+      [info] RENAMED: renamed to 'lan_without_admins' to fit the target's naming rules
+  mail-01 IPv4  ->  exact  (emitted as mail-01_IPv4)
+      [info] RENAMED: renamed to 'mail-01_IPv4' to fit the target's naming rules
+  net-guest IPv4  ->  exact  (emitted as net-guest_IPv4)
+      [info] RENAMED: renamed to 'net-guest_IPv4' to fit the target's naming rules
+
+Services
+  SG Control  ->  exact  (emitted as SG_Control)
+      [info] RENAMED: renamed to 'SG_Control' to fit the target's naming rules
+  DNS (UDP)  ->  exact  (emitted as DNS__UDP_)
+      [info] RENAMED: renamed to 'DNS__UDP_' to fit the target's naming rules
+  DNS (TCP)  ->  exact  (emitted as DNS__TCP_)
+      [info] RENAMED: renamed to 'DNS__TCP_' to fit the target's naming rules
+  Echo Request  ->  exact  (emitted as Echo_Request)
+      [info] RENAMED: renamed to 'Echo_Request' to fit the target's naming rules
+  NetBIOS (UDP)  ->  exact  (emitted as NetBIOS__UDP_)
+      [info] RENAMED: renamed to 'NetBIOS__UDP_' to fit the target's naming rules
+  NetBIOS (TCP)  ->  exact  (emitted as NetBIOS__TCP_)
+      [info] RENAMED: renamed to 'NetBIOS__TCP_' to fit the target's naming rules
+  IPv6 Echo Request  ->  exact  (emitted as IPv6_Echo_Request)
+      [info] RENAMED: renamed to 'IPv6_Echo_Request' to fit the target's naming rules

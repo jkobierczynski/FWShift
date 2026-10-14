@@ -3,12 +3,12 @@
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
 Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
 or by its Device Manager), Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX, Linux iptables, Linux nftables, the VMware NSX
-distributed firewall, AWS security groups, Azure network security groups and MikroTik RouterOS, and tells you,
+distributed firewall, AWS security groups, Azure network security groups, MikroTik RouterOS and Forcepoint NGFW (through its Security Management Center), and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; show what each zone may reach in each
 other zone; check a policy against a zone and conduit model kept as a file;
 and say which connections two policies decide differently.
-This manual covers version 0.24.
+This manual covers version 0.25.
 
 **Contents**
 
@@ -62,10 +62,10 @@ may reach (section 14), check a policy against a zone and conduit model kept
 as a file (section 16), and name every connection two policies decide
 differently, including a source and its conversion read back (section 17).
 
-> **Status.** Version 0.24 is tested against synthetic configurations. iptables
+> **Status.** Version 0.25 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). Output for PAN-OS, FortiOS, Check Point,
-> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS, Azure and RouterOS has
+> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS, Azure, RouterOS and Forcepoint has
 > not been loaded on a device or management server yet; the Check Point input format follows the
 > API documentation, the ASA and FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
@@ -75,8 +75,10 @@ differently, including a source and its conversion read back (section 17).
 > SonicWall settings export and the WatchGuard configuration file from the
 > published readers of those formats, and the REST API of a Barracuda CloudGen
 > Firewall from the examples in its documentation; Junos from Juniper's
-> documentation and from the grammar of a published reader of it.
-> Use FWShift to produce a draft for a lab.
+> documentation and from the grammar of a published reader of it; the SMC REST API of Forcepoint from the
+> clients Forcepoint publishes for it (its Python library and Terraform provider) and its API guide, and the loader
+> and the dump program for it have only talked to a stand-in written for the tests.
+> Use FWShift to produce a draft for a lab, and follow *Using it safely* in the README.
 
 ## 2. Installation
 
@@ -98,8 +100,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.24.0.pyz --version
-python3 fwshift-0.24.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.25.0.pyz --version
+python3 fwshift-0.25.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -570,6 +572,32 @@ to 25.7 cannot say which of them wrote it (an empty *Block private networks*,
 which 24.7 and 25.1 read as set and 25.7 not), FWShift takes the reading that
 blocks more and says so (`OPNSENSE_FLAG_UNCLEAR`).
 
+**Forcepoint NGFW (through the SMC REST API, 6.10 to 7.4).** The policy of a Forcepoint engine lives in its Security
+Management Center (SMC), and the SMC has no single export of it that is documented: its XML export (*Export
+Elements*) has no published format, and FWShift refuses it. The REST API answers with one element at a time, so
+FWShift ships a small program that asks it for everything one policy needs and writes the answers to one file:
+
+```sh
+fwshift script forcepoint-dump -o smc_dump.py            # the program (Python 3.8 or newer, nothing else)
+export SMC_API_KEY=...                                     # the authentication key of an API client (or it asks)
+python3 smc_dump.py --host smc.example.com --policy "Branch Policy" -o branch.json
+fwshift convert branch.json --to panos -o panos.set --report report.txt
+```
+
+The API client needs only to read (an API client with a read-only role is enough). The program only reads: it
+logs in, fetches the firewall policy, the templates it is based on up to the predefined one, their four rule lists
+(access and NAT, IPv4 and IPv6), every rule, every sub-policy a rule jumps to and every element a rule or an element
+names, writes the answers one per line, and logs out. It follows no redirect and fetches no link that points
+anywhere but the SMC it was given, and it speaks plain http only to the computer itself. The SMC answers on port 8082
+unless `--host` names another (`smc.example.com:8443`); `--api-version` picks a version of the API (the newest one
+the SMC offers that the program knows otherwise), `--domain` an administrative domain, `--cafile` the certificate of
+the authority that signed the SMC's own.
+
+FWShift recognises the file (`--from forcepoint`). When it holds several firewall policies, `--policy` names the
+one to read. What the file does not hold (an element that could not be read, a list that answered with an error) is
+named in one note (`MISSING_ELEMENTS`), and what names it is not converted. An engine is not read: aliases, whose
+values are set per engine, are not resolved, and zones have no interfaces (section 8).
+
 **SonicWall (SonicOS 6.5 and 7).** Export the settings: on SonicOS 7 under
 *Device > Settings > Firmware and Settings*, *Import/Export Configuration >
 Export Configuration*; on SonicOS 6.5 under *Manage > Updates > Firmware &
@@ -810,7 +838,7 @@ fwshift convert INPUT --to FORMAT [options]
 
 `FORMAT` is one of `panos`, `fortios`, `checkpoint`, `asa`, `fmc`, `fdm`,
 `sophos`, `pfsense`, `opnsense`, `sonicwall`, `watchguard`, `barracuda`, `junos`,
-`iptables`, `ip6tables`, `nftables`, `nsx`, `aws`, `azure`, `routeros` and `json` (the neutral model; see `--to json` below).
+`iptables`, `ip6tables`, `nftables`, `nsx`, `aws`, `azure`, `routeros`, `forcepoint` and `json` (the neutral model; see `--to json` below).
 
 `INPUT` is a file, or `-` for standard input.
 
@@ -818,12 +846,12 @@ fwshift convert INPUT --to FORMAT [options]
 
 | Option | Meaning |
 |---|---|
-| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<opnsense>` is OPNsense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; JSON with network security groups of Azure (`Microsoft.Network/networkSecurityGroups`, or `securityRules` with priorities) is Azure; a file whose header says `by RouterOS`, or whose first line is a menu such as `/ip firewall filter` or `/interface list`, is RouterOS; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: JSON that holds the answers of the SMC API for a firewall policy (list answers with `fwshift_list`, or hrefs into `/elements/fw_policy/`), or the XML export of an SMC (`<generic_import_export>`, which is refused), is Forcepoint; a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<opnsense>` is OPNsense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; JSON with network security groups of Azure (`Microsoft.Network/networkSecurityGroups`, or `securityRules` with priorities) is Azure; a file whose header says `by RouterOS`, or whose first line is a menu such as `/ip firewall filter` or `/interface list`, is RouterOS; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
 | `--layer NAME` | Check Point source with several access layers: the one to read. |
-| `--policy NAME` | Management Center source with several access control policies: the one to read, by its name or its id. Without it the policy that no other policy in the input inherits from is read, if there is one such policy. |
+| `--policy NAME` | Management Center source with several access control policies: the one to read, by its name or its id. Without it the policy that no other policy in the input inherits from is read, if there is one such policy. Forcepoint source with several firewall policies: the one to read, by its name. |
 | `--nat-policy NAME` | Management Center source with several NAT policies: the one to read, by its name or its id. |
 | `--interface-address INTERFACE=ADDRESS/BITS` | pfSense, OPNsense and SonicWall sources: the address of an interface that gets it by DHCP, PPPoE, SLAAC or from a tracked interface, which is then not in the file (SonicWall: IPv4, by the name of the interface, `X1`). `INTERFACE` is the name of the interface (`wan`, `opt1`) or its description (`WAN`), `BITS` the prefix length of its network. One address per IP version and interface; repeatable. Without it, rules that name such an address or network are written disabled (section 3). |
 
@@ -854,6 +882,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to aws` | A shell script of AWS CLI calls that creates security groups for one VPC, without members, and says which addresses each is for (section 10). |
 | `--to azure` | An ARM template with one network security group per zone (section 10). |
 | `--to routeros` | A script for `/import` on RouterOS 6 or 7: interface lists for the zones, address lists, the rules in chains of their own, and the jumps that switch them on, disabled (section 10). |
+| `--to forcepoint` | A Python program that creates the policy on a Forcepoint Security Management Center through its REST API: elements, zones it does not have, and a new firewall policy on a template, with the access rules and the NAT rules of both IP versions. It installs nothing on an engine (section 10). |
 | `--to nftables` | A ruleset for `nft -f`: one table, `inet fwshift`, with the forward hook for both IP versions and the IPv4 NAT chains. Loading it replaces that table and nothing else (section 10). |
 | `--to json` | The neutral model as JSON, for inspection or other tools. It is the model as it was read: the audit options cannot be combined with it. Each rule carries what the source calls it (`source_ids`: the uid of a Check Point rule, the name and uuid of a PAN-OS rule, the policy ID and uuid of a FortiOS policy), the devices it is installed on where the source limits that (`targets`), and its hit count where the input has one (`hits`). |
 | `--target-vsys NAME` | PAN-OS: prefix commands with `vsys NAME`. Default: a single-vsys firewall, no prefix. |
@@ -866,9 +895,10 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--target-layer NAME` | Check Point: the access layer the rules are written to. Default `Network`. It must exist. |
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
-| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS, Azure and RouterOS: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on Azure every network security group; on RouterOS every interface list and address list, instead of `fws-`) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
+| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS, Azure, RouterOS and Forcepoint: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on Azure every network security group; on RouterOS every interface list and address list, instead of `fws-`) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
 | `--compare[=FILE]` | Read the output back (for the targets FWShift reads: `asa`, `azure`, `fdm`, `fortios`, `iptables`, `ip6tables`, `junos`, `nftables`, `nsx`, `routeros`, `sophos`, `watchguard`) and compare it with the policy as it was read: every connection the two decide differently is in the report (`COMPARE_OPENED`, `COMPARE_CLOSED`, section 17). With `FILE` the whole comparison is written there. Give `--zone-network` for every zone, so that only connections that can happen are compared. |
-| `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates; the script can be given another name when it is run (`--name`). NSX: the name of the security policy. Azure: the name of the one network security group written when no zone has networks. Default `FWShift`. |
+| `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates; the script can be given another name when it is run (`--name`). NSX: the name of the security policy. Azure: the name of the one network security group written when no zone has networks. Default `FWShift`. Forcepoint: the name of the firewall policy the program creates (`--name` when it is run gives another). |
+| `--target-template NAME` | Forcepoint: the template the new firewall policy is based on (default `Firewall Template`, the predefined one). The loader stops when the SMC has no template of that name; it can be given another when it is run (`--template`). |
 
 **Adapting the policy**
 
@@ -1027,6 +1057,21 @@ of use (the other checks are for `fwshift audit`).
 store says about each rule over the last `usage_days` days it holds, for the
 same checks (and `UNUSED_RULE=disable` in a conversion); `--usage-gateway`
 is `--gateway` for them.
+
+### `fwshift script`
+
+```
+fwshift script forcepoint-dump [-o FILE]
+```
+
+Writes a program FWShift works with, to `FILE` (made executable) or to standard output. `forcepoint-dump` is the
+program that reads one firewall policy out of a Forcepoint SMC through its REST API, for `--from forcepoint`
+(section 3). It only reads, and needs Python 3.8 or newer and nothing else.
+
+### Input size
+
+Every input file (a configuration, a model, an audit configuration, counters) is read up to 1024 MiB. A larger file
+is refused before it is read further. The environment variable `FWSHIFT_MAX_INPUT_MB` sets another limit, in MiB.
 
 ### Exit status
 
@@ -1668,6 +1713,46 @@ Center, Device Manager):
 | `ZONE_RENAMED` | I | Source: a zone is named `any`. Target: a zone name that cannot be an object name was changed; choose another with `--zone-map`. |
 | `INTRAZONE_ALLOW_ADDED` | I | Target: rules were appended for the zones that allow traffic between their own interfaces on the source. |
 | `FQDN_DNS` | I | Target: FQDN objects need name resolution on the device. |
+
+Findings and notes that only a Forcepoint source or target raises. A Forcepoint source also raises `RULE_ORDER`,
+`RULE_SPLIT`, `IP_FAMILY` and `NAT_SOURCE_PORT`, and a Forcepoint target `ZONES_REQUIRED`, `NAME_COLLISIONS`,
+`OBJECT_PREFIX`, `TAGS_NOT_CONVERTED`, `INTRAZONE_ALLOW_MERGED`, `NAT_ZONES`, `NAT_BIDIRECTIONAL`, `RULE_TYPE` and
+`RULE_TYPE_EMPTY`, which mean what they mean for the other platforms:
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `MISSING_ELEMENTS` | R | Source: what the policy names and the input does not hold (an element, a rule, a list, a sub-policy, a zone). What names it is not converted: the rule is written disabled. Read the policy again with the dump program, with an API client that may read all of it. |
+| `LIST_NOT_PLACED` | R | Source: list answers without the key `fwshift_list`: which rule list they are is not known, and they were not read. Take the input with the dump program. |
+| `TEMPLATE_RULES_NOT_READ` | R | Source: the access rules of a template of the policy are not in the input. Its rules above the insert point are not read; below it, those of the predefined Firewall Template are assumed (`TEMPLATE_RULE_ASSUMED`). |
+| `TEMPLATE_RULE_ASSUMED` | R | Source (on the rule): a rule that stands for what the predefined Firewall Template does below its insert point (Refuse Ident, Discard all, logged), as Forcepoint documents it. |
+| `CONTINUE_RULE` | I | Source: Continue rules decide nothing; their logging was given to the rules below them that may match the same traffic (also in the sub-policies they jump to). |
+| `NONE_CELL` | I | Source: rules with a cell set to NONE, which the engine ignores; converted disabled. |
+| `AUTOMATIC_RULES` | I | Source: the automatic rules of the engine (at the insert point for them) are for traffic to and from the engine itself, and are not converted. |
+| `FORCEPOINT_AUTOMATIC` | I | Source: what the engine does by itself is not converted: antispoofing from its routing, its automatic rules, replies of allowed connections (which the model allows with them). |
+| `FORCEPOINT_ZONES` | I | Source: zones are bound to interfaces on the engine, which the input does not hold: they have no interfaces here. |
+| `FORCEPOINT_ELEMENT_NAT` | R | Source: element-based NAT and the default NAT of the engine are not in the policy, and not read. They translate after the NAT rules, and an element with static NAT also matches its public address in the access rules: check the elements and the engine. |
+| `SOURCE_VPN_NONE` | I | Source: rules that match only traffic that comes through no VPN; converted for all traffic, as the model has no VPNs. A rule that matches only VPN traffic is written disabled. |
+| `NETWORK_BROADCAST` | I | Source: networks without *broadcast* in groups. Forcepoint documents the option for rule cells (where FWShift leaves out the network and broadcast addresses); in a group the network is taken whole. |
+| `REFUSE_ACTION` | A | Source (on the rule): Refuse answers the sender with an ICMP error; whether a TCP connection gets a reset is not documented. Converted as a reset to the client. Target: an action that rejects becomes Refuse. |
+| `FORWARD_TO` | I | Source (on the rule): the rule forwards what it allows to a host or proxy, which the NAT rules then do not see; not converted. |
+| `CONNECTION_LIMIT` | A | Source (on the rule): a limit of concurrent connections; connections beyond it are refused or discarded, which is not converted. |
+| `JUMP_FLATTENED` | I | Source (on the rule): a rule of a sub-policy, reached by a jump rule: it is that rule limited to what the jump rule matches, in the place of the jump rule. |
+| `JUMP_EMPTY` | I | Source (on the rule): nothing the sub-policy holds matches what the jump rule matches. |
+| `NAT_ENGINE` | I | Source (on the NAT rule): the rule applies on one engine only (*Used on*); converted for every engine. |
+| `NAT_INTERFACE_ALIAS` | A | Source (on the NAT rule): the source is translated to `$$ Default NAT Address` or `$$ Interface ID N.ip`, converted as the address of the interface the traffic leaves by. Target: such source NAT is written to `$$ Default NAT Address`; check that it is the address the traffic should leave with. |
+| `SMC_LOADER` | R | Target: the output is a program that loads the policy through the SMC REST API (section 10). It creates; it installs nothing. |
+| `TEMPLATE_RULES` | R | Target: the rules stand at the insert point of the template: its rules above come first, its rules below after the rules of the policy. |
+| `SMC_NAT` | R | Target: element-based NAT and the default NAT of an engine apply after the NAT rules written: check them on the engines. |
+| `MATCH_EXPRESSIONS` | I | Target: a side limited by zones and addresses is a match expression per zone and address element. |
+| `DOMAIN_NAMES` | I | Target: host names are domain name elements; the engine resolves them only with DNS servers in its properties. |
+| `DEFAULT_ALLOW_ADDED` | R | Target: the source allows what no rule decides: the policy ends in a rule that allows everything, IPv4 and IPv6. |
+| `INTRAZONE_RULES_ADDED` | I | Target: rules for traffic inside a zone were added at the end of the policy, as the source decides it when no rule does. |
+| `NOT_CREATED` | I | Target (on the object): an object that cannot be an element (a placeholder, a service of every protocol, SCTP ports) is not created; rules that name it are written disabled. |
+| `NEGATED_SERVICE` | R | Target (on the rule): a cell of an SMC has no negation; a negated service is written disabled. |
+| `NEGATED_FQDN` | R | Target (on the rule): a negated side that holds a host name (also in a group); an expression of an SMC combines addresses. Written disabled. |
+| `APP_AND_SERVICE` | R | Target (on the rule): network applications and services in one rule of an SMC source: in one cell they would be ORed. Written disabled. |
+| `NAT_IPV4_ONLY` | A | Target (on the NAT rule): source NAT to the interface address for addresses of both IP versions is written for IPv4 only. |
+| `NAT_PORTS` | A | Target (on the NAT rule): dynamic NAT without port translation is written as dynamic NAT of an SMC, which translates ports as well. |
 
 ## 8. How the differences between platforms are handled
 
@@ -3166,6 +3251,46 @@ port forwards, `filter.inc` and `filter.lib.inc`), not the web pages.
   newer kind. NPt is not written, and a restore of the NAT area removes what
   NPt rules the firewall has.
 
+### Forcepoint NGFW
+
+A Forcepoint engine takes its policy from the Security Management Center. FWShift reads it from the answers of the
+SMC REST API and writes a program that creates it there; what an engine does with a policy is taken from
+Forcepoint's documentation and from the clients Forcepoint publishes for the API, not from a lab.
+
+* **Order.** A policy is based on a template, a template on another, up to a predefined one. The rules of the top
+  template come first; at each insert point stand the rules the level below added there, then the template goes on.
+  The automatic rules of the engine (for its own traffic) are not converted. Rules that name no insert point are
+  placed at the only insert point of the level above, or at the end, with `RULE_ORDER`.
+* **Actions.** Allow, Discard and Refuse decide (Refuse as a reset to the client, `REFUSE_ACTION`). Continue decides
+  nothing: its logging goes to the rules below it that may match the same traffic. A jump is flattened: each rule of
+  the sub-policy, limited to what the jump rule matches, in the place of the jump rule, and no rule after them; when
+  nothing in the sub-policy matches, the next rule decides, as on the engine. VPN actions, block lists and forced
+  next hops are not converted: such rules are written disabled. What no rule decides is discarded.
+* **Cells.** ANY, NONE (the engine ignores the rule: converted disabled), or members, which are ORed: addresses,
+  zones, users, network applications, URL categories. A rule whose cells hold several kinds side by side becomes a
+  rule per combination (`RULE_SPLIT`). A match expression is one row whose parts are ANDed (a zone and an address).
+  A network without *broadcast* leaves out its network and broadcast addresses in a rule cell (also of a NAT rule),
+  and is whole in a group or an expression. An expression combines addresses: union, intersection, and exclusion
+  of one element (all addresses but those); an exclusion of several elements is not documented, and not read.
+* **IP versions.** IPv4 and IPv6 rules are separate lists. A rule says in the model which version it is for: by its
+  addresses, by `0.0.0.0/0` or `::/0` for "any", by the part of a group of that version, or a negated side by the
+  addresses of that version it leaves. Only host names cannot be cut (`IP_FAMILY`). A target writes each rule into
+  the list of each version it can match, with the part of its groups of that version.
+* **Zones** are written as zone elements, without interfaces: put the interfaces of the engines in them
+  (`ZONES_REQUIRED`). A zone in a cell is the interface traffic arrives on (source) or leaves by (destination).
+* **NAT.** Access rules match the addresses before NAT, as the model does; nothing is rewritten. NAT rules are first
+  match, after the access rule allowed the connection, and one rule translates source and destination together:
+  static destination NAT (one element to one of the same size, a port to a port or a range to a range of the same
+  size), static source NAT, dynamic source NAT to addresses or to `$$ Default NAT Address`, and rules without
+  translation. A NAT rule of an SMC names no zone: a source NAT rule that applied to traffic to one zone is written
+  without it (`NAT_ZONES`). Element-based NAT and the default NAT of an engine are not in the policy
+  (`FORCEPOINT_ELEMENT_NAT`, `SMC_NAT`). IPv6 NAT is not read.
+* **Defaults.** Where the source allows traffic that no rule decides, between zones or inside one, rules at the end
+  of the policy say so (`DEFAULT_ALLOW_ADDED`, `INTRAZONE_RULES_ADDED`); they come before the rules of the template
+  below its insert point.
+* **Not converted:** users and authentication, schedules (rule validity times), inspection, file filtering,
+  decryption, connection limits, QoS, and aliases, whose values are set per engine.
+
 ### SonicWall
 
 **What is read**
@@ -4062,6 +4187,41 @@ outbound NAT mode, and the Source NAT, NPt and 1:1 lists of
    `FWSHIFT` in their description; aliases that stand in for an object that
    could not be converted match nothing (`192.0.0.8`).
 
+### Forcepoint NGFW
+
+> **The program has never talked to a real SMC.** The calls it makes are taken from the API guide and from the
+> Python library and Terraform provider Forcepoint publishes; it was tested against a stand-in written for the tests.
+
+The output is a Python program (3.8 or newer, nothing to install): the loader, and after it the policy as data.
+
+```sh
+python3 load.py --show                                   # what it would create, without connecting
+export SMC_API_KEY=...                                    # the authentication key of an API client (or it asks)
+python3 load.py --host smc.example.com --dry-run          # log in, check every name, create nothing
+python3 load.py --host smc.example.com                    # create the elements and the policy
+python3 load.py --host smc.example.com --undo             # delete what that run created
+```
+
+1. **Look first.** It logs in and looks up every element it would create. An element of the same type and name that
+   matches exactly what it would create (a predefined service, say) is used as it is; one that matches anything else
+   stops it before anything is created, as does a missing template, an element the policy counts on that is missing
+   (`$$ Default NAT Address`, the network applications of an SMC source) or a firewall policy of the same name.
+   Convert again with `--target-prefix`, or give the policy another name with `--name`.
+2. **Create.** It creates the zones the SMC does not have (without interfaces), the elements, a new firewall policy
+   on the template (`--template` gives another than the conversion did), and the rules one after the other, each
+   after the one before, at the insert point of the template; then the NAT rules. It reads each rule back, and the
+   lists at the end, and stops when they are not what it sent.
+3. **Nothing reaches an engine.** The policy is installed nowhere: review it in the Management Client, then install
+   it yourself.
+4. **The journal.** What was created is written to a journal file call by call (`fwshift-smc-NAME.journal.json`,
+   or `--journal`). `--undo` deletes it again, the policy first; an element that something else uses by then is
+   refused by the SMC and stays. A run that stopped says what it created, and whatever the SMC may have created
+   without saying where.
+5. **Safety.** The certificate of the SMC is checked (`--cafile` for a private authority; `--insecure` only for a
+   lab, with a warning). A redirect is not followed, a link to another host is refused, and plain http is spoken only
+   to the computer itself. The key comes from `SMC_API_KEY` or a prompt at a terminal, and is never written down.
+   Give it to an API client that may create elements and policies, and nothing else.
+
 ### SonicWall
 
 > **The commands have never been run on a SonicWall.** Their form follows
@@ -4242,6 +4402,12 @@ the report is the list.)
 | `the configuration has no version of the firewall model ...` / `... written by OPNsense before 24.7 ...` | OPNsense: the file is of a release before 24.7, or only a part of a configuration. Update the firewall, or back up the whole configuration. |
 | `rule '...' has type '...': OPNsense writes it into the ruleset as it is ...` / `rule '...' has action '...'` | OPNsense: an enabled rule of a type OPNsense does not have. pf refuses the whole ruleset for it and the firewall keeps the one it had, so the file does not say what runs. Fix or disable the rule. |
 | `--target-version: '...' is no series of OPNsense FWShift writes` | Give `24.7`, `25.1`, `25.7`, `26.1` or `26.7`. |
+| `this is the XML export of the Security Management Center ...` | Forcepoint: the export of *Export Elements* is not read. Take the policy with the dump program (`fwshift script forcepoint-dump`, section 3). |
+| `no firewall policy in the input ...` | Forcepoint: the file holds no `fw_policy`: it is not what the dump program writes, or the policy could not be read. |
+| `the input holds several firewall policies (...); name the one to read with --policy` / `--policy: no firewall policy '...'` | Forcepoint: give `--policy` with one of the names the message lists. |
+| `the templates of the policy are based on each other in a circle ...` / `sub-policies jump to each other in a circle ...` | Forcepoint: an input an SMC does not hold; it was edited, or answers of two SMCs were joined. |
+| `the input is not shaped like the answers of the SMC API (...)` | Forcepoint: an answer of an unexpected shape. Take the input with the dump program again. |
+| `FWSHIFT_MAX_INPUT_MB is '...'` / `... is larger than N MiB, more than FWShift reads` | The input is larger than the limit (section 5, *Input size*). Set `FWSHIFT_MAX_INPUT_MB` to a larger number of MiB. |
 | `not a pfSense configuration: the first element is <...>` | `--from pfsense` on XML that is something else, or the backup of one area only (it starts with `<filter>`, say). Back up area **All**. |
 | `<...> occurs N times in one <...>` | pfSense source: an element that can be there once is there twice. pfSense does not read such a file either; it was edited by hand or two files were joined. |
 | `--interface-address: '...' is not INTERFACE=ADDRESS/BITS` | Write the option as `--interface-address wan=198.51.100.7/24`. |
@@ -4488,6 +4654,13 @@ deliberate: see *IPv4 and IPv6* in section 8.
   no interfaces, groups, virtual IPs, categories or schedules; a restore
   replaces each area whole and is not migrated. Nothing has been restored on
   an OPNsense.
+* Forcepoint NGFW: the policy as the SMC REST API gives it (API 6.10 to 7.4), through the dump program; not the XML
+  export, and not the engine: aliases (their values are set per engine), element-based and default NAT, zones bound
+  to interfaces, antispoofing. Not converted: VPN actions and matches, block lists, users and authentication, rule
+  validity times, inspection, connection limits, IPv6 NAT. What Refuse sends, what an exclusion of several elements
+  means and whether a match expression may hold two elements of one kind are not documented. Written: a program
+  for the REST API that creates elements and a new policy and installs nothing. Neither the dump program nor the
+  loader has talked to a real SMC.
 * The running configuration of an FTD device, read as an ASA configuration,
   shows only what the device was given. Rules with application, URL or user
   conditions come out disabled; for those the policy in the manager is the

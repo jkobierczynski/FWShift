@@ -24,28 +24,36 @@ on:
         type: boolean
         default: false
 
-permissions:
-  contents: write
+# Nothing by default; the release job may write releases (and only that), and only its last step gets the token.
+permissions: {}
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
     steps:
-      - uses: actions/checkout@v4
+      # Third-party actions are pinned to the commit of a release, not to a tag that can be moved. The token is not kept
+      # in the checkout, so the tests and the build (and what pip installs for them) do not get it.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
         with:
           ref: ${{ inputs.tag || github.ref }}
-      - uses: actions/setup-python@v5
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
           python-version: "3.12"
 
       - name: The tag is the version of the package
         run: |
-          case "$TAG" in
-            v[0-9]*.[0-9]*.[0-9]*) ;;
-            *) echo "::error::'$TAG' is not a version tag (v1.2.3)"; exit 1 ;;
-          esac
+          if ! printf '%s' "$TAG" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::'$TAG' is not a version tag (v1.2.3)"; exit 1
+          fi
+          # What was checked out is that tag, and not a branch or a commit of the same name.
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse "refs/tags/$TAG^{commit}" 2> /dev/null)" ]; then
+            echo "::error::'$TAG' is not a tag of this repository, or the checkout is not that tag"; exit 1
+          fi
           VERSION="${TAG#v}"
           FOUND="$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' src/fwshift/__init__.py)"
           if [ "$FOUND" != "$VERSION" ]; then
@@ -105,6 +113,11 @@ jobs:
           venv/bin/python -m pip install -q "$OLDPWD"/dist/fwshift-"$VERSION"-py3-none-any.whl
           test "$(venv/bin/fwshift --version)" = "fwshift $VERSION"
 
+      - name: Checksums
+        run: |
+          # Released with the packages: what was downloaded can be compared with what was built here.
+          (cd dist && sha256sum -- * > SHA256SUMS && cat SHA256SUMS)
+
       - name: Release notes
         run: |
           # What the development log says was built in this version.
@@ -122,6 +135,7 @@ jobs:
             printf '| `fwshift-%s.zip` | the project as tagged: sources, tests, sample configurations, manual |\n' "$VERSION"
             printf '| `fwshift-%s.pyz` | one file, nothing to install: `python3 fwshift-%s.pyz convert ...` (Python 3.9 or newer) |\n' "$VERSION" "$VERSION"
             printf '| `fwshift-%s-py3-none-any.whl`, `fwshift-%s.tar.gz` | for `pip install` |\n' "$VERSION" "$VERSION"
+            printf '| `SHA256SUMS` | the SHA-256 checksums of the packages: `sha256sum -c SHA256SUMS` |\n'
           } > notes.md
           cat notes.md
 

@@ -1,0 +1,89 @@
+FWShift conversion report
+  source: routeros
+  target: forcepoint
+
+Summary
+  Security rules:     27   exact 14, approximated 1, needs review 12 (9 emitted disabled), skipped 0
+  NAT rules:           3   exact 0, approximated 0, needs review 3, skipped 0
+  Addresses:           1   exact 1, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] HOST_CHAIN_NOT_CONVERTED: chain input of /ip firewall filter (2 rules) filters traffic of the router itself, not forwarded traffic, and is not converted
+  [needs-review] TABLE_NOT_CONVERTED: /ip firewall mangle has 1 rules and is not converted (it can mark connections and routes, which the filter rules may test)
+  [needs-review] ROUTEROS_DYNAMIC_LIST: address lists that rules fill while the router runs decide what their rules match; those rules are not converted: /ip scanners
+  [needs-review] DEFAULT_ALLOW_ADDED: the source allows traffic that no rule decides: the policy ends in a rule 'FWShift: default' that allows everything, IPv4 and IPv6, above the rules of its template
+  [needs-review] SMC_LOADER: the output is a Python program that loads the policy into a Security Management Center through its REST API (python3 FILE --help). It creates the elements and a new firewall policy 'FWShift' on template 'Firewall Template', checks first that every name is free, and uploads the policy to no engine: review it in the Management Client, then install it yourself. --undo deletes what a run created
+  [needs-review] TEMPLATE_RULES: the rules are written at the insert point of template 'Firewall Template': its rules above the insert point (the traffic of the engine with the SMC) come first, and its rules below come after the rules of the policy (the predefined templates refuse Ident and discard and log the rest)
+  [needs-review] ZONES_REQUIRED: the rules use these zones, which must be set on the interfaces of the engine (or renamed with --zone-map); a zone the SMC does not have is created without interfaces: DMZ, LAN, GUEST, WAN
+  [needs-review] SMC_NAT: NAT rules are written in order to the policy, used on every engine. Element-based NAT and the default NAT of an engine apply after them, to what they do not translate: check those on the engines
+  [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. The target applies one NAT rule, the first that matches: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [info] ROUTEROS_ZONES: the interface lists the rules use do not overlap: each is a zone (DMZ: vlan20-dmz, GUEST: vlan30-guest, LAN: bridge-lan, WAN: ether1); an interface in none of them is a zone of its own
+  [info] ROUTEROS_PASSIVE: 2 rules with action log, passthrough or add-*-to-address-list decide nothing and were left out. A log rule directly before a rule with the same match, or one that matches everything, sets the logging of the rules it logs for
+  [info] ROUTEROS_FQDN_LIST: address lists that hold host names, which RouterOS resolves while it runs: converted as host name objects (mirrors)
+  [info] ROUTEROS_BRIDGE: traffic between the ports of one bridge (bridge-lan) does not pass the IP firewall of the source (use-ip-firewall=no); the conversion is of routed traffic
+  [info] FORWARD_POLICY_ACCEPT: RouterOS accepts what no rule of the forward chain decides; the model records that as its default action
+  [info] MATCH_EXPRESSIONS: rules that limit a side by zones and addresses name a match expression per zone and address element (its parts must all match): 4 were written
+  [info] DOMAIN_NAMES: host names are written as domain name elements; the engine resolves them only with DNS servers in its properties: updates.example.com
+  [info] NAME_COLLISIONS: an SMC predefines many elements (HTTPS, SSH, ...). An element of the same name that says the same is used by the loader; one that says something else stops it: convert again with --target-prefix
+
+Security rules
+  defconf: accept in ipsec policy  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: ipsec-policy=in,ipsec (traffic of IPsec tunnels).
+  banned scanners  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: address list 'scanners', which rules fill while the router runs. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  web for everyone  ->  needs-review
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'dmz-web' because of NAT rule 'publish web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  web for everyone-2  ->  needs-review
+      [approximated] NAT_DESTINATION_REWRITTEN: added pre-NAT destination '203.0.113.3' next to 'dmz-web' because of NAT rule 'publish web'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+  old partner access  ->  needs-review, emitted disabled
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] NEGATED_SERVICE: a negated service cannot be written: a cell of an SMC has no negation.
+  nothing but TCP  ->  needs-review, emitted disabled
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] NEGATED_SERVICE: a negated service cannot be written: a cell of an SMC has no negation. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nothing but TCP-2  ->  needs-review, emitted disabled
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 443; the service of this rule still names the post-NAT port and must be adjusted
+      [needs-review] NEGATED_SERVICE: a negated service cannot be written: a cell of an SMC has no negation. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-2  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] NEGATED_SERVICE: a negated service cannot be written: a cell of an SMC has no negation. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  rest of the DMZ-3  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (203.0.113.3, 172.16.20.10). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish mail' (203.0.113.4, 172.16.20.11). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  no other web from guests  ->  approximated
+      [approximated] REFUSE_ACTION: action reset-client becomes Refuse, which answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented)
+  office hours for staff  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'time=8h-18h,mon,tue,wed,thu,fri' is not converted; the rule would apply at all times.
+  defconf: drop all from WAN not DSTNATed  ->  exact
+      [info] ROUTEROS_DSTNAT_EXCEPTION: connection-nat-state=!dstnat: the rule does not block connections a destination NAT rule translated. Those are allowed by 2 rules ahead of it (defconf: drop all from WAN not DSTNATed (allows publish web), defconf: drop all from WAN not DSTNATed (allows publish mail))
+  drop everything else not coming from LAN  ->  needs-review
+      [needs-review] ROUTEROS_NEGATED_INTERFACE: negated input interface (on the rule or the jump to its chain): the export does not list every interface of the router, and the rule covers the zones it does show (DMZ, GUEST, WAN). On the source it also blocks traffic of interfaces the export leaves out
+
+NAT rules
+  publish web  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from WAN only; a NAT rule of an SMC names no zone, and it is written without
+      [approximated] NAT_ZONES: the rule applied to traffic to WAN only; a NAT rule of an SMC names no zone, and it is written without
+  publish mail  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from WAN only; a NAT rule of an SMC names no zone, and it is written without
+      [approximated] NAT_ZONES: the rule applied to traffic to WAN only; a NAT rule of an SMC names no zone, and it is written without
+  defconf: masquerade  ->  needs-review  (emitted as defconf_ masquerade)
+      [approximated] ROUTEROS_NAT_IPSEC_EXEMPT: ipsec-policy=out,none: on the source, traffic that goes into an IPsec tunnel is not translated; the converted rule translates it unless the target exempts it
+      [approximated] NAT_IPV4_ONLY: source NAT to the address of the outgoing interface, for addresses of both IP versions: written for IPv4 only; IPv6 traffic leaves with its own address
+      [approximated] NAT_INTERFACE_ALIAS: source NAT to the address of the outgoing interface is written as NAT to the alias '$$ Default NAT Address' of the engine: check that the default NAT address is the one the traffic should leave with
+      [needs-review] NAT_ZONES: the rule applied to traffic to WAN only; a NAT rule of an SMC names no zone, and it is written without
+
+Services
+  tcp-80,443,8000-8080  ->  exact  (emitted as tcp-80_443_8000-8080)
+      [info] RENAMED: renamed to 'tcp-80_443_8000-8080' to fit the target's naming rules
+  tcp-0-21,23-65535  ->  exact  (emitted as tcp-0-21_23-65535)
+      [info] RENAMED: renamed to 'tcp-0-21_23-65535' to fit the target's naming rules
+  tcp-80,443  ->  exact  (emitted as tcp-80_443)
+      [info] RENAMED: renamed to 'tcp-80_443' to fit the target's naming rules

@@ -3291,3 +3291,266 @@ class OPNsense:
         src, _ = self._leaving(self.key(pkt.out_if), pkt, dst, dport)
         return ("Original" if src == pkt.src else src, "Original" if dst == pkt.dst else dst,
                 "Original" if dport == pkt.dport else str(dport))  # fmt: skip
+
+
+class ForcepointSmc:
+    """What a Forcepoint engine would do with a firewall policy, read from the answers of the SMC API.
+
+    This is not fwshift's parser: it reads the answers (one JSON document per line, as the dump program writes them)
+    on its own, and is strict: what it does not know, it refuses. Rules are first match in the order the engine sees
+    them (template rules down to the insert point, the rules of the level below there, the rest of the template);
+    Continue decides nothing; a jump goes into the sub-policy and on with the next rule when nothing there decides; a
+    cell with NONE makes the rule match nothing; what no rule decides is discarded. A zone in a cell is the interface a
+    packet arrives on (source) or leaves by (destination). NAT rules are first match, after the access rules, on the
+    addresses before NAT.
+    """
+
+    ADDRESSES = ("host", "router", "network", "address_range", "group", "expression", "domain_name")
+    SERVICES = ("tcp_service", "udp_service", "icmp_service", "icmp_ipv6_service", "ip_service", "service_group")
+    NOTHING = ("default_nat_address_alias", "mgt_servers_alias", "local_cluster_alias", "internal_user_group", "application_situation")
+
+    def __init__(self, text: str, policy: str = "") -> None:
+        import json
+
+        self.by_href: Dict[str, Dict[str, Any]] = {}
+        self.lists: Dict[str, List[str]] = {}
+        for line in text.splitlines():
+            if not line.strip():
+                continue
+            answer = json.loads(line)
+            assert isinstance(answer, dict), line[:80]
+            if "fwshift_list" in answer:
+                self.lists[answer["fwshift_list"]] = [entry["href"] for entry in answer["result"]]
+            elif "fwshift_dump" not in answer:
+                self.by_href[self._link(answer, "self")] = answer
+        policies = [h for h in self.by_href if self.kind(h) == "fw_policy" and (not policy or self.by_href[h]["name"] == policy)]
+        assert len(policies) == 1, policies
+        levels = [policies[0]]
+        while self.by_href[levels[-1]].get("template"):
+            levels.append(self.by_href[levels[-1]]["template"])
+            assert levels[-1] in self.by_href and len(levels) < 10, levels
+        levels.reverse()
+        self.rules = {4: self._order(levels, "fw_ipv4_access_rules"), 6: self._order(levels, "fw_ipv6_access_rules")}
+        self.nat = {4: self._order(levels, "fw_ipv4_nat_rules"), 6: self._order(levels, "fw_ipv6_nat_rules")}
+
+    @staticmethod
+    def _link(obj: Dict[str, Any], rel: str) -> str:
+        found = [entry["href"] for entry in obj.get("link", []) if entry.get("rel") == rel]
+        assert len(found) == 1, (rel, obj)
+        return str(found[0])
+
+    @staticmethod
+    def kind(href: str) -> str:
+        return href.split("/elements/", 1)[1].split("/")[-2]
+
+    def _list(self, level: str, rel: str) -> List[Dict[str, Any]]:
+        where = self._link(self.by_href[level], rel)
+        assert where in self.lists, f"the list {where} is not in the answers"
+        return [self.by_href[href] for href in self.lists[where]]
+
+    @staticmethod
+    def _insert_point(entry: Dict[str, Any]) -> bool:
+        return entry.get("type") in ("normal", "automatic") and "action" not in entry and "sources" not in entry
+
+    def _order(self, levels: List[str], rel: str) -> List[Dict[str, Any]]:
+        lists = [self._list(level, rel) for level in levels]
+
+        def expand(index: int, entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+            out: List[Dict[str, Any]] = []
+            for entry in entries:
+                if not self._insert_point(entry):
+                    out.append(entry)
+                elif entry["type"] == "normal" and index + 1 < len(lists):
+                    href = self._link(entry, "self")
+                    out += expand(index + 1, [e for e in lists[index + 1] if e.get("parent_insert_point") == href])
+            return out
+
+        out = expand(0, lists[0])
+        assert sum(1 for level in lists for e in level if not self._insert_point(e)) == len(out), "a rule of no insert point"
+        return out
+
+    # -- matching ------------------------------------------------------------------------------------------
+
+    @staticmethod
+    def _ip(text: str) -> Any:
+        import ipaddress
+
+        return ipaddress.ip_address(text)
+
+    def address(self, href: str, ip: str, cell: bool) -> bool:
+        import ipaddress
+
+        obj, kind, probe = self.by_href[href], self.kind(href), self._ip(ip)
+        if kind in ("host", "router"):
+            values = [obj.get("address"), obj.get("ipv6_address")] + list(obj.get("secondary") or [])
+            return any(value and self._ip(value) == probe for value in values)
+        if kind == "network":
+            for key in ("ipv4_network", "ipv6_network"):
+                if obj.get(key):
+                    net = ipaddress.ip_network(obj[key])
+                    if probe.version != net.version or probe not in net:
+                        continue
+                    if cell and net.version == 4 and obj.get("broadcast") is False and net.prefixlen <= 30:
+                        return probe not in (net.network_address, net.broadcast_address)
+                    return True
+            return False
+        if kind == "address_range":
+            low, high = (self._ip(part.strip()) for part in obj["ip_range"].split("-"))
+            return low.version == probe.version and low <= probe <= high
+        if kind == "group":
+            return any(self.address(member, ip, False) for member in obj["element"])
+        if kind == "expression":
+            return self._expression(obj, ip)
+        if kind == "domain_name":
+            return False  # the test packets carry no resolved names
+        assert kind in self.NOTHING or kind.endswith("alias"), f"an address of type {kind}"
+        return False
+
+    def _expression(self, obj: Dict[str, Any], ip: str) -> bool:
+        parts = [self.address(href, ip, False) for href in obj.get("ne_ref") or []]
+        parts += [self._expression(inner, ip) for inner in obj.get("sub_expression") or []]
+        operator = obj.get("operator") or "none"
+        if operator in ("none", "union"):
+            return any(parts)
+        if operator == "intersection":
+            return all(parts)
+        assert operator == "exclusion" and len(parts) == 1, obj
+        return not parts[0]
+
+    def _side(self, cell: Dict[str, Any], key: str, pkt: Any) -> bool:
+        if cell.get("any"):
+            return True
+        ip, zone = (pkt.src, pkt.in_if) if key == "src" else (pkt.dst, pkt.out_if)
+        for href in cell[key]:
+            kind = self.kind(href)
+            if kind == "interface_zone":
+                if self.by_href[href]["name"] == zone:
+                    return True
+            elif kind == "match_expression":
+                refs = self.by_href[href]["ref"]
+                if all(self.by_href[r]["name"] == zone if self.kind(r) == "interface_zone" else self.address(r, ip, True) for r in refs):
+                    return True
+            elif self.address(href, ip, True):
+                return True
+        return False
+
+    def service(self, href: str, pkt: Any) -> bool:
+        obj, kind = self.by_href[href], self.kind(href)
+        if kind in ("tcp_service", "udp_service"):
+            if pkt.proto != kind[:3]:
+                return False
+            for low, high, port in (("min_dst_port", "max_dst_port", pkt.dport), ("min_src_port", "max_src_port", pkt.sport)):
+                first = obj.get(low)
+                if first in (None, ""):
+                    continue
+                last = obj.get(high) or first
+                if not int(first) <= port <= int(last):
+                    return False
+            return True
+        if kind in ("icmp_service", "icmp_ipv6_service"):
+            proto = "icmp" if kind == "icmp_service" else "icmp6"
+            code = obj.get("icmp_code")
+            return pkt.proto == proto and obj["icmp_type"] == pkt.icmp_type and code in (None, 0)
+        if kind == "ip_service":
+            numbers = {"tcp": 6, "udp": 17, "icmp": 1, "icmp6": 58, "sctp": 132}
+            return obj["protocol_number"] == numbers.get(pkt.proto, int(pkt.proto) if str(pkt.proto).isdigit() else -1)
+        if kind == "service_group":
+            return any(self.service(member, pkt) for member in obj["element"])
+        assert kind in self.NOTHING, f"a service of type {kind}"
+        return False
+
+    def _matches(self, rule: Dict[str, Any], pkt: Any) -> bool:
+        if rule.get("is_disabled") or any(rule[key].get("none") for key in ("sources", "destinations", "services")):
+            return False
+        if (rule.get("match_vpn_options") or {}).get("match_type") in ("normal", "mobile_vpn"):
+            return False
+        auth = rule.get("authentication_options") or {}
+        if auth.get("require_auth") or auth.get("users"):
+            return False
+        services = rule["services"]
+        return (self._side(rule["sources"], "src", pkt) and self._side(rule["destinations"], "dst", pkt)
+                and (services.get("any") is True or any(self.service(href, pkt) for href in services["service"])))  # fmt: skip
+
+    def _decide(self, rules: List[Dict[str, Any]], pkt: Any, depth: int = 0) -> Optional[bool]:
+        assert depth < 8
+        for rule in rules:
+            if "sources" not in rule:
+                continue  # a section
+            if not self._matches(rule, pkt):
+                continue
+            actions = rule["action"]["action"]
+            actions = [actions] if isinstance(actions, str) else actions
+            if "jump" in actions:
+                sub = rule["action"]["sub_policy"]
+                rel = "fw_ipv4_access_rules" if ":" not in pkt.src else "fw_ipv6_access_rules"
+                found = self._decide(self._list(sub, rel), pkt, depth + 1)
+                if found is not None:
+                    return found
+                continue
+            deciding = [a for a in actions if a in ("allow", "discard", "refuse")]
+            assert set(actions) <= {"allow", "discard", "refuse", "continue", "apply_blacklist"}, actions
+            if deciding:
+                return deciding[0] == "allow"
+        return None
+
+    def allows(self, pkt: Any) -> bool:
+        return bool(self._decide(self.rules[6 if ":" in pkt.src else 4], pkt))
+
+    def deciding(self, pkt: Any) -> str:
+        for rule in self.rules[6 if ":" in pkt.src else 4]:
+            if "sources" in rule and self._decide([rule], pkt) is not None:
+                return str(rule.get("name") or rule.get("tag"))
+        return ""
+
+    # -- NAT -----------------------------------------------------------------------------------------------
+
+    def _first(self, value: Dict[str, Any], family: int) -> Any:
+        """The address a translated value stands for, and the first address of its element."""
+        import ipaddress
+
+        if value.get("ip_descriptor"):
+            return self._ip(value["ip_descriptor"].split("/")[0])
+        obj, kind = self.by_href[value["element"]], self.kind(value["element"])
+        if kind in ("host", "router"):
+            return self._ip(obj["address"] if family == 4 else obj["ipv6_address"])
+        if kind == "network":
+            return ipaddress.ip_network(obj["ipv4_network" if family == 4 else "ipv6_network"]).network_address
+        if kind == "address_range":
+            return self._ip(obj["ip_range"].split("-")[0].strip())
+        if kind == "group":
+            starts = [self._first({"element": member}, family) for member in obj["element"]]
+            return min(start for start in starts if start is not None)
+        assert kind.endswith("alias"), kind
+        return None
+
+    def translation(self, pkt: Any) -> Tuple[str, str, str]:
+        family = 6 if ":" in pkt.src else 4
+        src, dst, dport = pkt.src, pkt.dst, pkt.dport
+        for rule in self.nat[family]:
+            used = rule.get("used_on") or {"any": True}
+            if rule.get("is_disabled") or used.get("none") or not used.get("any"):
+                continue
+            if any(rule[key].get("none") for key in ("sources", "destinations", "services")):
+                continue
+            services = rule["services"]
+            if not (self._side(rule["sources"], "src", pkt) and self._side(rule["destinations"], "dst", pkt)
+                    and (services.get("any") or any(self.service(href, pkt) for href in services["service"]))):  # fmt: skip
+                continue
+            options = rule["options"]
+            if options.get("static_dst_nat"):
+                spec = options["static_dst_nat"]
+                start, new = self._first(spec["original_value"], family), self._first(spec["translated_value"], family)
+                dst = str(new + (int(self._ip(pkt.dst)) - int(start)))
+                low, new_low = spec["original_value"].get("min_port"), spec["translated_value"].get("min_port")
+                if new_low not in (None, ""):
+                    dport = int(new_low) + (pkt.dport - int(low or pkt.dport))
+            if options.get("static_src_nat"):
+                spec = options["static_src_nat"]
+                start, new = self._first(spec["original_value"], family), self._first(spec["translated_value"], family)
+                src = str(new + (int(self._ip(pkt.src)) - int(start)))
+            if options.get("dynamic_src_nat"):
+                first = self._first(options["dynamic_src_nat"]["translation_values"][0], family)
+                src = "MASQ" if first is None else str(first)
+            break
+        return ("Original" if src == pkt.src else src, "Original" if dst == pkt.dst else dst,
+                "Original" if dport == pkt.dport else str(dport))  # fmt: skip

@@ -77,6 +77,14 @@ BARRACUDA = NameRules(32, re.compile(r"[^A-Za-z0-9._-]"), True)
 JUNOS = NameRules(63, re.compile(r"[^A-Za-z0-9._:/-]"), True)
 JUNOS_RULE = NameRules(63, re.compile(r"[^A-Za-z0-9_-]"), True)
 
+# Forcepoint NGFW (SMC): names of 1 to 254 characters; which characters it takes is not published. Created elements are
+# kept to letters, digits, space, ".", "_", "-" and parentheses, alphanumeric first. Names that come from an SMC are what
+# they are: only control characters and the "$" that starts the name of an alias are replaced.
+FORCEPOINT = NameRules(254, re.compile(r"[^A-Za-z0-9 ._()-]"), True)
+FORCEPOINT_NATIVE = NameRules(254, re.compile(r"[\x00-\x1f\x7f]|^\$"), False)
+# Rule names and comments are free text.
+FORCEPOINT_TEXT = NameRules(254, re.compile(r"[\x00-\x1f\x7f]"), False)
+
 
 def clean(name: str, rules: NameRules) -> str:
     out = rules.invalid.sub("_", name).strip()

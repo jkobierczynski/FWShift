@@ -1,0 +1,80 @@
+FWShift conversion report
+  source: sonicwall (SonicOS 7.1.2-7019)
+  target: forcepoint
+
+Summary
+  Security rules:     18   exact 11, approximated 4, needs review 3 (3 emitted disabled), skipped 0
+  NAT rules:           6   exact 0, approximated 3, needs review 3, skipped 0
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] SMC_LOADER: the output is a Python program that loads the policy into a Security Management Center through its REST API (python3 FILE --help). It creates the elements and a new firewall policy 'FWShift' on template 'Firewall Template', checks first that every name is free, and uploads the policy to no engine: review it in the Management Client, then install it yourself. --undo deletes what a run created
+  [needs-review] TEMPLATE_RULES: the rules are written at the insert point of template 'Firewall Template': its rules above the insert point (the traffic of the engine with the SMC) come first, and its rules below come after the rules of the policy (the predefined templates refuse Ident and discard and log the rest)
+  [needs-review] ZONES_REQUIRED: the rules use these zones, which must be set on the interfaces of the engine (or renamed with --zone-map); a zone the SMC does not have is created without interfaces: LAN, WAN, DMZ, Servers, VPN
+  [needs-review] SMC_NAT: NAT rules are written in order to the policy, used on every engine. Element-based NAT and the default NAT of an engine apply after them, to what they do not translate: check those on the engines
+  [info] ZONE_TYPE_ASSUMED: the security type of these zones was read from a code of the export whose meaning is taken from the published readers of the format, not from SonicWall: Servers (trusted)
+  [info] SONICWALL_FORMAT: the settings export is not documented by SonicWall beyond its encoding. The keys read are those every published reader of the format agrees on; what this parser does not know of a rule is not read
+  [info] INTRAZONE_RULES_ADDED: rules for traffic inside a zone were added at the end of the policy, as the source decides it when no rule does: LAN (allowed), Servers (allowed), VPN (allowed)
+  [info] MATCH_EXPRESSIONS: rules that limit a side by zones and addresses name a match expression per zone and address element (its parts must all match): 9 were written
+  [info] DOMAIN_NAMES: host names are written as domain name elements; the engine resolves them only with DNS servers in its properties: updates.example.com
+  [info] NAME_COLLISIONS: an SMC predefines many elements (HTTPS, SSH, ...). An element of the same name that says the same is used by the loader; one that says something else stops it: convert again with --target-prefix
+
+Security rules
+  Mail server pings the LAN  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Echo Object': ICMP type and code of a service object: how the export stores them is not known.
+  Administrators to the DMZ  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match Admins is not converted.
+  Updates in working hours  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Work Hours' is not converted; the rule would apply at all times.
+  default LAN to DMZ  ->  approximated  (emitted as default LAN to DMZ (IPv4), default LAN to DMZ (IPv6))
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from LAN to DMZ; SonicOS allows it by default for zones of these security types, and this rule stands for that
+  default DMZ to WAN  ->  approximated  (emitted as default DMZ to WAN (IPv4), default DMZ to WAN (IPv6))
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from DMZ to WAN; SonicOS allows it by default for zones of these security types, and this rule stands for that
+  default Servers to WAN  ->  approximated  (emitted as default Servers to WAN (IPv4), default Servers to WAN (IPv6))
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from Servers to WAN; SonicOS allows it by default for zones of these security types, and this rule stands for that
+  default Servers to DMZ  ->  approximated  (emitted as default Servers to DMZ (IPv4), default Servers to DMZ (IPv6))
+      [approximated] DEFAULT_RULE_ASSUMED: the export holds no rule for all traffic from Servers to DMZ; SonicOS allows it by default for zones of these security types, and this rule stands for that
+
+NAT rules
+  Default NAT  ->  needs-review
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+      [approximated] NAT_INTERFACE_ALIAS: source NAT to the address of the outgoing interface is written as NAT to the alias '$$ Default NAT Address' of the engine: check that the default NAT address is the one the traffic should leave with
+      [needs-review] NAT_ZONES: the rule applied to traffic to WAN only; a NAT rule of an SMC names no zone, and it is written without
+  Web server  ->  approximated
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [approximated] NAT_ZONES: the rule applied to traffic from WAN only; a NAT rule of an SMC names no zone, and it is written without
+      [approximated] NAT_ZONES: the rule applied to traffic to WAN only; a NAT rule of an SMC names no zone, and it is written without
+  Mail on another port  ->  approximated
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [approximated] NAT_ZONES: the rule applied to traffic from WAN only; a NAT rule of an SMC names no zone, and it is written without
+      [approximated] NAT_ZONES: the rule applied to traffic to WAN only; a NAT rule of an SMC names no zone, and it is written without
+  Servers one to one  ->  needs-review
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+      [needs-review] NAT_ZONES: the rule applied to traffic to WAN only; a NAT rule of an SMC names no zone, and it is written without
+  Servers one to one (reflexive)  ->  approximated
+      [approximated] NAT_INTERFACE: the policy is for traffic that arrives by X1; it is written for zone WAN, which also holds X4
+      [approximated] NAT_REFLEXIVE: policy 'Servers one to one' is reflexive: SonicOS adds its mirror image, which is converted as this rule. How SonicOS builds the mirror is assumed (sources and destinations swapped with their translations)
+      [approximated] NAT_ZONES: the rule applied to traffic from WAN only; a NAT rule of an SMC names no zone, and it is written without
+      [approximated] NAT_ZONES: the rule applied to traffic to WAN only; a NAT rule of an SMC names no zone, and it is written without
+  Old admin NAT  ->  needs-review
+      [approximated] NAT_INTERFACE: the policy is for traffic that leaves by X1; it is written for zone WAN, which also holds X4
+      [needs-review] NAT_ZONES: the rule applied to traffic to WAN only; a NAT rule of an SMC names no zone, and it is written without
+
+Addresses
+  X0 Subnet  ->  exact
+      [info] DEFAULT_OBJECT: an object SonicOS has by itself, not defined in the export: worked out from the interfaces of the export
+
+Services
+  Echo Object  ->  exact
+      [info] NOT_CREATED: not created (ICMP type and code of a service object: how the export stores them is not known); rules that use it are written disabled
+  SMTP (Send E-Mail)  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+  HTTP  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+  HTTPS  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed
+  SSH  ->  exact
+      [info] DEFAULT_OBJECT: not defined in the export: the definition SonicOS ships with is assumed

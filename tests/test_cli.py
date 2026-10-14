@@ -15,6 +15,7 @@ from helpers import DATA
 from fwshift import __version__
 from fwshift.cli import VENDORS, detect_format, main
 from fwshift.emitters.cisco import loader_source
+from fwshift.emitters.forcepoint import loader_source as smc_loader_source
 
 GOLDEN = DATA / "expected"
 CASES = [
@@ -376,6 +377,45 @@ CASES = [
     ("nsx_sample.json", "opnsense", "nsx_to_opnsense.xml"),
     ("aws_sample.json", "opnsense", "aws_to_opnsense.xml"),
     ("azure_sample.json", "opnsense", "azure_to_opnsense.xml"),
+    ("forcepoint_sample.json", "forcepoint", "forcepoint_to_forcepoint.policy.txt"),
+    ("forcepoint_sample.json", "opnsense", "forcepoint_to_opnsense.xml"),
+    ("forcepoint_sample.json", "routeros", "forcepoint_to_routeros.rsc"),
+    ("forcepoint_sample.json", "panos", "forcepoint_to_panos.set"),
+    ("forcepoint_sample.json", "fortios", "forcepoint_to_fortios.conf"),
+    ("forcepoint_sample.json", "checkpoint", "forcepoint_to_checkpoint.sh"),
+    ("forcepoint_sample.json", "asa", "forcepoint_to_asa.cfg"),
+    ("forcepoint_sample.json", "sophos", "forcepoint_to_sophos.xml"),
+    ("forcepoint_sample.json", "fmc", "forcepoint_to_fmc.policy.txt"),
+    ("forcepoint_sample.json", "fdm", "forcepoint_to_fdm.json"),
+    ("forcepoint_sample.json", "pfsense", "forcepoint_to_pfsense.xml"),
+    ("forcepoint_sample.json", "sonicwall", "forcepoint_to_sonicwall.cli"),
+    ("forcepoint_sample.json", "watchguard", "forcepoint_to_watchguard.xml"),
+    ("forcepoint_sample.json", "barracuda", "forcepoint_to_barracuda.sh"),
+    ("forcepoint_sample.json", "iptables", "forcepoint_to_iptables.rules"),
+    ("forcepoint_sample.json", "junos", "forcepoint_to_junos.set.conf"),
+    ("forcepoint_sample.json", "nftables", "forcepoint_to_nftables.nft"),
+    ("forcepoint_sample.json", "nsx", "forcepoint_to_nsx.json"),
+    ("forcepoint_sample.json", "aws", "forcepoint_to_aws.sh"),
+    ("forcepoint_sample.json", "azure", "forcepoint_to_azure.json"),
+    ("routeros_sample.rsc", "forcepoint", "routeros_to_forcepoint.policy.txt"),
+    ("opnsense_sample.xml", "forcepoint", "opnsense_to_forcepoint.policy.txt"),
+    ("panos_sample.xml", "forcepoint", "panos_to_forcepoint.policy.txt"),
+    ("fortios_sample.conf", "forcepoint", "fortios_to_forcepoint.policy.txt"),
+    ("checkpoint_sample.json", "forcepoint", "checkpoint_to_forcepoint.policy.txt"),
+    ("asa_sample.cfg", "forcepoint", "asa_to_forcepoint.policy.txt"),
+    ("sophos_sample.xml", "forcepoint", "sophos_to_forcepoint.policy.txt"),
+    ("fmc_sample.json", "forcepoint", "fmc_to_forcepoint.policy.txt"),
+    ("fdm_sample.txt", "forcepoint", "fdm_to_forcepoint.policy.txt"),
+    ("pfsense_sample.xml", "forcepoint", "pfsense_to_forcepoint.policy.txt"),
+    ("sonicwall_sample.exp", "forcepoint", "sonicwall_to_forcepoint.policy.txt"),
+    ("watchguard_sample.xml", "forcepoint", "watchguard_to_forcepoint.policy.txt"),
+    ("barracuda_sample.json", "forcepoint", "barracuda_to_forcepoint.policy.txt"),
+    ("iptables_sample.rules", "forcepoint", "iptables_to_forcepoint.policy.txt"),
+    ("junos_sample.conf", "forcepoint", "junos_to_forcepoint.policy.txt"),
+    ("nftables_sample.nft", "forcepoint", "nftables_to_forcepoint.policy.txt"),
+    ("nsx_sample.json", "forcepoint", "nsx_to_forcepoint.policy.txt"),
+    ("aws_sample.json", "forcepoint", "aws_to_forcepoint.policy.txt"),
+    ("azure_sample.json", "forcepoint", "azure_to_forcepoint.policy.txt"),
 ]
 
 
@@ -391,6 +431,7 @@ def test_detect_format() -> None:
     assert detect_format((DATA / "azure_sample.json").read_bytes()) == "azure"
     assert detect_format((DATA / "routeros_sample.rsc").read_bytes()) == "routeros"
     assert detect_format((DATA / "opnsense_sample.xml").read_bytes()) == "opnsense"
+    assert detect_format((DATA / "forcepoint_sample.json").read_bytes()) == "forcepoint"
     assert detect_format(b'\n[\n {"uid": "x", "rulebase": []}]') == "checkpoint"
     assert detect_format(b": Saved\n:\nASA Version 9.12(4)\n!\nhostname fw\n") == "asa"
     assert detect_format(b'<?xml version="1.0" encoding="UTF-8"?>\n<Configuration APIVersion="2000.1">') == "sophos"
@@ -408,10 +449,10 @@ def test_golden_output(source: str, target: str, expected: str, tmp_path: Path) 
     assert main(["convert", str(DATA / source), "--to", target, "-o", str(out), "--report", str(report), "-q"]) == 0
     golden_out, golden_report = GOLDEN / expected, GOLDEN / (expected + ".report.txt")
     written = out.read_text(encoding="utf-8")
-    if target == "fmc":
+    if target in ("fmc", "forcepoint"):
         # The script is the loader, which is a file of its own in the package, and then the policy: the policy is what is kept.
         head, marker, tail = written.partition("\n# The policy, as data.")
-        assert head == loader_source() and marker
+        assert head == (loader_source() if target == "fmc" else smc_loader_source()) and marker
         written = (marker.lstrip("\n") + tail).replace(f'"generator": "FWShift {__version__}"', '"generator": "FWShift (this version)"')
     if os.environ.get("FWSHIFT_UPDATE_GOLDEN"):
         GOLDEN.mkdir(exist_ok=True)
@@ -526,3 +567,14 @@ def test_version_is_the_same_everywhere_a_release_reads_it() -> None:
         assert named <= {version}, (name, named)
     workflow = (root / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
     assert "src/fwshift/__init__.py" in workflow and 's/^__version__ = "\\(.*\\)"$/\\1/p' in workflow
+
+
+def test_inputs_larger_than_the_limit_are_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    big = tmp_path / "big.conf"
+    big.write_bytes(b"#" * (1024 * 1024 + 1))
+    monkeypatch.setenv("FWSHIFT_MAX_INPUT_MB", "1")
+    assert main(["inspect", str(big)]) == 1
+    assert "larger than 1 MiB" in capsys.readouterr().err
+    monkeypatch.setenv("FWSHIFT_MAX_INPUT_MB", "zero")
+    assert main(["inspect", str(big)]) == 1
+    assert "FWSHIFT_MAX_INPUT_MB" in capsys.readouterr().err

@@ -8,12 +8,13 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.24.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on) |
-| Tests | 4506, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a MikroTik router, an OPNsense, a Check Point management server, a Cisco Management Center or a Device Manager |
+| Version | 0.25.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API) |
+| Tests | 4733, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager |
 | Analysis | the audit, the zone matrix, rule usage from hit counters and logs, the zone and conduit model as a gate (`fwshift conduits`), the equivalence check (`fwshift compare`, `convert --compare`) |
-| Next | Forcepoint NGFW (0.25.0); the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
+| Security | an outside review (ChatGPT, October 2026) and the measures taken: `docs/security/SECURITY_REVIEW.md` |
+| Next | the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
 
 ## Layout
 
@@ -35,6 +36,12 @@ src/fwshift/
                       pfSense reader reads, which a subclass of it reads with
                       what OPNsense does otherwise: tiers, flags per series,
                       aliases as pf tables, both kinds of rule and of NAT)
+        forcepoint.py the answers of the SMC REST API -> model (templates and
+                      insert points, Continue and Jump flattened, zones and
+                      match expressions, expressions, each rule pinned to its
+                      IP version)
+        smc_dump.py   the read-only program that fetches those answers
+                      (`fwshift script forcepoint-dump`): stands alone
         sonicwall.py  SonicOS settings export -> model (rules per pair of zones,
                       default rules, objects of SonicOS from the interfaces)
         watchguard.py Policy Manager XML     -> model (interfaces as zones, a
@@ -75,6 +82,9 @@ src/fwshift/
         opnsense.py   model -> the same decisions, in the form of an OPNsense
                       series (a subclass of the pfSense emitter whose nodes
                       become rules, aliases and NAT of the newer models)
+        forcepoint.py model -> a Python script: smc_loader.py and the policy as
+                      data (elements, zones, a rule per IP version it can match)
+        smc_loader.py the program of that script: stands alone, shipped as it is
         sonicwall.py  model -> SonicOS 7 commands (a rule per pair of zones and
                       IP version, a rule that denies at the end of each pair)
         watchguard.py model -> the policy part of a Policy Manager file (aliases
@@ -188,6 +198,12 @@ tests/
                       judge in helpers.py, emitted files restored into it
     test_opnsense.py  OPNsense both ways, per series, against the judge in
                       helpers.py; pfSense converted and restored on an OPNsense
+    test_forcepoint.py Forcepoint both ways: random SMC answers against the judge
+                      in helpers.py; emitted scripts run against the made-up
+                      SMC of fake_smc.py, read out with the dump program and
+                      judged; the loader and the dump program
+    fake_smc.py       a made-up SMC: the calls of its REST API the loader and
+                      the dump program make, strict about what is sent
     test_sonicwall.py SonicWall both ways, against the two judges in helpers.py
     test_watchguard.py WatchGuard both ways, against the judge in helpers.py
     test_barracuda.py Barracuda both ways, against the judge in helpers.py
@@ -567,6 +583,10 @@ there for an old tag whose tests no longer run on today's tools.
 | nftables: one table, replaced whole | `table` / `delete table` / `table { ... }` in one file is one transaction: the table is replaced at once and nothing else is touched. `flush ruleset` would wipe firewalld, Docker and libvirt too. |
 | nftables: base chains combined into one list | The kernel runs every base chain at a hook; the model has one rulebase. A rule that accepts is followed by the next chain's rules under it, which is exact and keeps the order of logging. |
 | NSX: one hierarchical `PATCH` | One call creates services, groups and the policy together, or none of them; a `PATCH` changes only what it names. A policy of category Application with sequence number 1 lands where a person can see and move it. |
+| Forcepoint: read the REST API, not the XML export | The API is documented and versioned; the XML export has no published format, and its import renames or overwrites on conflicts. The SMC answers one element at a time, so FWShift ships a read-only program that fetches what one policy needs. |
+| Forcepoint: write a program for the REST API, a new policy on a template | As for a Management Center: every reference needs the href the SMC gives, and a program can look before it creates, reuse a predefined element only when it matches exactly, keep a journal and undo. It never installs a policy on an engine. |
+| Forcepoint: a jump is flattened | The model has one rulebase. Each rule of the sub-policy, limited to what the jump rule matches, in its place, with nothing after them, is exact: when nothing matches, the next rule decides, as on the engine. |
+| Forcepoint: a rule per IP version it can match | An SMC keeps IPv4 and IPv6 rules apart, and an element of the other version in a rule is refused when the policy is installed: a rule takes the part of its groups of each version. |
 | NSX: zones as the networks behind them | The distributed firewall has no zones and runs at every workload. A rule between zones is written for the networks of `--zone-network`, as for Barracuda; an allow rule whose zones have none is written disabled. |
 | NSX: applied-to and direction read only as far as they decide | NSX checks a connection at both ends. An allow rule that applies to one end, or to one direction, does not decide alone what the other end does; it is flagged or written disabled rather than read as allowing everywhere. |
 | AWS: allow rules without the deny rules above them | A security group cannot block and has no order. What a first-match allow rule allows is its match without the matches of the blocking rules above it, which the boxes of `regions.py` hold exactly; earlier allow rules need not be taken out, the result is a union. |
@@ -718,6 +738,12 @@ policy behaves unexpectedly.
 | CloudGen REST API: base `/rest/config/v1`, header `X-API-Token`; `GET forwarding-firewall/rules` (with `expand=true`) answers `{"rules": [...]}`; `POST forwarding-firewall/objects/networks` with `name` and `included: [{"entry": {"ip": ...}}]`; `POST .../networks/<name>/included` with `{"entry": {"ip", "interface", "comment"}}`; `POST forwarding-firewall/rules` (or `rules/lists/<list>`) with `name`, `source`/`destination`/`service` as `{"references": ...}`, `action: {"type": "block"}`, `position: {"placement": "top"}`; `PATCH forwarding-firewall/rules/<name>` with `{"deactivated": false}` (Campus examples) | Barracuda parser and emitter |
 | Assumed: `ipVersion` `IPv4`/`IPv6`, `bidirectional`, `comment`, the action types `pass` and `deny`, `excluded` entries, service objects as `entries` of `{"entry": {"protocol", "ports", "clientPortUsed": {"from", "to"}}}`, a reference among the entries of an object, names of up to 32 letters, digits, `.`, `_` and `-` told apart without regard to case | Barracuda parser and emitter, `BARRACUDA_LOAD` |
 | CloudGen semantics: first match, IPv4 and IPv6 rules apart, Block drops, Deny answers, what no rule matches is blocked, the interface of an entry counts in a source only, a bi-directional rule matches the other way round, excluded entries leave addresses out, an ICMP service entry matches every type (Campus) | Barracuda parser, emitter and judge |
+| Forcepoint, all rows below: from the SMC API guide (7.x), Forcepoint's documentation of NGFW 6.x and 7.x where it says so, and the clients Forcepoint publishes for the API (smc-python, the Terraform provider, the Ansible collection; read, never run); the rest assumed. Nothing was run against an SMC | Forcepoint parser, emitter, loader and dump program |
+| SMC API: versions from `GET /api`; `POST /{v}/login` with `authenticationkey` (a cookie session), `PUT /{v}/logout`; entry points from `GET /{v}/api`; `GET entry?filter=NAME&exact_match=true`; a `POST` answers with the href in `Location`; a list answers `{"result": [{"href", "name", "type"}]}` in policy order; a rule `POST`ed to the list of a policy goes to the top, at the insert point, and one `POST`ed to the `add_after` link of a rule after it (smc-python, API guide) | loader, dump program, the made-up SMC |
+| Policy: based on a template up to a predefined one; at each insert point the rules the level below added there (`parent_insert_point`); first match; Allow, Discard, Refuse decide; Continue sets defaults (logging) for the rules below that match the same traffic; a jump goes into the sub-policy, and on with the next rule when nothing there matches; a NONE cell makes the engine ignore the rule; what no rule decides is discarded; the predefined Firewall Template ends in Refuse Ident and Discard all, logged (documentation) | parser, emitter, judge |
+| Cells: members ORed; a match expression is one row whose parts are ANDed (smc-python, documentation); a zone in the source cell is the interface traffic arrives on, in the destination cell the one it leaves by (assumed); *broadcast* off leaves out the network and broadcast address in a rule cell (smc-python's description; FWShift also applies it to NAT cells, assumed); an exclusion of one element is the complement (documentation), of several not documented and not read | parser, emitter, judge |
+| NAT: after the access rules, which match the addresses before NAT; first match; one rule translates source and destination; a port range translates to a range of the same size; element-based and default NAT after the NAT rules (documentation); a missing original port is every port (assumed) | parser, emitter, judge |
+| Assumed when writing: a TCP or UDP service of ports 1 to 65535 for every port; an expression and a group may stand in a match expression; `used_on: {"any": true}`; Refuse answers TCP with an ICMP error, not a reset | emitter, `SMC_LOADER` |
 | Juniper, all rows below: from Juniper's documentation (security policies, global policies, address books, predefined applications, application sets, NAT, static NAT, configuration groups, viewing the configuration) where it says so, and from the Junos grammar of Batfish (read, never run) for the exact statements; the rest assumed. Nothing was loaded on an SRX | Juniper parser and emitter |
 | Junos: policies per pair of zones, first match, then global policies, first match, then the default policy (deny-all); static NAT, then destination NAT, then the policy (which sees the translated destination and its zone), then source NAT; NAT rule sets of an interface before those of a zone, first match within a set; an address name is looked up in the book of the zone, then the global one; global policies and NAT use the global book (documentation) | Juniper parser, emitter and judge |
 | Junos syntax: `set security policies from-zone A to-zone B policy P match source-address/destination-address/application ...`, `match source-address-excluded`, `then permit/deny/reject`, `then log session-init/session-close`; `set security address-book global address N prefix / range-address A to B / dns-name H [ipv4-only/ipv6-only]`, `address-set`; `set applications application A [term T] protocol P destination-port N-M source-port ...`, `icmp-type`/`icmp6-type`; NAT `pool ... address A [to B] [port N]`, `rule-set ... from/to zone ...`, `match destination-port N to M`, `then destination-nat pool`, `then source-nat interface/pool/off`, `then static-nat prefix` (Batfish, documentation) | Juniper parser and emitter |
@@ -2031,6 +2057,100 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-14: version 0.25.0
+
+The last of three brands asked for after the plan of 2026 (`TODO.md`): **Forcepoint NGFW**, both ways, through the
+REST API of its Security Management Center. And the answer to an outside security review.
+
+**Built**
+
+* `parsers/forcepoint.py`: the answers of the SMC REST API for one firewall policy (one JSON document per line, list
+  answers named by `fwshift_list`). The policy and its templates up to the predefined one, the four rule lists in the
+  order of the insert points (rules that name none at the only insert point above, or last with `RULE_ORDER`);
+  sections as tags; Allow, Discard, Refuse; Continue, whose logging goes to the rules below that may match the same
+  traffic (also into the sub-policies they jump to); jumps flattened, each rule of the sub-policy limited to the
+  jump rule; NONE cells; zones, users, applications and URL categories in cells (a rule per combination), match
+  expressions; hosts with their other addresses, networks without *broadcast* (in a rule cell), ranges, groups,
+  expressions (union, intersection, the exclusion of one element), domain names; each rule pinned to its IP
+  version, by the part of its groups of that version or, for a negated side, the addresses of that version it
+  leaves; NAT rules (static destination with ports, static and dynamic source, `$$ Default NAT Address`, no NAT);
+  the XML export refused with the way to the API.
+* `parsers/smc_dump.py` and `fwshift script forcepoint-dump`: the read-only program that logs in, fetches the policy
+  and everything it names (only the fields a rule or an element names others in, only links to the SMC that was
+  named), writes the answers one per line and logs out.
+* `emitters/forcepoint.py` and `emitters/smc_loader.py`: a Python script, the loader and the policy as data. The
+  plan holds the elements in the order they are created, the zones, what must exist already, and the rules of each
+  list; a rule goes into the list of each IP version it can match, with the part of its groups of that version;
+  zones and addresses on one side are match expressions; a negated side an expression; what cannot be written is
+  written disabled, with NONE in a cell left empty. The loader looks up every element first, reuses one only when
+  it matches exactly what it would create, stops on anything else, creates, adds the rules each after the one before
+  (`add_after`), reads each rule and each list back, journals call by call and undoes; it installs nothing.
+* `--from forcepoint`, `--to forcepoint`, `--target-template`, `--policy` for it, detection; the sample
+  (`forcepoint_sample.json`, written by `tests/tools/make_forcepoint_sample.py`), 39 golden conversions, its
+  audit and matrix.
+* Security, after the review of October 2026 (`docs/security/SECURITY_REVIEW.md`): every input is read up to a
+  limit (1024 MiB, `FWSHIFT_MAX_INPUT_MB`); the workflows pin their Actions to commits, grant the least permissions,
+  keep no token in the checkout and check the release tag strictly; a release carries `SHA256SUMS`; the README opens
+  its use with a short procedure (*Using it safely*).
+
+**What the work made necessary**
+
+* *No export to read.* The SMC answers one element at a time and its XML export has no published format. Rather
+  than guess at the XML, FWShift ships the program that asks the API, and reads exactly what it writes.
+* *Two IP versions, one model.* An SMC keeps IPv4 and IPv6 rules apart, and "any" in the model is both. Each rule
+  read says which version it is for; each rule written goes where it can match, with groups cut per version, and
+  translations for both versions are not guessed at.
+* *A test SMC.* The loader and the dump program run against a made-up SMC (`tests/fake_smc.py`): what the loader
+  creates there, the dump program reads out, and the judge (`helpers.ForcepointSmc`) decides packets from those
+  answers. So the emitter is checked through the same reading as the parser, by code that shares nothing with it.
+
+**Review**
+
+*Round 33* by the independent reviewer, with probe scripts.
+
+| | Finding | Fix |
+|---|---|---|
+| high | Emitter: an interzone rule whose zones are all one zone was written as a rule inside that zone | not written (`RULE_TYPE_EMPTY`) |
+| high | Emitter: the ports of an application were kept per application, not per IP version: a deny of `ping6` matched nothing | per application and IP version; one that cannot be written disables the rule |
+| high | Loader: an existing element was reused when the fields it was sent matched, whatever else it held (a host with another address) | every field that decides what an element matches, on both sides |
+| high | Parser: members of a cell that are not hrefs were dropped, and an empty cell or match expression read as any | unsupported |
+| medium | Dump program: a list that could not be read was written as an empty one | left out, so the parser reports it missing |
+| medium | Parser: names it made up (`X IPv4`) could be those of an element of the SMC | names of their own |
+| medium | Parser: a zone the input does not hold made an enabled rule of a zone of that number | unsupported |
+| medium | Emitter: a negated group that holds a host name was written as an expression of it | disabled (`NEGATED_FQDN`), groups looked into |
+| medium | Parser: a destination port translation without an original port was lost | every port to the translated one |
+| medium | Dump program: entry points on another host were followed, with the session cookie | refused |
+| medium | Loader: an element the SMC created without saying where was not reported | named in what the run leaves |
+| low | Parser: a NAT rule of the IPv4 list whose addresses do not say so | `IP_FAMILY` |
+| low | Parser: `{"link": 5}` escaped as a traceback | a parse error |
+| low | Parser: a TCP service with a last port and no first one, or ports 0 to 0 | unsupported |
+| low | Emitter: NAT with a pool of both IP versions wrote the IPv4 pool into the IPv6 list | not converted |
+| low | Loader: a rule the SMC holds otherwise than sent (enabled, action) was not noticed | each rule read back |
+| low | Loader and dump program: several Set-Cookie headers kept only the last | all of them |
+| low | Parser: dynamic source NAT without addresses became a rule without NAT | unsupported |
+
+The fixes were not reviewed again; they have tests (`test_r33_*` in `test_forcepoint.py`).
+
+**Verified, and not**
+
+* The tests: 185 in `test_forcepoint.py`, the suite 4733. The parser against the judge: 60 random policies
+  (templates of their own, sections, Continue, jumps, zones, match expressions, expressions, networks without
+  broadcast, NONE cells, IPv6), 400 packets each, and 40 for NAT; the emitter against the model through the made-up
+  SMC: 40 random models with every combination of defaults; the sample written, loaded, read out and judged, and
+  read again.
+* A mutation check with 51 ways to break the parser, the emitter, the loader and the dump program: 33 caught at
+  first; tests were added for 14 of the other 18, which catch them (a disabled Continue rule, a rule without an
+  action, closing logs at level none, two negations through a jump, a jump that matches nothing, services not within
+  the jump rule, the second insert point of a template, the IP version of a NAT rule, a negated "any" of one version,
+  ICMP only in the IPv4 list, a range of ports to one port, an existing policy, a missing alias, rules in another
+  order). The last 4 change nothing a policy can show (a Source VPN match of the kind `normal` is unsupported either
+  way; a negated "any" a parser never makes; a merged zone left out twice; a guard behind the reasons that disable a
+  rule).
+* **Not verified**: neither program has talked to a real SMC, and no answer of a real one was read: the inputs were
+  written from the API guide and the clients Forcepoint publishes. What Refuse sends, how a zone in a cell and a
+  network without broadcast in a NAT rule match, and whether an expression may stand in a match expression are
+  assumed; the judge rests on the same reading, so a misreading would be in both.
 
 ### 2026-10-14: version 0.24.0
 

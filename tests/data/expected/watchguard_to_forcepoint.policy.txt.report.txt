@@ -1,0 +1,43 @@
+FWShift conversion report
+  source: watchguard (Fireware 12.10.4)
+  target: forcepoint
+
+Summary
+  Security rules:     10   exact 6, approximated 1, needs review 3 (3 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 2, skipped 0
+  Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:            9   exact 9, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NAT_NOT_READ: network dynamic NAT, 1-to-1 NAT and the NAT settings of a policy are not read: where the file keeps them is not known. Static NAT actions in the To list of a policy are read
+  [needs-review] SMC_LOADER: the output is a Python program that loads the policy into a Security Management Center through its REST API (python3 FILE --help). It creates the elements and a new firewall policy 'FWShift' on template 'Firewall Template', checks first that every name is free, and uploads the policy to no engine: review it in the Management Client, then install it yourself. --undo deletes what a run created
+  [needs-review] TEMPLATE_RULES: the rules are written at the insert point of template 'Firewall Template': its rules above the insert point (the traffic of the engine with the SMC) come first, and its rules below come after the rules of the policy (the predefined templates refuse Ident and discard and log the rest)
+  [needs-review] ZONES_REQUIRED: the rules use these zones, which must be set on the interfaces of the engine (or renamed with --zone-map); a zone the SMC does not have is created without interfaces: Trusted, Guests, External, DMZ, Lab
+  [needs-review] SMC_NAT: NAT rules are written in order to the policy, used on every engine. Element-based NAT and the default NAT of an engine apply after them, to what they do not translate: check those on the engines
+  [info] WATCHGUARD_FORMAT: the configuration file of Policy Manager is not documented by WatchGuard. The elements read are those the published readers of the format agree on
+  [info] MATCH_EXPRESSIONS: rules that limit a side by zones and addresses name a match expression per zone and address element (its parts must all match): 1 were written
+  [info] DOMAIN_NAMES: host names are written as domain name elements; the engine resolves them only with DNS servers in its properties: updates.example.com
+  [info] NAME_COLLISIONS: an SMC predefines many elements (HTTPS, SSH, ...). An element of the same name that says the same is used by the loader; one that says something else stops it: convert again with --target-prefix
+
+Security rules
+  Block Bad  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Block Bad': a service that matches every IP protocol cannot be an element. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Web Out  ->  approximated  (emitted as Web Out (IPv4), Web Out (IPv6))
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (proxy=HTTP-proxy); attach equivalent inspection on the target
+  DMZ Updates  ->  needs-review, emitted disabled  (emitted as DMZ Updates (IPv4), DMZ Updates (IPv6))
+      [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
+  Staff Only  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match Staff is not converted.
+
+NAT rules
+  Web-Public (Web In)  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from External only; a NAT rule of an SMC names no zone, and it is written without
+      [approximated] NAT_ZONES: the rule applied to traffic to External only; a NAT rule of an SMC names no zone, and it is written without
+  Mail-Public (Mail In)  ->  needs-review
+      [needs-review] NAT_ZONES: the rule applied to traffic from External only; a NAT rule of an SMC names no zone, and it is written without
+      [approximated] NAT_ZONES: the rule applied to traffic to External only; a NAT rule of an SMC names no zone, and it is written without
+
+Services
+  Block Bad  ->  exact
+      [info] NOT_CREATED: not created (a service that matches every IP protocol cannot be an element); rules that use it are written disabled

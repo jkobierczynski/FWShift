@@ -1,0 +1,47 @@
+FWShift conversion report
+  source: barracuda (forwarding firewall)
+  target: forcepoint
+
+Summary
+  Security rules:     17   exact 11, approximated 3, needs review 3 (3 emitted disabled), skipped 0
+  Addresses:           8   exact 8, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+  Service groups:      1   exact 1, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] CONNECTION_NOT_READ: rules whose connection object translates the source address: 'LAN-2-INTERNET'. Source NAT is not read; the rules are, as they match
+  [needs-review] SMC_LOADER: the output is a Python program that loads the policy into a Security Management Center through its REST API (python3 FILE --help). It creates the elements and a new firewall policy 'FWShift' on template 'Firewall Template', checks first that every name is free, and uploads the policy to no engine: review it in the Management Client, then install it yourself. --undo deletes what a run created
+  [needs-review] TEMPLATE_RULES: the rules are written at the insert point of template 'Firewall Template': its rules above the insert point (the traffic of the engine with the SMC) come first, and its rules below come after the rules of the policy (the predefined templates refuse Ident and discard and log the rest)
+  [needs-review] ZONES_REQUIRED: the rules use these zones, which must be set on the interfaces of the engine (or renamed with --zone-map); a zone the SMC does not have is created without interfaces: port2, port1
+  [info] BARRACUDA_FORMAT: read 15 forwarding rules, 10 network objects and 8 service objects from 19 answers of the REST API. Barracuda documents that API by examples only: the keys read are those its examples and published tools show, and a key of a rule, an object or an entry this parser does not know makes it unusable
+  [info] ICMP_LIMITS: service objects that limit the size or rate of ICMP echo requests: 'Ping'. The limits are not converted: the rules allow ICMP of any size and rate
+  [info] MATCH_EXPRESSIONS: rules that limit a side by zones and addresses name a match expression per zone and address element (its parts must all match): 2 were written
+  [info] DOMAIN_NAMES: host names are written as domain name elements; the engine resolves them only with DNS servers in its properties: updates.example.com
+  [info] NAME_COLLISIONS: an SMC predefines many elements (HTTPS, SSH, ...). An element of the same name that says the same is used by the loader; one that says something else stops it: convert again with --target-prefix
+
+Security rules
+  ADMIN-SSH (port2)  ->  exact
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+  ADMIN-SSH (port1)  ->  exact
+      [info] INTERFACE_SPLIT: the source of rule 'ADMIN-SSH' holds entries of 2 interfaces: it is read as one rule per interface
+  WEB-IN  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Dst NAT: how the API spells its target list is not known, so the translation is not read.
+  SERVER-SYNC  ->  exact
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  SERVER-SYNC (back)  ->  exact
+      [info] BIDIRECTIONAL_SPLIT: rule 'SERVER-SYNC' is bi-directional: it is read as two rules, the second one with source and destination swapped
+  PING-ALL  ->  approximated
+      [approximated] ICMP_LIMITS: service 'Ping' limits the size or rate of ICMP echo requests; the limits are not converted
+  DENY-LAN-DMZ  ->  approximated
+      [approximated] REFUSE_ACTION: action reset-client becomes Refuse, which answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented)
+  GRE-LAB  ->  approximated
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (application=urlFilter, ips=Default); attach equivalent inspection on the target
+  TO-LAB  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: action Cascade: the rules of the rule list it hands traffic to are not read, and they decide that traffic. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  ODD  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule '{"type": "recurring", "name": "Work-Hours"}' is not converted; the rule would apply at all times.
+
+Services
+  HTTP+S  ->  exact  (emitted as HTTP_S)
+      [info] RENAMED: renamed to 'HTTP_S' to fit the target's naming rules

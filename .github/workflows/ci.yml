@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+# The tests need to read the repository and nothing else.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ${{ matrix.os }}
@@ -18,8 +22,11 @@ jobs:
           - os: macos-latest
             python: "3.12"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # Third-party actions are pinned to the commit of a release, not to a tag that can be moved.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
           python-version: ${{ matrix.python }}
       - run: python -m pip install -e ".[dev]"

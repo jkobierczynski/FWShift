@@ -1,0 +1,7310 @@
+# The policy, as data. Do not change it here: convert again.
+#
+#: {
+#:  "format": 1,
+#:  "generator": "FWShift (this version)",
+#:  "policy": "FWShift",
+#:  "template": "Firewall Template",
+#:  "comment": "Converted by FWShift from azure",
+#:  "zones": [
+#:   "outside",
+#:   "nsg-web",
+#:   "nsg-app",
+#:   "nsg-db"
+#:  ],
+#:  "existing": [],
+#:  "elements": [
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-10.30.1.10_31",
+#:     "ipv4_network": "10.30.1.10/31",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-2001.db8.30.1..10_127",
+#:     "ipv6_network": "2001:db8:30:1::10/127",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "asg-web",
+#:     "element": [
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.30.1.10_31"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-2001.db8.30.1..10_127"
+#:      }
+#:     ],
+#:     "comment": "application security group /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop/providers/Microsoft.Network/applicationSecurityGroups/asg-web"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-168.63.129.16",
+#:     "address": "168.63.129.16"
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "AzureLoadBalancer",
+#:     "element": [
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-168.63.129.16"
+#:      }
+#:     ],
+#:     "comment": "service tag AzureLoadBalancer"
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-203.0.113.64_26",
+#:     "ipv4_network": "203.0.113.64/26",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-2001.db8.ee.._48",
+#:     "ipv6_network": "2001:db8:ee::/48",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "Storage.WestEurope",
+#:     "element": [
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-203.0.113.64_26"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-2001.db8.ee.._48"
+#:      }
+#:     ],
+#:     "comment": "service tag Storage.WestEurope (the addresses of the service tags of change 63)"
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-10.30.3.20",
+#:     "address": "10.30.3.20"
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "asg-db",
+#:     "element": [
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-10.30.3.20"
+#:      }
+#:     ],
+#:     "comment": "application security group /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop/providers/Microsoft.Network/applicationSecurityGroups/asg-db"
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-203.0.113.128_27",
+#:     "ipv4_network": "203.0.113.128/27",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "Sql.WestEurope",
+#:     "element": [
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-203.0.113.128_27"
+#:      }
+#:     ],
+#:     "comment": "service tag Sql.WestEurope (the addresses of the service tags of change 63)"
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-443_80 tcp-443",
+#:     "min_dst_port": 443,
+#:     "max_dst_port": 443
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-443_80 tcp-80",
+#:     "min_dst_port": 80,
+#:     "max_dst_port": 80
+#:    }
+#:   },
+#:   {
+#:    "type": "service_group",
+#:    "body": {
+#:     "name": "tcp-443_80",
+#:     "element": [
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "tcp-443_80 tcp-443"
+#:      },
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "tcp-443_80 tcp-80"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-22",
+#:     "min_dst_port": 22,
+#:     "max_dst_port": 22
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-443",
+#:     "min_dst_port": 443,
+#:     "max_dst_port": 443
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-udp-icmp tcp-1-65535",
+#:     "min_dst_port": 1,
+#:     "max_dst_port": 65535
+#:    }
+#:   },
+#:   {
+#:    "type": "udp_service",
+#:    "body": {
+#:     "name": "tcp-udp-icmp udp-1-65535",
+#:     "min_dst_port": 1,
+#:     "max_dst_port": 65535
+#:    }
+#:   },
+#:   {
+#:    "type": "ip_service",
+#:    "body": {
+#:     "name": "tcp-udp-icmp icmp",
+#:     "protocol_number": 1
+#:    }
+#:   },
+#:   {
+#:    "type": "service_group",
+#:    "body": {
+#:     "name": "tcp-udp-icmp",
+#:     "element": [
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "tcp-udp-icmp tcp-1-65535"
+#:      },
+#:      {
+#:       "@ref": "udp_service",
+#:       "name": "tcp-udp-icmp udp-1-65535"
+#:      },
+#:      {
+#:       "@ref": "ip_service",
+#:       "name": "tcp-udp-icmp icmp"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "ip_service",
+#:    "body": {
+#:     "name": "icmp",
+#:     "protocol_number": 1
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-udp-icmp-2 tcp-1-65535",
+#:     "min_dst_port": 1,
+#:     "max_dst_port": 65535
+#:    }
+#:   },
+#:   {
+#:    "type": "udp_service",
+#:    "body": {
+#:     "name": "tcp-udp-icmp-2 udp-1-65535",
+#:     "min_dst_port": 1,
+#:     "max_dst_port": 65535
+#:    }
+#:   },
+#:   {
+#:    "type": "ip_service",
+#:    "body": {
+#:     "name": "tcp-udp-icmp-2 icmp",
+#:     "protocol_number": 1
+#:    }
+#:   },
+#:   {
+#:    "type": "service_group",
+#:    "body": {
+#:     "name": "tcp-udp-icmp-2",
+#:     "element": [
+#:      {
+#:       "@ref": "tcp_service",
+#:       "name": "tcp-udp-icmp-2 tcp-1-65535"
+#:      },
+#:      {
+#:       "@ref": "udp_service",
+#:       "name": "tcp-udp-icmp-2 udp-1-65535"
+#:      },
+#:      {
+#:       "@ref": "ip_service",
+#:       "name": "tcp-udp-icmp-2 icmp"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-8443",
+#:     "min_dst_port": 8443,
+#:     "max_dst_port": 8443
+#:    }
+#:   },
+#:   {
+#:    "type": "ip_service",
+#:    "body": {
+#:     "name": "esp",
+#:     "protocol_number": 50
+#:    }
+#:   },
+#:   {
+#:    "type": "tcp_service",
+#:    "body": {
+#:     "name": "tcp-1433",
+#:     "min_dst_port": 1433,
+#:     "max_dst_port": 1433
+#:    }
+#:   },
+#:   {
+#:    "type": "udp_service",
+#:    "body": {
+#:     "name": "udp-53-from-1024-65535",
+#:     "min_dst_port": 53,
+#:     "max_dst_port": 53,
+#:     "min_src_port": 1024,
+#:     "max_src_port": 65535
+#:    }
+#:   },
+#:   {
+#:    "type": "ip_service",
+#:    "body": {
+#:     "name": "ah",
+#:     "protocol_number": 51
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "asg-web IPv4",
+#:     "element": [
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.30.1.10_31"
+#:      }
+#:     ],
+#:     "comment": "the IPv4 addresses of asg-web"
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-web and asg-web IPv4",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-web"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "asg-web IPv4"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "asg-web IPv6",
+#:     "element": [
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-2001.db8.30.1..10_127"
+#:      }
+#:     ],
+#:     "comment": "the IPv6 addresses of asg-web"
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-web and asg-web IPv6",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-web"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "asg-web IPv6"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-198.51.100.0_24",
+#:     "ipv4_network": "198.51.100.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-192.0.2.128_25",
+#:     "ipv4_network": "192.0.2.128/25",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and n-198.51.100.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-198.51.100.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and n-192.0.2.128_25",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-192.0.2.128_25"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-10.30.1.0_24",
+#:     "ipv4_network": "10.30.1.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-web and n-10.30.1.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-web"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.30.1.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-2001.db8.ff.._48",
+#:     "ipv6_network": "2001:db8:ff::/48",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and n-2001.db8.ff.._48",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-2001.db8.ff.._48"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-203.0.113.0_24",
+#:     "ipv4_network": "203.0.113.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and n-203.0.113.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-203.0.113.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and AzureLoadBalancer",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "AzureLoadBalancer"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-10.30.2.0_24",
+#:     "ipv4_network": "10.30.2.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and n-10.30.2.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.30.2.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "Storage.WestEurope IPv4",
+#:     "element": [
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-203.0.113.64_26"
+#:      }
+#:     ],
+#:     "comment": "the IPv4 addresses of Storage.WestEurope"
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and Storage.WestEurope IPv4",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "Storage.WestEurope IPv4"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "group",
+#:    "body": {
+#:     "name": "Storage.WestEurope IPv6",
+#:     "element": [
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-2001.db8.ee.._48"
+#:      }
+#:     ],
+#:     "comment": "the IPv6 addresses of Storage.WestEurope"
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and Storage.WestEurope IPv6",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "Storage.WestEurope IPv6"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and n-10.30.1.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.30.1.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-198.51.100.40",
+#:     "address": "198.51.100.40"
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and h-198.51.100.40",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-198.51.100.40"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-10.30.2.10",
+#:     "address": "10.30.2.10"
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-app and h-10.30.2.10",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-app"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-10.30.2.10"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and asg-db",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "asg-db"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and Sql.WestEurope",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "Sql.WestEurope"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "host",
+#:    "body": {
+#:     "name": "h-10.30.0.4",
+#:     "address": "10.30.0.4"
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and h-10.30.0.4",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-10.30.0.4"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-db and asg-db",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-db"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "asg-db"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "network",
+#:    "body": {
+#:     "name": "n-10.30.9.0_24",
+#:     "ipv4_network": "10.30.9.0/24",
+#:     "broadcast": true
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "outside and n-10.30.9.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "outside"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.30.9.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-web and n-203.0.113.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-web"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-203.0.113.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-web and n-10.30.2.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-web"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.30.2.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-web and n-198.51.100.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-web"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-198.51.100.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-web and n-192.0.2.128_25",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-web"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-192.0.2.128_25"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-web and n-2001.db8.ff.._48",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-web"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-2001.db8.ff.._48"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-app and n-10.30.2.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-app"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.30.2.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-db and n-10.30.2.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-db"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.30.2.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-app and n-203.0.113.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-app"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-203.0.113.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-web and asg-db",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-web"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "asg-db"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-web and h-10.30.0.4",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-web"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-10.30.0.4"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-app and n-198.51.100.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-app"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-198.51.100.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-app and n-192.0.2.128_25",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-app"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-192.0.2.128_25"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-app and n-2001.db8.ff.._48",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-app"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-2001.db8.ff.._48"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-app and asg-db",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-app"
+#:      },
+#:      {
+#:       "@ref": "group",
+#:       "name": "asg-db"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-app and h-10.30.0.4",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-app"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-10.30.0.4"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-app and n-10.30.1.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-app"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.30.1.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-db and h-10.30.0.4",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-db"
+#:      },
+#:      {
+#:       "@ref": "host",
+#:       "name": "h-10.30.0.4"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-db and n-198.51.100.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-db"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-198.51.100.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-db and n-192.0.2.128_25",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-db"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-192.0.2.128_25"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-db and n-2001.db8.ff.._48",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-db"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-2001.db8.ff.._48"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-db and n-203.0.113.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-db"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-203.0.113.0_24"
+#:      }
+#:     ]
+#:    }
+#:   },
+#:   {
+#:    "type": "match_expression",
+#:    "body": {
+#:     "name": "nsg-db and n-10.30.1.0_24",
+#:     "ref": [
+#:      {
+#:       "@ref": "interface_zone",
+#:       "name": "nsg-db"
+#:      },
+#:      {
+#:       "@ref": "network",
+#:       "name": "n-10.30.1.0_24"
+#:      }
+#:     ]
+#:    }
+#:   }
+#:  ],
+#:  "rules": {
+#:   "fw_ipv4_access_rule": [
+#:    {
+#:     "name": "nsg-web:Allow-HTTPS",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and asg-web IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-443_80"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Web from anywhere"
+#:    },
+#:    {
+#:     "name": "nsg-web:Allow-SSH-Admins",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and n-198.51.100.0_24"
+#:       },
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and n-192.0.2.128_25"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and n-10.30.1.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-22"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-web:Deny-Partner",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and n-203.0.113.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Old partner range"
+#:    },
+#:    {
+#:     "name": "nsg-web:Allow-Ping-VNet",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "none": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetInBound",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "none": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report. Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowAzureLoadBalancerInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and AzureLoadBalancer"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from azure load balancer"
+#:    },
+#:    {
+#:     "name": "nsg-web:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-web:Allow-App-Out",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and n-10.30.2.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-web:Allow-Storage",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and Storage.WestEurope IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-web:Deny-Internet",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "none": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "none": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowInternetOutBound",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "none": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to Internet"
+#:    },
+#:    {
+#:     "name": "nsg-web:DenyAllOutBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-From-Web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and n-10.30.1.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Esp-Partner",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and h-198.51.100.40"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and h-10.30.2.10"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "esp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Probe",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and AzureLoadBalancer"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:Deny-VNet",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "none": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report."
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetInBound",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "none": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report. Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowAzureLoadBalancerInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and AzureLoadBalancer"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from azure load balancer"
+#:    },
+#:    {
+#:     "name": "nsg-app:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Db",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and asg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-1433"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Sql",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and Sql.WestEurope"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-1433"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Dns",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and h-10.30.0.4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-53-from-1024-65535"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:Deny-Out",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "none": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowInternetOutBound",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "none": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to Internet"
+#:    },
+#:    {
+#:     "name": "nsg-app:DenyAllOutBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-db:Allow-Sql-From-App",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and n-10.30.2.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-db and asg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-1433"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-db:Allow-Old-Gre",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and n-10.30.9.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "ah"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "AH from the management subnet"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetInBound",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "none": true
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report. Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowAzureLoadBalancerInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and AzureLoadBalancer"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from azure load balancer"
+#:    },
+#:    {
+#:     "name": "nsg-db:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "none": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowInternetOutBound",
+#:     "is_disabled": true,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "none": true
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to Internet"
+#:    },
+#:    {
+#:     "name": "nsg-db:DenyAllOutBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-web:Allow-App-Out+nsg-web:Deny-Partner",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and n-203.0.113.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and n-10.30.2.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Old partner range"
+#:    },
+#:    {
+#:     "name": "nsg-web:Allow-App-Out+nsg-web:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and n-10.30.2.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-web:Allow-App-Out+nsg-web:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and n-10.30.2.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and asg-web IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-443_80"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Web from anywhere"
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-web:Allow-SSH-Admins",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and n-198.51.100.0_24"
+#:       },
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and n-192.0.2.128_25"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and n-10.30.1.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-22"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-web:Deny-Partner",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and n-203.0.113.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Old partner range"
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-web:Allow-Ping-VNet",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-web:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-web:DenyAllOutBound to nsg-web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-web:Allow-App-Out+nsg-app:Allow-From-Web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and n-10.30.1.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and n-10.30.2.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-web:Allow-App-Out+nsg-app:Deny-VNet",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and n-10.30.2.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-web:Allow-App-Out+nsg-app:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and n-10.30.2.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-web:Allow-App-Out+nsg-app:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and n-10.30.2.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-app:Allow-From-Web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and n-10.30.1.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-app:Deny-VNet",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-app:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-app:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-web:DenyAllOutBound to nsg-app",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-web:Allow-App-Out+nsg-db:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-db and n-10.30.2.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-web:Allow-App-Out+nsg-db:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-db and n-10.30.2.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-db:Allow-Sql-From-App",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and n-10.30.2.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-db and asg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-1433"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-db:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-web:DenyAllOutBound to nsg-db",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Db+nsg-web:Deny-Partner",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and n-203.0.113.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and asg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-1433"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Old partner range"
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Db+nsg-web:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and asg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-1433"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Db+nsg-web:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and asg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-1433"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Dns+nsg-web:Deny-Partner",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and n-203.0.113.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and h-10.30.0.4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-53-from-1024-65535"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Old partner range"
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Dns+nsg-web:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and h-10.30.0.4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-53-from-1024-65535"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Dns+nsg-web:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and h-10.30.0.4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-53-from-1024-65535"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:Deny-Out to nsg-web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and asg-web IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-443_80"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Web from anywhere"
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-web:Allow-SSH-Admins",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and n-198.51.100.0_24"
+#:       },
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and n-192.0.2.128_25"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and n-10.30.1.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-22"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-web:Deny-Partner",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and n-203.0.113.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Old partner range"
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-web:Allow-Ping-VNet",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-web:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:DenyAllOutBound to nsg-web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Db+nsg-app:Deny-VNet",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and asg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-1433"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Db+nsg-app:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and asg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-1433"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Db+nsg-app:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and asg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-1433"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Dns+nsg-app:Deny-VNet",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and h-10.30.0.4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-53-from-1024-65535"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Dns+nsg-app:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and h-10.30.0.4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-53-from-1024-65535"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Dns+nsg-app:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and h-10.30.0.4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-53-from-1024-65535"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:Deny-Out to nsg-app",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-app:Allow-From-Web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and n-10.30.1.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-app:Deny-VNet",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-app:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-app:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:DenyAllOutBound to nsg-app",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Db+nsg-db:Allow-Sql-From-App",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and n-10.30.2.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-db and asg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-1433"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Db+nsg-db:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-db and asg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-1433"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Db+nsg-db:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-db and asg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-1433"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Dns+nsg-db:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-db and h-10.30.0.4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-53-from-1024-65535"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-app:Allow-Dns+nsg-db:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-db and h-10.30.0.4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "udp_service",
+#:        "name": "udp-53-from-1024-65535"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:Deny-Out to nsg-db",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-db:Allow-Sql-From-App",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and n-10.30.2.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-db and asg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-1433"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-db:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:DenyAllOutBound to nsg-db",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and asg-web IPv4"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-443_80"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Web from anywhere"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-web:Allow-SSH-Admins",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-db and n-198.51.100.0_24"
+#:       },
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-db and n-192.0.2.128_25"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and n-10.30.1.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-22"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-web:Deny-Partner",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-db and n-203.0.113.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Old partner range"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-web:Allow-Ping-VNet",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "ip_service",
+#:        "name": "icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-web:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-db:DenyAllOutBound to nsg-web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-app:Allow-From-Web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-db and n-10.30.1.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-8443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-app:Deny-VNet",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-app:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-app:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-db:DenyAllOutBound to nsg-app",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-db:Allow-Sql-From-App",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-db and n-10.30.2.0_24"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-db and asg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-1433"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-db:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-db:DenyAllOutBound to nsg-db",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    }
+#:   ],
+#:   "fw_ipv6_access_rule": [
+#:    {
+#:     "name": "nsg-web:Allow-HTTPS",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and asg-web IPv6"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-443_80"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Web from anywhere"
+#:    },
+#:    {
+#:     "name": "nsg-web:Allow-HTTPS-v6",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and n-2001.db8.ff.._48"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-web:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-web:Allow-Storage",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "outside and Storage.WestEurope IPv6"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-web:DenyAllOutBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:Deny-Out",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:DenyAllOutBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-db:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-db:DenyAllOutBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "outside"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and asg-web IPv6"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-443_80"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Web from anywhere"
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and n-2001.db8.ff.._48"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-web:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-web:DenyAllOutBound to nsg-web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-app:Deny-VNet",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-app:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-app:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-web:DenyAllOutBound to nsg-app",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-web:AllowVnetOutBound+nsg-db:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-web:DenyAllOutBound to nsg-db",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:Deny-Out to nsg-web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and asg-web IPv6"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-443_80"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Web from anywhere"
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-app and n-2001.db8.ff.._48"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-web:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:DenyAllOutBound to nsg-web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:Deny-Out to nsg-app",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-app:Deny-VNet",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-app:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-app:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:DenyAllOutBound to nsg-app",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:Deny-Out to nsg-db",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-app:AllowVnetOutBound+nsg-db:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-app:DenyAllOutBound to nsg-db",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-web and asg-web IPv6"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-443_80"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Web from anywhere"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "match_expression",
+#:        "name": "nsg-db and n-2001.db8.ff.._48"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "tcp_service",
+#:        "name": "tcp-443"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-web:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-db:DenyAllOutBound to nsg-web",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-web"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-app:Deny-VNet",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     }
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-app:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-app:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-db:DenyAllOutBound to nsg-app",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-app"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp-2"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "allow"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Allow inbound traffic from all VMs in VNET"
+#:    },
+#:    {
+#:     "name": "nsg-db:AllowVnetOutBound+nsg-db:DenyAllInBound",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all inbound traffic"
+#:    },
+#:    {
+#:     "name": "nsg-db:DenyAllOutBound to nsg-db",
+#:     "is_disabled": false,
+#:     "sources": {
+#:      "src": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "destinations": {
+#:      "dst": [
+#:       {
+#:        "@ref": "interface_zone",
+#:        "name": "nsg-db"
+#:       }
+#:      ]
+#:     },
+#:     "services": {
+#:      "service": [
+#:       {
+#:        "@ref": "service_group",
+#:        "name": "tcp-udp-icmp"
+#:       }
+#:      ]
+#:     },
+#:     "action": {
+#:      "action": [
+#:       "discard"
+#:      ]
+#:     },
+#:     "options": {
+#:      "log_level": "none",
+#:      "log_closing_mode": false,
+#:      "log_accounting_info_mode": false
+#:     },
+#:     "comment": "Deny all outbound traffic"
+#:    }
+#:   ]
+#:  },
+#:  "nat": {
+#:   "fw_ipv4_nat_rule": [],
+#:   "fw_ipv6_nat_rule": []
+#:  }
+#: }

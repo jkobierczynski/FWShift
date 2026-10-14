@@ -12,6 +12,7 @@ import dataclasses
 import functools
 import json
 import os
+import pkgutil
 import sys
 from typing import Callable, Dict, List, Optional, Sequence, Set, TextIO, Tuple
 
@@ -25,6 +26,7 @@ from .emitters import cisco as emit_cisco
 from .emitters import fortios as emit_fortios
 from .emitters import iptables as emit_iptables
 from .emitters import panos as emit_panos
+from .emitters import forcepoint as emit_forcepoint
 from .emitters import opnsense as emit_opnsense
 from .emitters import pfsense as emit_pfsense
 from .emitters import routeros as emit_routeros
@@ -47,6 +49,7 @@ from .parsers import cisco as parse_cisco
 from .parsers import fortios as parse_fortios
 from .parsers import iptables as parse_iptables
 from .parsers import panos as parse_panos
+from .parsers import forcepoint as parse_forcepoint
 from .parsers import opnsense as parse_opnsense
 from .parsers import pfsense as parse_pfsense
 from .parsers import routeros as parse_routeros
@@ -74,6 +77,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "sophos": emit_sophos.emit,
     "pfsense": emit_pfsense.emit,
     "opnsense": emit_opnsense.emit,
+    "forcepoint": emit_forcepoint.emit,
     "sonicwall": emit_sonicwall.emit,
     "barracuda": emit_barracuda.emit,
     "junos": emit_junos.emit,
@@ -82,7 +86,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "fdm": emit_cisco.emit_fdm,
 }
 VENDORS = ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "pfsense", "opnsense", "sonicwall", "watchguard", "barracuda", "junos",
-           "iptables", "ip6tables", "nftables", "nsx", "aws", "azure", "routeros")  # fmt: skip
+           "iptables", "ip6tables", "nftables", "nsx", "aws", "azure", "routeros", "forcepoint")  # fmt: skip
 
 
 def detect_format(data: bytes) -> str:
@@ -108,6 +112,8 @@ def detect_format(data: bytes) -> str:
         data = data[:65536].decode("utf-16", errors="replace").encode("utf-8")  # the start is enough to tell
     if parse_sophos.looks_like_sophos(data):
         return "sophos"
+    if parse_forcepoint.looks_like_forcepoint(data):
+        return "forcepoint"
     if parse_opnsense.looks_like_opnsense(data):
         return "opnsense"
     if parse_pfsense.looks_like_pfsense(data):
@@ -188,6 +194,8 @@ def load(
         return parse_azure.parse(data, report)
     if source == "routeros":
         return parse_routeros.parse(data, report)
+    if source == "forcepoint":
+        return parse_forcepoint.parse(data, report, policy=policy)
     raise FwshiftError(f"unknown source format '{source}'")
 
 
@@ -201,6 +209,7 @@ def convert(policy: Policy, target: str, report: Report, options: Optional[Optio
              "--target-nat-zone": options.nat_zone, "--target-layer": options.target_layer,
              "--target-package": options.target_package, "--target-gateway": options.target_gateway,
              "--target-prefix": options.object_prefix, "--target-policy": options.target_policy,
+             "--target-template": options.target_template,
              "--zone-network": " ".join(options.zone_networks), "--inside-zone": " ".join(options.inside_zones)}  # fmt: skip
     transform.check_words(words)
     if ANY in options.zone_map.values():
@@ -384,14 +393,34 @@ def _audit_after(policy: Policy, result: audit.AuditResult, config: audit.AuditC
     audit.compare(result, audit.effective(policy, lost), config, lost, written)
 
 
+MAX_INPUT_MB = 1024  # the largest input read, in MiB; FWSHIFT_MAX_INPUT_MB sets another
+
+
+def _max_input() -> int:
+    value = os.environ.get("FWSHIFT_MAX_INPUT_MB", "").strip()
+    if not value:
+        return MAX_INPUT_MB * 1024 * 1024
+    if not value.isdigit() or int(value) < 1:
+        raise FwshiftError(f"FWSHIFT_MAX_INPUT_MB is '{value[:20]}': give a number of MiB (1 or more)")
+    return int(value) * 1024 * 1024
+
+
 def _read(path: str) -> bytes:
+    limit = _max_input()
     try:
         if path == "-":
-            return sys.stdin.buffer.read()
-        with open(path, "rb") as handle:
-            return handle.read()
+            data = sys.stdin.buffer.read(limit + 1)
+        else:
+            with open(path, "rb") as handle:
+                data = handle.read(limit + 1)
     except OSError as exc:
         raise FwshiftError(f"cannot read {path}: {exc.strerror}") from None
+    except MemoryError:
+        raise FwshiftError(f"cannot read {path}: not enough memory") from None
+    if len(data) > limit:
+        raise FwshiftError(f"{path} is larger than {limit // (1024 * 1024)} MiB, more than FWShift reads (set FWSHIFT_MAX_INPUT_MB "
+                           "to read it anyway)")  # fmt: skip
+    return data
 
 
 def _write(path: str, text: str) -> None:
@@ -434,7 +463,8 @@ def _source_options(parser: argparse.ArgumentParser, optional: bool = False) -> 
     parser.add_argument("--device-group", default="", help="Panorama source: device group to read")
     parser.add_argument("--vdom", default="", help="FortiOS source: VDOM to read")
     parser.add_argument("--layer", default="", help="Check Point source: access layer to read")
-    parser.add_argument("--policy", default="", help="Management Center source (fmc): access control policy to read")
+    parser.add_argument("--policy", default="", help="Management Center source (fmc): access control policy to read; Forcepoint: "
+                        "firewall policy to read")
     parser.add_argument("--nat-policy", default="", help="Management Center source (fmc): NAT policy to read")
     parser.add_argument(
         "--interface-address", action="append", default=[], metavar="INTERFACE=ADDRESS/BITS",
@@ -448,7 +478,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="fwshift",
         description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall "
         "(Management Center and Device Manager), Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, iptables, "
-        "nftables, VMware NSX, AWS security groups, Azure network security groups and MikroTik RouterOS, with a lossiness report.",
+        "nftables, VMware NSX, AWS security groups, Azure network security groups, MikroTik RouterOS and Forcepoint NGFW, with a lossiness report.",
     )
     parser.add_argument("--version", action="version", version=f"fwshift {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -516,7 +546,12 @@ def build_parser() -> argparse.ArgumentParser:
     conv.add_argument(
         "--target-policy", default="FWShift", metavar="NAME",
         help="Management Center target (fmc): name of the access control policy and the NAT policy the script creates; NSX: of "
-             "the security policy; Azure: of the one group when no zone has networks (default: FWShift)",
+             "the security policy; Forcepoint: of the firewall policy; Azure: of the one group when no zone has networks "
+             "(default: FWShift)",
+    )  # fmt: skip
+    conv.add_argument(
+        "--target-template", default="Firewall Template", metavar="NAME",
+        help="Forcepoint target: the template the new firewall policy is based on (default: Firewall Template)",
     )  # fmt: skip
     conv.add_argument("--strict", action="store_true", help="exit with status 2 when anything needs review")
     conv.add_argument("-q", "--quiet", action="store_true", help="do not print the report or the summary")
@@ -568,7 +603,7 @@ def build_parser() -> argparse.ArgumentParser:
     cmp.add_argument("--from-second", choices=VENDORS, help="format of the second (default: detected)")
     for option, text in (("--vsys", "PAN-OS: virtual system to read"), ("--device-group", "Panorama: device group to read"),
                          ("--vdom", "FortiOS: VDOM to read"), ("--layer", "Check Point: access layer to read"),
-                         ("--policy", "Management Center (fmc): access control policy to read"),
+                         ("--policy", "Management Center (fmc), Forcepoint: access control or firewall policy to read"),
                          ("--nat-policy", "Management Center (fmc): NAT policy to read")):  # fmt: skip
         cmp.add_argument(option, default="", help=text + " (of both)")
     cmp.add_argument("--zone-map", action="append", default=[], metavar="FIRST=SECOND",
@@ -618,6 +653,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     insp = commands.add_parser("inspect", help="show what was read from a configuration")
     _source_options(insp)
+
+    scr = commands.add_parser("script", help="write a program FWShift works with: forcepoint-dump reads a policy out of a Forcepoint "
+                              "SMC through its REST API, for --from forcepoint")  # fmt: skip
+    scr.add_argument("name", choices=("forcepoint-dump",), help="the program to write")
+    scr.add_argument("-o", "--output", help="write it here (default: standard output)")
     return parser
 
 
@@ -652,6 +692,7 @@ def _run_convert(args: argparse.Namespace) -> int:
         target_gateway=args.target_gateway,
         object_prefix=args.target_prefix,
         target_policy=args.target_policy,
+        target_template=args.target_template,
         zone_networks=_networks(args.zone_network),
         inside_zones=list(dict.fromkeys(args.inside_zone)),
     )
@@ -1060,6 +1101,22 @@ def _run_inspect(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_script(args: argparse.Namespace) -> int:
+    data = pkgutil.get_data("fwshift.parsers", "smc_dump.py")
+    if data is None:
+        raise FwshiftError("the program smc_dump.py is missing from this installation of FWShift")
+    text = data.decode("utf-8").replace("\r\n", "\n")
+    if args.output:
+        _write(args.output, text)
+        try:
+            os.chmod(args.output, 0o755)
+        except OSError:
+            pass
+    else:
+        _print(sys.stdout, text)
+    return 0
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = build_parser().parse_args(argv)
     try:
@@ -1075,6 +1132,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return _run_conduits(args)
         if args.command == "compare":
             return _run_compare(args)
+        if args.command == "script":
+            return _run_script(args)
         return _run_inspect(args)
     except FwshiftError as exc:
         _print(sys.stderr, f"fwshift: error: {exc}\n")

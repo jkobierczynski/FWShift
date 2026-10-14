@@ -1,0 +1,108 @@
+FWShift conversion report
+  source: forcepoint (Branch Policy)
+  target: fortios
+
+Summary
+  Security rules:     32   exact 18, approximated 4, needs review 10 (7 emitted disabled), skipped 0
+  NAT rules:           5   exact 3, approximated 1, needs review 1, skipped 0
+  Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
+  Address groups:      9   exact 9, approximated 0, needs review 0, skipped 0
+  Services:           15   exact 15, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] FORCEPOINT_ELEMENT_NAT: element-based NAT (NAT set on an element) and the default NAT of the engine are not in the policy, and not read: they translate after the NAT rules, and an element with static NAT also matches its public address in the access rules
+  [needs-review] CENTRAL_NAT: NAT is emitted as central NAT. Enable it first ('config system settings', 'set central-nat enable'); on a FortiGate that already uses per-policy NAT this changes how existing policies translate. Virtual IPs are created with 'extintf any'
+  [needs-review] ZONES_WITHOUT_INTERFACES: zones created without interfaces: Internal, External. Assign interfaces, or rerun with --zone-map / --interface-map to use existing names
+  [info] CONTINUE_RULE: Continue rules decide nothing: they set defaults (logging, inspection, timeouts) for the rules below them that match the same traffic. Their logging was given to those rules: 'lan defaults'
+  [info] NONE_CELL: rules with a cell set to NONE, which the engine ignores; converted disabled: 'unfinished'
+  [info] AUTOMATIC_RULES: the automatic rules of the engine (at the insert point for them) are for traffic to and from the engine itself, and are not converted
+  [info] SOURCE_VPN_NONE: rules that match traffic that comes through no VPN (Source VPN: not via VPN); converted for all traffic, as the model has no VPNs: 'ping out'
+  [info] NETWORK_BROADCAST: networks without 'broadcast' in groups: Forcepoint documents the option for rule cells, and in a group they were taken whole: grp-inside
+  [info] FORCEPOINT_ZONES: zones are bound to interfaces on the engine, which the input does not hold: the zones of the policy have no interfaces here
+  [info] FORCEPOINT_AUTOMATIC: what the engine does by itself is not converted: antispoofing (from its routing), the automatic rules for its own traffic, and replies of allowed connections, which the model allows with them
+  [info] EXISTING_OBJECTS: objects are created by name: an object that already exists on the target under the same name is overwritten by the one in this output
+
+Security rules
+  Rule @900.0  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: source '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNSUPPORTED_MATCH: not converted: destination '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references '$$ Management Servers': an alias, whose value is set per engine, and the input holds no engine.
+      [needs-review] UNCONVERTIBLE_OBJECT: references '$$ Local Cluster': an alias, whose value is set per engine, and the input holds no engine.
+  allow web  ->  needs-review
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '192.168.10.10', the address NAT rule 'publish web' translates 'pub-web' to. The target looks rules up after that translation, so traffic sent to 'pub-web' now matches this rule; on the source it did not
+  admins in  ->  exact  (emitted as to admin sub-policy / admins in)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  others out  ->  exact  (emitted as to admin sub-policy / others out)
+      [info] JUMP_FLATTENED: a rule of a sub-policy, reached by the jump rule 'to admin sub-policy': it is that rule limited to what the jump rule matches
+  refuse admins 8443  ->  approximated
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] RESET_ACTION: action reset-client becomes deny; FortiOS sends resets only with 'set send-deny-packet enable'
+  internal zone out  ->  needs-review
+      [needs-review] NAT_PORT_EXPOSED: the service covers the post-NAT port of NAT rule 'publish web' (which translates the port to 8443) but not the pre-NAT one. The source looks rules up before the translation and did not apply this rule to that traffic; the target looks them up after it, and there the rule applies
+  not to dmz  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: negated destination that does not name the same on both sides of NAT rule 'publish web' (pub-web, 192.168.10.10).
+  zone or web host out  ->  exact
+      [info] RULE_SPLIT: the cells hold zones, addresses, users or applications side by side (ORed): the rule is 2 rules, one per combination
+  vpn only  ->  needs-review, emitted disabled
+      [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '192.168.10.10', the address NAT rule 'publish web' translates 'pub-web' to. The target looks rules up after that translation, so traffic sent to 'pub-web' now matches this rule; on the source it did not
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches traffic of VPNs only (Source VPN).
+  no social  ->  needs-review, emitted disabled
+      [needs-review] APP_UNKNOWN: no port mapping for application(s) Facebook; supply one with --app-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  helpdesk to dmz  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match helpdesk is not converted.
+  office web  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Office hours' is not converted; the rule would apply at all times.
+  limited guests  ->  needs-review
+      [approximated] CONNECTION_LIMIT: the rule limits concurrent connections (src_limit 50): connections beyond it are refused or discarded, which is not converted
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'publish web' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (deep_inspection=on); attach equivalent inspection on the target
+  block list  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: it has a block list (it discards what the dynamic block list holds, and lets the rest go on). This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Rule @902.0  ->  approximated
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] RESET_ACTION: action reset-client becomes deny; FortiOS sends resets only with 'set send-deny-packet enable'
+  v6 guests  ->  approximated
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] RESET_ACTION: action reset-client becomes deny; FortiOS sends resets only with 'set send-deny-packet enable'
+  Rule @952.0  ->  approximated
+      [approximated] REFUSE_ACTION: Refuse answers the sender with an ICMP error (whether a TCP connection gets a reset is not documented); converted as a reset to the client
+      [info] RESET_ACTION: action reset-client becomes deny; FortiOS sends resets only with 'set send-deny-packet enable'
+
+NAT rules
+  publish web  ->  needs-review  (emitted as virtual IP publish web)
+      [approximated] NAT_SOURCE_DROPPED: the rule translated only traffic from 0.0.0.0/0; the virtual IP applies to all sources
+      [needs-review] NAT_ORDER: on the source, the traffic this rule forwards to 192.168.10.10 keeps its source address. The target translates sources apart from destinations, after the destination: there NAT rules 'mail static', 'guests hide' translate the source of that traffic as well
+  guests hide  ->  approximated  (emitted as central SNAT entry)
+      [info] NAT_ENGINE: the NAT rule applies on engine 'fw-branch' only
+      [approximated] NAT_INTERFACE_ALIAS: the source is translated to $$ Default NAT Address, the address of an interface of the engine: converted as the address of the interface the traffic leaves by
+
+Addresses
+  net-lan (in rules)  ->  exact  (emitted as net-lan _in rules_)
+      [info] RENAMED: renamed to 'net-lan _in rules_' to fit the target's naming rules
+
+Address groups
+  updates.example.com (names)  ->  exact  (emitted as updates.example.com _names_)
+      [info] RENAMED: renamed to 'updates.example.com _names_' to fit the target's naming rules
+
+Services
+  DNS (UDP)  ->  exact  (emitted as DNS _UDP_)
+      [info] RENAMED: renamed to 'DNS _UDP_' to fit the target's naming rules
+  DNS (TCP)  ->  exact  (emitted as DNS _TCP_)
+      [info] RENAMED: renamed to 'DNS _TCP_' to fit the target's naming rules
+  HTTPS  ->  exact  (emitted as HTTPS_2)
+      [info] RENAMED: renamed to 'HTTPS_2' to fit the target's naming rules
+  SSH  ->  exact  (emitted as SSH_2)
+      [info] RENAMED: renamed to 'SSH_2' to fit the target's naming rules
+  HTTP  ->  exact  (emitted as HTTP_2)
+      [info] RENAMED: renamed to 'HTTP_2' to fit the target's naming rules
+  GRE  ->  exact  (emitted as GRE_2)
+      [info] RENAMED: renamed to 'GRE_2' to fit the target's naming rules
+  NetBIOS (UDP)  ->  exact  (emitted as NetBIOS _UDP_)
+      [info] RENAMED: renamed to 'NetBIOS _UDP_' to fit the target's naming rules
+  NetBIOS (TCP)  ->  exact  (emitted as NetBIOS _TCP_)
+      [info] RENAMED: renamed to 'NetBIOS _TCP_' to fit the target's naming rules
+
+Service groups
+  DNS  ->  exact  (emitted as DNS_2)
+      [info] RENAMED: renamed to 'DNS_2' to fit the target's naming rules

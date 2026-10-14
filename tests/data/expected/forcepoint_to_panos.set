@@ -1,0 +1,464 @@
+set tag "Branch template"
+set tag Inbound
+set tag Outbound
+set address "x__ Management Servers" ip-netmask 0.0.0.0/32
+set address "x__ Management Servers" description "FWSHIFT PLACEHOLDER, matches nothing: an alias, whose value is set per engine, and the input holds no engine"
+set address "x__ Local Cluster" ip-netmask 0.0.0.0/32
+set address "x__ Local Cluster" description "FWSHIFT PLACEHOLDER, matches nothing: an alias, whose value is set per engine, and the input holds no engine"
+set address dns-01 ip-netmask 192.168.10.53/32
+set address net-dmz ip-netmask 192.168.10.0/24
+set address "net-lan _in rules_" ip-range 10.1.0.1-10.1.255.254
+set address admins ip-range 10.1.5.10-10.1.5.20
+set address pub-web ip-netmask 203.0.113.10/32
+set address updates.example.com fqdn updates.example.com
+set address cdn.example.com fqdn cdn.example.com
+set address net-lan ip-netmask 10.1.0.0/16
+set address isp-gw ip-netmask 198.51.100.1/32
+set address net-lan-v6 ip-netmask 2001:db8:20::/64
+set address web-01-v6 ip-netmask 2001:db8:10::10/128
+set address h-192.168.10.10 ip-netmask 192.168.10.10
+set address h-192.168.10.11 ip-netmask 192.168.10.11
+set address-group web-01 static [ h-192.168.10.10 h-192.168.10.11 ]
+set address-group grp-web static [ web-01 net-dmz ]
+set address-group "updates.example.com _names_" static [ updates.example.com cdn.example.com ]
+set address-group "updates.example.com _names_" description "the names of domain name updates.example.com"
+set address n-172.16.30.0_24 ip-netmask 172.16.30.0/24
+set address n-2001_db8_30___64 ip-netmask 2001:db8:30::/64
+set address-group net-guest static [ n-172.16.30.0_24 n-2001_db8_30___64 ]
+set address-group grp-inside static [ net-lan net-guest ]
+set address-group grp-inside description "networks behind the branch firewall"
+set address r-10.1.0.0-10.1.5.9 ip-range 10.1.0.0-10.1.5.9
+set address r-10.1.5.21-10.1.255.255 ip-range 10.1.5.21-10.1.255.255
+set address-group "lan without admins" static [ r-10.1.0.0-10.1.5.9 r-10.1.5.21-10.1.255.255 ]
+set address-group "lan without admins" description "(the addresses of the expression)"
+set address h-192.168.10.25 ip-netmask 192.168.10.25
+set address h-2001_db8_10__25 ip-netmask 2001:db8:10::25
+set address-group mail-01 static [ h-192.168.10.25 h-2001_db8_10__25 ]
+set address-group mail-01 description "dual stack"
+set address-group "mail-01 IPv4" static h-192.168.10.25
+set address-group "mail-01 IPv4" description "the IPv4 addresses of mail-01"
+set address-group "net-guest IPv4" static n-172.16.30.0_24
+set address-group "net-guest IPv4" description "the IPv4 addresses of net-guest"
+set service "SG Control" protocol tcp port 3020-3021
+set service "DNS _UDP_" protocol udp port 53
+set service "DNS _TCP_" protocol tcp port 53
+set service HTTPS protocol tcp port 443
+set service tcp-8443 protocol tcp port 8443
+set service tcp-8000-8010 protocol tcp port 8000-8010
+set service SSH protocol tcp port 22
+set service HTTP protocol tcp port 80
+set service syslog-from-514 protocol udp port 514
+set service syslog-from-514 protocol udp source-port 514
+set service "NetBIOS _UDP_" protocol udp port 137-138
+set service "NetBIOS _TCP_" protocol tcp port 139
+set service Ident protocol tcp port 113
+set service-group DNS members [ "DNS _UDP_" "DNS _TCP_" ]
+set service-group web-services members [ tcp-8443 tcp-8000-8010 ]
+set service-group NetBIOS members [ "NetBIOS _UDP_" "NetBIOS _TCP_" ]
+set rulebase security rules "Rule _900.0" from any
+set rulebase security rules "Rule _900.0" to any
+set rulebase security rules "Rule _900.0" source "x__ Management Servers"
+set rulebase security rules "Rule _900.0" destination "x__ Local Cluster"
+set rulebase security rules "Rule _900.0" source-user any
+set rulebase security rules "Rule _900.0" category any
+set rulebase security rules "Rule _900.0" application any
+set rulebase security rules "Rule _900.0" service "SG Control"
+set rulebase security rules "Rule _900.0" action allow
+set rulebase security rules "Rule _900.0" log-end no
+set rulebase security rules "Rule _900.0" disabled yes
+set rulebase security rules "Rule _900.0" description "FWSHIFT: disabled by the converter, see the report. SMC communications (abbreviated)"
+set rulebase security rules "dns to resolver" from any
+set rulebase security rules "dns to resolver" to any
+set rulebase security rules "dns to resolver" source 0.0.0.0/0
+set rulebase security rules "dns to resolver" destination dns-01
+set rulebase security rules "dns to resolver" source-user any
+set rulebase security rules "dns to resolver" category any
+set rulebase security rules "dns to resolver" application any
+set rulebase security rules "dns to resolver" service DNS
+set rulebase security rules "dns to resolver" action allow
+set rulebase security rules "dns to resolver" log-end no
+set rulebase security rules "dns to resolver" tag "Branch template"
+set rulebase security rules "allow web" from any
+set rulebase security rules "allow web" to any
+set rulebase security rules "allow web" source 0.0.0.0/0
+set rulebase security rules "allow web" destination grp-web
+set rulebase security rules "allow web" source-user any
+set rulebase security rules "allow web" category any
+set rulebase security rules "allow web" application any
+set rulebase security rules "allow web" service [ HTTPS web-services ]
+set rulebase security rules "allow web" action allow
+set rulebase security rules "allow web" log-start yes
+set rulebase security rules "allow web" log-end yes
+set rulebase security rules "allow web" tag Inbound
+set rulebase security rules "to admin sub-policy _ admins in" from any
+set rulebase security rules "to admin sub-policy _ admins in" to any
+set rulebase security rules "to admin sub-policy _ admins in" source admins
+set rulebase security rules "to admin sub-policy _ admins in" destination net-dmz
+set rulebase security rules "to admin sub-policy _ admins in" source-user any
+set rulebase security rules "to admin sub-policy _ admins in" category any
+set rulebase security rules "to admin sub-policy _ admins in" application any
+set rulebase security rules "to admin sub-policy _ admins in" service SSH
+set rulebase security rules "to admin sub-policy _ admins in" action allow
+set rulebase security rules "to admin sub-policy _ admins in" log-start yes
+set rulebase security rules "to admin sub-policy _ admins in" log-end no
+set rulebase security rules "to admin sub-policy _ admins in" tag Inbound
+set rulebase security rules "to admin sub-policy _ others out" from any
+set rulebase security rules "to admin sub-policy _ others out" to any
+set rulebase security rules "to admin sub-policy _ others out" source "net-lan _in rules_"
+set rulebase security rules "to admin sub-policy _ others out" destination net-dmz
+set rulebase security rules "to admin sub-policy _ others out" source-user any
+set rulebase security rules "to admin sub-policy _ others out" category any
+set rulebase security rules "to admin sub-policy _ others out" application any
+set rulebase security rules "to admin sub-policy _ others out" service SSH
+set rulebase security rules "to admin sub-policy _ others out" action drop
+set rulebase security rules "to admin sub-policy _ others out" log-start yes
+set rulebase security rules "to admin sub-policy _ others out" log-end no
+set rulebase security rules "to admin sub-policy _ others out" tag Inbound
+set rulebase security rules "refuse admins 8443" from any
+set rulebase security rules "refuse admins 8443" to any
+set rulebase security rules "refuse admins 8443" source admins
+set rulebase security rules "refuse admins 8443" destination pub-web
+set rulebase security rules "refuse admins 8443" source-user any
+set rulebase security rules "refuse admins 8443" category any
+set rulebase security rules "refuse admins 8443" application any
+set rulebase security rules "refuse admins 8443" service tcp-8443
+set rulebase security rules "refuse admins 8443" action reset-client
+set rulebase security rules "refuse admins 8443" log-start yes
+set rulebase security rules "refuse admins 8443" log-end no
+set rulebase security rules "refuse admins 8443" tag Inbound
+set rulebase security rules "old block" from any
+set rulebase security rules "old block" to any
+set rulebase security rules "old block" source "net-lan _in rules_"
+set rulebase security rules "old block" destination 0.0.0.0/0
+set rulebase security rules "old block" source-user any
+set rulebase security rules "old block" category any
+set rulebase security rules "old block" application any
+set rulebase security rules "old block" service any
+set rulebase security rules "old block" action drop
+set rulebase security rules "old block" log-end no
+set rulebase security rules "old block" disabled yes
+set rulebase security rules "old block" tag Inbound
+set rulebase security rules "internal zone out" from Internal
+set rulebase security rules "internal zone out" to any
+set rulebase security rules "internal zone out" source "net-lan _in rules_"
+set rulebase security rules "internal zone out" destination 0.0.0.0/0
+set rulebase security rules "internal zone out" source-user any
+set rulebase security rules "internal zone out" category any
+set rulebase security rules "internal zone out" application any
+set rulebase security rules "internal zone out" service web-services
+set rulebase security rules "internal zone out" action allow
+set rulebase security rules "internal zone out" log-start yes
+set rulebase security rules "internal zone out" log-end no
+set rulebase security rules "internal zone out" tag Inbound
+set rulebase security rules "not to dmz" from any
+set rulebase security rules "not to dmz" to any
+set rulebase security rules "not to dmz" source "net-lan _in rules_"
+set rulebase security rules "not to dmz" destination net-dmz
+set rulebase security rules "not to dmz" source-user any
+set rulebase security rules "not to dmz" category any
+set rulebase security rules "not to dmz" application any
+set rulebase security rules "not to dmz" service HTTPS
+set rulebase security rules "not to dmz" action allow
+set rulebase security rules "not to dmz" negate-destination yes
+set rulebase security rules "not to dmz" log-start yes
+set rulebase security rules "not to dmz" log-end no
+set rulebase security rules "not to dmz" tag Inbound
+set rulebase security rules "updates by name" from any
+set rulebase security rules "updates by name" to any
+set rulebase security rules "updates by name" source "net-lan _in rules_"
+set rulebase security rules "updates by name" destination "updates.example.com _names_"
+set rulebase security rules "updates by name" source-user any
+set rulebase security rules "updates by name" category any
+set rulebase security rules "updates by name" application any
+set rulebase security rules "updates by name" service HTTPS
+set rulebase security rules "updates by name" action allow
+set rulebase security rules "updates by name" log-start yes
+set rulebase security rules "updates by name" log-end yes
+set rulebase security rules "updates by name" tag Outbound
+set rulebase security rules "zone or web host out" from Internal
+set rulebase security rules "zone or web host out" to External
+set rulebase security rules "zone or web host out" source 0.0.0.0/0
+set rulebase security rules "zone or web host out" destination any
+set rulebase security rules "zone or web host out" source-user any
+set rulebase security rules "zone or web host out" category any
+set rulebase security rules "zone or web host out" application any
+set rulebase security rules "zone or web host out" service HTTP
+set rulebase security rules "zone or web host out" action allow
+set rulebase security rules "zone or web host out" log-start yes
+set rulebase security rules "zone or web host out" log-end no
+set rulebase security rules "zone or web host out" tag Outbound
+set rulebase security rules "zone or web host out _2_" from any
+set rulebase security rules "zone or web host out _2_" to External
+set rulebase security rules "zone or web host out _2_" source web-01
+set rulebase security rules "zone or web host out _2_" destination 0.0.0.0/0
+set rulebase security rules "zone or web host out _2_" source-user any
+set rulebase security rules "zone or web host out _2_" category any
+set rulebase security rules "zone or web host out _2_" application any
+set rulebase security rules "zone or web host out _2_" service HTTP
+set rulebase security rules "zone or web host out _2_" action allow
+set rulebase security rules "zone or web host out _2_" log-start yes
+set rulebase security rules "zone or web host out _2_" log-end no
+set rulebase security rules "zone or web host out _2_" tag Outbound
+set rulebase security rules "vpn only" from any
+set rulebase security rules "vpn only" to any
+set rulebase security rules "vpn only" source "net-lan _in rules_"
+set rulebase security rules "vpn only" destination net-dmz
+set rulebase security rules "vpn only" source-user any
+set rulebase security rules "vpn only" category any
+set rulebase security rules "vpn only" application any
+set rulebase security rules "vpn only" service any
+set rulebase security rules "vpn only" action allow
+set rulebase security rules "vpn only" log-start yes
+set rulebase security rules "vpn only" log-end no
+set rulebase security rules "vpn only" disabled yes
+set rulebase security rules "vpn only" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "vpn only" tag Outbound
+set rulebase security rules "ping out" from any
+set rulebase security rules "ping out" to any
+set rulebase security rules "ping out" source grp-inside
+set rulebase security rules "ping out" destination 0.0.0.0/0
+set rulebase security rules "ping out" source-user any
+set rulebase security rules "ping out" category any
+set rulebase security rules "ping out" application ping
+set rulebase security rules "ping out" service application-default
+set rulebase security rules "ping out" action allow
+set rulebase security rules "ping out" log-start yes
+set rulebase security rules "ping out" log-end no
+set rulebase security rules "ping out" tag Outbound
+set rulebase security rules "no social" from any
+set rulebase security rules "no social" to any
+set rulebase security rules "no social" source "net-lan _in rules_"
+set rulebase security rules "no social" destination 0.0.0.0/0
+set rulebase security rules "no social" source-user any
+set rulebase security rules "no social" category any
+set rulebase security rules "no social" application Facebook
+set rulebase security rules "no social" service any
+set rulebase security rules "no social" action drop
+set rulebase security rules "no social" log-start yes
+set rulebase security rules "no social" log-end no
+set rulebase security rules "no social" tag Outbound
+set rulebase security rules "helpdesk to dmz" from any
+set rulebase security rules "helpdesk to dmz" to any
+set rulebase security rules "helpdesk to dmz" source 0.0.0.0/0
+set rulebase security rules "helpdesk to dmz" destination net-dmz
+set rulebase security rules "helpdesk to dmz" source-user helpdesk
+set rulebase security rules "helpdesk to dmz" category any
+set rulebase security rules "helpdesk to dmz" application any
+set rulebase security rules "helpdesk to dmz" service SSH
+set rulebase security rules "helpdesk to dmz" action allow
+set rulebase security rules "helpdesk to dmz" log-start yes
+set rulebase security rules "helpdesk to dmz" log-end no
+set rulebase security rules "helpdesk to dmz" tag Outbound
+set rulebase security rules unfinished from any
+set rulebase security rules unfinished to any
+set rulebase security rules unfinished source "net-lan _in rules_"
+set rulebase security rules unfinished destination 0.0.0.0/0
+set rulebase security rules unfinished source-user any
+set rulebase security rules unfinished category any
+set rulebase security rules unfinished application any
+set rulebase security rules unfinished service SSH
+set rulebase security rules unfinished action allow
+set rulebase security rules unfinished log-start yes
+set rulebase security rules unfinished log-end no
+set rulebase security rules unfinished disabled yes
+set rulebase security rules unfinished tag Outbound
+set rulebase security rules "office web" from any
+set rulebase security rules "office web" to any
+set rulebase security rules "office web" source "net-lan _in rules_"
+set rulebase security rules "office web" destination 0.0.0.0/0
+set rulebase security rules "office web" source-user any
+set rulebase security rules "office web" category any
+set rulebase security rules "office web" application any
+set rulebase security rules "office web" service HTTP
+set rulebase security rules "office web" action allow
+set rulebase security rules "office web" log-start yes
+set rulebase security rules "office web" log-end no
+set rulebase security rules "office web" disabled yes
+set rulebase security rules "office web" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "office web" tag Outbound
+set rulebase security rules "limited guests" from any
+set rulebase security rules "limited guests" to any
+set rulebase security rules "limited guests" source net-guest
+set rulebase security rules "limited guests" destination 0.0.0.0/0
+set rulebase security rules "limited guests" source-user any
+set rulebase security rules "limited guests" category any
+set rulebase security rules "limited guests" application any
+set rulebase security rules "limited guests" service HTTPS
+set rulebase security rules "limited guests" action allow
+set rulebase security rules "limited guests" log-start yes
+set rulebase security rules "limited guests" log-end no
+set rulebase security rules "limited guests" tag Outbound
+set rulebase security rules "block list" from any
+set rulebase security rules "block list" to any
+set rulebase security rules "block list" source 0.0.0.0/0
+set rulebase security rules "block list" destination any
+set rulebase security rules "block list" source-user any
+set rulebase security rules "block list" category any
+set rulebase security rules "block list" application any
+set rulebase security rules "block list" service any
+set rulebase security rules "block list" action drop
+set rulebase security rules "block list" log-start yes
+set rulebase security rules "block list" log-end no
+set rulebase security rules "block list" disabled yes
+set rulebase security rules "block list" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "block list" tag Outbound
+set rulebase security rules "gre to isp" from any
+set rulebase security rules "gre to isp" to any
+set rulebase security rules "gre to isp" source "net-lan _in rules_"
+set rulebase security rules "gre to isp" destination isp-gw
+set rulebase security rules "gre to isp" source-user any
+set rulebase security rules "gre to isp" category any
+set rulebase security rules "gre to isp" application gre
+set rulebase security rules "gre to isp" service application-default
+set rulebase security rules "gre to isp" action allow
+set rulebase security rules "gre to isp" log-start yes
+set rulebase security rules "gre to isp" log-end no
+set rulebase security rules "gre to isp" tag Outbound
+set rulebase security rules "lan but admins" from any
+set rulebase security rules "lan but admins" to any
+set rulebase security rules "lan but admins" source "lan without admins"
+set rulebase security rules "lan but admins" destination mail-01
+set rulebase security rules "lan but admins" source-user any
+set rulebase security rules "lan but admins" category any
+set rulebase security rules "lan but admins" application any
+set rulebase security rules "lan but admins" service syslog-from-514
+set rulebase security rules "lan but admins" action allow
+set rulebase security rules "lan but admins" log-start yes
+set rulebase security rules "lan but admins" log-end no
+set rulebase security rules "lan but admins" tag Outbound
+set rulebase security rules "lan but admins-apps" from any
+set rulebase security rules "lan but admins-apps" to any
+set rulebase security rules "lan but admins-apps" source "lan without admins"
+set rulebase security rules "lan but admins-apps" destination mail-01
+set rulebase security rules "lan but admins-apps" source-user any
+set rulebase security rules "lan but admins-apps" category any
+set rulebase security rules "lan but admins-apps" application ping
+set rulebase security rules "lan but admins-apps" service application-default
+set rulebase security rules "lan but admins-apps" action allow
+set rulebase security rules "lan but admins-apps" log-start yes
+set rulebase security rules "lan but admins-apps" log-end no
+set rulebase security rules "lan but admins-apps" tag Outbound
+set rulebase security rules "Rule _1021.0" from any
+set rulebase security rules "Rule _1021.0" to any
+set rulebase security rules "Rule _1021.0" source net-guest
+set rulebase security rules "Rule _1021.0" destination "net-lan _in rules_"
+set rulebase security rules "Rule _1021.0" source-user any
+set rulebase security rules "Rule _1021.0" category any
+set rulebase security rules "Rule _1021.0" application any
+set rulebase security rules "Rule _1021.0" service any
+set rulebase security rules "Rule _1021.0" action drop
+set rulebase security rules "Rule _1021.0" log-start yes
+set rulebase security rules "Rule _1021.0" log-end no
+set rulebase security rules "Rule _1021.0" description "guests stay out"
+set rulebase security rules "Rule _1021.0" tag Outbound
+set rulebase security rules "drop netbios" from any
+set rulebase security rules "drop netbios" to any
+set rulebase security rules "drop netbios" source 0.0.0.0/0
+set rulebase security rules "drop netbios" destination any
+set rulebase security rules "drop netbios" source-user any
+set rulebase security rules "drop netbios" category any
+set rulebase security rules "drop netbios" application any
+set rulebase security rules "drop netbios" service NetBIOS
+set rulebase security rules "drop netbios" action drop
+set rulebase security rules "drop netbios" log-end no
+set rulebase security rules "drop netbios" tag Outbound
+set rulebase security rules "Rule _902.0" from any
+set rulebase security rules "Rule _902.0" to any
+set rulebase security rules "Rule _902.0" source 0.0.0.0/0
+set rulebase security rules "Rule _902.0" destination any
+set rulebase security rules "Rule _902.0" source-user any
+set rulebase security rules "Rule _902.0" category any
+set rulebase security rules "Rule _902.0" application any
+set rulebase security rules "Rule _902.0" service Ident
+set rulebase security rules "Rule _902.0" action reset-client
+set rulebase security rules "Rule _902.0" log-start yes
+set rulebase security rules "Rule _902.0" log-end no
+set rulebase security rules "Rule _902.0" tag Outbound
+set rulebase security rules "Rule _903.0" from any
+set rulebase security rules "Rule _903.0" to any
+set rulebase security rules "Rule _903.0" source 0.0.0.0/0
+set rulebase security rules "Rule _903.0" destination any
+set rulebase security rules "Rule _903.0" source-user any
+set rulebase security rules "Rule _903.0" category any
+set rulebase security rules "Rule _903.0" application any
+set rulebase security rules "Rule _903.0" service any
+set rulebase security rules "Rule _903.0" action drop
+set rulebase security rules "Rule _903.0" log-start yes
+set rulebase security rules "Rule _903.0" log-end no
+set rulebase security rules "Rule _903.0" tag Outbound
+set rulebase security rules "v6 web" from any
+set rulebase security rules "v6 web" to any
+set rulebase security rules "v6 web" source net-lan-v6
+set rulebase security rules "v6 web" destination web-01-v6
+set rulebase security rules "v6 web" source-user any
+set rulebase security rules "v6 web" category any
+set rulebase security rules "v6 web" application any
+set rulebase security rules "v6 web" service HTTPS
+set rulebase security rules "v6 web" action allow
+set rulebase security rules "v6 web" log-start yes
+set rulebase security rules "v6 web" log-end no
+set rulebase security rules "v6 ping" from any
+set rulebase security rules "v6 ping" to any
+set rulebase security rules "v6 ping" source net-lan-v6
+set rulebase security rules "v6 ping" destination ::/0
+set rulebase security rules "v6 ping" source-user any
+set rulebase security rules "v6 ping" category any
+set rulebase security rules "v6 ping" application ping6
+set rulebase security rules "v6 ping" service application-default
+set rulebase security rules "v6 ping" action allow
+set rulebase security rules "v6 ping" log-end no
+set rulebase security rules "v6 mail" from any
+set rulebase security rules "v6 mail" to any
+set rulebase security rules "v6 mail" source ::/0
+set rulebase security rules "v6 mail" destination mail-01
+set rulebase security rules "v6 mail" source-user any
+set rulebase security rules "v6 mail" category any
+set rulebase security rules "v6 mail" application any
+set rulebase security rules "v6 mail" service HTTPS
+set rulebase security rules "v6 mail" action allow
+set rulebase security rules "v6 mail" log-start yes
+set rulebase security rules "v6 mail" log-end no
+set rulebase security rules "v6 guests" from any
+set rulebase security rules "v6 guests" to any
+set rulebase security rules "v6 guests" source grp-inside
+set rulebase security rules "v6 guests" destination web-01-v6
+set rulebase security rules "v6 guests" source-user any
+set rulebase security rules "v6 guests" category any
+set rulebase security rules "v6 guests" application any
+set rulebase security rules "v6 guests" service any
+set rulebase security rules "v6 guests" action reset-client
+set rulebase security rules "v6 guests" log-end no
+set rulebase security rules "Rule _952.0" from any
+set rulebase security rules "Rule _952.0" to any
+set rulebase security rules "Rule _952.0" source ::/0
+set rulebase security rules "Rule _952.0" destination any
+set rulebase security rules "Rule _952.0" source-user any
+set rulebase security rules "Rule _952.0" category any
+set rulebase security rules "Rule _952.0" application any
+set rulebase security rules "Rule _952.0" service Ident
+set rulebase security rules "Rule _952.0" action reset-client
+set rulebase security rules "Rule _952.0" log-start yes
+set rulebase security rules "Rule _952.0" log-end no
+set rulebase security rules "Rule _953.0" from any
+set rulebase security rules "Rule _953.0" to any
+set rulebase security rules "Rule _953.0" source ::/0
+set rulebase security rules "Rule _953.0" destination any
+set rulebase security rules "Rule _953.0" source-user any
+set rulebase security rules "Rule _953.0" category any
+set rulebase security rules "Rule _953.0" application any
+set rulebase security rules "Rule _953.0" service any
+set rulebase security rules "Rule _953.0" action drop
+set rulebase security rules "Rule _953.0" log-start yes
+set rulebase security rules "Rule _953.0" log-end no
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."
