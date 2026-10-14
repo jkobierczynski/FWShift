@@ -216,6 +216,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <li><a href="#azure">Azure network security groups</a></li>
       <li><a href="#routeros">MikroTik RouterOS</a></li>
       <li><a href="#forcepoint">Forcepoint NGFW</a></li>
+      <li><a href="#terraform">Terraform</a></li>
     </ul>
     <h4>Analysis</h4>
     <ul>
@@ -232,7 +233,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
 
 <main id="top">
 <header class="mast">
-  <div class="eyebrow">Field guide · version 0.25</div>
+  <div class="eyebrow">Field guide · version 0.26</div>
   <h1>FWShift, feature by feature</h1>
   <p class="lead">FWShift converts firewall policies between nineteen platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
   <div class="facts">
@@ -315,6 +316,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
       <tr><td>Azure network security groups</td><td><code>azure</code></td><td>Azure CLI, REST, template or Resource Graph JSON</td><td>ARM template</td></tr>
       <tr><td>MikroTik RouterOS (6 and 7)</td><td><code>routeros</code></td><td>the output of <code>/export</code></td><td>script for <code>/import</code></td></tr>
       <tr><td>Forcepoint NGFW (SMC 6.10 to 7.4)</td><td><code>forcepoint</code></td><td>SMC REST API answers (<code>fwshift script forcepoint-dump</code>)</td><td>Python loader script</td></tr>
+      <tr><td>Terraform (hashicorp/aws, hashicorp/azurerm)</td><td><code>terraform-aws</code>, <code>terraform-azure</code></td><td><code>terraform show -json</code> of a state or a plan, or the raw state</td><td>HCL that creates the groups</td></tr>
       <tr><td>Neutral model</td><td><code>json</code> (target only)</td><td>—</td><td>the model, with source IDs, targets, hits</td></tr>
     </tbody>
   </table></div>
@@ -325,11 +327,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
   <h2><span class="num">2</span>Install and run</h2>
   <p>Each release has three packages: the project as a zip, a single file that runs with any Python 3.9 or newer, and a wheel for <code>pip</code>. Nothing else needs installing.</p>
   <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># one file, nothing to install</span>
-python3 fwshift-0.25.0.pyz --version
-python3 fwshift-0.25.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.26.0.pyz --version
+python3 fwshift-0.26.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 
 <span class="c"># or with pip</span>
-pip install fwshift-0.25.0-py3-none-any.whl
+pip install fwshift-0.26.0-py3-none-any.whl
 fwshift convert running-config.xml --to fortios -o fortigate.conf</pre></div>
   <p>The input may be <code>-</code> for standard input. The source format is detected (XML root elements, JSON keys, CLI keywords); give <code>--from</code> when detection could be ambiguous, for example <code>--from ip6tables</code>.</p>
 </section>
@@ -393,12 +395,12 @@ findings while reading:
   <div class="tablewrap"><table>
     <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure routeros forcepoint json</code>.</td></tr>
+      <tr><td><code>--to FORMAT</code></td><td>Target: <code>panos fortios checkpoint asa fmc fdm sophos pfsense opnsense sonicwall watchguard barracuda junos iptables ip6tables nftables nsx aws azure terraform-aws terraform-azure routeros forcepoint json</code>.</td></tr>
       <tr><td><code>--zone-map SRC=DST</code></td><td>Rename a zone or interface. For iptables, nftables and ASA, this is how a zone becomes an interface.</td></tr>
       <tr><td><code>--interface-map SRC=DST</code></td><td>Map a source interface to a target interface: FortiOS zone members, interface NAT, Sophos/SonicWall/FDM NAT interfaces, Barracuda source interfaces.</td></tr>
-      <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure; SonicWall object zones).</td></tr>
+      <tr><td><code>--zone-network ZONE=NET[,NET]</code></td><td>Networks behind a zone, for targets that cannot match a destination zone (ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Terraform; SonicWall object zones).</td></tr>
       <tr><td><code>--compare[=FILE]</code></td><td>Reads the output back (eleven targets) and reports every connection it decides differently from the source (section 13).</td></tr>
-      <tr><td><code>--inside-zone ZONE</code></td><td>AWS and Azure: a zone inside the VPC or the virtual network; only its addresses get security groups.</td></tr>
+      <tr><td><code>--inside-zone ZONE</code></td><td>AWS, Azure and Terraform: a zone inside the VPC or the virtual network; only its addresses get security groups.</td></tr>
       <tr><td><code>--app-map FILE</code></td><td>JSON of extra application-to-port mappings.</td></tr>
       <tr><td><code>--target-vsys</code>, <code>--target-device-group</code>, <code>--target-shared</code></td><td>Where PAN-OS output goes.</td></tr>
       <tr><td><code>--target-version SERIES</code></td><td>OPNsense: the series to write for, <code>24.7</code>, <code>25.1</code>, <code>25.7</code>, <code>26.1</code> or <code>26.7</code> (default).</td></tr>
@@ -578,6 +580,7 @@ m add nat-rule package Standard position bottom original-destination web-public 
     <a href="#azure"><b>Azure NSG</b><span>Azure JSON → ARM template</span></a>
     <a href="#routeros"><b>MikroTik RouterOS</b><span>/export → /import</span></a>
     <a href="#forcepoint"><b>Forcepoint NGFW</b><span>SMC REST → Python loader</span></a>
+    <a href="#terraform"><b>Terraform</b><span>state or plan → HCL</span></a>
   </div>
 
   <div class="filterbar">
@@ -1168,6 +1171,32 @@ fwshift convert router.rsc --to fortios -o fortigate.conf --report report.txt</p
  "services": {"service": [{"@ref": "service_group", "name": "app-dns"}]},
  "action": {"action": ["allow"]}, "options": {"log_level": "stored", "log_closing_mode": true}}</pre></div>
   </article>
+  <!-- terraform -->
+  <article class="brand" id="terraform">
+    <h3>Terraform (AWS and Azure)</h3>
+    <div class="ports"><span class="port"><i>IN</i><span><code>terraform show -json</code> of a state or a plan; the raw state</span></span><span class="port"><i>OUT</i><span>HCL (hashicorp/aws, hashicorp/azurerm)</span></span><span class="port"><i>ID</i><span>terraform-aws · terraform-azure</span></span></div>
+    <h4 class="sub">Export</h4>
+    <p><code>terraform show -json &gt; state.json</code> (refresh first: <code>terraform apply -refresh-only</code>), <code>terraform show -json plan.out &gt; plan.json</code> for a plan, or <code>terraform state pull</code>. FWShift reads the security groups, their rules, network ACLs, interfaces, instances, Elastic IPs, subnets and prefix lists of AWS, and the network security groups, rules, associations, application security groups, interfaces and virtual networks of Azure, and reads them as the AWS and Azure sources read the CLI answers.</p>
+    <h4 class="sub">Options</h4>
+    <p>Source: <code>--from terraform-aws</code> or <code>terraform-azure</code> for a state with both; <code>--policy</code> with the VPC (its id or <code>aws_vpc.NAME</code>) when the groups are in several. Target: as for <code>aws</code> and <code>azure</code>: <code>--zone-network</code>, <code>--inside-zone</code>, <code>--target-prefix</code>.</p>
+    <h4 class="sub">Output and loading</h4>
+    <p>A root module: <code>terraform init</code>, <code>terraform plan -var vpc_id=vpc-...</code> (AWS) or <code>-var resource_group_name=... -var subscription_id=...</code> (Azure), then <code>terraform apply</code>. It creates new groups only; a group of the same name makes the apply fail. <strong>The groups are attached to nothing</strong>: the <code># attach</code> comments and the outputs <code>fwshift_attach</code> and <code>fwshift_networks</code> say where they go.</p>
+    <h4 class="sub">Watch for</h4>
+    <ul class="watch">
+      <li>Members are the interfaces and instances of the same state (<code>TERRAFORM_MEMBERS</code>); a state with groups only converts nothing (<code>TERRAFORM_NO_MEMBERS</code>).</li>
+      <li>Inline rules repeat the separate rule resources after a refresh: each is read once; where they differ, the separate resource wins (<code>TERRAFORM_CONFLICT</code>).</li>
+      <li>In a plan, ids not known yet stand for the resources the configuration names (<code>TERRAFORM_REFERENCES</code>); a variable, a data source or a dynamic block makes what holds it not converted (<code>TERRAFORM_UNKNOWN</code>).</li>
+      <li>AWS Network Firewall, WAF and Azure Firewall in the state are named, not read (<code>TERRAFORM_NOT_READ</code>).</li>
+    </ul>
+    <div class="codebox"><span class="label">output · terraform-aws (one rule)</span><button class="copy" type="button">Copy</button><pre>resource "aws_vpc_security_group_ingress_rule" "g2_in_1" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "10.30.9.5/32"
+  description       = "FWShift: shop-web-in-4"
+}</pre></div>
+  </article>
   <p id="nowatch" hidden>No watch item matches that filter.</p>
 </section>
 
@@ -1399,6 +1428,7 @@ fwshift usage rules.v4 --logs kern.log --log-year 2026 --unchanged-since 2026-01
       <tr><td>Azure</td><td>All rules of a group of the same name; associates nothing</td><td><code>what-if</code>; incremental mode; associate by hand</td></tr>
       <tr><td>RouterOS</td><td>Nothing: chains and lists of its own; the jumps that switch it on are disabled</td><td>Import with <code>verbose=yes</code>; enable the jumps in Safe Mode</td></tr>
       <tr><td>Forcepoint</td><td>Nothing: a new policy on a template, installed on no engine; stops on a name that matches anything else</td><td><code>--show</code>, then <code>--dry-run</code>; keep the journal for <code>--undo</code></td></tr>
+      <tr><td>Terraform</td><td>Nothing: new groups, attached to nothing; the apply fails on a name that exists</td><td><code>terraform plan</code>; attach or associate by hand</td></tr>
       <tr><td>pfSense</td><td>Each restored area (Aliases, NAT, Rules)</td><td>A full backup</td></tr>
       <tr><td>OPNsense</td><td>Each restored area (Aliases; NAT with NPt; the rules of both pages)</td><td>A full backup; <code>--target-version</code> of the firewall</td></tr>
       <tr><td>ASA</td><td>Interface <code>access-group</code> bindings; <code>global_access</code> on every interface</td><td>Read the <code>access-group</code> lines</td></tr>

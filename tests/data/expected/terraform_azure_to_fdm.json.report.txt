@@ -1,0 +1,57 @@
+FWShift conversion report
+  source: terraform-azure
+  target: fdm
+
+Summary
+  Security rules:     86   exact 74, approximated 0, needs review 0, skipped 12
+  Address groups:      5   exact 5, approximated 0, needs review 0, skipped 0
+  Services:            8   exact 8, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_DYNAMIC: service tags and application security groups whose addresses only Azure knows: Internet, VirtualNetwork. They are dynamic groups, which only an Azure target writes again; add the service tags (az network list-service-tags) and the network interfaces to the export to convert them for other targets
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: azurerm_firewall. The converted policy does not hold what they do
+  [needs-review] FDM_LOAD: the output is a file for the configuration import of a Firewall Device Manager (POST /action/uploadconfigfile, then /action/configimport). Its first object must say the hardware model and software version of the target: copy both from the first object of an export of the target device. The import adds to what the device has: its access rules stay above the rules of this file and decide first, its default action stays what it is, and its NAT rules come first. Nothing is in force until the changes are deployed: look at them in the pending changes before that
+  [needs-review] ZONES_REQUIRED: the rules name these security zones, which must exist on the target (or be renamed with --zone-map): outside, nsg-web, nsg-app, nsg-db. Zones are not written: an import would take the interfaces out of a zone that exists
+  [info] AZURE_ANY_PROTOCOL: protocol '*' is read as Microsoft documents it: TCP, UDP and ICMP; with ports, an allow rule allows TCP and UDP on them and a deny rule blocks ICMP as well. If Azure also matches other protocols with it, a deny rule '*' blocks more there than the converted rule
+  [info] AZURE_UNFILTERED: network security groups do not filter the platform's own traffic (168.63.129.16 and 169.254.169.254: DHCP, DNS, the instance metadata service, health probes); and the security admin rules of Azure Virtual Network Manager, which come first, are not in this export
+  [info] AZURE_ZONES: each network security group is a zone, and everything else the zone outside. The networks behind them, for --zone-network: --zone-network nsg-web=10.40.1.0/24 --zone-network nsg-app=10.40.2.0/24 --zone-network nsg-db=10.40.3.0/24
+  [info] AZURE_COMPOSED: traffic between resources behind the groups passes the outbound rules of one and the inbound rules of the other: 58 rules say what both allow, in the order of the two
+  [info] AZURE_DEFAULT_RULES_ADDED: the export does not list the default rules of these groups (a template never does); the six rules every group has were added: nsg-web, nsg-app, nsg-db
+  [info] AZURE_ASG_MEMBERS: the members of these application security groups are the network interfaces in the export: asg-app, asg-web. A member whose interface is not in it (another resource group, another subscription) is not in the group
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the Azure CLI for the same resources: 2 azurerm_application_security_group, 3 azurerm_network_interface, 3 azurerm_network_interface_application_security_group_association, 3 azurerm_network_security_group, 2 azurerm_network_security_rule, 3 azurerm_subnet, 3 azurerm_subnet_network_security_group_association, 1 azurerm_virtual_network. Resources outside this state (made by hand, or by another state) are not in it
+  [info] EXISTING_OBJECTS: an import changes what the device has under the same name: an object or a rule of this file replaces the one on the target. --target-prefix gives every object that is created a name of its own
+
+Security rules
+  nsg-web:https-in  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically. The rule is left out: a Device Manager has no rules that are switched off.
+  nsg-web:AllowVnetInBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically. The rule is left out: a Device Manager has no rules that are switched off.
+  nsg-web:no-internet  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically. The rule is left out: a Device Manager has no rules that are switched off. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically. The rule is left out: a Device Manager has no rules that are switched off.
+  nsg-web:AllowInternetOutBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically. The rule is left out: a Device Manager has no rules that are switched off.
+  nsg-app:icmp-vnet  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically. The rule is left out: a Device Manager has no rules that are switched off.
+  nsg-app:AllowVnetInBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically. The rule is left out: a Device Manager has no rules that are switched off.
+  nsg-app:AllowVnetOutBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically. The rule is left out: a Device Manager has no rules that are switched off.
+  nsg-app:AllowInternetOutBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically. The rule is left out: a Device Manager has no rules that are switched off.
+  nsg-db:AllowVnetInBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically. The rule is left out: a Device Manager has no rules that are switched off.
+  nsg-db:AllowVnetOutBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically. The rule is left out: a Device Manager has no rules that are switched off.
+  nsg-db:AllowInternetOutBound  ->  skipped
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically. The rule is left out: a Device Manager has no rules that are switched off.
+
+Services
+  tcp-udp-icmp  ->  exact  (emitted as tcp-udp-icmp, tcp-all, udp-all, icmp)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-udp-icmp' of 'tcp-all', 'udp-all', 'icmp'
+  tcp-udp-icmp-2  ->  exact  (emitted as tcp-udp-icmp-2, tcp-all, udp-all, icmp)
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-udp-icmp-2' of 'tcp-all', 'udp-all', 'icmp'
+  tcp-8080,8443  ->  exact  (emitted as tcp-8080_8443, tcp-8080, tcp-8443)
+      [info] RENAMED: renamed to 'tcp-8080_8443' to fit the target's naming rules
+      [info] SERVICE_SPLIT: a port object holds one port or range of one protocol: written as port group 'tcp-8080_8443' of 'tcp-8080', 'tcp-8443'

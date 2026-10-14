@@ -1,0 +1,335 @@
+set address h-10.30.1.10 ip-netmask 10.30.1.10
+set address h-2001_db8_30_1__10 ip-netmask 2001:db8:30:1::10
+set address-group shop-web static [ h-10.30.1.10 h-2001_db8_30_1__10 ]
+set address-group shop-web description "web tier (security group sg-0a1b2c3d4e5f63021)"
+set address n-10.30.2.20_31 ip-netmask 10.30.2.20/31
+set address-group shop-app static n-10.30.2.20_31
+set address-group shop-app description "app tier (security group sg-0a1b2c3d4e5f63022)"
+set address h-10.30.9.5 ip-netmask 10.30.9.5
+set address-group shop-bastion static h-10.30.9.5
+set address-group shop-bastion description "jump host (security group sg-0a1b2c3d4e5f63024)"
+set address h-10.30.3.30 ip-netmask 10.30.3.30
+set address-group shop-db static h-10.30.3.30
+set address-group shop-db description "database (security group sg-0a1b2c3d4e5f63023)"
+set address n-10.30.0.0_16 ip-netmask 10.30.0.0/16
+set address n-2001_db8_30___56 ip-netmask 2001:db8:30::/56
+set address-group shop static [ n-10.30.0.0_16 n-2001_db8_30___56 ]
+set address-group shop description "the addresses of VPC vpc-0a1b2c3d4e5f63001 (its CIDR blocks)"
+set address-group "shop-app members" static n-10.30.2.20_31
+set address-group "shop-app members" description "the addresses whose groups are exactly shop-app"
+set address-group "shop-db members" static h-10.30.3.30
+set address-group "shop-db members" description "the addresses whose groups are exactly shop-db"
+set address n-198.51.100.0_25 ip-netmask 198.51.100.0/25
+set address n-203.0.113.64_26 ip-netmask 203.0.113.64/26
+set address-group corp-offices static [ n-198.51.100.0_25 n-203.0.113.64_26 ]
+set address-group corp-offices description "prefix list pl-0a1b2c3d4e5f63061"
+set address-group "shop-web members" static [ h-10.30.1.10 h-2001_db8_30_1__10 ]
+set address-group "shop-web members" description "the addresses whose groups are exactly shop-web"
+set address sg-0f9e8d7c6b5a43001 ip-netmask 0.0.0.0/32
+set address sg-0f9e8d7c6b5a43001 description "FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically"
+set service shop-db-in-1 protocol tcp port 1-65535
+set service shop-db-in-1 description "network ACL acl-0a1b2c3d4e5f63031"
+set service shop-db-in-2 protocol tcp port 1024-65535
+set service shop-db-in-2 description "network ACL acl-0a1b2c3d4e5f63031"
+set service shop-db-in-3 protocol tcp port 1024-65535
+set service shop-db-in-3 description "network ACL acl-0a1b2c3d4e5f63031"
+set service shop-db-in-4 protocol tcp port 1-65535
+set service shop-db-in-4 description "network ACL acl-0a1b2c3d4e5f63031"
+set service tcp-8080 protocol tcp port 8080
+set service tcp-22 protocol tcp port 22
+set service tcp-5432 protocol tcp port 5432
+set service udp-53 protocol udp port 53
+set service tcp-443 protocol tcp port 443
+set service tcp-80 protocol tcp port 80
+set rulebase security rules shop-db-in-shop-db from any
+set rulebase security rules shop-db-in-shop-db to any
+set rulebase security rules shop-db-in-shop-db source 10.30.1.0/24
+set rulebase security rules shop-db-in-shop-db destination 10.30.3.0/24
+set rulebase security rules shop-db-in-shop-db source-user any
+set rulebase security rules shop-db-in-shop-db category any
+set rulebase security rules shop-db-in-shop-db application any
+set rulebase security rules shop-db-in-shop-db service shop-db-in-1
+set rulebase security rules shop-db-in-shop-db action drop
+set rulebase security rules shop-db-in-shop-db log-end no
+set rulebase security rules shop-db-in-shop-db description "denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013"
+set rulebase security rules shop-db-in-shop-db-2 from any
+set rulebase security rules shop-db-in-shop-db-2 to any
+set rulebase security rules shop-db-in-shop-db-2 source [ 0.0.0.0-10.29.255.255 10.31.0.0-255.255.255.255 ]
+set rulebase security rules shop-db-in-shop-db-2 destination 10.30.3.0/24
+set rulebase security rules shop-db-in-shop-db-2 source-user any
+set rulebase security rules shop-db-in-shop-db-2 category any
+set rulebase security rules shop-db-in-shop-db-2 application any
+set rulebase security rules shop-db-in-shop-db-2 service shop-db-in-2
+set rulebase security rules shop-db-in-shop-db-2 action drop
+set rulebase security rules shop-db-in-shop-db-2 log-end no
+set rulebase security rules shop-db-in-shop-db-2 disabled yes
+set rulebase security rules shop-db-in-shop-db-2 description "FWSHIFT: disabled by the converter, see the report. denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013"
+set rulebase security rules shop-db-in-shop-db-3 from any
+set rulebase security rules shop-db-in-shop-db-3 to any
+set rulebase security rules shop-db-in-shop-db-3 source [ 10.30.0.0/24 10.30.2.0/24 10.30.4.0-10.30.255.255 ]
+set rulebase security rules shop-db-in-shop-db-3 destination 10.30.3.0/24
+set rulebase security rules shop-db-in-shop-db-3 source-user any
+set rulebase security rules shop-db-in-shop-db-3 category any
+set rulebase security rules shop-db-in-shop-db-3 application any
+set rulebase security rules shop-db-in-shop-db-3 service shop-db-in-3
+set rulebase security rules shop-db-in-shop-db-3 action drop
+set rulebase security rules shop-db-in-shop-db-3 log-end no
+set rulebase security rules shop-db-in-shop-db-3 disabled yes
+set rulebase security rules shop-db-in-shop-db-3 description "FWSHIFT: disabled by the converter, see the report. denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013"
+set rulebase security rules shop-db-in-shop-db-3-apps from any
+set rulebase security rules shop-db-in-shop-db-3-apps to any
+set rulebase security rules shop-db-in-shop-db-3-apps source [ 10.30.0.0/24 10.30.2.0/24 10.30.4.0-10.30.255.255 ]
+set rulebase security rules shop-db-in-shop-db-3-apps destination 10.30.3.0/24
+set rulebase security rules shop-db-in-shop-db-3-apps source-user any
+set rulebase security rules shop-db-in-shop-db-3-apps category any
+set rulebase security rules shop-db-in-shop-db-3-apps application [ icmp ping ]
+set rulebase security rules shop-db-in-shop-db-3-apps service application-default
+set rulebase security rules shop-db-in-shop-db-3-apps action drop
+set rulebase security rules shop-db-in-shop-db-3-apps log-end no
+set rulebase security rules shop-db-in-shop-db-3-apps disabled yes
+set rulebase security rules shop-db-in-shop-db-3-apps description "FWSHIFT: disabled by the converter, see the report. denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013"
+set rulebase security rules shop-db-in-shop-db-4 from any
+set rulebase security rules shop-db-in-shop-db-4 to any
+set rulebase security rules shop-db-in-shop-db-4 source 10.30.1.0/24
+set rulebase security rules shop-db-in-shop-db-4 destination 10.30.3.0/24
+set rulebase security rules shop-db-in-shop-db-4 source-user any
+set rulebase security rules shop-db-in-shop-db-4 category any
+set rulebase security rules shop-db-in-shop-db-4 application any
+set rulebase security rules shop-db-in-shop-db-4 service shop-db-in-4
+set rulebase security rules shop-db-in-shop-db-4 action drop
+set rulebase security rules shop-db-in-shop-db-4 log-end no
+set rulebase security rules shop-db-in-shop-db-4 disabled yes
+set rulebase security rules shop-db-in-shop-db-4 description "FWSHIFT: disabled by the converter, see the report. denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013"
+set rulebase security rules shop-db-in-shop-db-4-apps from any
+set rulebase security rules shop-db-in-shop-db-4-apps to any
+set rulebase security rules shop-db-in-shop-db-4-apps source 10.30.1.0/24
+set rulebase security rules shop-db-in-shop-db-4-apps destination 10.30.3.0/24
+set rulebase security rules shop-db-in-shop-db-4-apps source-user any
+set rulebase security rules shop-db-in-shop-db-4-apps category any
+set rulebase security rules shop-db-in-shop-db-4-apps application [ icmp ping ]
+set rulebase security rules shop-db-in-shop-db-4-apps service application-default
+set rulebase security rules shop-db-in-shop-db-4-apps action drop
+set rulebase security rules shop-db-in-shop-db-4-apps log-end no
+set rulebase security rules shop-db-in-shop-db-4-apps disabled yes
+set rulebase security rules shop-db-in-shop-db-4-apps description "FWSHIFT: disabled by the converter, see the report. denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013"
+set rulebase security rules shop-app-to-shop-db from any
+set rulebase security rules shop-app-to-shop-db to any
+set rulebase security rules shop-app-to-shop-db source 10.30.2.20/31
+set rulebase security rules shop-app-to-shop-db destination 10.30.3.30
+set rulebase security rules shop-app-to-shop-db source-user any
+set rulebase security rules shop-app-to-shop-db category any
+set rulebase security rules shop-app-to-shop-db application any
+set rulebase security rules shop-app-to-shop-db service tcp-5432
+set rulebase security rules shop-app-to-shop-db action allow
+set rulebase security rules shop-app-to-shop-db log-end no
+set rulebase security rules shop-app-to-shop-db description "outbound rule of shop-app and inbound rule of shop-db"
+set rulebase security rules shop-app-outbound-rest from any
+set rulebase security rules shop-app-outbound-rest to any
+set rulebase security rules shop-app-outbound-rest source "shop-app members"
+set rulebase security rules shop-app-outbound-rest destination [ shop 192.0.2.10 192.0.2.5 ]
+set rulebase security rules shop-app-outbound-rest source-user any
+set rulebase security rules shop-app-outbound-rest category any
+set rulebase security rules shop-app-outbound-rest application any
+set rulebase security rules shop-app-outbound-rest service any
+set rulebase security rules shop-app-outbound-rest action drop
+set rulebase security rules shop-app-outbound-rest log-end no
+set rulebase security rules shop-app-outbound-rest description "what the outbound rules of shop-app do not allow inside the VPC"
+set rulebase security rules shop-db-outbound-rest from any
+set rulebase security rules shop-db-outbound-rest to any
+set rulebase security rules shop-db-outbound-rest source "shop-db members"
+set rulebase security rules shop-db-outbound-rest destination [ shop 192.0.2.10 192.0.2.5 ]
+set rulebase security rules shop-db-outbound-rest source-user any
+set rulebase security rules shop-db-outbound-rest category any
+set rulebase security rules shop-db-outbound-rest application any
+set rulebase security rules shop-db-outbound-rest service any
+set rulebase security rules shop-db-outbound-rest action drop
+set rulebase security rules shop-db-outbound-rest log-end no
+set rulebase security rules shop-db-outbound-rest description "what the outbound rules of shop-db do not allow inside the VPC"
+set rulebase security rules shop-web-to-shop-app from any
+set rulebase security rules shop-web-to-shop-app to any
+set rulebase security rules shop-web-to-shop-app source 10.30.1.10
+set rulebase security rules shop-web-to-shop-app destination 10.30.2.20/31
+set rulebase security rules shop-web-to-shop-app source-user any
+set rulebase security rules shop-web-to-shop-app category any
+set rulebase security rules shop-web-to-shop-app application any
+set rulebase security rules shop-web-to-shop-app service tcp-8080
+set rulebase security rules shop-web-to-shop-app action allow
+set rulebase security rules shop-web-to-shop-app log-end no
+set rulebase security rules shop-web-to-shop-app description "outbound rule of shop-web and inbound rule of shop-app"
+set rulebase security rules shop-web-outbound-rest from any
+set rulebase security rules shop-web-outbound-rest to any
+set rulebase security rules shop-web-outbound-rest source "shop-web members"
+set rulebase security rules shop-web-outbound-rest destination [ shop 192.0.2.10 192.0.2.5 ]
+set rulebase security rules shop-web-outbound-rest source-user any
+set rulebase security rules shop-web-outbound-rest category any
+set rulebase security rules shop-web-outbound-rest application any
+set rulebase security rules shop-web-outbound-rest service any
+set rulebase security rules shop-web-outbound-rest action drop
+set rulebase security rules shop-web-outbound-rest log-end no
+set rulebase security rules shop-web-outbound-rest description "what the outbound rules of shop-web do not allow inside the VPC"
+set rulebase security rules shop-web-in-1 from any
+set rulebase security rules shop-web-in-1 to any
+set rulebase security rules shop-web-in-1 source 0.0.0.0/0
+set rulebase security rules shop-web-in-1 destination [ shop-web 192.0.2.10 ]
+set rulebase security rules shop-web-in-1 source-user any
+set rulebase security rules shop-web-in-1 category any
+set rulebase security rules shop-web-in-1 application any
+set rulebase security rules shop-web-in-1 service tcp-443
+set rulebase security rules shop-web-in-1 action allow
+set rulebase security rules shop-web-in-1 log-end no
+set rulebase security rules shop-web-in-1 description https
+set rulebase security rules shop-web-in-2 from any
+set rulebase security rules shop-web-in-2 to any
+set rulebase security rules shop-web-in-2 source ::/0
+set rulebase security rules shop-web-in-2 destination [ shop-web 192.0.2.10 ]
+set rulebase security rules shop-web-in-2 source-user any
+set rulebase security rules shop-web-in-2 category any
+set rulebase security rules shop-web-in-2 application any
+set rulebase security rules shop-web-in-2 service tcp-443
+set rulebase security rules shop-web-in-2 action allow
+set rulebase security rules shop-web-in-2 log-end no
+set rulebase security rules shop-web-in-2 description https
+set rulebase security rules shop-web-in-3 from any
+set rulebase security rules shop-web-in-3 to any
+set rulebase security rules shop-web-in-3 source 0.0.0.0/0
+set rulebase security rules shop-web-in-3 destination [ shop-web 192.0.2.10 ]
+set rulebase security rules shop-web-in-3 source-user any
+set rulebase security rules shop-web-in-3 category any
+set rulebase security rules shop-web-in-3 application any
+set rulebase security rules shop-web-in-3 service tcp-80
+set rulebase security rules shop-web-in-3 action allow
+set rulebase security rules shop-web-in-3 log-end no
+set rulebase security rules shop-web-in-3 description http
+set rulebase security rules shop-web-in-4 from any
+set rulebase security rules shop-web-in-4 to any
+set rulebase security rules shop-web-in-4 source shop-bastion
+set rulebase security rules shop-web-in-4 destination [ shop-web 192.0.2.10 ]
+set rulebase security rules shop-web-in-4 source-user any
+set rulebase security rules shop-web-in-4 category any
+set rulebase security rules shop-web-in-4 application any
+set rulebase security rules shop-web-in-4 service tcp-22
+set rulebase security rules shop-web-in-4 action allow
+set rulebase security rules shop-web-in-4 log-end no
+set rulebase security rules shop-web-in-4 description "ssh from bastion"
+set rulebase security rules shop-web-in-5 from any
+set rulebase security rules shop-web-in-5 to any
+set rulebase security rules shop-web-in-5 source 10.0.0.0/8
+set rulebase security rules shop-web-in-5 destination [ shop-web 192.0.2.10 ]
+set rulebase security rules shop-web-in-5 source-user any
+set rulebase security rules shop-web-in-5 category any
+set rulebase security rules shop-web-in-5 application icmp
+set rulebase security rules shop-web-in-5 service application-default
+set rulebase security rules shop-web-in-5 action allow
+set rulebase security rules shop-web-in-5 log-end no
+set rulebase security rules shop-web-in-5 description "fragmentation needed"
+set rulebase security rules shop-app-in-1 from any
+set rulebase security rules shop-app-in-1 to any
+set rulebase security rules shop-app-in-1 source shop-web
+set rulebase security rules shop-app-in-1 destination shop-app
+set rulebase security rules shop-app-in-1 source-user any
+set rulebase security rules shop-app-in-1 category any
+set rulebase security rules shop-app-in-1 application any
+set rulebase security rules shop-app-in-1 service tcp-8080
+set rulebase security rules shop-app-in-1 action allow
+set rulebase security rules shop-app-in-1 log-end no
+set rulebase security rules shop-app-in-1 description "from web"
+set rulebase security rules shop-app-in-2 from any
+set rulebase security rules shop-app-in-2 to any
+set rulebase security rules shop-app-in-2 source shop-bastion
+set rulebase security rules shop-app-in-2 destination shop-app
+set rulebase security rules shop-app-in-2 source-user any
+set rulebase security rules shop-app-in-2 category any
+set rulebase security rules shop-app-in-2 application any
+set rulebase security rules shop-app-in-2 service tcp-22
+set rulebase security rules shop-app-in-2 action allow
+set rulebase security rules shop-app-in-2 log-end no
+set rulebase security rules shop-app-in-2 description ssh
+set rulebase security rules shop-app-in-3 from any
+set rulebase security rules shop-app-in-3 to any
+set rulebase security rules shop-app-in-3 source shop-app
+set rulebase security rules shop-app-in-3 destination shop-app
+set rulebase security rules shop-app-in-3 source-user any
+set rulebase security rules shop-app-in-3 category any
+set rulebase security rules shop-app-in-3 application any
+set rulebase security rules shop-app-in-3 service any
+set rulebase security rules shop-app-in-3 action allow
+set rulebase security rules shop-app-in-3 log-end no
+set rulebase security rules shop-app-in-3 description cluster
+set rulebase security rules shop-bastion-in-1 from any
+set rulebase security rules shop-bastion-in-1 to any
+set rulebase security rules shop-bastion-in-1 source 198.51.100.0/24
+set rulebase security rules shop-bastion-in-1 destination [ shop-bastion 192.0.2.5 ]
+set rulebase security rules shop-bastion-in-1 source-user any
+set rulebase security rules shop-bastion-in-1 category any
+set rulebase security rules shop-bastion-in-1 application any
+set rulebase security rules shop-bastion-in-1 service tcp-22
+set rulebase security rules shop-bastion-in-1 action allow
+set rulebase security rules shop-bastion-in-1 log-end no
+set rulebase security rules shop-bastion-in-1 description admins
+set rulebase security rules shop-bastion-in-3 from any
+set rulebase security rules shop-bastion-in-3 to any
+set rulebase security rules shop-bastion-in-3 source 198.51.100.0/24
+set rulebase security rules shop-bastion-in-3 destination [ shop-bastion 192.0.2.5 ]
+set rulebase security rules shop-bastion-in-3 source-user any
+set rulebase security rules shop-bastion-in-3 category any
+set rulebase security rules shop-bastion-in-3 application [ icmp ping ]
+set rulebase security rules shop-bastion-in-3 service application-default
+set rulebase security rules shop-bastion-in-3 action allow
+set rulebase security rules shop-bastion-in-3 log-end no
+set rulebase security rules shop-bastion-in-4 from any
+set rulebase security rules shop-bastion-in-4 to any
+set rulebase security rules shop-bastion-in-4 source sg-0f9e8d7c6b5a43001
+set rulebase security rules shop-bastion-in-4 destination [ shop-bastion 192.0.2.5 ]
+set rulebase security rules shop-bastion-in-4 source-user any
+set rulebase security rules shop-bastion-in-4 category any
+set rulebase security rules shop-bastion-in-4 application any
+set rulebase security rules shop-bastion-in-4 service tcp-22
+set rulebase security rules shop-bastion-in-4 action allow
+set rulebase security rules shop-bastion-in-4 log-end no
+set rulebase security rules shop-bastion-in-4 disabled yes
+set rulebase security rules shop-bastion-in-4 description "FWSHIFT: disabled by the converter, see the report. audit account"
+set rulebase security rules shop-db-in-1 from any
+set rulebase security rules shop-db-in-1 to any
+set rulebase security rules shop-db-in-1 source 10.30.2.0/24
+set rulebase security rules shop-db-in-1 destination shop-db
+set rulebase security rules shop-db-in-1 source-user any
+set rulebase security rules shop-db-in-1 category any
+set rulebase security rules shop-db-in-1 application any
+set rulebase security rules shop-db-in-1 service tcp-5432
+set rulebase security rules shop-db-in-1 action allow
+set rulebase security rules shop-db-in-1 log-end no
+set rulebase security rules shop-db-in-1 description postgres
+set rulebase security rules shop-db-in-2 from any
+set rulebase security rules shop-db-in-2 to any
+set rulebase security rules shop-db-in-2 source 10.30.9.0/24
+set rulebase security rules shop-db-in-2 destination shop-db
+set rulebase security rules shop-db-in-2 source-user any
+set rulebase security rules shop-db-in-2 category any
+set rulebase security rules shop-db-in-2 application any
+set rulebase security rules shop-db-in-2 service tcp-5432
+set rulebase security rules shop-db-in-2 action allow
+set rulebase security rules shop-db-in-2 log-end no
+set rulebase security rules shop-db-in-2 description postgres
+set rulebase security rules shop-web-out-2 from any
+set rulebase security rules shop-web-out-2 to any
+set rulebase security rules shop-web-out-2 source shop-web
+set rulebase security rules shop-web-out-2 destination corp-offices
+set rulebase security rules shop-web-out-2 source-user any
+set rulebase security rules shop-web-out-2 category any
+set rulebase security rules shop-web-out-2 application any
+set rulebase security rules shop-web-out-2 service tcp-443
+set rulebase security rules shop-web-out-2 action allow
+set rulebase security rules shop-web-out-2 log-end no
+set rulebase security rules shop-web-out-2 description "to the offices"
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."

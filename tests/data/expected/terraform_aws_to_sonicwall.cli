@@ -1,0 +1,76 @@
+configure terminal
+address-object ipv4 "h 10.30.1.10" host 10.30.1.10 zone LAN
+address-object ipv6 "h 2001:db8:30:1::10" host 2001:db8:30:1::10 zone LAN
+address-object ipv4 "n 10.30.2.20_31" network 10.30.2.20 255.255.255.254 zone LAN
+address-object ipv4 "h 10.30.9.5" host 10.30.9.5 zone LAN
+address-object ipv4 "h 10.30.3.30" host 10.30.3.30 zone LAN
+address-object ipv4 "n 10.30.0.0_16" network 10.30.0.0 255.255.0.0 zone LAN
+address-object ipv6 "n 2001:db8:30::_56" network 2001:db8:30:: /56 zone LAN
+address-object ipv4 "n 198.51.100.0_25" network 198.51.100.0 255.255.255.128 zone LAN
+address-object ipv4 "n 203.0.113.64_26" network 203.0.113.64 255.255.255.192 zone LAN
+address-object ipv4 "sg-0f9e8d7c6b5a43001" host 192.0.0.8 zone LAN
+address-object ipv4 "h 192.0.2.10" host 192.0.2.10 zone LAN
+address-object ipv4 "h 192.0.2.5" host 192.0.2.5 zone LAN
+address-group ipv4 "shop-web"
+    address-object ipv4 "h 10.30.1.10"
+    exit
+address-group ipv6 "shop-web v6"
+    address-object ipv6 "h 2001:db8:30:1::10"
+    exit
+address-group ipv4 "shop-app"
+    address-object ipv4 "n 10.30.2.20_31"
+    exit
+address-group ipv4 "shop-bastion"
+    address-object ipv4 "h 10.30.9.5"
+    exit
+address-group ipv4 "shop-db"
+    address-object ipv4 "h 10.30.3.30"
+    exit
+address-group ipv4 "shop"
+    address-object ipv4 "n 10.30.0.0_16"
+    exit
+address-group ipv6 "shop v6"
+    address-object ipv6 "n 2001:db8:30::_56"
+    exit
+address-group ipv4 "shop-app members"
+    address-object ipv4 "n 10.30.2.20_31"
+    exit
+address-group ipv4 "shop-db members"
+    address-object ipv4 "h 10.30.3.30"
+    exit
+address-group ipv4 "corp-offices"
+    address-object ipv4 "n 198.51.100.0_25"
+    address-object ipv4 "n 203.0.113.64_26"
+    exit
+address-group ipv4 "shop-web members"
+    address-object ipv4 "h 10.30.1.10"
+    exit
+address-group ipv6 "shop-web members v6"
+    address-object ipv6 "h 2001:db8:30:1::10"
+    exit
+service-object "shop-db-in-1" TCP 1 65535
+service-object "shop-db-in-2" TCP 1024 65535
+service-object "tcp-8080" TCP 8080 8080
+service-object "tcp-22" TCP 22 22
+service-object "tcp-5432" TCP 5432 5432
+service-object "udp-53" UDP 53 53
+service-object "tcp-443" TCP 443 443
+service-object "tcp-80" TCP 80 80
+nat-policy inbound any outbound any source name "h 10.30.1.10" translated-source name "h 192.0.2.10" destination any translated-destination original service any translated-service original
+    name "public-192.0.2.10"
+    comment "public address of eni-0a1b2c3d4e"
+    exit
+nat-policy inbound any outbound any source any translated-source original destination name "h 192.0.2.10" translated-destination name "h 10.30.1.10" service any translated-service original
+    name "public-192.0.2.10 in"
+    comment "inbound of public-192.0.2.10"
+    exit
+nat-policy inbound any outbound any source name "h 10.30.9.5" translated-source name "h 192.0.2.5" destination any translated-destination original service any translated-service original
+    name "public-192.0.2.5"
+    comment "public address of eni-0a1b2c3d4e"
+    exit
+nat-policy inbound any outbound any source any translated-source original destination name "h 192.0.2.5" translated-destination name "h 10.30.9.5" service any translated-service original
+    name "public-192.0.2.5 in"
+    comment "inbound of public-192.0.2.5"
+    exit
+commit
+exit

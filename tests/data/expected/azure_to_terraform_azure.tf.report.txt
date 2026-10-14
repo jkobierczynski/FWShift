@@ -1,0 +1,253 @@
+FWShift conversion report
+  source: azure
+  target: terraform-azure
+
+Summary
+  Security rules:    116   exact 0, approximated 52, needs review 64 (64 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_DYNAMIC: service tags and application security groups whose addresses only Azure knows: Internet, VirtualNetwork. They are dynamic groups, which only an Azure target writes again; add the service tags (az network list-service-tags) and the network interfaces to the export to convert them for other targets
+  [needs-review] AZURE_ONE_GROUP: no zone has networks (--zone-network): one group holds every rule, inbound and outbound; associate it with every subnet the policy is for
+  [needs-review] TERRAFORM_LOAD: the output is Terraform configuration (section 10): terraform plan -var resource_group_name=... shows what it creates, terraform apply creates new network security groups with their rules; a group of the same name in the resource group makes it fail (it is not in the state). Then associate each group with the subnets of its networks (the comments and the output fwshift_networks), with azurerm_subnet_network_security_group_association
+  [info] AZURE_ANY_PROTOCOL: protocol '*' is read as Microsoft documents it: TCP, UDP and ICMP; with ports, an allow rule allows TCP and UDP on them and a deny rule blocks ICMP as well. If Azure also matches other protocols with it, a deny rule '*' blocks more there than the converted rule
+  [info] AZURE_UNFILTERED: network security groups do not filter the platform's own traffic (168.63.129.16 and 169.254.169.254: DHCP, DNS, the instance metadata service, health probes); and the security admin rules of Azure Virtual Network Manager, which come first, are not in this export
+  [info] AZURE_ZONES: each network security group is a zone, and everything else the zone outside. The networks behind them, for --zone-network: --zone-network nsg-web=10.30.1.0/24,2001:db8:30:1::/64 --zone-network nsg-app=10.30.2.0/24 --zone-network nsg-db=10.30.3.20
+  [info] AZURE_COMPOSED: traffic between resources behind the groups passes the outbound rules of one and the inbound rules of the other: 80 rules say what both allow, in the order of the two
+  [info] AZURE_ASG_MEMBERS: the members of these application security groups are the network interfaces in the export: asg-db, asg-web. A member whose interface is not in it (another resource group, another subscription) is not in the group
+  [info] AZURE_DEFAULTS_OVERRIDDEN: each list ends in the default of the source, which comes before the default rules of Azure: they no longer let the virtual network, the load balancer's health probes or the internet through unless a rule does
+
+Security rules
+  nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:Deny-Partner  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone outside, nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone outside, nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-web:Allow-App-Out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-web, outside, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:Allow-Storage  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-web, outside, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:Deny-Internet  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-web, outside; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-web:AllowVnetOutBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-web, outside, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:AllowInternetOutBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-web, outside, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:DenyAllOutBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-web, outside; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, nsg-app, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:Allow-Esp-Partner  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, nsg-app, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:Allow-Probe  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, nsg-app, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:Deny-VNet  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone outside, nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, nsg-app, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, nsg-app, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone outside, nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:Allow-Db  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, outside, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:Allow-Sql  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, outside, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:Allow-Dns  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, outside, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:Deny-Out  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app, outside; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:AllowVnetOutBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, outside, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:AllowInternetOutBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, outside, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:DenyAllOutBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app, outside; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, nsg-db, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-db:Allow-Old-Gre  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, nsg-db, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, nsg-db, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-db:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, nsg-db, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-db:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone outside, nsg-db; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-db:AllowVnetOutBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-db, outside, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-db:AllowInternetOutBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-db, outside, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-db:DenyAllOutBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-db, outside; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-web:Allow-App-Out+nsg-web:Deny-Partner  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-web:Allow-App-Out+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:Allow-App-Out+nsg-web:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:Deny-Partner  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-web:DenyAllOutBound to nsg-web  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-web:Allow-App-Out+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-web, nsg-app, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:Allow-App-Out+nsg-app:Deny-VNet  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-web, nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-web:Allow-App-Out+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-web, nsg-app, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:Allow-App-Out+nsg-app:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-web, nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-web:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-web, nsg-app, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-app:Deny-VNet  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-web, nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-web:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-web, nsg-app, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-web, nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-web:DenyAllOutBound to nsg-app  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-web, nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-web:Allow-App-Out+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-web, nsg-db, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:Allow-App-Out+nsg-db:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-web, nsg-db; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-web:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-web, nsg-db, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-web, nsg-db, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-web, nsg-db; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-web:DenyAllOutBound to nsg-db  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-web, nsg-db; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:Allow-Db+nsg-web:Deny-Partner  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app, nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:Allow-Db+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:Allow-Db+nsg-web:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app, nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:Allow-Dns+nsg-web:Deny-Partner  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app, nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:Allow-Dns+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:Allow-Dns+nsg-web:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app, nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:Deny-Out to nsg-web  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app, nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:Deny-Partner  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app, nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app, nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:DenyAllOutBound to nsg-web  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app, nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:Allow-Db+nsg-app:Deny-VNet  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:Allow-Db+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:Allow-Db+nsg-app:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:Allow-Dns+nsg-app:Deny-VNet  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:Allow-Dns+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:Allow-Dns+nsg-app:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:Deny-Out to nsg-app  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-app:Deny-VNet  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:DenyAllOutBound to nsg-app  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:Allow-Db+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, nsg-db, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:Allow-Db+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, nsg-db, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:Allow-Db+nsg-db:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app, nsg-db; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:Allow-Dns+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, nsg-db, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:Allow-Dns+nsg-db:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app, nsg-db; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:Deny-Out to nsg-db  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app, nsg-db; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, nsg-db, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-app, nsg-db, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app, nsg-db; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-app:DenyAllOutBound to nsg-db  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-app, nsg-db; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-db, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-db, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-db, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:Deny-Partner  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-db, nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-db, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-db, nsg-web, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-db, nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-db:DenyAllOutBound to nsg-web  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-db, nsg-web; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-db:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-db, nsg-app, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-app:Deny-VNet  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-db, nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-db:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-db, nsg-app, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-db, nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-db:DenyAllOutBound to nsg-app  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-db, nsg-app; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-db:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-db, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone nsg-db, and a security rule names no zone: give the networks behind it with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-db; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  nsg-db:DenyAllOutBound to nsg-db  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone nsg-db; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
