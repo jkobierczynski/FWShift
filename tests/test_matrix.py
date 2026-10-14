@@ -532,7 +532,8 @@ SAMPLES = ["asa_sample.cfg", "checkpoint_sample.json", "fortios_sample.conf", "i
            "sophos_sample.xml", "fmc_sample.json", "fdm_sample.txt", "pfsense_sample.xml", "sonicwall_sample.exp",
            "watchguard_sample.xml", "barracuda_sample.json",
            "junos_sample.conf", "nftables_sample.nft", "nsx_sample.json", "aws_sample.json", "azure_sample.json",
-           "routeros_sample.rsc", "opnsense_sample.xml", "forcepoint_sample.json"]  # fmt: skip
+           "routeros_sample.rsc", "opnsense_sample.xml", "forcepoint_sample.json",
+           "terraform_aws_sample.json", "terraform_azure_sample.json"]  # fmt: skip
 
 
 @pytest.mark.parametrize("sample", SAMPLES)
@@ -551,7 +552,8 @@ def test_matrix_of_the_samples(sample: str, tmp_path: Path) -> None:
     rows = list(csv.DictReader(io.StringIO(as_csv.read_text(encoding="utf-8"))))
     pairs = [(conduit["from"], conduit["to"], rule["rule"]) for conduit in data["conduits"] for rule in conduit["rules"]]
     assert pairs and [(row["from"], row["to"], row["rule"]) for row in rows] == pairs
-    assert data["zones_are"] == "the zones of the policy" and data["source"] == sample.split("_")[0]
+    vendor = "-".join(sample.split("_")[:2]) if sample.startswith("terraform_") else sample.split("_")[0]
+    assert data["zones_are"] == "the zones of the policy" and data["source"] == vendor
     text = out.read_text(encoding="utf-8")
     assert all(f"{conduit['from']} -> {conduit['to']}" in text for conduit in data["conduits"])
 

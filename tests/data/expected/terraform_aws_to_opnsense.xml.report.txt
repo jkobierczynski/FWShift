@@ -1,0 +1,98 @@
+FWShift conversion report
+  source: terraform-aws (vpc-0a1b2c3d4e5f63001)
+  target: opnsense
+
+Summary
+  Security rules:     23   exact 0, approximated 0, needs review 5 (5 emitted disabled), skipped 18
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Address groups:     10   exact 10, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0a1b2c3d4e5f63031 of subnet subnet-0a1b2c3d4e5f63013 denies some inbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections out of the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0a1b2c3d4e5f63031 of subnet subnet-0a1b2c3d4e5f63013 denies some outbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections into the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_NACL_MISSING: the network ACLs of these subnets are not in the export; the converted policy allows what they may deny: subnet-0a1b2c3d4e5f63011, subnet-0a1b2c3d4e5f63012, subnet-0a1b2c3d4e5f63014
+  [needs-review] AWS_HAIRPIN: connections from inside the VPC to its own public addresses are not converted as AWS decides them: they leave through the internet gateway, the source's outbound rules see the public address and the destination's inbound rules see the source's public address (or that of its NAT gateway). The converted policy treats them as connections to the private address, which may allow more
+  [needs-review] AWS_REMOTE_GROUP: rules name groups that are not in the export (another VPC, another account, or left out): sg-0f9e8d7c6b5a43001. Their members are not known; those rules are not converted
+  [needs-review] TERRAFORM_MEMBERS: the members of the security groups are the network interfaces and instances of this state: a group attached to interfaces elsewhere (another state, a load balancer, made by hand) has those members as well, and the converted policy does not know them
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: aws_networkfirewall_firewall. The converted policy does not hold what they do
+  [needs-review] OPNSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of an OPNsense configuration, for 26.7 (--target-version). Under System > Configuration > Backups, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every alias and every NAT rule that is there now is gone, and the Firewall Rules area replaces the rules of both rule pages ('Rules' and 'Rules [new]'), with the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. There is no NAT area in the file: the NAT of the firewall stays as it is. OPNsense does not check what it restores and does not load it until the rules are applied or the firewall restarts; keep a backup, and look at the rules before anything depends on them
+  [info] AWS_EGRESS_PAIRS: inside the VPC a connection needs an outbound rule of the source's groups and an inbound rule of the destination's. Where the outbound rules do not allow everything, 2 rules allow what both allow, and a rule after them blocks the rest of what those members send inside the VPC
+  [info] AWS_PUBLIC_ADDRESSES: the public and Elastic IP addresses of the network interfaces are static NAT of their private addresses: the internet gateway translates what comes from outside, and the groups see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  [info] AWS_UNFILTERED: security groups never filter traffic to the Amazon DNS server, DHCP, the instance metadata service, the Time Sync Service and Windows license activation; neither does the converted policy say anything about it
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the AWS CLI for the same resources: 1 aws_ec2_managed_prefix_list, 3 aws_instance, 1 aws_network_acl, 1 aws_network_acl_association, 1 aws_network_interface, 4 aws_security_group, 3 aws_security_group_rule, 4 aws_subnet, 1 aws_vpc, 2 aws_vpc_security_group_egress_rule, 4 aws_vpc_security_group_ingress_rule. Resources outside this state (made by hand, or by another state) are not in it
+  [info] TERRAFORM_DEPOSED: 1 deposed object(s), which a replacement leaves until it is done, were left out
+
+Security rules
+  shop-db-in-shop-db  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop-db-in-shop-db-2  ->  needs-review, emitted disabled
+      [needs-review] SERVICE_NEGATE: a negated service match does not exist in a rule of OPNsense. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  shop-db-in-shop-db-3  ->  needs-review, emitted disabled
+      [needs-review] SERVICE_NEGATE: a negated service match does not exist in a rule of OPNsense. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  shop-db-in-shop-db-4  ->  needs-review, emitted disabled
+      [needs-review] SERVICE_NEGATE: a negated service match does not exist in a rule of OPNsense. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  shop-app-to-shop-db  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop-app-outbound-rest  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop-db-outbound-rest  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop-web-to-shop-app  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop-web-outbound-rest  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop-web-in-1  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop-web-in-2  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop-web-in-3  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop-web-in-4  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop-web-in-5  ->  needs-review, emitted disabled
+      [needs-review] ICMP_CODE: ICMP type 3 with code 4: a rule of OPNsense names types, no codes.
+  shop-app-in-1  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop-app-in-2  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop-app-in-3  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop-bastion-in-1  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop-bastion-in-3  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop-bastion-in-4  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'sg_0f9e8d7c6b5a43001': dynamic address group, members are not known statically.
+  shop-db-in-1  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop-db-in-2  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+  shop-web-out-2  ->  skipped
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
+
+NAT rules
+  public-192.0.2.10  ->  skipped
+      [needs-review] NAT_INTERFACE: the rule names no zone its outside address lies in: name the interface with --target-nat-zone
+  public-192.0.2.5  ->  skipped
+      [needs-review] NAT_INTERFACE: the rule names no zone its outside address lies in: name the interface with --target-nat-zone
+
+Address groups
+  shop-web  ->  exact  (emitted as shop_web)
+      [info] RENAMED: renamed to 'shop_web' to fit the target's naming rules
+  shop-app  ->  exact  (emitted as shop_app)
+      [info] RENAMED: renamed to 'shop_app' to fit the target's naming rules
+  shop-bastion  ->  exact  (emitted as shop_bastion)
+      [info] RENAMED: renamed to 'shop_bastion' to fit the target's naming rules
+  shop-db  ->  exact  (emitted as shop_db)
+      [info] RENAMED: renamed to 'shop_db' to fit the target's naming rules
+  shop-app members  ->  exact  (emitted as shop_app_members)
+      [info] RENAMED: renamed to 'shop_app_members' to fit the target's naming rules
+  shop-db members  ->  exact  (emitted as shop_db_members)
+      [info] RENAMED: renamed to 'shop_db_members' to fit the target's naming rules
+  corp-offices  ->  exact  (emitted as corp_offices)
+      [info] RENAMED: renamed to 'corp_offices' to fit the target's naming rules
+  shop-web members  ->  exact  (emitted as shop_web_members)
+      [info] RENAMED: renamed to 'shop_web_members' to fit the target's naming rules
+  sg-0f9e8d7c6b5a43001  ->  exact  (emitted as sg_0f9e8d7c6b5a43001)
+      [info] RENAMED: renamed to 'sg_0f9e8d7c6b5a43001' to fit the target's naming rules

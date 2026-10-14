@@ -47,6 +47,11 @@ Perm = Tuple[str, int, int]  # protocol (AWS spelling, "-1" for all), from port,
 
 
 def emit(policy: Policy, report: Report, options: Options) -> str:
+    return _Emitter(prepare(policy, report, options), report, options).run()
+
+
+def prepare(policy: Policy, report: Report, options: Options) -> Policy:
+    """The policy as the security groups see it (a copy): zones mapped, the destinations after NAT."""
     p = copy.deepcopy(policy)
     transform.apply_zone_map(p, options.zone_map)
     transform.ensure_references(p, report)
@@ -58,7 +63,7 @@ def emit(policy: Policy, report: Report, options: Options) -> str:
     transform.to_post_nat_lookup(p, report, translated)
     if options.written is not None:
         options.written.append(p)
-    return _Emitter(p, report, options).run()
+    return p
 
 
 def _description(text: str) -> str:

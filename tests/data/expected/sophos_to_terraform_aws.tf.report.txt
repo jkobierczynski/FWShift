@@ -1,0 +1,102 @@
+FWShift conversion report
+  source: sophos (API version 2000.1)
+  target: terraform-aws
+
+Summary
+  Security rules:     17   exact 1, approximated 1, needs review 14 (14 emitted disabled), skipped 1
+  NAT rules:           6   exact 0, approximated 0, needs review 0, skipped 6
+  Addresses:          14   exact 12, approximated 0, needs review 2, skipped 0
+  Address groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+  Services:           13   exact 13, approximated 0, needs review 0, skipped 0
+  Service groups:      3   exact 3, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] TERRAFORM_LOAD: the output is Terraform configuration (section 10): terraform plan -var vpc_id=... shows what it creates, terraform apply creates new security groups and their rules; a group of the same name in the VPC makes it fail. The groups have no members when it is done: nothing changes until they are attached
+  [needs-review] TERRAFORM_ATTACH: 1 group: attach each to the network interfaces whose private addresses its '# attach' comment (and the output fwshift_attach) lists, and take the other groups off those interfaces: vpc_security_group_ids of the instances, security_groups of the network interfaces, or aws_network_interface_sg_attachment. A group applies to the whole interface: give the addresses of one interface the same group
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security group does not. VPC Flow Logs record the connections of the interfaces instead
+
+Security rules
+  Block countries  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Blocked countries': country group. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  LAN to Internet web  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy, ScanVirus=Enable, WebFilter=Default Policy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a security group names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a security group names no zone: give the networks behind WAN with --zone-network.
+  LAN web again  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a security group names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a security group names no zone: give the networks behind WAN with --zone-network.
+  Admins to DMZ  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a security group names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a security group names no zone: give the networks behind DMZ with --zone-network.
+  LAN to DMZ web not mail  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a security group names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a security group names no zone: give the networks behind DMZ with --zone-network.
+  LAN SSH out  ->  needs-review, emitted disabled
+      [info] RULE_SPLIT: the rule has exclusions of 2 kinds, which Sophos Firewall applies together (the rule is skipped only for traffic that matches all of them): written as 2 rule(s), one per kind, that match the same traffic between them: 'LAN SSH out-2'
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a security group names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone OT, and a security group names no zone: give the networks behind OT with --zone-network.
+  LAN SSH out-2  ->  needs-review, emitted disabled
+      [info] EXCLUSION_AS_ADDRESSES: source lan-net without the excluded admin-range: written as the addresses that are left (10.10.0.0-10.10.5.9, 10.10.5.21-10.11.255.255)
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a security group names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, OT, and a security group names no zone: give the networks behind DMZ, OT with --zone-network.
+  Internet to web  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web-public' with post-NAT 'web-1' because of NAT rule 'Publish web'; check that this rule is meant to cover the translated traffic
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a security group names no zone: give the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a security group names no zone: give the networks behind DMZ with --zone-network.
+  Internet to mail  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'mail-public' with post-NAT 'mail-1' because of NAT rule 'Publish mail'; check that this rule is meant to cover the translated traffic
+      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Publish mail' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=WAN TO DMZ, ScanSMTP=Enable); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a security group names no zone: give the networks behind WAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a security group names no zone: give the networks behind DMZ with --zone-network.
+  OT to SCADA  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OT, and a security group names no zone: give the networks behind OT with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAN, and a security group names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] SOURCE_PORTS: source ports: a security group rule matches destination ports only.
+  DMZ updates  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (WebFilter=Default Policy); attach equivalent inspection on the target
+      [needs-review] FQDN_NOT_SUPPORTED: host name object mirror.example.net, updates.example.com: a security group names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a security group names no zone: give the networks behind DMZ with --zone-network.
+  Finance to app  ->  needs-review, emitted disabled
+      [needs-review] USER_MATCH: source user match Finance is not converted.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a security group names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone DMZ, and a security group names no zone: give the networks behind DMZ with --zone-network.
+  DNS in office hours  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'Work hours (5 Day week)' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OT, and a security group names no zone: give the networks behind OT with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone LAN, and a security group names no zone: give the networks behind LAN with --zone-network.
+  Reject the rest from LAN  ->  approximated  (emitted as taken out of the rules below it)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAN; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] ACTION_DROP: action reset-client: a security group drops what it does not allow, without an answer
+  LAN6 to Internet  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (IntrusionPrevention=generalpolicy); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a security group names no zone: give the networks behind LAN with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone WAN, and a security group names no zone: give the networks behind WAN with --zone-network.
+  Web shop  ->  skipped
+      [needs-review] WAF_RULE: web server protection rule: the firewall answers for the web server itself (a reverse proxy), which is not a forwarding rule and is not converted. Publish the server on the target in its own way
+
+NAT rules
+  Publish web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  Publish mail  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  Mail server out  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  No NAT to partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  NAT of LAN to Internet web  ->  skipped
+      [info] NAT_LINKED: linked NAT rule of firewall rule 'LAN to Internet web': it has no match of its own and is written with the zones, addresses and services of that rule
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+  Default SNAT IPv4  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on AWS the internet gateway translates public addresses and a NAT gateway translates sources, outside the security groups. Set them up there; the rules were written for the private addresses, which is what the groups see
+
+Addresses
+  any-example-org  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: wildcard host name '*.example.org' cannot be converted
+  Blocked countries  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: country group cannot be converted

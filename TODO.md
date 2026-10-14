@@ -74,7 +74,12 @@ Forcepoint NGFW** (the answers of the SMC REST API for one policy, fetched by
 a read-only program FWShift writes, read: templates and insert points,
 sections, Continue and Jump, zones and match expressions, expressions,
 networks without broadcast, NONE cells, NAT rules; a program for the REST API
-that creates elements and a new policy on a template, written).
+that creates elements and a new policy on a template, written), and **0.26.0,
+Terraform for AWS and Azure** (`terraform show -json` of a state or a plan and the
+raw state, read: the security groups, rules, network ACLs and members of
+hashicorp/aws and the network security groups of hashicorp/azurerm, with the
+echoes of a refresh taken once and the unknowns of a plan worked out from the
+configuration or not converted; HCL that creates the groups, written).
 What each rests on and what nobody has checked on a device is in
 the development log.
 
@@ -86,7 +91,19 @@ export shows its format), the engine (aliases resolved per engine, zones with
 their interfaces, element-based and default NAT), IPv6 NAT, and reading the
 output back for `convert --compare`.
 
-Not planned yet: Huawei USG, Stormshield, Google Cloud firewall rules.
+Next: **0.27.0, Google Cloud firewall rules**: VPC firewall rules and the
+global and regional network firewall policies, in the order Google Cloud
+evaluates them, read from a bundle of gcloud answers and written, and
+`google_compute_firewall` and the firewall policy resources of hashicorp/google
+as a Terraform source and target (`terraform-google`).
+
+Still open for Terraform: reading the HCL back for `convert --compare` (it is
+not JSON); the members of a group that another state attaches; a constant next
+to a reference in one expression of a plan; module outputs as references;
+`aws_security_group` with `name_prefix` in a plan; applying the output with
+Terraform against a provider in a lab.
+
+Not planned yet: Huawei USG, Stormshield.
 
 ## Rule usage
 
@@ -380,7 +397,13 @@ back and compared with the source): items 1, 2, 5 and 10 of the list before.
    of ports 1 to 65535, an expression in a match expression, a rule posted to
    `add_after`); send packets through: Refuse on TCP, a network without
    broadcast, Continue logging, an exclusion of two elements.
-17. The equivalence check on real changes: two exports of one firewall
+17. Terraform, with Terraform 1.x and lab accounts of AWS and Azure: apply a small
+   configuration of groups, separate rules, network ACLs and instances; convert
+   `terraform show -json` of the state and of a plan that changes it, and compare with
+   the CLI answers of the same resources; `terraform validate` and apply
+   `panos_to_terraform_aws.tf` and `panos_to_terraform_azure.tf`, then convert the
+   state they leave and compare it with the source.
+18. The equivalence check on real changes: two exports of one firewall
    before and after a change made by hand, compared, and the differences
    checked against what was changed; a conversion loaded on a target, its
    running configuration exported again and compared with the source.

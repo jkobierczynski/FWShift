@@ -8,10 +8,10 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.25.0 (alpha) |
-| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API) |
-| Tests | 4733, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager |
+| Version | 0.26.0 (alpha) |
+| Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Terraform for AWS and Azure (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm; write HCL that creates the groups) |
+| Tests | 4938, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
 | Analysis | the audit, the zone matrix, rule usage from hit counters and logs, the zone and conduit model as a gate (`fwshift conduits`), the equivalence check (`fwshift compare`, `convert --compare`) |
 | Security | an outside review (ChatGPT, October 2026) and the measures taken: `docs/security/SECURITY_REVIEW.md` |
 | Next | the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
@@ -63,6 +63,9 @@ src/fwshift/
         azure.py      Azure JSON (CLI, REST, template, Resource Graph) -> model
                       (a zone per group; the outbound and inbound lists of
                       two groups composed; templates worked out)
+        terraform.py  Terraform state or plan JSON -> the answers of the AWS or
+                      the Azure CLI, read by aws.py or azure.py (echoes of a
+                      refresh once, unknowns of a plan from the configuration)
         routeros.py   RouterOS /export -> model (interface lists as zones;
                       chains flattened with the conditions of nftables.py,
                       returns taken away exactly; the !dstnat exception)
@@ -103,6 +106,8 @@ src/fwshift/
                       address)
         azure.py      model -> an ARM template (a group per zone, each list in
                       blocks per remote zone, with the default of the source)
+        terraform.py  model -> HCL: the groups of aws.py (a subclass of its
+                      emitter) or of the template of azure.py, as resources
         routeros.py   model -> a script for /import (chains of its own, the
                       jumps to them disabled; NAT through the iptables planner)
     regions.py        sets of connections as boxes (IP version, sources,
@@ -182,6 +187,10 @@ tests/
     test_azure.py     Azure both ways: a judge of groups as Azure decides
                       them (two lists in priority order) and a judge of the
                       emitted template
+    test_terraform.py Terraform both ways: random VPCs and groups of test_aws.py
+                      and test_azure.py written as states and plans, against
+                      their judges; the HCL read by a reader of its own and
+                      judged by the script and template judges
     test_routeros.py  RouterOS both ways: a judge that walks filter chains as
                       the router does, for random exports and for the script
     test_checkpoint.py Check Point both ways, with simulators for an export
@@ -638,6 +647,10 @@ there for an old tag whose tests no longer run on today's tools.
 | A Device Manager gets no disabled rules and no placeholders | It has no rule that is switched off, and an import that is refused half way is worse than a shorter file. What cannot be written is left out and listed as skipped, with the warning for blocking rules. |
 | A file for a Device Manager holds no zones | An import replaces what has the same name: a zone written without its interfaces would take them out of the zone the device has. |
 | Access rules of a Cisco source keep their real addresses until an emitter needs otherwise | As for an ASA: the parser rewrites the rules for the model (pre-NAT), and the Cisco emitters turn that round again for the NAT rules that are really written. |
+| Terraform input becomes the answers of the cloud's CLI | What a security group or a network security group decides does not change with the tool that made it. Turning the resources into the answers the AWS and Azure parsers read keeps one reading of each cloud, with its reviews and judges; what is Terraform's own (echoes, plans, unknowns) stays in one file. |
+| Terraform: what a plan does not know is worked out from the configuration, or not converted | An id that is not known yet still names one resource, and the configuration says which: the address stands for it, and two references to it agree. Anything else (a variable, a data source, a dynamic block) could be any value, so what holds it is not converted rather than guessed. |
+| Terraform: a separate rule resource wins over the inline copy of it | After a refresh both say the same; where they differ, the state is stale, and the separate resource is what Terraform will make true. Said, not silently chosen. |
+| Terraform output is plain HCL for a root module, new resources only | An apply then fails on a name that exists instead of adopting or replacing it (AWS refuses a duplicate group; azurerm a resource it does not manage). Attaching the groups is a change to resources the output does not know, as for the CLI targets. |
 | Standard library only | Runs on a bare RHEL box and is easy to audit. |
 | GPL-3.0-or-later | Copyleft: changes to a tool that rewrites security policy stay open to inspection. |
 
@@ -748,6 +761,11 @@ policy behaves unexpectedly.
 | Junos: policies per pair of zones, first match, then global policies, first match, then the default policy (deny-all); static NAT, then destination NAT, then the policy (which sees the translated destination and its zone), then source NAT; NAT rule sets of an interface before those of a zone, first match within a set; an address name is looked up in the book of the zone, then the global one; global policies and NAT use the global book (documentation) | Juniper parser, emitter and judge |
 | Junos syntax: `set security policies from-zone A to-zone B policy P match source-address/destination-address/application ...`, `match source-address-excluded`, `then permit/deny/reject`, `then log session-init/session-close`; `set security address-book global address N prefix / range-address A to B / dns-name H [ipv4-only/ipv6-only]`, `address-set`; `set applications application A [term T] protocol P destination-port N-M source-port ...`, `icmp-type`/`icmp6-type`; NAT `pool ... address A [to B] [port N]`, `rule-set ... from/to zone ...`, `match destination-port N to M`, `then destination-nat pool`, `then source-nat interface/pool/off`, `then static-nat prefix` (Batfish, documentation) | Juniper parser and emitter |
 | Assumed: names of up to 63 characters (third-party documentation); `match from-zone`/`to-zone` in global policies (a published generator writes them); the definitions of the predefined applications of the table (documentation and Batfish agree; `junos-ping` they do not, and it is not used); that `display inheritance \| display set` shows what groups give where it applies; the order of NAT rule sets of one context | Juniper parser and emitter, `JUNOS_LOAD` |
+| Terraform, all rows below: from Terraform's documentation of its JSON output and its source (`jsonstate`, `jsonplan`), and the documentation and schemas of hashicorp/aws (6.x) and hashicorp/azurerm; nothing was run with Terraform | Terraform parser and emitter |
+| `terraform show -json`: format version 1; resources with `address`, `mode`, `type`, `name`, `index`, `values`, `deposed_key`; child modules; a plan's `planned_values` without unknown values (unknown list elements null), `resource_changes` with `actions`, `before` and `after_unknown`, `configuration` with `references` and `constant_value`, nested blocks as lists; `errored` and `complete` | Terraform parser |
+| A refresh fills the inline `ingress`/`egress` of an `aws_security_group`, the `security_rule` of an `azurerm_network_security_group` and the `subnet_ids` of an `aws_network_acl` from the cloud, so that they repeat the separate resources; Terraform takes away the outbound rule AWS gives a new group (and the rules of a default group) unless declared | Terraform parser |
+| The protocols of a rule as the providers keep them (names or numbers, `-1`, `all` for `aws_security_group_rule`); ports `0`/`0` or null for every protocol; ICMP type and code in `from_port` and `to_port`; Azure fields `""` and `[]` where not used, protocol names `Tcp`, `Udp`, `Icmp`, `Esp`, `Ah`, `*` | Terraform parser and emitter |
+| `aws_vpc_security_group_ingress_rule` and `_egress_rule` take ports for TCP, UDP, ICMP and ICMPv6 only; a group of the same name in the VPC fails the apply; azurerm refuses to create a resource that exists and is not in the state; azurerm 4 needs a subscription id | Terraform emitter |
 
 ## Development log
 
@@ -2057,6 +2075,91 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-14: version 0.26.0
+
+The first of two releases asked for after Forcepoint: **Terraform**, for the clouds FWShift already reads, AWS and
+Azure, both ways. Google Cloud follows in 0.27.0, with its Terraform resources.
+
+**Built**
+
+* `parsers/terraform.py`: the JSON of `terraform show -json` (format version 1) of a state or a saved plan, and the
+  raw state of version 4. Modules, `count` and `for_each` followed; data sources and deposed objects left out. The
+  resources of hashicorp/aws (groups with inline rules, the three kinds of separate rule, network ACLs with inline and
+  separate entries and associations, interfaces, attachments, instances, Elastic IPs, subnets, VPCs, prefix lists and
+  their entries) and of hashicorp/azurerm (network security groups with inline and separate rules, the associations
+  with subnets and interfaces, application security groups and theirs, interfaces, subnets, virtual networks with
+  inline subnets, peerings) become the answers of the AWS or the Azure CLI, which `parsers/aws.py` and
+  `parsers/azure.py` read. Echoes of a refresh are read once; a separate resource wins over an inline copy that says
+  otherwise (`TERRAFORM_CONFLICT`). In a plan: `after_unknown` and missing attributes say what is not known; an id
+  that is not known is the address of its resource, worked out from the references of the configuration (also in a
+  module with `count`); what is deleted or replaced is taken out of the inline lists that still repeat it; an
+  errored plan is refused, an incomplete one said. What neither the plan nor the configuration tells makes its rule
+  not converted (`TERRAFORM_UNKNOWN`), never any address or port.
+* `emitters/terraform.py`: `terraform-aws` is the AWS emitter with HCL instead of CLI calls (a subclass; `aws.emit`
+  got a `prepare()` for it): an `aws_security_group` per group and an `aws_vpc_security_group_ingress_rule` or
+  `_egress_rule` per address block and service, the attachments as comments and an output. `terraform-azure` writes
+  the ARM template of the Azure emitter as `azurerm_network_security_group` resources with inline rules, application
+  security groups by name as data sources, the networks as comments and an output. HCL strings with `${` and `%{`
+  doubled.
+* `--from` and `--to terraform-aws` and `terraform-azure`, detection before the AWS and Azure JSON (by the managed
+  resources it holds), `--policy` for the VPC; the samples (`terraform_aws_sample.json` and
+  `terraform_azure_sample.json`, written by `tests/tools/make_terraform_samples.py`), 84 golden conversions, their
+  audit and matrix. Lone surrogates in names no longer break writing the output.
+
+**What the work made necessary**
+
+* *One reading per cloud.* Terraform's resources say nothing new about how a VPC or a network security group decides
+  traffic. Turned into the CLI answers, they go through the parsers that already have their judges and their reviews;
+  what is Terraform's own (echoes, plans, unknowns) is the new file's business.
+* *Plans are half known.* A plan leaves out what is computed at the apply. An id that is not known still names one
+  resource, so the address can stand for it everywhere it is referred to; everything else that is not known is not
+  converted. The configuration a plan shows has no dynamic blocks, so a list of rules nothing explains is not known
+  either, unless separate resources fill it.
+* *An HCL reader for the tests.* There is no Terraform here. The tests read the emitted HCL with a small reader of
+  their own (blocks, attributes, strings with every escape, references, objects) and hand the result to the judges
+  of the AWS script and the Azure template.
+
+**Review**
+
+*Round 34* by the independent reviewer, with probe scripts.
+
+| | Finding | Fix |
+|---|---|---|
+| high | A plan still read rules it deletes or replaces, from the inline list of their group (and a deleted attachment from the interface) | taken out of the echoes |
+| high | An inline copy that says otherwise than its separate resource (Azure by name, a network ACL entry by number) won silently | the separate resource is read, said (`TERRAFORM_CONFLICT`) |
+| high | Rule lists of a plan with unknown elements, or unknown and not in the configuration, became fewer rules: a deny lost | not known: the group or ACL not converted, unless separate resources fill the list |
+| high | Unknown values of fields not listed as references (ports, protocol, rule number, names) were read as null: any port, any ICMP type, entry 0 | `after_unknown` and every field of a rule; an unknown value makes the rule or entry unreadable; no dedupe on an unknown name |
+| medium | Entries of a network ACL not in the state were dropped (no VPC) while the note said they were read | read for the VPC of the conversion; the note says what may be missing |
+| medium | An errored or incomplete plan was read without a word | refused; `TERRAFORM_INCOMPLETE` |
+| medium | A lone surrogate in a name broke writing the output | written escaped |
+| medium | The docs and the version were not done yet | done |
+| low | `TERRAFORM_UNKNOWN` spoke of a plan for a state; computed `subnet_ids` of a new ACL counted as unknown | worded per input; computed lists that separate resources fill are theirs |
+| low | A data source of the other provider made a state of two providers; an empty state was not recognised | managed resources only; recognised |
+| low | `--policy` was ignored for `terraform-azure` | refused |
+| low | azurerm 4 needs a subscription id | a variable for it |
+
+The fixes were not reviewed again; they have tests (`test_r34_*` in `test_terraform.py`).
+
+**Verified, and not**
+
+* The tests: 117 in `test_terraform.py`, the suite 4938. The parser against the judges of `test_aws.py` and
+  `test_azure.py`: 200 random VPCs written as states and raw states (inline, legacy and single rules, echoes, default
+  groups, modules, count and for_each, instances and interfaces, attachments, Elastic IPs, ACLs inline and separate),
+  80 of them as plans that create some of their groups, and 200 random sets of Azure groups, 300 packets each; the
+  emitters against the model through the HCL reader: 90 random models; the samples against CLI answers written by
+  hand.
+* A mutation check with 49 ways to break the parser and the emitters: 33 caught at first; tests were added for 12 of
+  the other 16, which catch them (data sources and deposed objects of a raw state, what `after_unknown` marks, a
+  conditional between two groups, the inline rules of a group a plan does not know, groups of other accounts, ICMPv6
+  of an unknown type, an Elastic IP of a second address, unknown ACL entries, an entry a plan deletes, an association
+  that moves a subnet, the severity of a group not in the state). The last 4 change nothing an input can show (an
+  attribute in the planned values is known; a configuration block without a required attribute is invalid and
+  unreadable either way; the AWS parser reads an address whichever key holds it; an ICMP code left out is any code
+  either way).
+* **Not verified**: no Terraform has read the output, and no state of a real deployment was read: the inputs were
+  written from Terraform's documentation and source and the providers' documentation. What a refresh echoes, which
+  attributes a plan leaves out and how a dynamic block shows are taken from there; the tests rest on the same reading.
 
 ### 2026-10-14: version 0.25.0
 

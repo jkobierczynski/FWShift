@@ -1,0 +1,117 @@
+FWShift zone matrix
+  source: terraform-azure
+  security rules: 86 (0 disabled, 29 never match)
+
+What each zone may reach (rows: from, columns: to)
+           nsg-web           nsg-app           nsg-db            outside
+  nsg-web  icmp tcp udp      icmp tcp/8080 +1  icmp tcp udp      icmp tcp udp~
+  nsg-app  icmp tcp udp      icmp tcp/8080 +1  icmp tcp udp      icmp tcp udp~
+  nsg-db   icmp tcp udp      icmp tcp/8080 +1  icmp tcp udp      icmp tcp udp~
+  outside  icmp tcp udp~     icmp +2~          icmp tcp udp~     -
+  -  nothing is allowed     any  every service     +N  and N more     ~  at most this (see the notes)
+
+Conduits
+nsg-web -> nsg-web (inside the zone)
+  allowed: icmp, tcp, udp
+  cleartext or remote administration: telnet (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); ftp (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); tftp (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); rsh/rlogin/rexec (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); netbios (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); smb (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); rdp (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); vnc (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); snmp (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); x11 (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound')
+  industrial protocols: modbus (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); s7/iso-tsap (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); dnp3 (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); ethernet-ip (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); opc-ua (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); bacnet (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); iec-104 (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); profinet (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); fins (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound'); niagara-fox (rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound')
+  rule 'nsg-web:to-app+nsg-web:AllowVnetInBound': any -> asg-app: tcp/8080
+  rule 'nsg-web:AllowVnetOutBound+nsg-web:ssh-admin': 192.0.2.0/28 -> any: tcp/22
+  rule 'nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound': any -> any: icmp, tcp, udp
+nsg-web -> nsg-app
+  allowed: icmp, tcp/8080, tcp/8443
+  rule 'nsg-web:to-app+nsg-app:from-web': asg-web -> asg-app: tcp/8080
+  rule 'nsg-web:AllowVnetOutBound+nsg-app:from-web': asg-web -> any: tcp/8080, tcp/8443
+  rule 'nsg-web:AllowVnetOutBound+nsg-app:icmp-vnet': any -> any: icmp
+nsg-web -> nsg-db
+  allowed: icmp, tcp, udp
+  cleartext or remote administration: telnet (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); ftp (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); tftp (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); rsh/rlogin/rexec (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); netbios (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); smb (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); rdp (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); vnc (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); snmp (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); x11 (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound')
+  industrial protocols: modbus (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); s7/iso-tsap (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); dnp3 (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); ethernet-ip (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); opc-ua (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); bacnet (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); iec-104 (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); profinet (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); fins (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound'); niagara-fox (rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound')
+  rule 'nsg-web:to-app+nsg-db:AllowVnetInBound': any -> asg-app: tcp/8080
+  rule 'nsg-web:AllowVnetOutBound+nsg-db:postgres-from-app': 10.40.2.0/24 -> 10.40.3.0/24: tcp/5432
+  rule 'nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound': any -> any: icmp, tcp, udp
+nsg-web -> outside
+  allowed: icmp, tcp, udp ~
+  cleartext or remote administration: telnet (rule 'nsg-web:AllowVnetOutBound'); ftp (rule 'nsg-web:AllowVnetOutBound'); tftp (rule 'nsg-web:AllowVnetOutBound'); rsh/rlogin/rexec (rule 'nsg-web:AllowVnetOutBound'); netbios (rule 'nsg-web:AllowVnetOutBound'); smb (rule 'nsg-web:AllowVnetOutBound'); rdp (rule 'nsg-web:AllowVnetOutBound'); vnc (rule 'nsg-web:AllowVnetOutBound'); snmp (rule 'nsg-web:AllowVnetOutBound'); x11 (rule 'nsg-web:AllowVnetOutBound')
+  industrial protocols: modbus (rule 'nsg-web:AllowVnetOutBound'); s7/iso-tsap (rule 'nsg-web:AllowVnetOutBound'); dnp3 (rule 'nsg-web:AllowVnetOutBound'); ethernet-ip (rule 'nsg-web:AllowVnetOutBound'); opc-ua (rule 'nsg-web:AllowVnetOutBound'); bacnet (rule 'nsg-web:AllowVnetOutBound'); iec-104 (rule 'nsg-web:AllowVnetOutBound'); profinet (rule 'nsg-web:AllowVnetOutBound'); fins (rule 'nsg-web:AllowVnetOutBound'); niagara-fox (rule 'nsg-web:AllowVnetOutBound')
+  rule 'nsg-web:to-app': any -> asg-app: tcp/8080
+  rule 'nsg-web:AllowVnetOutBound': any -> VirtualNetwork: icmp, tcp, udp ~
+nsg-app -> nsg-web
+  allowed: icmp, tcp, udp
+  cleartext or remote administration: telnet (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); ftp (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); tftp (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); rsh/rlogin/rexec (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); netbios (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); smb (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); rdp (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); vnc (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); snmp (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); x11 (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound')
+  industrial protocols: modbus (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); s7/iso-tsap (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); dnp3 (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); ethernet-ip (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); opc-ua (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); bacnet (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); iec-104 (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); profinet (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); fins (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound'); niagara-fox (rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound')
+  rule 'nsg-app:AllowVnetOutBound+nsg-web:ssh-admin': 192.0.2.0/28 -> any: tcp/22
+  rule 'nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound': any -> any: icmp, tcp, udp
+nsg-app -> nsg-app (inside the zone)
+  allowed: icmp, tcp/8080, tcp/8443
+  rule 'nsg-app:AllowVnetOutBound+nsg-app:from-web': asg-web -> any: tcp/8080, tcp/8443
+  rule 'nsg-app:AllowVnetOutBound+nsg-app:icmp-vnet': any -> any: icmp
+nsg-app -> nsg-db
+  allowed: icmp, tcp, udp
+  cleartext or remote administration: telnet (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); ftp (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); tftp (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); rsh/rlogin/rexec (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); netbios (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); smb (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); rdp (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); vnc (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); snmp (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); x11 (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound')
+  industrial protocols: modbus (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); s7/iso-tsap (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); dnp3 (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); ethernet-ip (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); opc-ua (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); bacnet (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); iec-104 (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); profinet (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); fins (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound'); niagara-fox (rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound')
+  rule 'nsg-app:AllowVnetOutBound+nsg-db:postgres-from-app': 10.40.2.0/24 -> 10.40.3.0/24: tcp/5432
+  rule 'nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound': any -> any: icmp, tcp, udp
+nsg-app -> outside
+  allowed: icmp, tcp, udp ~
+  cleartext or remote administration: telnet (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); ftp (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); tftp (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); rsh/rlogin/rexec (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); netbios (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); smb (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); rdp (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); vnc (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); snmp (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); x11 (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound')
+  industrial protocols: modbus (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); s7/iso-tsap (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); dnp3 (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); ethernet-ip (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); opc-ua (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); bacnet (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); iec-104 (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); profinet (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); fins (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound'); niagara-fox (rule 'nsg-app:AllowVnetOutBound', 'nsg-app:AllowInternetOutBound')
+  rule 'nsg-app:AllowVnetOutBound': any -> VirtualNetwork: icmp, tcp, udp ~
+  rule 'nsg-app:AllowInternetOutBound': any -> Internet: icmp, tcp, udp ~
+nsg-db -> nsg-web
+  allowed: icmp, tcp, udp
+  cleartext or remote administration: telnet (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); ftp (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); tftp (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); rsh/rlogin/rexec (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); netbios (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); smb (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); rdp (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); vnc (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); snmp (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); x11 (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound')
+  industrial protocols: modbus (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); s7/iso-tsap (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); dnp3 (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); ethernet-ip (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); opc-ua (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); bacnet (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); iec-104 (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); profinet (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); fins (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound'); niagara-fox (rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound')
+  rule 'nsg-db:AllowVnetOutBound+nsg-web:ssh-admin': 192.0.2.0/28 -> any: tcp/22
+  rule 'nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound': any -> any: icmp, tcp, udp
+nsg-db -> nsg-app
+  allowed: icmp, tcp/8080, tcp/8443
+  rule 'nsg-db:AllowVnetOutBound+nsg-app:from-web': asg-web -> any: tcp/8080, tcp/8443
+  rule 'nsg-db:AllowVnetOutBound+nsg-app:icmp-vnet': any -> any: icmp
+nsg-db -> nsg-db (inside the zone)
+  allowed: icmp, tcp, udp
+  cleartext or remote administration: telnet (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); ftp (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); tftp (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); rsh/rlogin/rexec (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); netbios (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); smb (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); rdp (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); vnc (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); snmp (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); x11 (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound')
+  industrial protocols: modbus (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); s7/iso-tsap (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); dnp3 (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); ethernet-ip (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); opc-ua (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); bacnet (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); iec-104 (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); profinet (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); fins (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound'); niagara-fox (rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound')
+  rule 'nsg-db:AllowVnetOutBound+nsg-db:postgres-from-app': 10.40.2.0/24 -> 10.40.3.0/24: tcp/5432
+  rule 'nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound': any -> any: icmp, tcp, udp
+nsg-db -> outside
+  allowed: icmp, tcp, udp ~
+  cleartext or remote administration: telnet (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); ftp (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); tftp (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); rsh/rlogin/rexec (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); netbios (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); smb (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); rdp (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); vnc (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); snmp (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); x11 (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound')
+  industrial protocols: modbus (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); s7/iso-tsap (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); dnp3 (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); ethernet-ip (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); opc-ua (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); bacnet (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); iec-104 (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); profinet (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); fins (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound'); niagara-fox (rule 'nsg-db:AllowVnetOutBound', 'nsg-db:AllowInternetOutBound')
+  rule 'nsg-db:AllowVnetOutBound': any -> VirtualNetwork: icmp, tcp, udp ~
+  rule 'nsg-db:AllowInternetOutBound': any -> Internet: icmp, tcp, udp ~
+outside -> nsg-web
+  allowed: icmp, tcp, udp ~
+  cleartext or remote administration: telnet (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); ftp (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); tftp (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); rsh/rlogin/rexec (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); netbios (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); smb (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); rdp (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); vnc (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); snmp (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); x11 (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound')
+  industrial protocols: modbus (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); s7/iso-tsap (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); dnp3 (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); ethernet-ip (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); opc-ua (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); bacnet (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); iec-104 (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); profinet (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); fins (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound'); niagara-fox (rule 'nsg-web:AllowVnetInBound', 'nsg-web:AllowAzureLoadBalancerInBound')
+  rule 'nsg-web:https-in': Internet -> 10.40.1.0/24, 2001:db8:40:1::/64: tcp/443 ~
+  rule 'nsg-web:ssh-admin': 192.0.2.0/28 -> any: tcp/22
+  rule 'nsg-web:AllowVnetInBound': VirtualNetwork -> any: icmp, tcp, udp ~
+  rule 'nsg-web:AllowAzureLoadBalancerInBound': AzureLoadBalancer -> any: icmp, tcp, udp
+outside -> nsg-app
+  allowed: icmp, tcp/8080, tcp/8443 ~
+  rule 'nsg-app:from-web': asg-web -> any: tcp/8080, tcp/8443
+  rule 'nsg-app:icmp-vnet': VirtualNetwork -> any: icmp ~
+outside -> nsg-db
+  allowed: icmp, tcp, udp ~
+  cleartext or remote administration: telnet (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); ftp (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); tftp (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); rsh/rlogin/rexec (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); netbios (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); smb (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); rdp (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); vnc (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); snmp (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); x11 (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound')
+  industrial protocols: modbus (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); s7/iso-tsap (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); dnp3 (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); ethernet-ip (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); opc-ua (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); bacnet (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); iec-104 (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); profinet (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); fins (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound'); niagara-fox (rule 'nsg-db:AllowVnetInBound', 'nsg-db:AllowAzureLoadBalancerInBound')
+  rule 'nsg-db:postgres-from-app': 10.40.2.0/24 -> 10.40.3.0/24: tcp/5432
+  rule 'nsg-db:AllowVnetInBound': VirtualNetwork -> any: icmp, tcp, udp ~
+  rule 'nsg-db:AllowAzureLoadBalancerInBound': AzureLoadBalancer -> any: icmp, tcp, udp
+
+From reading the configuration
+  AZURE_ANY_PROTOCOL: protocol '*' is read as Microsoft documents it: TCP, UDP and ICMP; with ports, an allow rule allows TCP and UDP on them and a deny rule blocks ICMP as well. If Azure also matches other protocols with it, a deny rule '*' blocks more there than the converted rule
+  AZURE_UNFILTERED: network security groups do not filter the platform's own traffic (168.63.129.16 and 169.254.169.254: DHCP, DNS, the instance metadata service, health probes); and the security admin rules of Azure Virtual Network Manager, which come first, are not in this export
+  AZURE_ZONES: each network security group is a zone, and everything else the zone outside. The networks behind them, for --zone-network: --zone-network nsg-web=10.40.1.0/24 --zone-network nsg-app=10.40.2.0/24 --zone-network nsg-db=10.40.3.0/24
+  AZURE_COMPOSED: traffic between resources behind the groups passes the outbound rules of one and the inbound rules of the other: 58 rules say what both allow, in the order of the two
+  AZURE_DEFAULT_RULES_ADDED: the export does not list the default rules of these groups (a template never does); the six rules every group has were added: nsg-web, nsg-app, nsg-db
+  AZURE_DYNAMIC: service tags and application security groups whose addresses only Azure knows: Internet, VirtualNetwork. They are dynamic groups, which only an Azure target writes again; add the service tags (az network list-service-tags) and the network interfaces to the export to convert them for other targets
+  AZURE_ASG_MEMBERS: the members of these application security groups are the network interfaces in the export: asg-app, asg-web. A member whose interface is not in it (another resource group, another subscription) is not in the group
+  TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the Azure CLI for the same resources: 2 azurerm_application_security_group, 3 azurerm_network_interface, 3 azurerm_network_interface_application_security_group_association, 3 azurerm_network_security_group, 2 azurerm_network_security_rule, 3 azurerm_subnet, 3 azurerm_subnet_network_security_group_association, 1 azurerm_virtual_network. Resources outside this state (made by hand, or by another state) are not in it
+  TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: azurerm_firewall. The converted policy does not hold what they do
+
+Notes
+  29 rule(s) never match and are left out; 'fwshift audit' names them.
+  ~ at most this. Part of the rule could not be read exactly (a host name, a dynamic or unsupported object, a rule the parser reported as approximated), the blocking rules above it could not be followed, or the address a NAT rule translates to cannot be read.
+  The matrix shows what the policy can allow for some pair of addresses of two zones, not that every address may. It is read from the configuration: routing, NAT that fails and what listens on a port are not in it.

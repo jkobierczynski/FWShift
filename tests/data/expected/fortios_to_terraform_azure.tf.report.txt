@@ -1,0 +1,75 @@
+FWShift conversion report
+  source: fortios
+  target: terraform-azure
+
+Summary
+  Security rules:     14   exact 1, approximated 1, needs review 12 (12 emitted disabled), skipped 0
+  NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
+  Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
+  Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+  Services:           14   exact 14, approximated 0, needs review 0, skipped 0
+  Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_ONE_GROUP: no zone has networks (--zone-network): one group holds every rule, inbound and outbound; associate it with every subnet the policy is for
+  [needs-review] TERRAFORM_LOAD: the output is Terraform configuration (section 10): terraform plan -var resource_group_name=... shows what it creates, terraform apply creates new network security groups with their rules; a group of the same name in the resource group makes it fail (it is not in the state). Then associate each group with the subnets of its networks (the comments and the output fwshift_networks), with azurerm_subnet_network_security_group_association
+  [info] AZURE_DEFAULTS_OVERRIDDEN: each list ends in the default of the source, which comes before the default rules of Azure: they no longer let the virtual network, the load balancer's health probes or the internet through unless a rule does
+  [info] LOGGING_NOT_CONVERTED: rules of the source log; a security rule does not. Flow logs of the virtual network record the connections instead
+
+Security rules
+  LAN to Internet  ->  needs-review, emitted disabled
+      [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone lan, wan1, and a security rule names no zone: give the networks behind it with --zone-network.
+  LAN basics  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone lan, wan1, and a security rule names no zone: give the networks behind it with --zone-network.
+  Inbound web  ->  needs-review, emitted disabled
+      [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination 'vip-web' with post-NAT '10.20.0.10' because of NAT rule 'vip-web', which translates only some of the services of this rule: for the others the rule now names '10.20.0.10', sent there directly, and no longer 'vip-web'
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone wan1, dmz, and a security rule names no zone: give the networks behind it with --zone-network.
+  Inbound mail  ->  needs-review, emitted disabled
+      [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'vip-mail' with post-NAT '10.20.0.25' because of NAT rule 'vip-mail'; check that this rule is meant to cover the translated traffic
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone wan1, dmz, and a security rule names no zone: give the networks behind it with --zone-network.
+  Admins to DMZ  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone lan, dmz, and a security rule names no zone: give the networks behind it with --zone-network.
+  Block geo  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone wan1; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ out via pool  ->  needs-review, emitted disabled
+      [needs-review] FQDN_NOT_SUPPORTED: host name object updates.example.com: a security rule names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone dmz, wan1, and a security rule names no zone: give the networks behind it with --zone-network.
+  SCADA to PLCs  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone lan, ot, and a security rule names no zone: give the networks behind it with --zone-network.
+  OT no internet  ->  approximated  (emitted as security rules of FWShift)
+      [approximated] ZONE_WIDENED: the rule blocks traffic of zone ot, wan1; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
+  Partner tunnel  ->  needs-review, emitted disabled
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone lan, wan1, and a security rule names no zone: give the networks behind it with --zone-network.
+  LAN v6 out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone lan, wan1, and a security rule names no zone: give the networks behind it with --zone-network.
+  policy-12  ->  needs-review, emitted disabled
+      [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone lan, dmz, and a security rule names no zone: give the networks behind it with --zone-network.
+  Timestamp probes  ->  needs-review, emitted disabled
+      [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
+      [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
+      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone lan, dmz, and a security rule names no zone: give the networks behind it with --zone-network.
+
+NAT rules
+  vip-web  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  vip-mail  ->  skipped
+      [approximated] VIP_REVERSE_NAT: FortiOS also source-translates sessions the mapped host opens (to the external IP) when the outgoing policy has NAT enabled; that reverse direction is not converted
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  snat-1  ->  skipped
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  snat-2  ->  skipped
+      [needs-review] NAT_OVERLAP: policy 'Partner tunnel' passes traffic between overlapping addresses without NAT, for other services. NAT rules here do not match on service, so that traffic would be translated too: add a no-NAT rule or narrow this one
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+  snat-7  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: a network security group does no NAT (a load balancer, a NAT gateway or a public address does). The rules were written for what the groups see
+
+Addresses
+  geo-blocked  ->  needs-review
+      [needs-review] UNSUPPORTED_ADDRESS: FortiOS address type 'geography' cannot be converted

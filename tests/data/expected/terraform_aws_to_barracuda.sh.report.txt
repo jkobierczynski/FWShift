@@ -1,0 +1,57 @@
+FWShift conversion report
+  source: terraform-aws (vpc-0a1b2c3d4e5f63001)
+  target: barracuda
+
+Summary
+  Security rules:     23   exact 18, approximated 0, needs review 5 (5 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Address groups:     10   exact 10, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 11, approximated 0, needs review 1, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0a1b2c3d4e5f63031 of subnet subnet-0a1b2c3d4e5f63013 denies some inbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections out of the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0a1b2c3d4e5f63031 of subnet subnet-0a1b2c3d4e5f63013 denies some outbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections into the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_NACL_MISSING: the network ACLs of these subnets are not in the export; the converted policy allows what they may deny: subnet-0a1b2c3d4e5f63011, subnet-0a1b2c3d4e5f63012, subnet-0a1b2c3d4e5f63014
+  [needs-review] AWS_HAIRPIN: connections from inside the VPC to its own public addresses are not converted as AWS decides them: they leave through the internet gateway, the source's outbound rules see the public address and the destination's inbound rules see the source's public address (or that of its NAT gateway). The converted policy treats them as connections to the private address, which may allow more
+  [needs-review] AWS_REMOTE_GROUP: rules name groups that are not in the export (another VPC, another account, or left out): sg-0f9e8d7c6b5a43001. Their members are not known; those rules are not converted
+  [needs-review] TERRAFORM_MEMBERS: the members of the security groups are the network interfaces and instances of this state: a group attached to interfaces elsewhere (another state, a load balancer, made by hand) has those members as well, and the converted policy does not know them
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: aws_networkfirewall_firewall. The converted policy does not hold what they do
+  [needs-review] BARRACUDA_LOAD: the output is a shell script that creates network objects, service objects and forwarding rules through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. The rules go to the top of the rule list, above the rules the firewall has, deactivated, and are then activated in order, first rule first: if a call is refused the script stops, and only the rules above that one are active, with the rules the firewall had below them. Barracuda documents the API by examples: assumed are the keys of a service object and its entries (protocol, ports, client ports), the interface of an entry of a network object, the IP version and action types of a rule other than block, and names of up to 32 letters, digits, periods, underscores and hyphens
+  [needs-review] BLOCK_RULE_INACTIVE: the source blocks what no rule matches. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that do so follow the converted rules, deactivated: until they are activated, the rules the firewall has below them decide that traffic. Look at those rules (management access, the default rules) and activate the two
+  [info] AWS_EGRESS_PAIRS: inside the VPC a connection needs an outbound rule of the source's groups and an inbound rule of the destination's. Where the outbound rules do not allow everything, 2 rules allow what both allow, and a rule after them blocks the rest of what those members send inside the VPC
+  [info] AWS_PUBLIC_ADDRESSES: the public and Elastic IP addresses of the network interfaces are static NAT of their private addresses: the internet gateway translates what comes from outside, and the groups see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  [info] AWS_UNFILTERED: security groups never filter traffic to the Amazon DNS server, DHCP, the instance metadata service, the Time Sync Service and Windows license activation; neither does the converted policy say anything about it
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the AWS CLI for the same resources: 1 aws_ec2_managed_prefix_list, 3 aws_instance, 1 aws_network_acl, 1 aws_network_acl_association, 1 aws_network_interface, 4 aws_security_group, 3 aws_security_group_rule, 4 aws_subnet, 1 aws_vpc, 2 aws_vpc_security_group_egress_rule, 4 aws_vpc_security_group_ingress_rule. Resources outside this state (made by hand, or by another state) are not in it
+  [info] TERRAFORM_DEPOSED: 1 deposed object(s), which a replacement leaves until it is done, were left out
+
+Security rules
+  shop-db-in-shop-db-2  ->  needs-review, emitted disabled
+      [needs-review] SERVICE_NEGATE: a negated service cannot be written: the firewall has no negation in a rule. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  shop-db-in-shop-db-3  ->  needs-review, emitted disabled
+      [needs-review] SERVICE_NEGATE: a negated service cannot be written: the firewall has no negation in a rule. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  shop-db-in-shop-db-4  ->  needs-review, emitted disabled
+      [needs-review] SERVICE_NEGATE: a negated service cannot be written: the firewall has no negation in a rule. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  shop-web-outbound-rest  ->  exact  (emitted as shop-web-outbound-rest, shop-web-outbound-rest-v6)
+      [info] IP_VERSION_SPLIT: a rule of the firewall is of one IP version: written as an IPv4 and an IPv6 rule
+  shop-web-in-5  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'icmp-3-4': an ICMP type or code: a service entry of the firewall matches every ICMP type.
+  shop-bastion-in-4  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'sg-0f9e8d7c6b5a43001': dynamic address group, members are not known statically.
+
+NAT rules
+  public-192.0.2.10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+  public-192.0.2.5  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: on a CloudGen Firewall NAT is the action of a rule (Dst NAT, Map) or its connection object, and how the REST API spells those is not known. Set it on the rule by hand
+
+Address groups
+  shop-app members  ->  exact  (emitted as shop-app_members)
+      [info] RENAMED: renamed to 'shop-app_members' to fit the target's naming rules
+  shop-db members  ->  exact  (emitted as shop-db_members)
+      [info] RENAMED: renamed to 'shop-db_members' to fit the target's naming rules
+  shop-web members  ->  exact  (emitted as shop-web_members)
+      [info] RENAMED: renamed to 'shop-web_members' to fit the target's naming rules
+
+Services
+  icmp-3-4  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: an ICMP type or code: a service entry of the firewall matches every ICMP type: not written, and the rules that use it are deactivated
