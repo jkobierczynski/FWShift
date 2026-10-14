@@ -28,6 +28,7 @@ from .emitters import fortios as emit_fortios
 from .emitters import iptables as emit_iptables
 from .emitters import panos as emit_panos
 from .emitters import forcepoint as emit_forcepoint
+from .emitters import gcp as emit_gcp
 from .emitters import opnsense as emit_opnsense
 from .emitters import pfsense as emit_pfsense
 from .emitters import routeros as emit_routeros
@@ -51,6 +52,7 @@ from .parsers import fortios as parse_fortios
 from .parsers import iptables as parse_iptables
 from .parsers import panos as parse_panos
 from .parsers import forcepoint as parse_forcepoint
+from .parsers import gcp as parse_gcp
 from .parsers import opnsense as parse_opnsense
 from .parsers import pfsense as parse_pfsense
 from .parsers import routeros as parse_routeros
@@ -75,6 +77,8 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "azure": emit_azure.emit,
     "terraform-aws": emit_terraform.emit_terraform_aws,
     "terraform-azure": emit_terraform.emit_terraform_azure,
+    "gcp": emit_gcp.emit,
+    "terraform-google": emit_terraform.emit_terraform_google,
     "routeros": emit_routeros.emit,
     "checkpoint": emit_checkpoint.emit,
     "asa": emit_asa.emit,
@@ -90,7 +94,7 @@ EMITTERS: Dict[str, Callable[[Policy, Report, Options], str]] = {
     "fdm": emit_cisco.emit_fdm,
 }
 VENDORS = ("panos", "fortios", "checkpoint", "asa", "fmc", "fdm", "sophos", "pfsense", "opnsense", "sonicwall", "watchguard", "barracuda", "junos",
-           "iptables", "ip6tables", "nftables", "nsx", "aws", "azure", "terraform-aws", "terraform-azure", "routeros", "forcepoint")  # fmt: skip
+           "iptables", "ip6tables", "nftables", "nsx", "aws", "azure", "terraform-aws", "terraform-azure", "terraform-google", "gcp", "routeros", "forcepoint")  # fmt: skip
 
 
 def detect_format(data: bytes) -> str:
@@ -121,12 +125,15 @@ def detect_format(data: bytes) -> str:
         if len(providers) == 1:
             return "terraform-" + providers.pop()
         if providers:
-            raise FwshiftError("the Terraform state holds security groups of AWS and of Azure: say which to read with --from "
-                               "terraform-aws or --from terraform-azure")  # fmt: skip
+            raise FwshiftError("the Terraform state holds firewall resources of several providers: say which to read with --from "
+                               "terraform-aws, terraform-azure or terraform-google")  # fmt: skip
         raise FwshiftError("a Terraform state or plan without the firewall resources FWShift reads (the security groups and network "
-                           "ACLs of hashicorp/aws, the network security groups of hashicorp/azurerm)")  # fmt: skip
+                           "ACLs of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and network "
+                           "firewall policies of hashicorp/google)")  # fmt: skip
     if parse_forcepoint.looks_like_forcepoint(data):
         return "forcepoint"
+    if parse_gcp.looks_like_gcp(data):
+        return "gcp"
     if parse_opnsense.looks_like_opnsense(data):
         return "opnsense"
     if parse_pfsense.looks_like_pfsense(data):
@@ -205,10 +212,12 @@ def load(
         return parse_aws.parse(data, report)
     if source == "azure":
         return parse_azure.parse(data, report)
-    if source in ("terraform-aws", "terraform-azure"):
+    if source in ("terraform-aws", "terraform-azure", "terraform-google"):
         if policy and source == "terraform-azure":
-            raise FwshiftError("--policy is for a Management Center, Forcepoint or terraform-aws source")
+            raise FwshiftError("--policy is for a Management Center, Forcepoint, gcp, terraform-aws or terraform-google source")
         return parse_terraform.parse(data, report, provider=source.split("-", 1)[1], vpc=policy)
+    if source == "gcp":
+        return parse_gcp.parse(data, report, network=policy)
     if source == "routeros":
         return parse_routeros.parse(data, report)
     if source == "forcepoint":
@@ -481,7 +490,8 @@ def _source_options(parser: argparse.ArgumentParser, optional: bool = False) -> 
     parser.add_argument("--vdom", default="", help="FortiOS source: VDOM to read")
     parser.add_argument("--layer", default="", help="Check Point source: access layer to read")
     parser.add_argument("--policy", default="", help="Management Center source (fmc): access control policy to read; Forcepoint: "
-                        "firewall policy to read; terraform-aws: the VPC to read (its id or the address of its aws_vpc)")
+                        "firewall policy to read; terraform-aws: the VPC to read (its id or the address of its aws_vpc); gcp and terraform-google: "
+                        "the network to read")
     parser.add_argument("--nat-policy", default="", help="Management Center source (fmc): NAT policy to read")
     parser.add_argument(
         "--interface-address", action="append", default=[], metavar="INTERFACE=ADDRESS/BITS",
@@ -495,7 +505,8 @@ def build_parser() -> argparse.ArgumentParser:
         prog="fwshift",
         description="Convert firewall policies between PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall "
         "(Management Center and Device Manager), Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, iptables, "
-        "nftables, VMware NSX, AWS security groups, Azure network security groups (also as Terraform), MikroTik RouterOS and Forcepoint NGFW, "
+        "nftables, VMware NSX, AWS security groups, Azure network security groups, Google Cloud firewall rules (these three also as Terraform), "
+        "MikroTik RouterOS and Forcepoint NGFW, "
         "with a lossiness report.",
     )
     parser.add_argument("--version", action="version", version=f"fwshift {__version__}")
@@ -514,7 +525,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conv.add_argument(
         "--zone-network", action="append", default=[], metavar="ZONE=NET[,NET]",
-        help="ASA, pfSense, OPNsense, Barracuda, NSX, AWS and Azure targets (also terraform-aws and terraform-azure): the networks behind a zone, so that rules for other zones can leave them out. Give "
+        help="ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure and Google Cloud targets (also as Terraform): the networks behind a zone, so that rules for other zones can leave them out. Give "
         "them for every zone; 0.0.0.0/0,::/0 for the zone with the default route",
     )  # fmt: skip
     conv.add_argument(
@@ -559,12 +570,13 @@ def build_parser() -> argparse.ArgumentParser:
     conv.add_argument(
         "--target-prefix", default="", metavar="TEXT",
         help="Check Point, ASA, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Cisco Secure Firewall, NSX, AWS and Azure "
-             "targets (also terraform-aws and terraform-azure): prefix for the names of created objects",
+             "targets (also as Terraform), and the policy Google Cloud targets create: prefix for the names of created objects",
     )  # fmt: skip
     conv.add_argument(
         "--target-policy", default="FWShift", metavar="NAME",
         help="Management Center target (fmc): name of the access control policy and the NAT policy the script creates; NSX: of "
-             "the security policy; Forcepoint: of the firewall policy; Azure and terraform-azure: of the one group when no zone has networks "
+             "the security policy; Forcepoint: of the firewall policy; Azure and terraform-azure: of the one group when no zone has networks; "
+             "gcp and terraform-google: of the network firewall policy "
              "(default: FWShift)",
     )  # fmt: skip
     conv.add_argument(
@@ -621,7 +633,7 @@ def build_parser() -> argparse.ArgumentParser:
     cmp.add_argument("--from-second", choices=VENDORS, help="format of the second (default: detected)")
     for option, text in (("--vsys", "PAN-OS: virtual system to read"), ("--device-group", "Panorama: device group to read"),
                          ("--vdom", "FortiOS: VDOM to read"), ("--layer", "Check Point: access layer to read"),
-                         ("--policy", "Management Center (fmc), Forcepoint: access control or firewall policy to read; terraform-aws: the VPC"),
+                         ("--policy", "Management Center (fmc), Forcepoint: access control or firewall policy to read; terraform-aws: the VPC; gcp and terraform-google: the network"),
                          ("--nat-policy", "Management Center (fmc): NAT policy to read")):  # fmt: skip
         cmp.add_argument(option, default="", help=text + " (of both)")
     cmp.add_argument("--zone-map", action="append", default=[], metavar="FIRST=SECOND",

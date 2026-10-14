@@ -3,12 +3,12 @@
 FWShift converts firewall policies between Palo Alto PAN-OS, Fortinet FortiOS,
 Check Point, Cisco ASA, Cisco Secure Firewall (managed by a Management Center
 or by its Device Manager), Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda CloudGen Firewall, Juniper SRX, Linux iptables, Linux nftables, the VMware NSX
-distributed firewall, AWS security groups, Azure network security groups (also as the resources of a Terraform state or plan, and as Terraform configuration), MikroTik RouterOS and Forcepoint NGFW (through its Security Management Center), and tells you,
+distributed firewall, AWS security groups, Azure network security groups, Google Cloud firewall rules and network firewall policies (these three also as the resources of a Terraform state or plan, and as Terraform configuration), MikroTik RouterOS and Forcepoint NGFW (through its Security Management Center), and tells you,
 rule by rule, how faithful the result is. It can also audit a policy: rules that allow too much,
 rules that never match, loose ends; show what each zone may reach in each
 other zone; check a policy against a zone and conduit model kept as a file;
 and say which connections two policies decide differently.
-This manual covers version 0.26.
+This manual covers version 0.27.
 
 **Contents**
 
@@ -62,10 +62,10 @@ may reach (section 14), check a policy against a zone and conduit model kept
 as a file (section 16), and name every connection two policies decide
 differently, including a source and its conversion read back (section 17).
 
-> **Status.** Version 0.26 is tested against synthetic configurations. iptables
+> **Status.** Version 0.27 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). Output for PAN-OS, FortiOS, Check Point,
-> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS, Azure, RouterOS and Forcepoint has
+> Cisco ASA, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS, Azure, Google Cloud, RouterOS and Forcepoint has
 > not been loaded on a device or management server yet, and the Terraform output has not been applied with Terraform; the Check Point input format follows the
 > API documentation, the ASA and FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
@@ -78,7 +78,9 @@ differently, including a source and its conversion read back (section 17).
 > documentation and from the grammar of a published reader of it; the SMC REST API of Forcepoint from the
 > clients Forcepoint publishes for it (its Python library and Terraform provider) and its API guide, and the loader
 > and the dump program for it have only talked to a stand-in written for the tests; the JSON of Terraform from its
-> documentation and source, and the resources of the AWS and Azure providers from their documentation and schemas.
+> documentation and source, and the resources of the AWS, Azure and Google providers from their documentation and schemas;
+> the JSON of gcloud and what Google Cloud makes of its firewall rules and policies from Google's API reference and
+> documentation; no gcloud command of a script was run against a project.
 > Use FWShift to produce a draft for a lab, and follow *Using it safely* in the README.
 
 ## 2. Installation
@@ -101,8 +103,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.26.0.pyz --version
-python3 fwshift-0.26.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.27.0.pyz --version
+python3 fwshift-0.27.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -259,8 +261,34 @@ CLI page through everything: an answer with a `nextLink` or a skip token is
 incomplete (`AZURE_INCOMPLETE_EXPORT`). The report says which networks lie
 behind each group, for `--zone-network` (`AZURE_ZONES`).
 
-**Terraform (the hashicorp/aws and hashicorp/azurerm providers).** FWShift reads the security groups and network ACLs of
-AWS, and the network security groups of Azure, from what Terraform knows of them: the JSON of `terraform show -json`, of
+**Google Cloud (VPC firewall rules and network firewall policies).** FWShift reads one VPC network: its VPC firewall rules,
+the global and regional network firewall policies associated with it, the network itself (its enforcement order) and
+its instances (which addresses a network tag or a service account stands for). Put the answers of gcloud in one JSON
+object, under the keys below, or in one JSON array; each object is told by its `kind` or its keys:
+
+```sh
+gcloud compute networks describe vpc-shop --format=json > network.json
+gcloud compute firewall-rules list --format=json > rules.json
+gcloud compute network-firewall-policies describe pol-shop --global --format=json > global.json
+gcloud compute network-firewall-policies describe pol-ew1 --region=europe-west1 --format=json > ew1.json
+gcloud compute instances list --format=json > instances.json
+jq -s '{networks: [.[0]], "firewall-rules": .[1], "network-firewall-policies": [.[2], .[3]], instances: .[4]}' \
+    network.json rules.json global.json ew1.json instances.json > gcp.json
+```
+
+Use `describe` for a policy: `network-firewall-policies list` leaves its rules out (`GCP_POLICY_WITHOUT_RULES`). A
+project's export holds no hierarchical firewall policies (of the organization and its folders), which come before
+everything else (`GCP_NOT_IN_EXPORT`). Two ways to add them: the answer of `gcloud compute networks get-effective-firewalls
+vpc-shop --format=json` in place of the rules and policies, which holds the VPC rules and every policy that applies to the
+network, the hierarchical ones in their order (`GCP_EFFECTIVE`; it does not say the region of a regional policy, whose
+rules are then not converted: for a network with regional policies, add those with `describe`); or the answer of
+`gcloud compute firewall-policies describe POLICY --format=json` next to the others, read as the first step
+(`GCP_HIERARCHICAL_READ`). Without the instances, rules that name targets or source tags are not converted
+(`GCP_NO_INSTANCES`). An export with the rules of several networks needs `--policy` with the network to read.
+
+**Terraform (the hashicorp/aws, hashicorp/azurerm and hashicorp/google providers).** FWShift reads the security groups
+and network ACLs of AWS, the network security groups of Azure, and the firewall rules and network firewall policies of
+Google Cloud, from what Terraform knows of them: the JSON of `terraform show -json`, of
 the state or of a saved plan, or the raw state:
 
 ```sh
@@ -269,20 +297,24 @@ terraform plan -out plan.out && terraform show -json plan.out > plan.json   # a 
 terraform state pull > raw.json                    # the raw state (version 4)
 ```
 
-FWShift recognises the files (`--from terraform-aws` or `--from terraform-azure`; a state with the resources of both
-needs one of them). What it reads, for AWS: `aws_security_group` and `aws_default_security_group` with their inline
+FWShift recognises the files (`--from terraform-aws`, `--from terraform-azure` or `--from terraform-google`; a state with
+the resources of more than one needs one of them). What it reads, for AWS: `aws_security_group` and `aws_default_security_group` with their inline
 rules, `aws_security_group_rule`, `aws_vpc_security_group_ingress_rule` and `_egress_rule`, `aws_network_acl`,
 `aws_default_network_acl`, `aws_network_acl_rule` and `_association`, `aws_network_interface` and
 `aws_network_interface_sg_attachment`, `aws_instance`, `aws_eip` and `aws_eip_association`, `aws_subnet`, `aws_vpc` and
 the managed prefix lists with their entries. For Azure: `azurerm_network_security_group` with its inline rules,
 `azurerm_network_security_rule`, the associations of a group with subnets and network interfaces, application security
 groups and their associations, `azurerm_network_interface`, `azurerm_subnet`, `azurerm_virtual_network` (with inline
-subnets) and its peerings. These become the answers of the AWS CLI or the Azure CLI described above, and are read as
-those are: what is said there holds here too.
+subnets) and its peerings. For Google Cloud: `google_compute_firewall`, `google_compute_network`, the global and regional
+network firewall policies (`google_compute_network_firewall_policy`, its `_rule`, `_association` and `_with_rules`
+resources, and the `google_compute_region_network_firewall_policy` forms of each) and `google_compute_instance`. These
+become the answers of the AWS CLI, the Azure CLI or gcloud described above, and are read as those are: what is said
+there holds here too.
 
 The members of a security group are the interfaces and instances of the same input: convert the state that holds them as
 well as the groups (`TERRAFORM_NO_MEMBERS`). A state with groups of several VPCs needs `--policy` with the VPC to read
-(its id, or the address of its `aws_vpc`). In a plan, an id that is not known yet stands for the resource that the
+(its id, or the address of its `aws_vpc`); one with the firewall rules of several Google Cloud networks needs `--policy`
+with the name of the network. In a plan, an id that is not known yet stands for the resource that the
 configuration refers to; what neither the plan nor the configuration tells is not converted (`TERRAFORM_UNKNOWN`).
 
 **MikroTik RouterOS.** FWShift reads the output of `/export` (RouterOS 6 or 7;
@@ -865,7 +897,7 @@ fwshift convert INPUT --to FORMAT [options]
 
 `FORMAT` is one of `panos`, `fortios`, `checkpoint`, `asa`, `fmc`, `fdm`,
 `sophos`, `pfsense`, `opnsense`, `sonicwall`, `watchguard`, `barracuda`, `junos`,
-`iptables`, `ip6tables`, `nftables`, `nsx`, `aws`, `azure`, `terraform-aws`, `terraform-azure`, `routeros`, `forcepoint` and `json` (the neutral model; see `--to json` below).
+`iptables`, `ip6tables`, `nftables`, `nsx`, `aws`, `azure`, `gcp`, `terraform-aws`, `terraform-azure`, `terraform-google`, `routeros`, `forcepoint` and `json` (the neutral model; see `--to json` below).
 
 `INPUT` is a file, or `-` for standard input.
 
@@ -873,12 +905,12 @@ fwshift convert INPUT --to FORMAT [options]
 
 | Option | Meaning |
 |---|---|
-| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: the JSON of `terraform show -json` or a raw state of Terraform is `terraform-aws` or `terraform-azure`, by the resources it holds; JSON that holds the answers of the SMC API for a firewall policy (list answers with `fwshift_list`, or hrefs into `/elements/fw_policy/`), or the XML export of an SMC (`<generic_import_export>`, which is refused), is Forcepoint; a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<opnsense>` is OPNsense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; JSON with network security groups of Azure (`Microsoft.Network/networkSecurityGroups`, or `securityRules` with priorities) is Azure; a file whose header says `by RouterOS`, or whose first line is a menu such as `/ip firewall filter` or `/interface list`, is RouterOS; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
+| `--from FORMAT` | Source format: one of the formats above, except `json`. Detected when left out: the JSON of `terraform show -json` or a raw state of Terraform is `terraform-aws`, `terraform-azure` or `terraform-google`, by the resources it holds; JSON that holds the answers of the SMC API for a firewall policy (list answers with `fwshift_list`, or hrefs into `/elements/fw_policy/`), or the XML export of an SMC (`<generic_import_export>`, which is refused), is Forcepoint; JSON of gcloud with objects of the kinds `compute#firewall` or `compute#firewallPolicy` (or firewall rules with `allowed` or `denied`, `IPProtocol` and `network`) is `gcp`; a tar archive, or XML that starts with `<Configuration>` (or with the `<Response>` of the Sophos XML API), is Sophos Firewall; XML that starts with `<pfsense>` is pfSense; XML that starts with `<opnsense>` is OPNsense; XML that starts with `<profile>` is WatchGuard; Base64 that decodes to the keys of a settings export, or those keys themselves, is SonicWall; a file whose first line is `table ...`, `flush ruleset` or `define ...`, or JSON that starts with `{"nftables":`, is nftables; JSON with the objects of the NSX Policy API (`SecurityPolicy`, `ChildDomain`, `IPAddressExpression` ...) is NSX; JSON with `SecurityGroups` (or `SecurityGroupRules`, or groups with `GroupId` and `IpPermissions`) is AWS; JSON with network security groups of Azure (`Microsoft.Network/networkSecurityGroups`, or `securityRules` with priorities) is Azure; a file whose header says `by RouterOS`, or whose first line is a menu such as `/ip firewall filter` or `/interface list`, is RouterOS; other XML is PAN-OS; JSON with the keys of the REST API of a CloudGen Firewall (`references`, `deactivated` and `ipVersion` in rules, or `included` entries of network objects) is Barracuda; other JSON is a Management Center (`fmc`) or a Device Manager (`fdm`) when it holds objects of the types one of them writes, and Check Point otherwise; a zip that holds the export of a Device Manager is `fdm`; a file that starts with a table (`*filter`) or the header of `iptables-save` is iptables, a file with lines `set security ...`, `set system ...` and the like at the start of a line, or the top of a configuration in braces (`version ...;`, `security {`), is Juniper SRX; a file with an `ASA Version` line or with `access-list ... extended`, `object network` and similar lines is Cisco ASA, anything else FortiOS. |
 | `--vsys NAME` | PAN-OS source with several virtual systems: the one to read. |
 | `--device-group NAME` | Panorama source: the device group to read, with its parents and `shared`. |
 | `--vdom NAME` | FortiOS source with several VDOMs: the one to read. |
 | `--layer NAME` | Check Point source with several access layers: the one to read. |
-| `--policy NAME` | Management Center source with several access control policies: the one to read, by its name or its id. Without it the policy that no other policy in the input inherits from is read, if there is one such policy. Forcepoint source with several firewall policies: the one to read, by its name. `terraform-aws` source with security groups of several VPCs: the VPC to read, by its id or the address of its `aws_vpc`. |
+| `--policy NAME` | Management Center source with several access control policies: the one to read, by its name or its id. Without it the policy that no other policy in the input inherits from is read, if there is one such policy. Forcepoint source with several firewall policies: the one to read, by its name. `terraform-aws` source with security groups of several VPCs: the VPC to read, by its id or the address of its `aws_vpc`. `gcp` or `terraform-google` source with the firewall rules of several networks: the network to read, by its name. |
 | `--nat-policy NAME` | Management Center source with several NAT policies: the one to read, by its name or its id. |
 | `--interface-address INTERFACE=ADDRESS/BITS` | pfSense, OPNsense and SonicWall sources: the address of an interface that gets it by DHCP, PPPoE, SLAAC or from a tracked interface, which is then not in the file (SonicWall: IPv4, by the name of the interface, `X1`). `INTERFACE` is the name of the interface (`wan`, `opt1`) or its description (`WAN`), `BITS` the prefix length of its network. One address per IP version and interface; repeatable. Without it, rules that name such an address or network are written disabled (section 3). |
 
@@ -909,6 +941,8 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to aws` | A shell script of AWS CLI calls that creates security groups for one VPC, without members, and says which addresses each is for (section 10). |
 | `--to azure` | An ARM template with one network security group per zone (section 10). |
 | `--to terraform-aws` | Terraform configuration (HCL, hashicorp/aws 5 or later): the security groups the `aws` target writes, as `aws_security_group` resources without members and one `aws_vpc_security_group_ingress_rule` or `_egress_rule` per address block and service, for the VPC in the variable `vpc_id` (section 10). |
+| `--to gcp` | A shell script of gcloud commands that creates one new global network firewall policy with the rules, associated with no network (section 10). Each rule of the source becomes a rule per IP version, both ingress and egress, at priorities from 1000 in steps of 10; the last rules are the default of the source. Zones become the networks of `--zone-network`, as for NSX. |
+| `--to terraform-google` | Terraform configuration (HCL, hashicorp/google 5 or later): the policy and rules the `gcp` target writes, as a `google_compute_network_firewall_policy` and its `_rule` resources, in the project in the variable `project`; the association with a network is a comment (section 10). |
 | `--to terraform-azure` | Terraform configuration (HCL, hashicorp/azurerm 3 or later): the network security groups the `azure` target writes, as `azurerm_network_security_group` resources with their rules inline, in the resource group in the variable `resource_group_name` (section 10). |
 | `--to routeros` | A script for `/import` on RouterOS 6 or 7: interface lists for the zones, address lists, the rules in chains of their own, and the jumps that switch them on, disabled (section 10). |
 | `--to forcepoint` | A Python program that creates the policy on a Forcepoint Security Management Center through its REST API: elements, zones it does not have, and a new firewall policy on a template, with the access rules and the NAT rules of both IP versions. It installs nothing on an engine (section 10). |
@@ -924,9 +958,9 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--target-layer NAME` | Check Point: the access layer the rules are written to. Default `Network`. It must exist. |
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
-| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS, Azure (also as Terraform), RouterOS and Forcepoint: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on Azure every network security group; on RouterOS every interface list and address list, instead of `fws-`) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
+| `--target-prefix TEXT` | Check Point, ASA, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS, Azure (also as Terraform), Google Cloud (also as Terraform), RouterOS and Forcepoint: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on Azure every network security group; on Google Cloud the network firewall policy; on RouterOS every interface list and address list, instead of `fws-`) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
 | `--compare[=FILE]` | Read the output back (for the targets FWShift reads: `asa`, `azure`, `fdm`, `fortios`, `iptables`, `ip6tables`, `junos`, `nftables`, `nsx`, `routeros`, `sophos`, `watchguard`) and compare it with the policy as it was read: every connection the two decide differently is in the report (`COMPARE_OPENED`, `COMPARE_CLOSED`, section 17). With `FILE` the whole comparison is written there. Give `--zone-network` for every zone, so that only connections that can happen are compared. |
-| `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates; the script can be given another name when it is run (`--name`). NSX: the name of the security policy. Azure and `terraform-azure`: the name of the one network security group written when no zone has networks. Default `FWShift`. Forcepoint: the name of the firewall policy the program creates (`--name` when it is run gives another). |
+| `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates; the script can be given another name when it is run (`--name`). NSX: the name of the security policy. Azure and `terraform-azure`: the name of the one network security group written when no zone has networks. `gcp` and `terraform-google`: the name of the network firewall policy, in lower case with hyphens (`fwshift` when not given). Default `FWShift`. Forcepoint: the name of the firewall policy the program creates (`--name` when it is run gives another). |
 | `--target-template NAME` | Forcepoint: the template the new firewall policy is based on (default `Firewall Template`, the predefined one). The loader stops when the SMC has no template of that name; it can be given another when it is run (`--template`). |
 
 **Adapting the policy**
@@ -934,7 +968,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | Option | Meaning |
 |---|---|
 | `--zone-map SRC=DST` | Use `DST` wherever the source names zone or interface `SRC`. Repeatable. For iptables and ASA this is how a zone becomes an interface name, and the other way round; for pfSense how it becomes an interface (`lan`, `opt1`) or an interface group. |
-| `--zone-network ZONE=NET[,NET...]` | ASA, pfSense, OPNsense, Barracuda, NSX, AWS and Azure targets (also `terraform-aws` and `terraform-azure`): the networks that lie behind a zone (SonicWall: the zone an address object is created in; Barracuda, NSX and AWS: both sides of a rule, which names no zone) (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
+| `--zone-network ZONE=NET[,NET...]` | ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure and Google Cloud targets (also `terraform-aws`, `terraform-azure` and `terraform-google`): the networks that lie behind a zone (SonicWall: the zone an address object is created in; Barracuda, NSX, AWS and Google Cloud: both sides of a rule, which names no zone) (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
 | `--inside-zone ZONE` | AWS and Azure targets (also `terraform-aws` and `terraform-azure`): a zone whose networks (`--zone-network`) are inside the VPC or the virtual network. Repeatable. For Azure only those zones get a network security group. Only addresses inside get security groups, and their outbound rules leave the addresses inside to the inbound rules of the destination's group, which keeps them short. Without it every address gets a group (those outside are never attached), and each end says everything. From an AWS source the VPC it was read from is the inside. |
 | `--interface-map SRC=DST` | Map a source interface to a target interface: zone members written for FortiOS, source NAT to an interface address on PAN-OS, and the interfaces of a NAT rule on Sophos Firewall, SonicWall and a Device Manager, which match interfaces and not zones (SonicWall: `X1`, `X3:V10`); for a Barracuda target, the interface of the entries of the source of a rule in that zone (`port2`). For those two, map every interface of a zone the NAT rules name (for an iptables or ASA source, whose zones are interfaces, that is the zone name itself); for a Device Manager `DST` is the logical name of the interface (`inside`, `outside`). Repeatable. |
 | `--app-map FILE` | JSON file that adds or overrides application port definitions (section 9). |
@@ -1783,6 +1817,38 @@ Findings and notes that only a Forcepoint source or target raises. A Forcepoint 
 | `NAT_IPV4_ONLY` | A | Target (on the NAT rule): source NAT to the interface address for addresses of both IP versions is written for IPv4 only. |
 | `NAT_PORTS` | A | Target (on the NAT rule): dynamic NAT without port translation is written as dynamic NAT of an SMC, which translates ports as well. |
 
+Findings and notes that only a Google Cloud source or target raises (a Google Cloud target also raises
+`ZONE_NETWORK_MISSING`, `ZONE_WIDENED`, `ZONE_DYNAMIC`, `RULE_TYPE`, `INTRAZONE_DEFAULT`, `INTRAZONE_ALLOW` and
+`NAT_NOT_CONVERTED`, as for NSX):
+
+| Code | Sev. | Meaning and what to do |
+|---|---|---|
+| `GCP_SOURCE` | I | Source: the network read and its enforcement order: which step comes first. What no rule decides is denied for ingress to an instance and allowed for egress from one. |
+| `GCP_NOT_IN_EXPORT` | R | Source: hierarchical firewall policies and regional system policies come before everything else and are not in a project's export; neither is a firewall endpoint a rule sends traffic to. Add them (section 3), or compare with `gcloud compute networks get-effective-firewalls`. |
+| `GCP_EFFECTIVE` | I | Source: the answer of `get-effective-firewalls` was read: its hierarchical policies first, in its order, then its system policies, then the network's own rules and policies. |
+| `GCP_HIERARCHICAL_READ` | R | Source: policies of an organization or a folder were read as the first step, before every other, in the order of the export (put the organization's first). That they reach this network, and the order of their folders, are not checked. |
+| `GCP_UNFILTERED` | I | Source: traffic the firewall never filters (the metadata server), and what Google Cloud blocks itself (outbound TCP 25 to the internet); the converted policy says nothing about it. |
+| `GCP_NO_INSTANCES` | R | Source: the instances are not in the export: what a rule's targets, source tags and service accounts stand for is not known, those rules are not converted, and connections between instances are not worked out. Add `gcloud compute instances list`. |
+| `GCP_INCOMPLETE_EXPORT` | R | Source: an answer says there is more (`nextPageToken`); what was left out is missing. |
+| `GCP_ORDER_ASSUMED` | R | Source: the network is not in the export; its enforcement order was taken to be `AFTER_CLASSIC_FIREWALL`, the default. Add `gcloud compute networks describe`. |
+| `GCP_POLICY_NOT_ASSOCIATED` | I | Source: network firewall policies associated with another network, or with none; not read. |
+| `GCP_POLICY_WITHOUT_RULES` | R | Source: policies without their rules (the answer of `list`, not of `describe`): their rules are missing from the converted policy. |
+| `GCP_REGIONAL_SEVERAL` | R | Source: several regional policies of one region; read in the order of the export. |
+| `GCP_ALIAS_RANGES` | I | Source: alias IP ranges of these instances are addresses that the rules which apply to the instance protect; as a source tag or service account they are not. |
+| `GCP_COMPOSED` | I | Source: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two. |
+| `GCP_COMPOSED_LEFT_OUT` | R | Source: more than 5,000 combinations of egress and ingress rules; the rest of the connections between instances is blocked. |
+| `GCP_EXTERNAL_ADDRESSES` | I | Source: the external addresses of the instances are static NAT of their internal addresses; the rules that name an internal address name its external one too. |
+| `GCP_HAIRPIN` | R | Source: connections from an instance to the external address of another leave the network and come back from the sender's external address; the converted policy treats them as connections to the internal address, which may allow more. |
+| `GCP_NO_INSTANCE` | I, skipped | Source (on the rule): it applies to no instance of the export, what it matches is all taken by the `goto_next` rules above it, or its two sides are of different IP versions; left out. |
+| `GCP_LOAD` | R | Target: how the script is run (section 10): `DRY_RUN=1` prints the commands; without it it creates the policy and its rules, and stops if a policy of that name exists. It is associated with no network. |
+| `GCP_ORDER` | R | Target: the policy decides every connection of the network it is associated with, and ends in the default of the source. With the enforcement order `AFTER_CLASSIC_FIREWALL` the VPC firewall rules decide first: set it to `BEFORE_CLASSIC_FIREWALL`, or remove those rules. |
+| `GCP_PART_NOT_WRITTEN` | A | Target (on the rule): part of what it allows cannot be said by a rule of Google Cloud (ICMP types, source ports, every protocol but some) and is not written: the converted rule allows less. |
+| `GCP_NOT_WRITTEN` | R, skipped | Target (on the rule): nothing of what it allows can be said by a rule of Google Cloud; not written. |
+| `GCP_BLOCKS_MORE` | A | Target (on a blocking rule): it blocks certain ICMP types, source ports or protocols; a rule of Google Cloud blocks all of ICMP, every source port or every protocol there, which blocks more. |
+| `REJECT_AS_DENY` | I | Target (on the rule): a reset or reject action; a rule of Google Cloud denies without an answer. |
+| `LOGGING_CONVERTED` | I | Target: rules of the source log; their rules have logging enabled. |
+| `LIST_TOO_LONG` | R, disabled | Target (on the rule): more than 5,000 address ranges on one side; nothing of the rule is written. |
+
 Findings and notes that only a Terraform source or target raises. A Terraform source raises the findings and notes of
 the AWS or the Azure source as well (it is read as their answers, section 8), and a Terraform target those of the AWS or
 the Azure target, except `AWS_LOAD`, `AWS_ATTACH` and `AZURE_LOAD`, which the notes below take the place of:
@@ -1801,6 +1867,7 @@ the Azure target, except `AWS_LOAD`, `AWS_ATTACH` and `AZURE_LOAD`, which the no
 | `TERRAFORM_GROUP_NOT_IN_STATE` | R | Source: separate rules belong to a group the input does not hold. The group is read with those rules only (Azure: and its default rules); the rules it has otherwise are missing, and on Azure they may deny what the converted policy allows. |
 | `TERRAFORM_ACL_NOT_IN_STATE` | R | Source: separate entries belong to a network ACL the input does not hold. It is read with those entries only, for the subnets associated with it in the input; its other entries may deny what the converted policy allows. |
 | `TERRAFORM_DEPOSED` | I | Source: deposed objects (the old object a replacement leaves until it is done) were left out. |
+| `TERRAFORM_POLICY_AMBIGUOUS` | R | Source (Google Cloud): a rule or an association names a network firewall policy by a name that regional policies of several regions have, and says no region; it is not read. |
 | `TERRAFORM_NOT_READ` | R | Source: the input holds resources that filter traffic and are not read (AWS Network Firewall, WAF, Azure Firewall, Virtual Network Manager rules and the like). The converted policy does not hold what they do. |
 | `TERRAFORM_LOAD` | R | Target: the output is Terraform configuration: `terraform plan` shows what it creates, `terraform apply` creates new groups (section 10). A group of the same name makes the apply fail; nothing that exists is changed. |
 | `TERRAFORM_ATTACH` | R | Target (AWS): attach each group to the network interfaces its `# attach` comment and the output `fwshift_attach` list, and take the other groups off them. |
@@ -2435,6 +2502,49 @@ The second column matters too:
   destination of what comes in and the untranslated source of what goes out.
   Logging is not written: flow logs record the connections.
 
+### Google Cloud
+
+**What is read**
+
+* One VPC network: its VPC firewall rules, the network firewall policies associated with it (global and regional), the
+  network's enforcement order and the instances (section 3). Hierarchical policies are read when they are added.
+* The steps, in the order Google Cloud takes them: hierarchical policies, then system policies, then (with the
+  enforcement order `AFTER_CLASSIC_FIREWALL`, the default) the VPC firewall rules, the global policy and the regional
+  policy of the instance's region; with `BEFORE_CLASSIC_FIREWALL` the two policies come before the VPC rules. What no
+  rule of a step decides goes to the next; at the end an ingress connection to an instance is denied and an egress one
+  allowed.
+* VPC rules: the lowest priority number first, a deny before an allow of the same priority. A rule with no source is
+  every address of its IP version (IPv6 when its destination ranges are IPv6, else IPv4), and likewise an egress rule
+  with no destination. Source ranges and source tags or service accounts are either; a tag or a service account as a
+  source is the primary internal addresses of the instances that carry it (not their alias ranges). Disabled rules are
+  written disabled.
+* Policy rules: by priority; `goto_next` is the rules below it in the policy without what it matches. Google's own
+  rules at the end of a policy (priorities from 2147483548) are what reaching the end means anyway. A rule with target
+  secure tags, address groups, host names, region codes, threat intelligence lists or a network context of its source
+  is not converted: the export does not say which addresses they stand for. A rule whose secure tags are all
+  ineffective is left out, as Google Cloud ignores it; `apply_security_profile_group` is not converted.
+* The model has no zones. A rule applies to the addresses of the instances it targets (all instances, network tags,
+  service accounts; for a regional policy those of its region). Connections from outside pass the ingress rules,
+  connections to outside the egress rules, and connections between two instances both: for those the converted policy
+  has the egress rules that deny, and for each that allows, the ingress rules cut to it (`GCP_COMPOSED`).
+* An external address of an instance is a static NAT of its internal address (`GCP_EXTERNAL_ADDRESSES`). An entry that
+  is not text (`null` in a list of ranges, tags or ports), an unknown protocol or a `disabled` that is neither true nor
+  false makes its rule not converted: nothing is read as any address or port.
+
+**What is written**
+
+* `gcp`: a shell script of gcloud commands that creates one new global network firewall policy, associated with no
+  network. Each rule of the source becomes a rule per IP version and per direction (ingress and egress, with the same
+  sources and destinations: a connection between two instances is checked where it leaves and where it arrives),
+  at priorities from 1000 in steps of 10, in the order of the source; the policy ends in the default of the source, for
+  both IP versions and directions, so nothing reaches Google's own rules or the VPC rules after it. Zones become the
+  networks of `--zone-network`; negation becomes the addresses that are left.
+* What a rule of Google Cloud cannot say: it does not filter ICMP types or source ports, and it names protocols one by
+  one. An allow rule leaves such a part out (`GCP_PART_NOT_WRITTEN`, or `GCP_NOT_WRITTEN` when nothing is left); a
+  blocking rule blocks more (`GCP_BLOCKS_MORE`). A reset becomes a deny (`REJECT_AS_DENY`).
+* NAT is not written: the rules are for the internal addresses, which is what the firewall sees.
+* `terraform-google`: the same policy and rules, as Terraform resources (see Terraform below).
+
 ### Terraform
 
 **What is read**
@@ -2442,8 +2552,10 @@ The second column matters too:
 * The JSON of `terraform show -json` (format version 1) of a state or a saved plan, and the raw state of
   `terraform state pull` (version 4). Data sources are not read; deposed objects (what a replacement leaves until it is
   done) are left out (`TERRAFORM_DEPOSED`). Modules, `count` and `for_each` are followed.
-* The resources of the provider asked for become the answers of its CLI (section 3), which the AWS or the Azure source
-  reads: what those sections say about how the cloud decides holds unchanged.
+* The resources of the provider asked for become the answers of its CLI (section 3), which the AWS, the Azure or the
+  Google Cloud source reads: what those sections say about how the cloud decides holds unchanged. A regional network
+  firewall policy of Google Cloud is named by its region and its name; a rule that names one by a name several regions
+  have, without its region, is not read (`TERRAFORM_POLICY_AMBIGUOUS`).
 * A refresh fills a group's inline rules (`ingress`, `egress`, `security_rule`) and a network ACL's `subnet_ids` from what
   the cloud holds, so they repeat the separate rule resources and associations: each rule is taken once. Where an
   inline rule says otherwise than the separate resource of the same rule (the same name, the same ACL entry number), the
@@ -2457,7 +2569,8 @@ The second column matters too:
   taken out of the inline rules that still repeat it (`TERRAFORM_PLAN`). An id that is not known yet stands for the
   resource, worked out from the references of the configuration (`TERRAFORM_REFERENCES`). A value that neither tells
   (a variable, a data source, a dynamic block; `after_unknown` says which) makes what holds it not converted, never
-  read as any address or port (`TERRAFORM_UNKNOWN`). A list of rules that the plan does not know is the separate
+  read as any address or port (`TERRAFORM_UNKNOWN`); for Google Cloud that holds for the tags and service accounts of
+  rules and instances too: a rule that names tags while an instance's tags are not known is not converted. A list of rules that the plan does not know is the separate
   resources' when there are any for that group; otherwise the group is not converted. A failed plan is refused; one
   that is not complete is read and said (`TERRAFORM_INCOMPLETE`).
 * Resources that filter traffic and are not read, such as AWS Network Firewall, WAF or an Azure Firewall, are named
@@ -2475,6 +2588,9 @@ The second column matters too:
   `var.location` (the resource group's when not given). An application security group given by name is a data source in
   that resource group. The comment before each group and the output `fwshift_networks` list the networks of its
   subnets.
+* `terraform-google`: the policy and rules the `gcp` target writes (see Google Cloud above), as one
+  `google_compute_network_firewall_policy` and a `google_compute_network_firewall_policy_rule` per rule, in
+  `var.project`. The association with a network is a commented resource at the end.
 * Text is written as HCL strings with `${` and `%{` doubled, so nothing a name or a description holds is an expression;
   comments are one line each.
 
@@ -3926,12 +4042,46 @@ It associates the groups with nothing.
    default rules: the load balancer's health probes and the virtual network
    pass only where a rule lets them (`AZURE_DEFAULTS_OVERRIDDEN`).
 
+### Google Cloud
+
+The output is a shell script of gcloud commands. It creates one new global network firewall policy with its rules, and
+associates it with nothing: until you associate it, no traffic changes. A policy of the same name stops it before
+anything is created.
+
+1. Convert with `--zone-network` for every zone the rules name (a rule of Google Cloud names addresses, not zones):
+
+   ```sh
+   fwshift convert policy.xml --to gcp -o policy.sh --report report.txt \
+       --zone-network trust=10.10.0.0/16 --zone-network dmz=10.20.0.0/24 --zone-network untrust=0.0.0.0/0,::/0 \
+       --target-policy shop-policy
+   ```
+
+2. Read the report, look at the commands, then create the policy:
+
+   ```sh
+   DRY_RUN=1 sh policy.sh                         # prints the commands; needs no access to Google Cloud
+   GCLOUD_OPTS='--project my-project' sh policy.sh
+   ```
+
+   A command gcloud refuses stops the script where it is; delete the policy and run it again.
+3. The policy decides every connection of the network it is associated with: it ends in the default of the source.
+   With the network's enforcement order `AFTER_CLASSIC_FIREWALL` (the default) the VPC firewall rules of the network
+   decide first (`GCP_ORDER`). Set the order to `BEFORE_CLASSIC_FIREWALL`, or remove those rules, then associate:
+
+   ```sh
+   gcloud compute networks update vpc-shop --network-firewall-policy-enforcement-order=BEFORE_CLASSIC_FIREWALL
+   gcloud compute network-firewall-policies associations create --firewall-policy shop-policy --network vpc-shop --global-firewall-policy
+   ```
+
+   A network has one global network firewall policy at a time: take the association of another one off first.
+
 ### Terraform
 
 The output is a root module: a `terraform` block with the provider it needs, its variables, the resources and an output.
-It creates new resources only. A security group of the same name in the VPC (AWS), or a network security group of the
-same name in the resource group (Azure, which refuses a resource that is not in the state), makes the apply fail;
-nothing that exists is changed, and the groups are attached to nothing.
+It creates new resources only. A security group of the same name in the VPC (AWS), a network security group of the
+same name in the resource group (Azure, which refuses a resource that is not in the state), or a network firewall policy
+of the same name in the project (Google Cloud), makes the apply fail; nothing that exists is changed, and the groups
+are attached to nothing, the policy associated with nothing.
 
 1. Convert with `--zone-network` for every zone the rules name, and `--inside-zone` for the zones that are in the cloud,
    as for the `aws` and `azure` targets:
@@ -3947,6 +4097,7 @@ nothing that exists is changed, and the groups are attached to nothing.
    terraform init
    terraform plan -var vpc_id=vpc-0a1b2c3d4e5f60789 -out groups.plan          # AWS
    terraform plan -var resource_group_name=rg-net -var subscription_id=... -out groups.plan   # Azure
+   terraform plan -var project=my-project -out groups.plan                   # Google Cloud
    terraform apply groups.plan
    ```
 
@@ -3960,6 +4111,9 @@ nothing that exists is changed, and the groups are attached to nothing.
    `aws_network_interface_sg_attachment`, and `azurerm_subnet_network_security_group_association`.
 4. A group may hold more rules than the default quota of AWS (`AWS_RULE_QUOTA`); the groups of Azure end in the
    default of the source, before Azure's own default rules (`AZURE_DEFAULTS_OVERRIDDEN`).
+5. Google Cloud: the policy is associated by the commented `google_compute_network_firewall_policy_association` at the
+   end of the file, once the rules are checked, and after the network's enforcement order is set as for the `gcp` target
+   (`network_firewall_policy_enforcement_order = "BEFORE_CLASSIC_FIREWALL"` on its `google_compute_network`).
 
 ### MikroTik RouterOS
 
@@ -4487,12 +4641,18 @@ the report is the list.)
 | `the count of a template copy loop is not worked out` | Azure template: the same remedy. |
 | `a template with symbolic resource names (languageVersion 2.0) is not read` / `a nested deployment with network security groups in it is not read` | Azure template forms that are not read: the same remedy. |
 | `a Resource Graph answer in the table format` | Azure: ask Resource Graph for objects (`az graph query` gives them; the REST API with `resultFormat` `objectArray`). |
-| `the Terraform state holds security groups of AWS and of Azure: say which to read with --from terraform-aws or --from terraform-azure` | Terraform: give one of the two; the resources of the other provider are left out. |
+| `the state holds resources of AWS and of Azure: read it with --from terraform-aws, terraform-azure or terraform-google` | Terraform: give one of them; the resources of the other providers are left out. |
 | `a Terraform state or plan without the firewall resources FWShift reads ...` / `the state holds no security groups or security group rules of AWS` / `... no network security groups or rules of Azure` | Terraform: the input holds none of the resources of section 3 (an empty state, or the state of another part of the deployment). |
 | `the state holds security groups of several VPCs (...)` / `--policy: no security group of VPC '...'` | Terraform, AWS: give `--policy` with the id of one VPC, or the address of its `aws_vpc`. |
 | `terraform show -json of format version ...` / `not the JSON of terraform show -json, nor a raw state of version 4` | Terraform: an output format FWShift does not read. Use `terraform show -json` of Terraform 1.x, or `terraform state pull`. |
 | `the plan failed (errored) ...` | Terraform: a plan that ended in an error is not read; fix the configuration and plan again. |
-| `--policy is for a Management Center, Forcepoint or terraform-aws source` | `--policy` was given for a source that does not use it. |
+| `the export holds firewall rules of several networks (...)` / `--policy: no firewall rule or policy of network '...'` | Google Cloud (also as Terraform): give `--policy` with the name of one network. |
+| `no firewall rules or network firewall policies found ...` | Google Cloud: the JSON holds none of the answers of section 3. |
+| `network ...: several global network firewall policies are associated with it ...` | Google Cloud: a network has one global policy; the answers are of different moments. Export again. |
+| `network firewall policy ...: two rules with one priority ...` / `... a rule without a priority that can be read` | Google Cloud: a policy as Google Cloud never holds it; export it again with `describe`. |
+| `network ...: enforcement order '...' is not one FWShift knows` | Google Cloud: an enforcement order other than `AFTER_CLASSIC_FIREWALL` and `BEFORE_CLASSIC_FIREWALL`. |
+| `instance ...: '...' is not an address` / `... alias range '...' cannot be read` | Google Cloud: an instance list that was edited, or of another format. |
+| `--policy is for a Management Center, Forcepoint, gcp, terraform-aws or terraform-google source` | `--policy` was given for a source that does not use it. |
 | `this is the output of 'print'; FWShift reads the output of '/export'` | RouterOS: give the output of `/export` (section 3). |
 | `line N: 'add' before any menu (such as /ip firewall filter)` | RouterOS: a partial export without its menu line; add the menu (`/ip firewall filter`) as the first line. |
 | `line N: cannot read '...'; expected the output of '/export'` / `a quoted string is not closed` / `unknown escape` | RouterOS: a line that is not a command of an export. |
@@ -4675,14 +4835,21 @@ deliberate: see *IPv4 and IPv6* in section 8.
   a service tag or an application security group cannot be cut to a zone. The
   formats follow Microsoft's REST API specifications, the Azure CLI and the
   documentation; nothing was read from or deployed to a real subscription.
-* Terraform: the resources of hashicorp/aws and hashicorp/azurerm listed in section 3, as `terraform show -json` or a
-  raw state of version 4 gives them, with what the AWS and the Azure sources cannot do. Resources made elsewhere (by
+* Google Cloud: one VPC network at a time. Hierarchical policies only when added to the export, in its order; secure
+  tags, address groups, host names, region codes, threat intelligence, network contexts, firewall endpoints and
+  security profiles are not converted. Connections between instances are worked out from the instances of the export
+  (5,000 rules at most, `GCP_COMPOSED_LEFT_OUT`); an instance in another project of a shared VPC, a load balancer, a
+  GKE node's pods beyond its alias ranges and a peered network are not known. Connections to an external address from
+  inside are read as connections to the internal one (`GCP_HAIRPIN`). To Google Cloud: one global policy, rules of one
+  IP version, 5,000 address ranges on one side; ICMP types and source ports are not written. The formats follow
+  Google's API reference and the gcloud documentation; nothing was read from or created in a real project.
+* Terraform: the resources of hashicorp/aws, hashicorp/azurerm and hashicorp/google listed in section 3, as
+  `terraform show -json` or a raw state of version 4 gives them, with what the AWS, Azure and Google Cloud sources cannot do. Resources made elsewhere (by
   hand, by another state, by a module whose state is apart) are not in the input; neither are the members of a group
   that another state attaches. In a plan, a value that is not known and that the configuration does not refer to a
   resource for is not converted, and a dynamic block is not in the configuration Terraform shows; a constant next to a
   reference in one expression is not seen. The output is plain HCL for one VPC or one resource group, with the limits of
-  the `aws` and `azure` targets; attaching and associating the groups is left to you. Google Cloud is not read or
-  written yet. The formats follow Terraform's documentation of its JSON output and the provider documentation and
+  the `aws`, `azure` and `gcp` targets; attaching and associating the groups and the policy is left to you. The formats follow Terraform's documentation of its JSON output and the provider documentation and
   schemas; no state of a real deployment was read, and no output was applied with Terraform.
 * RouterOS: forwarded traffic only (the `forward` chains), and IPv4 NAT. The
   export does not list every interface, so a negated interface covers the ones

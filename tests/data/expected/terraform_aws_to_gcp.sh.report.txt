@@ -1,0 +1,45 @@
+FWShift conversion report
+  source: terraform-aws (vpc-0a1b2c3d4e5f63001)
+  target: gcp
+
+Summary
+  Security rules:     23   exact 18, approximated 3, needs review 1 (1 emitted disabled), skipped 1
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Address groups:     10   exact 10, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0a1b2c3d4e5f63031 of subnet subnet-0a1b2c3d4e5f63013 denies some inbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections out of the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_NACL_RETURN: network ACL acl-0a1b2c3d4e5f63031 of subnet subnet-0a1b2c3d4e5f63013 denies some outbound TCP or UDP to ports 1024-65535, ICMP echo replies or other protocols. It does not remember connections: the replies of connections into the subnet need them, and where it denies them a connection the converted policy allows fails
+  [needs-review] AWS_NACL_MISSING: the network ACLs of these subnets are not in the export; the converted policy allows what they may deny: subnet-0a1b2c3d4e5f63011, subnet-0a1b2c3d4e5f63012, subnet-0a1b2c3d4e5f63014
+  [needs-review] AWS_HAIRPIN: connections from inside the VPC to its own public addresses are not converted as AWS decides them: they leave through the internet gateway, the source's outbound rules see the public address and the destination's inbound rules see the source's public address (or that of its NAT gateway). The converted policy treats them as connections to the private address, which may allow more
+  [needs-review] AWS_REMOTE_GROUP: rules name groups that are not in the export (another VPC, another account, or left out): sg-0f9e8d7c6b5a43001. Their members are not known; those rules are not converted
+  [needs-review] TERRAFORM_MEMBERS: the members of the security groups are the network interfaces and instances of this state: a group attached to interfaces elsewhere (another state, a load balancer, made by hand) has those members as well, and the converted policy does not know them
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: aws_networkfirewall_firewall. The converted policy does not hold what they do
+  [needs-review] GCP_LOAD: the output is a shell script of gcloud commands (section 10): DRY_RUN=1 prints them, without it it creates a new global network firewall policy (fwshift) with its rules, and stops if a policy of that name exists. It is associated with no network: nothing changes until you associate it
+  [needs-review] GCP_ORDER: the policy decides every connection of the network it is associated with: it ends in the default of the source. With the network's enforcement order AFTER_CLASSIC_FIREWALL (the default) the VPC firewall rules of the network decide first; set it to BEFORE_CLASSIC_FIREWALL (gcloud compute networks update NETWORK --network-firewall-policy-enforcement-order=BEFORE_CLASSIC_FIREWALL), or remove the VPC firewall rules
+  [info] AWS_EGRESS_PAIRS: inside the VPC a connection needs an outbound rule of the source's groups and an inbound rule of the destination's. Where the outbound rules do not allow everything, 2 rules allow what both allow, and a rule after them blocks the rest of what those members send inside the VPC
+  [info] AWS_PUBLIC_ADDRESSES: the public and Elastic IP addresses of the network interfaces are static NAT of their private addresses: the internet gateway translates what comes from outside, and the groups see the private address. The rules that name a private address name its public address as well, as the model has rules before NAT
+  [info] AWS_UNFILTERED: security groups never filter traffic to the Amazon DNS server, DHCP, the instance metadata service, the Time Sync Service and Windows license activation; neither does the converted policy say anything about it
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the AWS command line for the same resources: 1 aws_ec2_managed_prefix_list, 3 aws_instance, 1 aws_network_acl, 1 aws_network_acl_association, 1 aws_network_interface, 4 aws_security_group, 3 aws_security_group_rule, 4 aws_subnet, 1 aws_vpc, 2 aws_vpc_security_group_egress_rule, 4 aws_vpc_security_group_ingress_rule. Resources outside this state (made by hand, or by another state) are not in it
+  [info] TERRAFORM_DEPOSED: 1 deposed object(s), which a replacement leaves until it is done, were left out
+
+Security rules
+  shop-db-in-shop-db-2  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] GCP_BLOCKS_MORE: the rule blocks certain ICMP types, source ports or protocols; a rule of Google Cloud blocks all of ICMP, every source port or every protocol there, which blocks more
+  shop-db-in-shop-db-3  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] GCP_BLOCKS_MORE: the rule blocks certain ICMP types, source ports or protocols; a rule of Google Cloud blocks all of ICMP, every source port or every protocol there, which blocks more
+  shop-db-in-shop-db-4  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] GCP_BLOCKS_MORE: the rule blocks certain ICMP types, source ports or protocols; a rule of Google Cloud blocks all of ICMP, every source port or every protocol there, which blocks more
+  shop-web-in-5  ->  skipped
+      [approximated] GCP_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a rule of Google Cloud (ICMP types, source ports, every protocol but some) and is not written: the converted rule allows less
+      [needs-review] GCP_NOT_WRITTEN: nothing of what the rule allows can be said by a rule of Google Cloud (ICMP types, source ports, every protocol but some): not written
+  shop-bastion-in-4  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'sg-0f9e8d7c6b5a43001': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: the source 'sg-0f9e8d7c6b5a43001' holds members only its platform knows; a rule of Google Cloud names addresses.
+
+NAT rules
+  public-192.0.2.10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  public-192.0.2.5  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees

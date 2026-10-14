@@ -2,9 +2,10 @@
 # Copyright (C) 2026 Jurgen Kobierczynski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Write tests/data/terraform_aws_sample.json and terraform_azure_sample.json: made-up states, as
+"""Write tests/data/terraform_aws_sample.json, terraform_azure_sample.json and terraform_google_sample.json: made-up states, as
 
-    terraform show -json        (of a state with the hashicorp/aws, and one with the hashicorp/azurerm resources)
+    terraform show -json        (of a state with the hashicorp/aws, one with the hashicorp/azurerm and one with the hashicorp/google
+                                 resources; the last the network of make_gcp_sample.py)
 
 prints them. What a refresh puts in a state is there too: the inline rules of a group repeat the rules of its separate
 rule resources, and a network ACL's subnet_ids its associations. Every address is a documentation or private address,
@@ -16,6 +17,7 @@ every id is made up. Not taken from any real account or subscription.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -242,9 +244,79 @@ def azure_state() -> Dict[str, Any]:
     return {"format_version": "1.0", "terraform_version": "1.13.4", "values": {"root_module": {"resources": resources}}}
 
 
+GOOGLE = "registry.terraform.io/hashicorp/google"
+
+
+def google(kind: str, name: str, values: Dict[str, Any]) -> Dict[str, Any]:
+    return resource(f"{kind}.{name}", kind, name, GOOGLE, values)
+
+
+def google_state() -> Dict[str, Any]:
+    """The network of make_gcp_sample.py, as the state of the configuration that made it."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import make_gcp_sample
+
+    bundle = make_gcp_sample.sample()
+    resources: List[Dict[str, Any]] = []
+    network = bundle["networks"][0]
+    resources.append(google("google_compute_network", "shop", {"id": "projects/example-shop/global/networks/vpc-shop", "name": network["name"],
+                                                               "self_link": network["selfLink"], "auto_create_subnetworks": False,
+                                                               "network_firewall_policy_enforcement_order": "AFTER_CLASSIC_FIREWALL"}))  # fmt: skip
+    for rule in bundle["firewall-rules"]:
+        values: Dict[str, Any] = {"id": f"projects/example-shop/global/firewalls/{rule['name']}", "name": rule["name"], "network": rule["network"],
+                                  "direction": rule["direction"], "priority": rule["priority"], "disabled": rule["disabled"],
+                                  "description": rule.get("description", ""), "self_link": rule["selfLink"],
+                                  "log_config": [{"metadata": rule["logConfig"]["metadata"]}] if rule["logConfig"]["enable"] else []}  # fmt: skip
+        for key, word in (("allowed", "allow"), ("denied", "deny")):
+            values[word] = [{"protocol": e["IPProtocol"], "ports": e.get("ports", [])} for e in rule.get(key, [])]
+        for camel, snake in (("sourceRanges", "source_ranges"), ("destinationRanges", "destination_ranges"), ("sourceTags", "source_tags"),
+                             ("targetTags", "target_tags"), ("sourceServiceAccounts", "source_service_accounts"),
+                             ("targetServiceAccounts", "target_service_accounts")):  # fmt: skip
+            values[snake] = list(rule.get(camel, []))
+        resources.append(google("google_compute_firewall", rule["name"].replace("-", "_"), values))
+    for policy in bundle["network-firewall-policies"]:
+        regional = bool(policy.get("region"))
+        prefix = "google_compute_region_network_firewall_policy" if regional else "google_compute_network_firewall_policy"
+        label = policy["name"].replace("-", "_")
+        base: Dict[str, Any] = {"id": policy["selfLink"].split("/v1/", 1)[1], "name": policy["name"], "self_link": policy["selfLink"],
+                                "description": policy.get("description", "")}  # fmt: skip
+        if regional:
+            base["region"] = policy["region"].rsplit("/", 1)[1]
+        resources.append(google(prefix, label, base))
+        for rule in policy["rules"]:
+            if rule["priority"] >= 2147483548:
+                continue
+            match = rule["match"]
+            values = {"firewall_policy": policy["name"], "priority": rule["priority"], "direction": rule["direction"], "action": rule["action"],
+                      "rule_name": rule.get("ruleName", ""), "description": rule.get("description", ""), "disabled": rule.get("disabled", False),
+                      "enable_logging": rule.get("enableLogging", False), "target_service_accounts": rule.get("targetServiceAccounts", []),
+                      "match": [{"src_ip_ranges": match.get("srcIpRanges", []), "dest_ip_ranges": match.get("destIpRanges", []),
+                                 "src_fqdns": match.get("srcFqdns", []), "src_region_codes": match.get("srcRegionCodes", []),
+                                 "layer4_configs": [{"ip_protocol": e["ipProtocol"], "ports": e.get("ports", [])} for e in match["layer4Configs"]]}]}  # fmt: skip
+            if regional:
+                values["region"] = base["region"]
+            resources.append(google(prefix + "_rule", f"{label}_{rule['priority']}", values))
+        values = {"name": policy["associations"][0]["name"], "firewall_policy": base["id"], "attachment_target": network["selfLink"]}
+        if regional:
+            values["region"] = base["region"]
+        resources.append(google(prefix + "_association", label, values))
+    for instance in bundle["instances"]:
+        nics = [{"network": nic["network"], "network_ip": nic["networkIP"], "ipv6_address": nic.get("ipv6Address", ""),
+                 "access_config": [{"nat_ip": c["natIP"]} for c in nic.get("accessConfigs", [])],
+                 "alias_ip_range": [{"ip_cidr_range": a["ipCidrRange"], "subnetwork_range_name": a.get("subnetworkRangeName", "")}
+                                    for a in nic.get("aliasIpRanges", [])]} for nic in instance["networkInterfaces"]]  # fmt: skip
+        resources.append(google("google_compute_instance", instance["name"].replace("-", "_"), {
+            "id": f"projects/example-shop/zones/{instance['zone'].rsplit('/', 1)[1]}/instances/{instance['name']}", "name": instance["name"],
+            "zone": instance["zone"].rsplit("/", 1)[1], "tags": instance["tags"].get("items", []), "machine_type": "e2-small",
+            "service_account": [{"email": a["email"], "scopes": a["scopes"]} for a in instance["serviceAccounts"]], "network_interface": nics}))  # fmt: skip
+    resources.append(google("google_compute_security_policy", "edge", {"id": "projects/example-shop/global/securityPolicies/edge", "name": "edge"}))
+    return {"format_version": "1.0", "terraform_version": "1.13.4", "values": {"root_module": {"resources": resources}}}
+
+
 def main() -> None:
     folder = Path(__file__).resolve().parent.parent / "data"
-    for name, document in (("terraform_aws_sample.json", aws_state()), ("terraform_azure_sample.json", azure_state())):
+    for name, document in (("terraform_aws_sample.json", aws_state()), ("terraform_azure_sample.json", azure_state()),
+                           ("terraform_google_sample.json", google_state())):
         (folder / name).write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
         print(f"wrote {folder / name}")
 

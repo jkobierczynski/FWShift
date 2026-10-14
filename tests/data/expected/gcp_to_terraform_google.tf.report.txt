@@ -1,0 +1,31 @@
+FWShift conversion report
+  source: gcp (vpc-shop)
+  target: terraform-google
+
+Summary
+  Security rules:     28   exact 27, approximated 0, needs review 1 (1 emitted disabled), skipped 0
+  NAT rules:           2   exact 0, approximated 0, needs review 0, skipped 2
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] TERRAFORM_LOAD: the output is Terraform configuration (section 10): terraform plan -var project=... shows what it creates, terraform apply creates a new global network firewall policy (fwshift) with its rules; a policy of the same name makes it fail. It is associated with no network: nothing changes until it is (google_compute_network_firewall_policy_association)
+  [needs-review] GCP_ORDER: the policy decides every connection of the network it is associated with: it ends in the default of the source. With the network's enforcement order AFTER_CLASSIC_FIREWALL (the default) the VPC firewall rules of the network decide first; set network_firewall_policy_enforcement_order = "BEFORE_CLASSIC_FIREWALL" on the network, or remove its VPC firewall rules
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have logging enabled
+
+Security rules
+  pol-shop:geo-and-fqdn (in)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: matches srcFqdns, srcRegionCodes, which the export does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+NAT rules
+  external-192.0.2.10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  external-192.0.2.5  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees

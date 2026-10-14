@@ -1,0 +1,385 @@
+FWShift conversion report
+  source: azure
+  target: gcp
+
+Summary
+  Security rules:    116   exact 0, approximated 50, needs review 66 (66 emitted disabled), skipped 0
+  Address groups:      7   exact 7, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] AZURE_DYNAMIC: service tags and application security groups whose addresses only Azure knows: Internet, VirtualNetwork. They are dynamic groups, which only an Azure target writes again; add the service tags (az network list-service-tags) and the network interfaces to the export to convert them for other targets
+  [needs-review] GCP_LOAD: the output is a shell script of gcloud commands (section 10): DRY_RUN=1 prints them, without it it creates a new global network firewall policy (fwshift) with its rules, and stops if a policy of that name exists. It is associated with no network: nothing changes until you associate it
+  [needs-review] GCP_ORDER: the policy decides every connection of the network it is associated with: it ends in the default of the source. With the network's enforcement order AFTER_CLASSIC_FIREWALL (the default) the VPC firewall rules of the network decide first; set it to BEFORE_CLASSIC_FIREWALL (gcloud compute networks update NETWORK --network-firewall-policy-enforcement-order=BEFORE_CLASSIC_FIREWALL), or remove the VPC firewall rules
+  [info] AZURE_ANY_PROTOCOL: protocol '*' is read as Microsoft documents it: TCP, UDP and ICMP; with ports, an allow rule allows TCP and UDP on them and a deny rule blocks ICMP as well. If Azure also matches other protocols with it, a deny rule '*' blocks more there than the converted rule
+  [info] AZURE_UNFILTERED: network security groups do not filter the platform's own traffic (168.63.129.16 and 169.254.169.254: DHCP, DNS, the instance metadata service, health probes); and the security admin rules of Azure Virtual Network Manager, which come first, are not in this export
+  [info] AZURE_ZONES: each network security group is a zone, and everything else the zone outside. The networks behind them, for --zone-network: --zone-network nsg-web=10.30.1.0/24,2001:db8:30:1::/64 --zone-network nsg-app=10.30.2.0/24 --zone-network nsg-db=10.30.3.20
+  [info] AZURE_COMPOSED: traffic between resources behind the groups passes the outbound rules of one and the inbound rules of the other: 80 rules say what both allow, in the order of the two
+  [info] AZURE_ASG_MEMBERS: the members of these application security groups are the network interfaces in the export: asg-db, asg-web. A member whose interface is not in it (another resource group, another subscription) is not in the group
+
+Security rules
+  nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:Deny-Partner  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone outside; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: the source 'VirtualNetwork' holds members only its platform knows; a rule of Google Cloud names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: the source 'VirtualNetwork' holds members only its platform knows; a rule of Google Cloud names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:DenyAllInBound  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone outside; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:Allow-App-Out  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network.
+  nsg-web:Allow-Storage  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network.
+  nsg-web:Deny-Internet  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: the destination 'Internet' holds members only its platform knows; a rule of Google Cloud names addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-web:AllowVnetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_DYNAMIC: the destination 'VirtualNetwork' holds members only its platform knows; a rule of Google Cloud names addresses.
+  nsg-web:AllowInternetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_DYNAMIC: the destination 'Internet' holds members only its platform knows; a rule of Google Cloud names addresses.
+  nsg-web:DenyAllOutBound  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone outside; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:Allow-Esp-Partner  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:Allow-Probe  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:Deny-VNet  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: the source 'VirtualNetwork' holds members only its platform knows; a rule of Google Cloud names addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: the source 'VirtualNetwork' holds members only its platform knows; a rule of Google Cloud names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:DenyAllInBound  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone outside; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:Allow-Db  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network.
+  nsg-app:Allow-Sql  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network.
+  nsg-app:Allow-Dns  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network.
+  nsg-app:Deny-Out  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone outside; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:AllowVnetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_DYNAMIC: the destination 'VirtualNetwork' holds members only its platform knows; a rule of Google Cloud names addresses.
+  nsg-app:AllowInternetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_DYNAMIC: the destination 'Internet' holds members only its platform knows; a rule of Google Cloud names addresses.
+  nsg-app:DenyAllOutBound  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone outside; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:Allow-Old-Gre  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_DYNAMIC: the source 'VirtualNetwork' holds members only its platform knows; a rule of Google Cloud names addresses.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:AllowAzureLoadBalancerInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:DenyAllInBound  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone outside; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:AllowVnetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'VirtualNetwork': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_DYNAMIC: the destination 'VirtualNetwork' holds members only its platform knows; a rule of Google Cloud names addresses.
+  nsg-db:AllowInternetOutBound  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Internet': dynamic address group, members are not known statically.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_DYNAMIC: the destination 'Internet' holds members only its platform knows; a rule of Google Cloud names addresses.
+  nsg-db:DenyAllOutBound  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone outside; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:Allow-App-Out+nsg-web:Deny-Partner  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:Allow-App-Out+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:Allow-App-Out+nsg-web:DenyAllInBound  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:Deny-Partner  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:DenyAllOutBound to nsg-web  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:Allow-App-Out+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-web:Allow-App-Out+nsg-app:Deny-VNet  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:Allow-App-Out+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-web:Allow-App-Out+nsg-app:DenyAllInBound  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-app:Deny-VNet  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:DenyAllOutBound to nsg-app  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:Allow-App-Out+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-web:Allow-App-Out+nsg-db:DenyAllInBound  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-web:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-web:DenyAllOutBound to nsg-db  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:Allow-Db+nsg-web:Deny-Partner  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:Allow-Db+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-app:Allow-Db+nsg-web:DenyAllInBound  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:Allow-Dns+nsg-web:Deny-Partner  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] GCP_BLOCKS_MORE: the rule blocks certain ICMP types, source ports or protocols; a rule of Google Cloud blocks all of ICMP, every source port or every protocol there, which blocks more
+  nsg-app:Allow-Dns+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-app:Allow-Dns+nsg-web:DenyAllInBound  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] GCP_BLOCKS_MORE: the rule blocks certain ICMP types, source ports or protocols; a rule of Google Cloud blocks all of ICMP, every source port or every protocol there, which blocks more
+  nsg-app:Deny-Out to nsg-web  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:Deny-Partner  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:DenyAllOutBound to nsg-web  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:Allow-Db+nsg-app:Deny-VNet  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:Allow-Db+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:Allow-Db+nsg-app:DenyAllInBound  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:Allow-Dns+nsg-app:Deny-VNet  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] GCP_BLOCKS_MORE: the rule blocks certain ICMP types, source ports or protocols; a rule of Google Cloud blocks all of ICMP, every source port or every protocol there, which blocks more
+  nsg-app:Allow-Dns+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:Allow-Dns+nsg-app:DenyAllInBound  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] GCP_BLOCKS_MORE: the rule blocks certain ICMP types, source ports or protocols; a rule of Google Cloud blocks all of ICMP, every source port or every protocol there, which blocks more
+  nsg-app:Deny-Out to nsg-app  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-app:Deny-VNet  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:DenyAllOutBound to nsg-app  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:Allow-Db+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-app:Allow-Db+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-app:Allow-Db+nsg-db:DenyAllInBound  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:Allow-Dns+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-app:Allow-Dns+nsg-db:DenyAllInBound  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] GCP_BLOCKS_MORE: the rule blocks certain ICMP types, source ports or protocols; a rule of Google Cloud blocks all of ICMP, every source port or every protocol there, which blocks more
+  nsg-app:Deny-Out to nsg-db  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-app:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-app:DenyAllOutBound to nsg-db  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-SSH-Admins  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:Deny-Partner  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:AllowVnetOutBound+nsg-web:Allow-Ping-VNet  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-web, and a rule of Google Cloud names no zone: give the networks behind nsg-web with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-web:DenyAllInBound  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:DenyAllOutBound to nsg-web  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-web; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:AllowVnetOutBound+nsg-app:Allow-From-Web  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-app:Deny-VNet  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:AllowVnetOutBound+nsg-app:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-app, and a rule of Google Cloud names no zone: give the networks behind nsg-app with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-app:DenyAllInBound  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:DenyAllOutBound to nsg-app  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-app; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:AllowVnetOutBound+nsg-db:Allow-Sql-From-App  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone nsg-db, and a rule of Google Cloud names no zone: give the networks behind nsg-db with --zone-network.
+  nsg-db:AllowVnetOutBound+nsg-db:DenyAllInBound  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  nsg-db:DenyAllOutBound to nsg-db  ->  approximated  (emitted as 4 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone nsg-db; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones

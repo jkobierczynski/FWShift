@@ -25,7 +25,8 @@ what was approximated and what a person has to look at.
 | VMware NSX (distributed firewall) | the JSON of the Policy API: the hierarchical tree, or the list answers of groups, services and security policies | the body of one hierarchical `PATCH /policy/api/v1/infra` |
 | AWS EC2 security groups (and network ACLs) | the JSON of the AWS CLI for one VPC: security groups, network interfaces, subnets, network ACLs, prefix lists | a shell script of AWS CLI calls that creates new security groups |
 | Azure network security groups | the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph: groups, network interfaces, virtual networks, service tags | an ARM template with a group per zone |
-| Terraform (hashicorp/aws, hashicorp/azurerm) | `terraform show -json` of a state or a plan, or the raw state: the security groups and network ACLs of AWS, the network security groups of Azure, with their members | Terraform configuration (HCL) that creates the security groups or network security groups |
+| Google Cloud firewall rules and network firewall policies | the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, the network, the instances (hierarchical policies when added) | a shell script of gcloud commands that creates a new network firewall policy |
+| Terraform (hashicorp/aws, hashicorp/azurerm, hashicorp/google) | `terraform show -json` of a state or a plan, or the raw state: the security groups and network ACLs of AWS, the network security groups of Azure, the firewall rules and network firewall policies of Google Cloud, with their members | Terraform configuration (HCL) that creates the security groups, network security groups or network firewall policy |
 | MikroTik RouterOS (6 and 7) | the output of `/export` | a script for `/import`, switched on by one change |
 | Forcepoint NGFW (SMC 6.10 to 7.4) | the answers of the SMC REST API for one policy, as `fwshift script forcepoint-dump` fetches them | a Python script that creates a new policy through the SMC REST API |
 
@@ -42,7 +43,7 @@ change, or a source and its conversion read back (the **equivalence check**).
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.26).** The converter is tested against synthetic
+> **Status: alpha (0.27).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -53,7 +54,7 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   are sent through them. Generated nftables rulesets are also listed back
 >   by nft, as text and as JSON, and both listings must give the same model.
 > * **PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco Secure Firewall,
->   Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, VMware NSX, AWS, Azure, RouterOS and Forcepoint** output has **not been loaded on a
+>   Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, VMware NSX, AWS, Azure, Google Cloud, RouterOS and Forcepoint** output has **not been loaded on a
 >   device or management server**, and the **Terraform** output has not been applied with Terraform. The Check Point input format is taken from the API
 >   documentation, not from a real export, the ASA and FTD syntax from Cisco's
 >   command references, and the Sophos format from the documentation of its
@@ -82,7 +83,8 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   exports published as test data; the Forcepoint SMC API from its API guide and the
 >   Python library and Terraform provider Forcepoint publishes for it (the loader and the
 >   dump program have only talked to a stand-in written for the tests); Terraform from the documentation and source of its
->   JSON output and the documentation and schemas of the AWS and Azure providers. Several conversion rules rest on
+>   JSON output and the documentation and schemas of the AWS, Azure and Google providers; Google Cloud from Google's API
+>   reference and the gcloud documentation, and no script was run against a project. Several conversion rules rest on
 >   vendor behaviour taken from documentation rather than from a lab.
 >
 > Treat the output as a draft for a lab, read the report, and never load it in
@@ -156,8 +158,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.26.0.pyz --version
-python3 fwshift-0.26.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.27.0.pyz --version
+python3 fwshift-0.27.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -248,9 +250,18 @@ fwshift convert branch.json --to asa -o asa.cfg --report report.txt
 fwshift convert running-config.xml --to forcepoint -o load_smc.py --report report.txt
 python3 load_smc.py --show
 
-# Terraform: what Terraform knows of the security groups (AWS) or network
-# security groups (Azure), from a state or a plan. To Terraform, the output is
-# configuration that creates new groups, attached to nothing
+# Google Cloud: the answers of gcloud for one VPC network in one JSON object
+# (section 3 of the manual). To Google Cloud, the output is a gcloud script that
+# creates a new network firewall policy, associated with no network
+fwshift convert gcp.json --to fortios -o fortigate.conf --report report.txt
+fwshift convert running-config.xml --to gcp -o policy.sh --report report.txt \
+    --zone-network trust=10.10.0.0/16 --zone-network untrust=0.0.0.0/0,::/0
+DRY_RUN=1 sh policy.sh
+
+# Terraform: what Terraform knows of the security groups (AWS), network
+# security groups (Azure) or firewall rules (Google Cloud), from a state or a
+# plan. To Terraform, the output is configuration that creates new groups or a
+# new policy, attached to nothing
 terraform show -json > state.json
 fwshift convert state.json --to fortios -o fortigate.conf --report report.txt
 fwshift convert running-config.xml --to terraform-aws -o groups.tf --report report.txt \
@@ -356,8 +367,8 @@ OPNsense the one under *System > Configuration > Backups*, for a
 SonicWall *Export Settings*, for a WatchGuard the file Policy Manager saves,
 for a Barracuda a few `curl` calls to its REST API, for an SRX
 `show configuration | display inheritance no-comments | display set`, for a
-Forcepoint the program `fwshift script forcepoint-dump` writes, for Terraform
-`terraform show -json`.
+Forcepoint the program `fwshift script forcepoint-dump` writes, for Google Cloud
+a few `gcloud ... --format=json` answers, for Terraform `terraform show -json`.
 
 The report starts with a summary and then lists every rule that is not exact:
 
@@ -633,12 +644,21 @@ FWShift reads) and does the same for the conversion. See
 | NAT | none (a group does no NAT). Not written: the rules are for what a group sees |
 | Scope | the groups in the export, of any resource group; templates with parameters, variables, copy loops and conditions worked out. Written: an ARM template, associated with nothing |
 
+| | Google Cloud |
+|---|---|
+| Address objects | source and destination ranges (IPv4, IPv6), the internal addresses and alias ranges of the instances; external addresses as static NAT. Written: ranges in the rules |
+| Address groups | network tags and service accounts as the addresses of the instances that carry them (targets) or their primary addresses (sources); secure tags, address groups, host names, region codes and threat lists are not converted |
+| Services | every protocol, TCP, UDP and SCTP ports, ICMP, ICMPv6, IP protocols by number. Written: the same; ICMP types and source ports cannot be |
+| Security rules | the steps in Google Cloud's order: hierarchical policies (when added), VPC firewall rules (deny before allow at one priority), the global and the regional network firewall policy, `goto_next`, the implied rules; between instances, the egress rules of one and the ingress rules of the other together. Written: one global policy, each rule per IP version for ingress and egress, ending in the default of the source |
+| NAT | external addresses of instances, read as static NAT. Not written (Google Cloud does it) |
+| Scope | one VPC network. Written: a new policy, associated with nothing |
+
 | | Terraform |
 |---|---|
-| Address objects, groups, services, rules | what the AWS and the Azure columns say, from the resources of a state or a plan: groups with their inline rules and separate rule resources (each rule once), network ACLs with their entries and associations, interfaces, instances and Elastic IPs as the members, prefix lists, subnets, VPCs; network security groups with their rules and associations, application security groups, interfaces, subnets, virtual networks and peerings |
+| Address objects, groups, services, rules | what the AWS, the Azure and the Google Cloud columns say, from the resources of a state or a plan: groups with their inline rules and separate rule resources (each rule once), network ACLs with their entries and associations, interfaces, instances and Elastic IPs as the members, prefix lists, subnets, VPCs; network security groups with their rules and associations, application security groups, interfaces, subnets, virtual networks and peerings; VPC firewall rules, global and regional network firewall policies with their rules and associations, networks and instances |
 | Plans | read as after the apply: ids not known yet stand for the resources the configuration refers to; what is deleted is not read; what is not known is not converted |
 | NAT | public addresses of instances and Elastic IPs, read as static NAT. Not written |
-| Scope | one state or plan (one VPC of it for AWS). Written: plain HCL for hashicorp/aws (`aws_security_group`, `aws_vpc_security_group_ingress_rule` and `_egress_rule`) or hashicorp/azurerm (`azurerm_network_security_group`), attached to nothing |
+| Scope | one state or plan (one VPC of it for AWS, one network for Google Cloud). Written: plain HCL for hashicorp/aws (`aws_security_group`, `aws_vpc_security_group_ingress_rule` and `_egress_rule`), hashicorp/azurerm (`azurerm_network_security_group`) or hashicorp/google (`google_compute_network_firewall_policy` and its `_rule` resources), attached to nothing |
 
 | | MikroTik RouterOS |
 |---|---|
@@ -687,7 +707,10 @@ schedules, `redirect` and IPv6 NAT, Forcepoint aliases, element-based and
 default NAT, VPN actions and matches, block lists, rule validity times and
 connection limits, Terraform resources outside the input (other states, made by
 hand), dynamic blocks and values a plan does not know (reported), AWS Network
-Firewall, WAF and Azure Firewall (reported), routing, interfaces, VPN,
+Firewall, WAF and Azure Firewall (reported), Google Cloud secure tags, address
+groups, FQDN, geography and threat intelligence matches, firewall endpoints and
+security profiles, hierarchical policies left out of the export (reported),
+routing, interfaces, VPN,
 and everything else outside the policy.
 
 ## Roadmap
@@ -699,7 +722,9 @@ and everything else outside the policy.
   0.10, Barracuda 0.11, Juniper SRX 0.12, nftables 0.18, VMware NSX 0.19,
   AWS security groups 0.20, Azure network security groups 0.21, MikroTik
   RouterOS 0.23, OPNsense 0.24, Forcepoint NGFW 0.25, Terraform (AWS and
-  Azure) 0.26, Google Cloud firewall rules 0.27 (see TODO.md).
+  Azure) 0.26, Google Cloud firewall rules (and terraform-google) 0.27; next
+  Cisco IOS 0.28, Huawei USG 0.29, Stormshield 0.30 and Cisco Meraki MX 0.31
+  (see TODO.md).
 * **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](docs/RULE_USAGE.md)):
   rule identities and hit counters (0.13), Check Point logs (0.14),
   connections without a rule uid and iptables logs (0.15), PAN-OS and FortiOS logs (0.16) and

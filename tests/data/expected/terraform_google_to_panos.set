@@ -1,0 +1,370 @@
+set address n-10.50.1.10_31 ip-netmask 10.50.1.10/31
+set address h-10.50.2.20 ip-netmask 10.50.2.20
+set address h-10.50.3.30 ip-netmask 10.50.3.30
+set address h-10.50.9.5 ip-netmask 10.50.9.5
+set address n-10.60.0.0_24 ip-netmask 10.60.0.0/24
+set address h-2001_db8_50_1__10 ip-netmask 2001:db8:50:1::10
+set address-group "targets every instance" static [ n-10.50.1.10_31 h-10.50.2.20 h-10.50.3.30 h-10.50.9.5 n-10.60.0.0_24 h-2001_db8_50_1__10 ]
+set address-group "targets every instance" description "the instances of targets every instance"
+set address-group "targets tag_db" static h-10.50.3.30
+set address-group "targets tag_db" description "the instances of targets tag:db"
+set address-group "targets tag_app" static [ h-10.50.2.20 n-10.60.0.0_24 ]
+set address-group "targets tag_app" description "the instances of targets tag:app"
+set address-group "sources tag_web" static [ n-10.50.1.10_31 h-2001_db8_50_1__10 ]
+set address-group "sources tag_web" description "the primary addresses of the instances of sources tag:web"
+set address-group "sources account_app_example-shop.iam.gserviceaccount.com" static h-10.50.2.20
+set address-group "sources account_app_example-shop.iam.gserviceaccount.com" description "the primary addresses of the instances of sources account:app@example-shop.iam.gserviceaccount.com"
+set address h-10.50.1.10 ip-netmask 10.50.1.10
+set address-group "targets every instance in europe-west1" static [ h-10.50.1.10 h-10.50.2.20 h-10.50.3.30 h-10.50.9.5 n-10.60.0.0_24 h-2001_db8_50_1__10 ]
+set address-group "targets every instance in europe-west1" description "the instances of targets every instance in europe-west1"
+set service tcp-8080_icmp protocol tcp port 8080
+set service tcp-5432 protocol tcp port 5432
+set service tcp-22 protocol tcp port 22
+set service tcp-443_8443-8444 protocol tcp port 443,8443-8444
+set service tcp-443 protocol tcp port 443
+set service udp-53 protocol udp port 53
+set service tcp-22_icmpv6 protocol tcp port 22
+set service tcp-9100 protocol tcp port 9100
+set service udp-53_tcp-53-udp protocol udp port 53
+set service udp-53_tcp-53-tcp protocol tcp port 53
+set service-group udp-53_tcp-53 members [ udp-53_tcp-53-udp udp-53_tcp-53-tcp ]
+set service tcp-all protocol tcp port 1-65535
+set service tcp-25 protocol tcp port 25
+set service tcp-80 protocol tcp port 80
+set rulebase security rules db-to-vpc_allow-https-web from any
+set rulebase security rules db-to-vpc_allow-https-web to any
+set rulebase security rules db-to-vpc_allow-https-web source "targets tag_db"
+set rulebase security rules db-to-vpc_allow-https-web destination [ 10.50.1.10/31 192.0.2.10 ]
+set rulebase security rules db-to-vpc_allow-https-web source-user any
+set rulebase security rules db-to-vpc_allow-https-web category any
+set rulebase security rules db-to-vpc_allow-https-web application any
+set rulebase security rules db-to-vpc_allow-https-web service tcp-443_8443-8444
+set rulebase security rules db-to-vpc_allow-https-web action allow
+set rulebase security rules db-to-vpc_allow-https-web log-end no
+set rulebase security rules db-to-vpc_allow-https-web description "egress rule db-to-vpc and ingress rule allow-https-web"
+set rulebase security rules "db-to-vpc_implied deny ingress" from any
+set rulebase security rules "db-to-vpc_implied deny ingress" to any
+set rulebase security rules "db-to-vpc_implied deny ingress" source "targets tag_db"
+set rulebase security rules "db-to-vpc_implied deny ingress" destination [ 10.50.1.10/31 10.50.2.20 10.50.3.30 10.50.9.5 192.0.2.10 192.0.2.5 ]
+set rulebase security rules "db-to-vpc_implied deny ingress" source-user any
+set rulebase security rules "db-to-vpc_implied deny ingress" category any
+set rulebase security rules "db-to-vpc_implied deny ingress" application any
+set rulebase security rules "db-to-vpc_implied deny ingress" service any
+set rulebase security rules "db-to-vpc_implied deny ingress" action deny
+set rulebase security rules "db-to-vpc_implied deny ingress" log-end no
+set rulebase security rules "db-to-vpc_implied deny ingress" description "egress rule db-to-vpc and ingress rule implied deny ingress"
+set rulebase security rules "db-no-internet _between instances_" from any
+set rulebase security rules "db-no-internet _between instances_" to any
+set rulebase security rules "db-no-internet _between instances_" source "targets tag_db"
+set rulebase security rules "db-no-internet _between instances_" destination [ 10.50.1.10/31 10.50.2.20 10.50.3.30 10.50.9.5 10.60.0.0/24 192.0.2.10 192.0.2.5 ]
+set rulebase security rules "db-no-internet _between instances_" source-user any
+set rulebase security rules "db-no-internet _between instances_" category any
+set rulebase security rules "db-no-internet _between instances_" application any
+set rulebase security rules "db-no-internet _between instances_" service any
+set rulebase security rules "db-no-internet _between instances_" action deny
+set rulebase security rules "db-no-internet _between instances_" log-end no
+set rulebase security rules "pol-shop_deny-smtp-out _between instances_" from any
+set rulebase security rules "pol-shop_deny-smtp-out _between instances_" to any
+set rulebase security rules "pol-shop_deny-smtp-out _between instances_" source [ 10.50.1.10/31 10.50.2.20 10.50.3.30 10.50.9.5 10.60.0.0/24 ]
+set rulebase security rules "pol-shop_deny-smtp-out _between instances_" destination [ 10.50.1.10/31 10.50.2.20 10.50.3.30 10.50.9.5 10.60.0.0/24 192.0.2.10 192.0.2.5 ]
+set rulebase security rules "pol-shop_deny-smtp-out _between instances_" source-user any
+set rulebase security rules "pol-shop_deny-smtp-out _between instances_" category any
+set rulebase security rules "pol-shop_deny-smtp-out _between instances_" application any
+set rulebase security rules "pol-shop_deny-smtp-out _between instances_" service tcp-25
+set rulebase security rules "pol-shop_deny-smtp-out _between instances_" action deny
+set rulebase security rules "pol-shop_deny-smtp-out _between instances_" log-end no
+set rulebase security rules "implied allow egress_allow-app-from-web" from any
+set rulebase security rules "implied allow egress_allow-app-from-web" to any
+set rulebase security rules "implied allow egress_allow-app-from-web" source 10.50.1.10/31
+set rulebase security rules "implied allow egress_allow-app-from-web" destination "targets tag_app"
+set rulebase security rules "implied allow egress_allow-app-from-web" source-user any
+set rulebase security rules "implied allow egress_allow-app-from-web" category any
+set rulebase security rules "implied allow egress_allow-app-from-web" application any
+set rulebase security rules "implied allow egress_allow-app-from-web" service tcp-8080_icmp
+set rulebase security rules "implied allow egress_allow-app-from-web" action allow
+set rulebase security rules "implied allow egress_allow-app-from-web" log-end no
+set rulebase security rules "implied allow egress_allow-app-from-web" description "egress rule implied allow egress and ingress rule allow-app-from-web"
+set rulebase security rules "implied allow egress_allow-app-from-web-apps" from any
+set rulebase security rules "implied allow egress_allow-app-from-web-apps" to any
+set rulebase security rules "implied allow egress_allow-app-from-web-apps" source 10.50.1.10/31
+set rulebase security rules "implied allow egress_allow-app-from-web-apps" destination "targets tag_app"
+set rulebase security rules "implied allow egress_allow-app-from-web-apps" source-user any
+set rulebase security rules "implied allow egress_allow-app-from-web-apps" category any
+set rulebase security rules "implied allow egress_allow-app-from-web-apps" application [ icmp ping ]
+set rulebase security rules "implied allow egress_allow-app-from-web-apps" service application-default
+set rulebase security rules "implied allow egress_allow-app-from-web-apps" action allow
+set rulebase security rules "implied allow egress_allow-app-from-web-apps" log-end no
+set rulebase security rules "implied allow egress_allow-app-from-web-apps" description "egress rule implied allow egress and ingress rule allow-app-from-web"
+set rulebase security rules "implied allow egress_allow-db-from-app" from any
+set rulebase security rules "implied allow egress_allow-db-from-app" to any
+set rulebase security rules "implied allow egress_allow-db-from-app" source "sources account_app_example-shop.iam.gserviceaccount.com"
+set rulebase security rules "implied allow egress_allow-db-from-app" destination "targets tag_db"
+set rulebase security rules "implied allow egress_allow-db-from-app" source-user any
+set rulebase security rules "implied allow egress_allow-db-from-app" category any
+set rulebase security rules "implied allow egress_allow-db-from-app" application any
+set rulebase security rules "implied allow egress_allow-db-from-app" service tcp-5432
+set rulebase security rules "implied allow egress_allow-db-from-app" action allow
+set rulebase security rules "implied allow egress_allow-db-from-app" log-end no
+set rulebase security rules "implied allow egress_allow-db-from-app" description "egress rule implied allow egress and ingress rule allow-db-from-app"
+set rulebase security rules "implied allow egress_allow-https-web" from any
+set rulebase security rules "implied allow egress_allow-https-web" to any
+set rulebase security rules "implied allow egress_allow-https-web" source [ 10.50.1.10/31 10.50.2.20 10.50.3.30 10.50.9.5 10.60.0.0/24 ]
+set rulebase security rules "implied allow egress_allow-https-web" destination [ 10.50.1.10/31 192.0.2.10 ]
+set rulebase security rules "implied allow egress_allow-https-web" source-user any
+set rulebase security rules "implied allow egress_allow-https-web" category any
+set rulebase security rules "implied allow egress_allow-https-web" application any
+set rulebase security rules "implied allow egress_allow-https-web" service tcp-443_8443-8444
+set rulebase security rules "implied allow egress_allow-https-web" action allow
+set rulebase security rules "implied allow egress_allow-https-web" log-end no
+set rulebase security rules "implied allow egress_allow-https-web" description "egress rule implied allow egress and ingress rule allow-https-web"
+set rulebase security rules "implied allow egress_allow-https-web-v6" from any
+set rulebase security rules "implied allow egress_allow-https-web-v6" to any
+set rulebase security rules "implied allow egress_allow-https-web-v6" source 2001:db8:50:1::10
+set rulebase security rules "implied allow egress_allow-https-web-v6" destination 2001:db8:50:1::10
+set rulebase security rules "implied allow egress_allow-https-web-v6" source-user any
+set rulebase security rules "implied allow egress_allow-https-web-v6" category any
+set rulebase security rules "implied allow egress_allow-https-web-v6" application any
+set rulebase security rules "implied allow egress_allow-https-web-v6" service tcp-443
+set rulebase security rules "implied allow egress_allow-https-web-v6" action allow
+set rulebase security rules "implied allow egress_allow-https-web-v6" log-end no
+set rulebase security rules "implied allow egress_allow-https-web-v6" description "egress rule implied allow egress and ingress rule allow-https-web-v6"
+set rulebase security rules "implied allow egress_implied deny ingress" from any
+set rulebase security rules "implied allow egress_implied deny ingress" to any
+set rulebase security rules "implied allow egress_implied deny ingress" source [ 10.50.1.10/31 10.50.2.20 10.50.3.30 10.50.9.5 10.60.0.0/24 2001:db8:50:1::10 ]
+set rulebase security rules "implied allow egress_implied deny ingress" destination [ 10.50.1.10/31 10.50.2.20 10.50.3.30 10.50.9.5 10.60.0.0/24 2001:db8:50:1::10 192.0.2.10 192.0.2.5 ]
+set rulebase security rules "implied allow egress_implied deny ingress" source-user any
+set rulebase security rules "implied allow egress_implied deny ingress" category any
+set rulebase security rules "implied allow egress_implied deny ingress" application any
+set rulebase security rules "implied allow egress_implied deny ingress" service any
+set rulebase security rules "implied allow egress_implied deny ingress" action deny
+set rulebase security rules "implied allow egress_implied deny ingress" log-end no
+set rulebase security rules "implied allow egress_implied deny ingress" description "egress rule implied allow egress and ingress rule implied deny ingress"
+set rulebase security rules allow-app-from-web from any
+set rulebase security rules allow-app-from-web to any
+set rulebase security rules allow-app-from-web source 10.50.1.10/31
+set rulebase security rules allow-app-from-web destination "targets tag_app"
+set rulebase security rules allow-app-from-web source-user any
+set rulebase security rules allow-app-from-web category any
+set rulebase security rules allow-app-from-web application any
+set rulebase security rules allow-app-from-web service tcp-8080_icmp
+set rulebase security rules allow-app-from-web action allow
+set rulebase security rules allow-app-from-web log-end no
+set rulebase security rules allow-app-from-web-apps from any
+set rulebase security rules allow-app-from-web-apps to any
+set rulebase security rules allow-app-from-web-apps source 10.50.1.10/31
+set rulebase security rules allow-app-from-web-apps destination "targets tag_app"
+set rulebase security rules allow-app-from-web-apps source-user any
+set rulebase security rules allow-app-from-web-apps category any
+set rulebase security rules allow-app-from-web-apps application [ icmp ping ]
+set rulebase security rules allow-app-from-web-apps service application-default
+set rulebase security rules allow-app-from-web-apps action allow
+set rulebase security rules allow-app-from-web-apps log-end no
+set rulebase security rules allow-db-from-app from any
+set rulebase security rules allow-db-from-app to any
+set rulebase security rules allow-db-from-app source "sources account_app_example-shop.iam.gserviceaccount.com"
+set rulebase security rules allow-db-from-app destination "targets tag_db"
+set rulebase security rules allow-db-from-app source-user any
+set rulebase security rules allow-db-from-app category any
+set rulebase security rules allow-db-from-app application any
+set rulebase security rules allow-db-from-app service tcp-5432
+set rulebase security rules allow-db-from-app action allow
+set rulebase security rules allow-db-from-app log-end no
+set rulebase security rules deny-ssh-blocked from any
+set rulebase security rules deny-ssh-blocked to any
+set rulebase security rules deny-ssh-blocked source 203.0.113.0/24
+set rulebase security rules deny-ssh-blocked destination [ 10.50.1.10/31 10.50.2.20 10.50.3.30 10.50.9.5 10.60.0.0/24 192.0.2.10 192.0.2.5 ]
+set rulebase security rules deny-ssh-blocked source-user any
+set rulebase security rules deny-ssh-blocked category any
+set rulebase security rules deny-ssh-blocked application any
+set rulebase security rules deny-ssh-blocked service tcp-22
+set rulebase security rules deny-ssh-blocked action deny
+set rulebase security rules deny-ssh-blocked log-end no
+set rulebase security rules allow-https-web from any
+set rulebase security rules allow-https-web to any
+set rulebase security rules allow-https-web source 0.0.0.0/0
+set rulebase security rules allow-https-web destination [ 10.50.1.10/31 192.0.2.10 ]
+set rulebase security rules allow-https-web source-user any
+set rulebase security rules allow-https-web category any
+set rulebase security rules allow-https-web application any
+set rulebase security rules allow-https-web service tcp-443_8443-8444
+set rulebase security rules allow-https-web action allow
+set rulebase security rules allow-https-web log-end yes
+set rulebase security rules allow-https-web description "https to the web servers"
+set rulebase security rules allow-https-web-v6 from any
+set rulebase security rules allow-https-web-v6 to any
+set rulebase security rules allow-https-web-v6 source ::/0
+set rulebase security rules allow-https-web-v6 destination 2001:db8:50:1::10
+set rulebase security rules allow-https-web-v6 source-user any
+set rulebase security rules allow-https-web-v6 category any
+set rulebase security rules allow-https-web-v6 application any
+set rulebase security rules allow-https-web-v6 service tcp-443
+set rulebase security rules allow-https-web-v6 action allow
+set rulebase security rules allow-https-web-v6 log-end no
+set rulebase security rules old-dns from any
+set rulebase security rules old-dns to any
+set rulebase security rules old-dns source 10.0.0.0/8
+set rulebase security rules old-dns destination [ "targets every instance" 192.0.2.10 192.0.2.5 ]
+set rulebase security rules old-dns source-user any
+set rulebase security rules old-dns category any
+set rulebase security rules old-dns application any
+set rulebase security rules old-dns service udp-53
+set rulebase security rules old-dns action allow
+set rulebase security rules old-dns log-end no
+set rulebase security rules old-dns disabled yes
+set rulebase security rules allow-ssh-admins from any
+set rulebase security rules allow-ssh-admins to any
+set rulebase security rules allow-ssh-admins source 198.51.100.0/24
+set rulebase security rules allow-ssh-admins destination [ 10.50.1.10/31 10.50.2.20 10.50.3.30 10.50.9.5 10.60.0.0/24 192.0.2.10 192.0.2.5 ]
+set rulebase security rules allow-ssh-admins source-user any
+set rulebase security rules allow-ssh-admins category any
+set rulebase security rules allow-ssh-admins application any
+set rulebase security rules allow-ssh-admins service tcp-22
+set rulebase security rules allow-ssh-admins action allow
+set rulebase security rules allow-ssh-admins log-end no
+set rulebase security rules allow-mgmt-v6 from any
+set rulebase security rules allow-mgmt-v6 to any
+set rulebase security rules allow-mgmt-v6 source 2001:db8:900::/48
+set rulebase security rules allow-mgmt-v6 destination 2001:db8:50:1::10
+set rulebase security rules allow-mgmt-v6 source-user any
+set rulebase security rules allow-mgmt-v6 category any
+set rulebase security rules allow-mgmt-v6 application any
+set rulebase security rules allow-mgmt-v6 service tcp-22_icmpv6
+set rulebase security rules allow-mgmt-v6 action allow
+set rulebase security rules allow-mgmt-v6 log-end no
+set rulebase security rules allow-mgmt-v6-apps from any
+set rulebase security rules allow-mgmt-v6-apps to any
+set rulebase security rules allow-mgmt-v6-apps source 2001:db8:900::/48
+set rulebase security rules allow-mgmt-v6-apps destination 2001:db8:50:1::10
+set rulebase security rules allow-mgmt-v6-apps source-user any
+set rulebase security rules allow-mgmt-v6-apps category any
+set rulebase security rules allow-mgmt-v6-apps application [ ipv6-icmp ping6 ]
+set rulebase security rules allow-mgmt-v6-apps service application-default
+set rulebase security rules allow-mgmt-v6-apps action allow
+set rulebase security rules allow-mgmt-v6-apps log-end no
+set rulebase security rules "pol-shop_deny-tor _in_" from any
+set rulebase security rules "pol-shop_deny-tor _in_" to any
+set rulebase security rules "pol-shop_deny-tor _in_" source 203.0.113.128/25
+set rulebase security rules "pol-shop_deny-tor _in_" destination [ 10.50.1.10/31 10.50.2.20 10.50.3.30 10.50.9.5 10.60.0.0/24 192.0.2.10 192.0.2.5 ]
+set rulebase security rules "pol-shop_deny-tor _in_" source-user any
+set rulebase security rules "pol-shop_deny-tor _in_" category any
+set rulebase security rules "pol-shop_deny-tor _in_" application any
+set rulebase security rules "pol-shop_deny-tor _in_" service any
+set rulebase security rules "pol-shop_deny-tor _in_" action deny
+set rulebase security rules "pol-shop_deny-tor _in_" log-end yes
+set rulebase security rules "pol-shop_deny-tor _in_" description "a blocked range"
+set rulebase security rules "pol-shop_allow-monitoring _in_" from any
+set rulebase security rules "pol-shop_allow-monitoring _in_" to any
+set rulebase security rules "pol-shop_allow-monitoring _in_" source 198.51.100.200
+set rulebase security rules "pol-shop_allow-monitoring _in_" destination [ 10.50.1.10/31 10.50.2.20 10.50.3.30 10.50.9.5 10.60.0.0/24 192.0.2.10 192.0.2.5 ]
+set rulebase security rules "pol-shop_allow-monitoring _in_" source-user any
+set rulebase security rules "pol-shop_allow-monitoring _in_" category any
+set rulebase security rules "pol-shop_allow-monitoring _in_" application any
+set rulebase security rules "pol-shop_allow-monitoring _in_" service tcp-9100
+set rulebase security rules "pol-shop_allow-monitoring _in_" action allow
+set rulebase security rules "pol-shop_allow-monitoring _in_" log-end no
+set rulebase security rules "pol-shop_geo-and-fqdn _in_" from any
+set rulebase security rules "pol-shop_geo-and-fqdn _in_" to any
+set rulebase security rules "pol-shop_geo-and-fqdn _in_" source any
+set rulebase security rules "pol-shop_geo-and-fqdn _in_" destination [ "targets every instance" 192.0.2.10 192.0.2.5 ]
+set rulebase security rules "pol-shop_geo-and-fqdn _in_" source-user any
+set rulebase security rules "pol-shop_geo-and-fqdn _in_" category any
+set rulebase security rules "pol-shop_geo-and-fqdn _in_" application any
+set rulebase security rules "pol-shop_geo-and-fqdn _in_" service tcp-all
+set rulebase security rules "pol-shop_geo-and-fqdn _in_" action deny
+set rulebase security rules "pol-shop_geo-and-fqdn _in_" log-end no
+set rulebase security rules "pol-shop_geo-and-fqdn _in_" disabled yes
+set rulebase security rules "pol-shop_geo-and-fqdn _in_" description "FWSHIFT: disabled by the converter, see the report."
+set rulebase security rules "pol-ew1_allow-lb-health _in_" from any
+set rulebase security rules "pol-ew1_allow-lb-health _in_" to any
+set rulebase security rules "pol-ew1_allow-lb-health _in_" source 192.0.2.64/26
+set rulebase security rules "pol-ew1_allow-lb-health _in_" destination [ 10.50.1.10 10.50.2.20 10.50.3.30 10.50.9.5 10.60.0.0/24 192.0.2.10 192.0.2.5 ]
+set rulebase security rules "pol-ew1_allow-lb-health _in_" source-user any
+set rulebase security rules "pol-ew1_allow-lb-health _in_" category any
+set rulebase security rules "pol-ew1_allow-lb-health _in_" application any
+set rulebase security rules "pol-ew1_allow-lb-health _in_" service tcp-80
+set rulebase security rules "pol-ew1_allow-lb-health _in_" action allow
+set rulebase security rules "pol-ew1_allow-lb-health _in_" log-end no
+set rulebase security rules "implied deny ingress _in_" from any
+set rulebase security rules "implied deny ingress _in_" to any
+set rulebase security rules "implied deny ingress _in_" source [ 0.0.0.0/0 ::/0 ]
+set rulebase security rules "implied deny ingress _in_" destination [ 10.50.1.10/31 10.50.2.20 10.50.3.30 10.50.9.5 10.60.0.0/24 2001:db8:50:1::10 192.0.2.10 192.0.2.5 ]
+set rulebase security rules "implied deny ingress _in_" source-user any
+set rulebase security rules "implied deny ingress _in_" category any
+set rulebase security rules "implied deny ingress _in_" application any
+set rulebase security rules "implied deny ingress _in_" service any
+set rulebase security rules "implied deny ingress _in_" action deny
+set rulebase security rules "implied deny ingress _in_" log-end no
+set rulebase security rules "implied deny ingress _in_" description "what no rule decides: an ingress connection to an instance is denied"
+set rulebase security rules deny-egress-doc from any
+set rulebase security rules deny-egress-doc to any
+set rulebase security rules deny-egress-doc source [ 10.50.1.10/31 10.50.2.20 10.50.3.30 10.50.9.5 10.60.0.0/24 ]
+set rulebase security rules deny-egress-doc destination 192.0.2.0/24
+set rulebase security rules deny-egress-doc source-user any
+set rulebase security rules deny-egress-doc category any
+set rulebase security rules deny-egress-doc application any
+set rulebase security rules deny-egress-doc service any
+set rulebase security rules deny-egress-doc action deny
+set rulebase security rules deny-egress-doc log-end no
+set rulebase security rules db-to-vpc from any
+set rulebase security rules db-to-vpc to any
+set rulebase security rules db-to-vpc source "targets tag_db"
+set rulebase security rules db-to-vpc destination [ 10.50.0.0/16 192.0.2.10 192.0.2.5 ]
+set rulebase security rules db-to-vpc source-user any
+set rulebase security rules db-to-vpc category any
+set rulebase security rules db-to-vpc application any
+set rulebase security rules db-to-vpc service any
+set rulebase security rules db-to-vpc action allow
+set rulebase security rules db-to-vpc log-end no
+set rulebase security rules db-no-internet from any
+set rulebase security rules db-no-internet to any
+set rulebase security rules db-no-internet source "targets tag_db"
+set rulebase security rules db-no-internet destination 0.0.0.0/0
+set rulebase security rules db-no-internet source-user any
+set rulebase security rules db-no-internet category any
+set rulebase security rules db-no-internet application any
+set rulebase security rules db-no-internet service any
+set rulebase security rules db-no-internet action deny
+set rulebase security rules db-no-internet log-end no
+set rulebase security rules "pol-shop_allow-dns-out _out_" from any
+set rulebase security rules "pol-shop_allow-dns-out _out_" to any
+set rulebase security rules "pol-shop_allow-dns-out _out_" source "targets tag_app"
+set rulebase security rules "pol-shop_allow-dns-out _out_" destination 198.51.100.53
+set rulebase security rules "pol-shop_allow-dns-out _out_" source-user any
+set rulebase security rules "pol-shop_allow-dns-out _out_" category any
+set rulebase security rules "pol-shop_allow-dns-out _out_" application any
+set rulebase security rules "pol-shop_allow-dns-out _out_" service udp-53_tcp-53
+set rulebase security rules "pol-shop_allow-dns-out _out_" action allow
+set rulebase security rules "pol-shop_allow-dns-out _out_" log-end no
+set rulebase security rules "pol-shop_deny-smtp-out _out_" from any
+set rulebase security rules "pol-shop_deny-smtp-out _out_" to any
+set rulebase security rules "pol-shop_deny-smtp-out _out_" source [ 10.50.1.10/31 10.50.2.20 10.50.3.30 10.50.9.5 10.60.0.0/24 ]
+set rulebase security rules "pol-shop_deny-smtp-out _out_" destination 0.0.0.0/0
+set rulebase security rules "pol-shop_deny-smtp-out _out_" source-user any
+set rulebase security rules "pol-shop_deny-smtp-out _out_" category any
+set rulebase security rules "pol-shop_deny-smtp-out _out_" application any
+set rulebase security rules "pol-shop_deny-smtp-out _out_" service tcp-25
+set rulebase security rules "pol-shop_deny-smtp-out _out_" action deny
+set rulebase security rules "pol-shop_deny-smtp-out _out_" log-end no
+set rulebase security rules "implied allow egress _out_" from any
+set rulebase security rules "implied allow egress _out_" to any
+set rulebase security rules "implied allow egress _out_" source [ 10.50.1.10/31 10.50.2.20 10.50.3.30 10.50.9.5 10.60.0.0/24 2001:db8:50:1::10 ]
+set rulebase security rules "implied allow egress _out_" destination [ 0.0.0.0/0 ::/0 ]
+set rulebase security rules "implied allow egress _out_" source-user any
+set rulebase security rules "implied allow egress _out_" category any
+set rulebase security rules "implied allow egress _out_" application any
+set rulebase security rules "implied allow egress _out_" service any
+set rulebase security rules "implied allow egress _out_" action allow
+set rulebase security rules "implied allow egress _out_" log-end no
+set rulebase security rules "implied allow egress _out_" description "what no rule decides: an egress connection from an instance is allowed"
+set rulebase security rules fwshift-intrazone-deny rule-type intrazone
+set rulebase security rules fwshift-intrazone-deny from any
+set rulebase security rules fwshift-intrazone-deny to any
+set rulebase security rules fwshift-intrazone-deny source any
+set rulebase security rules fwshift-intrazone-deny destination any
+set rulebase security rules fwshift-intrazone-deny source-user any
+set rulebase security rules fwshift-intrazone-deny category any
+set rulebase security rules fwshift-intrazone-deny application any
+set rulebase security rules fwshift-intrazone-deny service any
+set rulebase security rules fwshift-intrazone-deny action deny
+set rulebase security rules fwshift-intrazone-deny log-end yes
+set rulebase security rules fwshift-intrazone-deny description "Added by FWShift: the source platform denies traffic inside a zone unless a rule allows it."

@@ -1,0 +1,46 @@
+FWShift conversion report
+  source: gcp (vpc-shop)
+  target: forcepoint
+
+Summary
+  Security rules:     28   exact 27, approximated 0, needs review 1 (1 emitted disabled), skipped 0
+  NAT rules:           2   exact 2, approximated 0, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 12, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] SMC_LOADER: the output is a Python program that loads the policy into a Security Management Center through its REST API (python3 FILE --help). It creates the elements and a new firewall policy 'FWShift' on template 'Firewall Template', checks first that every name is free, and uploads the policy to no engine: review it in the Management Client, then install it yourself. --undo deletes what a run created
+  [needs-review] TEMPLATE_RULES: the rules are written at the insert point of template 'Firewall Template': its rules above the insert point (the traffic of the engine with the SMC) come first, and its rules below come after the rules of the policy (the predefined templates refuse Ident and discard and log the rest)
+  [needs-review] SMC_NAT: NAT rules are written in order to the policy, used on every engine. Element-based NAT and the default NAT of an engine apply after them, to what they do not translate: check those on the engines
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+  [info] NAME_COLLISIONS: an SMC predefines many elements (HTTPS, SSH, ...). An element of the same name that says the same is used by the loader; one that says something else stops it: convert again with --target-prefix
+
+Security rules
+  pol-shop:geo-and-fqdn (in)  ->  needs-review, emitted disabled  (emitted as pol-shop:geo-and-fqdn (in) (IPv4), pol-shop:geo-and-fqdn (in) (IPv6))
+      [needs-review] UNSUPPORTED_MATCH: not converted: matches srcFqdns, srcRegionCodes, which the export does not resolve to addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+
+NAT rules
+  external-192.0.2.10  ->  exact
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as two NAT rules, one for each direction
+  external-192.0.2.5  ->  exact
+      [info] NAT_BIDIRECTIONAL: bi-directional static NAT written as two NAT rules, one for each direction
+
+Address groups
+  targets tag:db  ->  exact  (emitted as targets tag_db)
+      [info] RENAMED: renamed to 'targets tag_db' to fit the target's naming rules
+  targets tag:app  ->  exact  (emitted as targets tag_app)
+      [info] RENAMED: renamed to 'targets tag_app' to fit the target's naming rules
+  sources tag:web  ->  exact  (emitted as sources tag_web)
+      [info] RENAMED: renamed to 'sources tag_web' to fit the target's naming rules
+  sources account:app@example-shop.iam.gserviceaccount.com  ->  exact  (emitted as sources account_app_example-shop.iam.gserviceaccount.com)
+      [info] RENAMED: renamed to 'sources account_app_example-shop.iam.gserviceaccount.com' to fit the target's naming rules
+
+Services
+  tcp-443,8443-8444  ->  exact  (emitted as tcp-443_8443-8444)
+      [info] RENAMED: renamed to 'tcp-443_8443-8444' to fit the target's naming rules

@@ -1,0 +1,108 @@
+FWShift conversion report
+  source: terraform-google (vpc-shop)
+  target: sonicwall
+
+Summary
+  Security rules:     28   exact 0, approximated 0, needs review 0, skipped 28
+  NAT rules:           2   exact 0, approximated 2, needs review 0, skipped 0
+  Address groups:      6   exact 6, approximated 0, needs review 0, skipped 0
+  Services:           12   exact 10, approximated 0, needs review 2, skipped 0
+
+Notes for the whole policy
+  [needs-review] GCP_HAIRPIN: connections from an instance to the external address of another are not converted as Google Cloud decides them (they leave the network and come back from the sender's external address); the converted policy treats them as connections to the internal address, which may allow more
+  [needs-review] GCP_NOT_IN_EXPORT: hierarchical firewall policies (of the organization and its folders) and regional system policies are evaluated before all of these and are not in a project's export unless added to it; neither is a firewall endpoint that a rule sends traffic to. Check them with gcloud compute networks get-effective-firewalls
+  [needs-review] TERRAFORM_MEMBERS: the instances a rule applies to, and that its source tags and service accounts stand for, are those of this state: instances made elsewhere (another state, by hand, a managed instance group) are not known to the converted policy
+  [needs-review] TERRAFORM_NOT_READ: the state holds resources that filter traffic and are not read: google_compute_security_policy. The converted policy does not hold what they do
+  [needs-review] SONICWALL_LOAD: the output is commands of the SonicOS 7 command line. Log in by SSH, and paste them as they are: they enter the configuration mode ('configure terminal'; SonicOS 6.5 says 'configure'), create objects, NAT policies and access rules, and end with 'commit'. A command the firewall refuses stops nothing else: read what it answers, and compare the rules with this report before anything depends on them. New access rules go above the default rule of their pair of zones. These parts of the commands are not in the documentation FWShift was written from: address-object ipv6, nat-policy name and comment
+  [info] GCP_EXTERNAL_ADDRESSES: the external addresses of the instances are static NAT of their internal addresses; the firewall rules see the internal address. The rules that name an internal address name its external address as well, as the model has rules before NAT
+  [info] GCP_SOURCE: network vpc-shop, enforcement order AFTER_CLASSIC_FIREWALL: the VPC firewall rules, then the network firewall policies; what none decides is denied for ingress to an instance and allowed for egress from one
+  [info] GCP_UNFILTERED: the firewall never filters traffic to the metadata server (169.254.169.254, fd20:ce::254), and Google Cloud blocks some traffic itself (outbound TCP 25 to the internet, protocols an external address does not carry); the converted policy says nothing about it. Connections where neither end is an instance of the network are not the firewall's: the converted policy denies them
+  [info] GCP_ALIAS_RANGES: alias IP ranges of these instances are addresses the rules that apply to them protect; as a source tag they are not: app-1
+  [info] GCP_COMPOSED: connections between instances pass the egress rules of one and the ingress rules of the other: rules that say what both allow, in the order of the two: 9
+  [info] TERRAFORM_SOURCE: read from a Terraform state (Terraform 1.13.4), as the answers of the Google Cloud command line for the same resources: 11 google_compute_firewall, 5 google_compute_instance, 1 google_compute_network, 1 google_compute_network_firewall_policy, 1 google_compute_network_firewall_policy_association, 6 google_compute_network_firewall_policy_rule, 1 google_compute_region_network_firewall_policy, 1 google_compute_region_network_firewall_policy_association, 1 google_compute_region_network_firewall_policy_rule. Resources outside this state (made by hand, or by another state) are not in it
+  [info] EXISTING_OBJECTS: a command for an object that the firewall has under the same name changes that object or is refused. --target-prefix gives every object that is created a name of its own
+
+Security rules
+  db-to-vpc+allow-https-web  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  db-to-vpc+implied deny ingress  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  db-no-internet (between instances)  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  pol-shop:deny-smtp-out (between instances)  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  implied allow egress+allow-app-from-web  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  implied allow egress+allow-db-from-app  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  implied allow egress+allow-https-web  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  implied allow egress+allow-https-web-v6  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  implied allow egress+implied deny ingress  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  allow-app-from-web  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  allow-db-from-app  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  deny-ssh-blocked  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  allow-https-web  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  allow-https-web-v6  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  old-dns  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  allow-ssh-admins  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  allow-mgmt-v6  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  pol-shop:deny-tor (in)  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  pol-shop:allow-monitoring (in)  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  pol-shop:geo-and-fqdn (in)  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  pol-ew1:allow-lb-health (in)  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  implied deny ingress (in)  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  deny-egress-doc  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  db-to-vpc  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  db-no-internet  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  pol-shop:allow-dns-out (out)  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  pol-shop:deny-smtp-out (out)  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+  implied allow egress (out)  ->  skipped
+      [info] RULE_TYPE_EMPTY: the rule names no pair of zones that the policy has: it is written for none
+
+NAT rules
+  external-192.0.2.10  ->  approximated  (emitted as external-192.0.2.10, external-192.0.2.10 in)
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a source NAT policy plus policy 'external-192.0.2.10 in' for the inbound direction
+  external-192.0.2.5  ->  approximated  (emitted as external-192.0.2.5, external-192.0.2.5 in)
+      [approximated] NAT_BIDIRECTIONAL: bi-directional static NAT written as a source NAT policy plus policy 'external-192.0.2.5 in' for the inbound direction
+
+Address groups
+  targets every instance  ->  exact  (emitted as targets every instance, targets every instance v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'targets every instance', 'targets every instance v6'
+  sources tag:web  ->  exact  (emitted as sources tag:web, sources tag:web v6)
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'sources tag:web', 'sources tag:web v6'
+  sources account:app@example-shop.iam.gserviceaccount.com  ->  exact  (emitted as sources account:app@example-shop)
+      [info] RENAMED: renamed to 'sources account:app@example-shop' to fit the target's naming rules
+  targets every instance in europe-west1  ->  exact  (emitted as targets every instance in europe, targets every instance in eur v6)
+      [info] RENAMED: renamed to 'targets every instance in europe' to fit the target's naming rules
+      [info] GROUP_SPLIT: SonicOS keeps IPv4 and IPv6 addresses in groups of their own: written as 'targets every instance in europe', 'targets every instance in eur v6'
+
+Services
+  tcp-8080_icmp  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  tcp-443,8443-8444  ->  exact  (emitted as tcp-443,8443-8444, tcp-443,8443-8444 tcp 443, tcp-443,8443-8444 tcp 8443-8444)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'tcp-443,8443-8444' of 'tcp-443,8443-8444 tcp 443', 'tcp-443,8443-8444 tcp 8443-8444'
+  tcp-22_icmpv6  ->  needs-review
+      [needs-review] UNSUPPORTED_SERVICE: ICMP other than echo request, for which FWShift does not know the command of SonicOS: not written, and the rules that use it are disabled
+  udp-53_tcp-53  ->  exact  (emitted as udp-53_tcp-53, udp-53_tcp-53 udp 53, udp-53_tcp-53 tcp 53)
+      [info] SERVICE_SPLIT: a SonicOS service object holds one protocol and one range of ports: written as service group 'udp-53_tcp-53' of 'udp-53_tcp-53 udp 53', 'udp-53_tcp-53 tcp 53'

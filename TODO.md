@@ -79,7 +79,14 @@ Terraform for AWS and Azure** (`terraform show -json` of a state or a plan and t
 raw state, read: the security groups, rules, network ACLs and members of
 hashicorp/aws and the network security groups of hashicorp/azurerm, with the
 echoes of a refresh taken once and the unknowns of a plan worked out from the
-configuration or not converted; HCL that creates the groups, written).
+configuration or not converted; HCL that creates the groups, written), and
+**0.27.0, Google Cloud** (the answers of gcloud for one VPC network, read:
+VPC firewall rules, global and regional network firewall policies with
+`goto_next`, the enforcement order, hierarchical policies when added, tags and
+service accounts as the addresses of the instances, egress and ingress
+composed between instances; a gcloud script that creates a new global network
+firewall policy, written; the same from and to Terraform as
+`terraform-google`).
 What each rests on and what nobody has checked on a device is in
 the development log.
 
@@ -91,11 +98,20 @@ export shows its format), the engine (aliases resolved per engine, zones with
 their interfaces, element-based and default NAT), IPv6 NAT, and reading the
 output back for `convert --compare`.
 
-Next: **0.27.0, Google Cloud firewall rules**: VPC firewall rules and the
-global and regional network firewall policies, in the order Google Cloud
-evaluates them, read from a bundle of gcloud answers and written, and
-`google_compute_firewall` and the firewall policy resources of hashicorp/google
-as a Terraform source and target (`terraform-google`).
+Next, one release each, in this order:
+
+* **0.28.0, Cisco IOS** (IOS and IOS XE routers): access lists on interfaces
+  and the zone-based firewall, objects, NAT.
+* **0.29.0, Huawei USG**: security policies between zones, address and service
+  sets, NAT policies.
+* **0.30.0, Stormshield** (SNS): filter and NAT slots, objects.
+* **0.31.0, Cisco Meraki MX**: the layer 3 firewall rules of the Dashboard
+  API, VLANs, 1:1 NAT and port forwarding.
+
+Still open for Google Cloud: the region of a regional policy in the answer of
+`get-effective-firewalls`; secure tags (resolved through the instances' tag
+bindings), address groups; writing a regional policy or VPC firewall rules;
+running the script against a project in a lab.
 
 Still open for Terraform: reading the HCL back for `convert --compare` (it is
 not JSON); the members of a group that another state attaches; a constant next
@@ -103,7 +119,6 @@ to a reference in one expression of a plan; module outputs as references;
 `aws_security_group` with `name_prefix` in a plan; applying the output with
 Terraform against a provider in a lab.
 
-Not planned yet: Huawei USG, Stormshield.
 
 ## Rule usage
 

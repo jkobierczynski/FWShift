@@ -1,0 +1,102 @@
+FWShift conversion report
+  source: opnsense
+  target: gcp
+
+Summary
+  Security rules:     25   exact 0, approximated 6, needs review 19 (19 emitted disabled), skipped 0
+  NAT rules:           7   exact 0, approximated 0, needs review 0, skipped 7
+  Addresses:           7   exact 7, approximated 0, needs review 0, skipped 0
+  Address groups:     14   exact 14, approximated 0, needs review 0, skipped 0
+  Services:           11   exact 11, approximated 0, needs review 0, skipped 0
+
+Notes for the whole policy
+  [needs-review] NPT_NOT_CONVERTED: 1 IPv6 prefix translation (NPt) of the configuration is not converted
+  [needs-review] BOGONS_NOT_CONVERTED: 'Block bogon networks' is set on WAN: OPNsense drops what arrives there from addresses nobody has been given, by a list it downloads, which is not in the configuration
+  [needs-review] GCP_LOAD: the output is a shell script of gcloud commands (section 10): DRY_RUN=1 prints them, without it it creates a new global network firewall policy (fwshift) with its rules, and stops if a policy of that name exists. It is associated with no network: nothing changes until you associate it
+  [needs-review] GCP_ORDER: the policy decides every connection of the network it is associated with: it ends in the default of the source. With the network's enforcement order AFTER_CLASSIC_FIREWALL (the default) the VPC firewall rules of the network decide first; set it to BEFORE_CLASSIC_FIREWALL (gcloud compute networks update NETWORK --network-firewall-policy-enforcement-order=BEFORE_CLASSIC_FIREWALL), or remove the VPC firewall rules
+  [info] FLOATING_LAST_MATCH: 2 rules are not 'quick' (floating rules, and rules of an interface with 'quick' off): such a rule decides only where no quick rule matched, and of several the last one. In the converted policy they stand behind the quick rules, the last one first: 'LAN to test net (not quick)', 'Time for everyone (floating, not quick)'
+  [info] OPNSENSE_VERSION: the configuration was written by OPNsense 26.7 (firewall model 1.0.6), and read as that series reads it
+  [info] OPNSENSE_RULE_EMPTY: rules that match nothing on OPNsense (a protocol of the other IP version, a disabled alias) were left out: 'ICMP for IPv6 only (matches nothing)' (ICMP in a rule for IPv6 only)
+  [info] OPNSENSE_DISABLED_ALIAS: disabled aliases are empty tables on OPNsense: rules that name one match nothing (and 'not' one everything): Old_partner
+  [info] OPNSENSE_REGISTERED_RULE: 1 port forward registers a rule of its own ('Register rule'), which OPNsense puts after every other rule; so does the converted policy
+  [info] OPNSENSE_AUTOMATIC_RULES: OPNsense has rules of its own before those of the configuration, which are not converted: it drops packets with a source that belongs to another interface (antispoof) and TCP and UDP from or to port 0; it passes the ICMPv6 messages IPv6 cannot do without (RFC 4890), DHCP, and the web interface on its first interface (anti-lockout); and it lets out whatever the firewall itself sends. Rules for the firewall itself ('This Firewall', the address of an interface) are converted as rules for those addresses
+  [info] LOGGING_CONVERTED: rules of the source log; their rules have logging enabled
+
+Security rules
+  Never to the blocklist (floating)  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN, DMZ; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Never to the blocklist (floating) 2  ->  needs-review, emitted disabled
+      [needs-review] UNCONVERTIBLE_OBJECT: references 'Geo_block': an alias of type 'geoip' (the countries of a GeoIP database), whose addresses are not in the configuration. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+      [needs-review] ZONE_DYNAMIC: the destination 'Geo_block' holds members only its platform knows; a rule of Google Cloud names addresses. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  Guests never to the blocklist  ->  needs-review, emitted disabled
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the source of traffic that leaves, which is the source after outbound NAT. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
+  DMZ may not send mail out (received-on)  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone DMZ; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone WAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Voice from the partner - pass  ->  needs-review, emitted disabled
+      [approximated] AUTOMATIC_RULE: port forward 'Voice from the partner' passes what it forwards without a rule ('Pass' as its filter rule association): OPNsense looks at no rule of the interface for it. This rule stands for that. Unlike the port forward it also passes what is sent to the translated address directly
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+  Block private networks from WAN  ->  approximated  (emitted as 4 rules of the policy)
+      [info] AUTOMATIC_RULE: interface WAN has 'Block private networks' set: OPNsense drops what arrives there from those networks (the list of 26.7) before any rule of the configuration. This rule stands for that
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone WAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  VPN users to the web servers  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OpenVPN, VPNSITE, and a rule of Google Cloud names no zone: give the networks behind OpenVPN, VPNSITE with --zone-network.
+  No outside resolver (group)  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAN, DMZ; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+      [info] REJECT_AS_DENY: action reset-client: a rule of Google Cloud denies without an answer
+  Inside may ping (old kind)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, DMZ, and a rule of Google Cloud names no zone: give the networks behind LAN, DMZ with --zone-network.
+  Default allow LAN to any rule  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone LAN, and a rule of Google Cloud names no zone: give the networks behind LAN with --zone-network.
+  Web publishing  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+  DMZ anywhere but LAN (disabled)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+  DMZ ICMPv6  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+  Servers fetch updates  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] ZONE_DYNAMIC: the destination 'Updates' holds members only its platform knows; a rule of Google Cloud names addresses.
+  Servers fetch updates 2  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+  Servers fetch updates 3  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+      [needs-review] ZONE_DYNAMIC: the destination 'Updates' holds members only its platform knows; a rule of Google Cloud names addresses.
+  Servers fetch updates 4  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+  Guests stay out  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone GUEST; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Guests to the portal (no protocol, both IP versions)  ->  needs-review, emitted disabled
+      [info] RULE_HALF_NOT_LOADED: the rule is for IPv4 and IPv6, and there is no IPv6 rule for it on OPNsense (source: interface GUEST has no IPv6 network; the rule matches nothing of IPv6 there; destination: '192.0.2.80' is not an IPv6 address): it is converted for the other IP version only
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone GUEST, and a rule of Google Cloud names no zone: give the networks behind GUEST with --zone-network.
+  DMZ anywhere but LAN (disabled) 2  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone DMZ, and a rule of Google Cloud names no zone: give the networks behind DMZ with --zone-network.
+  Guests interactive (tos)  ->  needs-review, emitted disabled
+      [needs-review] UNSUPPORTED_MATCH: not converted: it matches the type of service (tos) '0x10'.
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone GUEST, and a rule of Google Cloud names no zone: give the networks behind GUEST with --zone-network.
+  VPN users to LAN web (old kind)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone OpenVPN, VPNSITE, and a rule of Google Cloud names no zone: give the networks behind OpenVPN, VPNSITE with --zone-network.
+  SSH to bastion (rule the port forward registers)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, and a rule of Google Cloud names no zone: give the networks behind WAN with --zone-network.
+  LAN to test net (not quick)  ->  approximated  (emitted as 2 rules of the policy)
+      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone LAN; a rule of Google Cloud names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  Time for everyone (floating, not quick)  ->  needs-review, emitted disabled
+      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone WAN, LAN, DMZ, GUEST, and a rule of Google Cloud names no zone: give the networks behind WAN, LAN, DMZ, GUEST with --zone-network.
+
+NAT rules
+  SSH to bastion  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  Voice from the partner  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  Mail relay 1:1 - inbound  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  Mail relay 1:1 - outbound  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  DMZ leaves as .10  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  Guests leave as .30  ->  skipped
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees
+  Automatic outbound NAT on WAN  ->  skipped
+      [info] AUTOMATIC_RULE: outbound NAT is automatic: OPNsense translates what leaves by an interface with an IPv4 gateway and comes from the networks of its other interfaces, or from the firewall itself. This rule stands for that
+      [needs-review] NAT_NOT_CONVERTED: not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside the firewall. The rules were written for the internal addresses, which is what the firewall sees

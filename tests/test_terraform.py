@@ -861,7 +861,7 @@ def test_detection_and_what_is_refused() -> None:
     both = json.loads(aws_sample)
     both["values"]["root_module"]["resources"] += json.loads(azure_sample)["values"]["root_module"]["resources"]
     mixed = json.dumps(both).encode()
-    with pytest.raises(FwshiftError, match="--from terraform-aws or --from terraform-azure"):
+    with pytest.raises(FwshiftError, match="--from terraform-aws, terraform-azure or terraform-google"):
         cli.detect_format(mixed)
     with pytest.raises(ParseError, match="AWS and of Azure"):
         parse(mixed)
@@ -1349,3 +1349,227 @@ def test_elastic_ip_of_a_second_address_acl_entries_of_a_plan_and_a_group_not_in
                                                             network_security_group_name="elsewhere"), provider=AZURERM)  # fmt: skip
     _, report = parse(show(item("azurerm_network_security_group", "g", {"id": "/x/g", "name": "g", "security_rule": []}, provider=AZURERM), rule))
     assert [n.severity for n in report.notes if n.code == "TERRAFORM_GROUP_NOT_IN_STATE"] == [Severity.REVIEW]
+
+
+# -- Google Cloud ---------------------------------------------------------------------------------
+
+GOOGLE = "registry.terraform.io/hashicorp/google"
+
+
+def google_state(rng: random.Random, bundle: Dict[str, Any]) -> StateWriter:
+    """A random network of test_gcp.random_gcp as a Terraform state of hashicorp/google."""
+    import test_gcp as G
+
+    writer = StateWriter(rng, GOOGLE, modules=False)
+    for network in bundle["networks"]:
+        writer.add("google_compute_network", {"id": "projects/p/global/networks/" + network["name"], "name": network["name"],
+                                              "self_link": network["selfLink"],
+                                              "network_firewall_policy_enforcement_order": network["networkFirewallPolicyEnforcementOrder"]})  # fmt: skip
+    for rule in bundle["firewall-rules"]:
+        values: Dict[str, Any] = {"id": "projects/p/global/firewalls/" + rule["name"], "name": rule["name"], "network": rule["network"],
+                                  "direction": rule["direction"], "priority": rule["priority"], "disabled": rule.get("disabled", False),
+                                  "allow": [], "deny": [], "log_config": [], "description": ""}  # fmt: skip
+        for key, word in (("allowed", "allow"), ("denied", "deny")):
+            values[word] = [{"protocol": e["IPProtocol"], "ports": e.get("ports", [])} for e in rule.get(key, [])]
+        for camel, snake in (("sourceRanges", "source_ranges"), ("destinationRanges", "destination_ranges"), ("sourceTags", "source_tags"),
+                             ("targetTags", "target_tags"), ("sourceServiceAccounts", "source_service_accounts"),
+                             ("targetServiceAccounts", "target_service_accounts")):  # fmt: skip
+            values[snake] = list(rule.get(camel, []))
+        writer.add("google_compute_firewall", values)
+    for policy in bundle["network-firewall-policies"]:
+        regional = bool(policy.get("region"))
+        prefix = "google_compute_region_network_firewall_policy" if regional else "google_compute_network_firewall_policy"
+        rules = []
+        for rule in policy["rules"]:
+            if rule["priority"] >= 2147483548:
+                continue
+            match = {"src_ip_ranges": rule["match"].get("srcIpRanges", []), "dest_ip_ranges": rule["match"].get("destIpRanges", []),
+                     "layer4_configs": [{"ip_protocol": e["ipProtocol"], "ports": e.get("ports", [])} for e in rule["match"]["layer4Configs"]]}  # fmt: skip
+            rules.append({"priority": rule["priority"], "direction": rule["direction"], "action": rule["action"], "match": [match],
+                          "target_service_accounts": rule.get("targetServiceAccounts", []), "disabled": rule.get("disabled", False),
+                          "enable_logging": False})  # fmt: skip
+        base: Dict[str, Any] = {"id": f"projects/p/global/firewallPolicies/{policy['name']}", "name": policy["name"]}
+        if regional:
+            base["region"] = G.last(policy["region"])
+        if rng.random() < 0.3:
+            for rule in rules:  # (the resource with the rules inline: singular block names)
+                rule["match"] = [dict(m, layer4_config=m.pop("layer4_configs")) for m in rule["match"]]
+            writer.add(prefix + "_with_rules", dict(base, rule=rules))
+        else:
+            writer.add(prefix, base)
+            for rule in rules:
+                writer.add(prefix + "_rule", dict(rule, firewall_policy=rng.choice([policy["name"], base["id"]]), **({"region": base["region"]} if regional else {})))
+        for association in policy["associations"]:
+            writer.add(prefix + "_association", {"name": association["name"], "firewall_policy": base["id"],
+                                                 "attachment_target": association["attachmentTarget"], **({"region": base["region"]} if regional else {})})  # fmt: skip
+    for instance in bundle["instances"]:
+        nics = []
+        for nic in instance["networkInterfaces"]:
+            nics.append({"network": nic["network"], "network_ip": nic["networkIP"], "ipv6_address": nic.get("ipv6Address", ""),
+                         "access_config": [{"nat_ip": c["natIP"]} for c in nic.get("accessConfigs", [])],
+                         "alias_ip_range": [{"ip_cidr_range": a["ipCidrRange"]} for a in nic.get("aliasIpRanges", [])]})  # fmt: skip
+        writer.add("google_compute_instance", {"name": instance["name"], "zone": G.last(instance["zone"]), "tags": instance["tags"]["items"],
+                                               "service_account": [{"email": a["email"]} for a in instance["serviceAccounts"]],
+                                               "network_interface": nics})  # fmt: skip
+    rng.shuffle(writer.items)
+    return writer
+
+
+def test_google_state_decides_like_the_judge() -> None:
+    import test_gcp as G
+
+    compared = 0
+    for seed in range(100):
+        rng = random.Random(seed)
+        bundle = G.random_gcp(rng)
+        writer = google_state(rng, bundle)
+        state = writer.raw() if seed % 3 == 0 else writer.show()
+        report = Report()
+        model = parse_terraform.parse(json.dumps(state).encode(), report)
+        assert cli.detect_format(json.dumps(state).encode()) == "terraform-google"
+        compared += G.judged(bundle, model, rng, seed)
+    assert compared > 9000
+
+
+def gcp_script_of(text: str) -> str:
+    """The emitted HCL of terraform-google as the script test_gcp's ScriptJudge reads."""
+    hcl = Hcl(text)
+    assert hcl.root.all("terraform")[0].all("required_providers")[0].attributes["google"]["source"] == "hashicorp/google"
+    policies = resources(hcl, "google_compute_network_firewall_policy")
+    assert list(policies) == ["policy"]
+    lines = ['run compute network-firewall-policies create "$POLICY" --global']
+    for block in resources(hcl, "google_compute_network_firewall_policy_rule").values():
+        values = block.attributes
+        assert values["firewall_policy"] == Ref(["google_compute_network_firewall_policy", "policy", "name"])
+        match = block.all("match")[0]
+        layer4 = ",".join(f"{b.attributes['ip_protocol']}:{p}" if b.attributes.get("ports") else b.attributes["ip_protocol"]
+                          for b in match.all("layer4_configs") for p in (b.attributes.get("ports") or [""]))  # fmt: skip
+        words = [f"run compute network-firewall-policies rules create {values['priority']}", '--firewall-policy="$POLICY"', "--global-firewall-policy",
+                 f"--direction={values['direction']}", f"--action={values['action']}",
+                 "--src-ip-ranges=" + ",".join(match.attributes["src_ip_ranges"]), "--dest-ip-ranges=" + ",".join(match.attributes["dest_ip_ranges"]),
+                 f"--layer4-configs={layer4}"]  # fmt: skip
+        if values.get("disabled"):
+            words.append("--disabled")
+        lines.append(" ".join(words))
+    return "\n".join(lines) + "\n"
+
+
+@pytest.mark.parametrize("seed", range(25))
+def test_emitted_google_configuration_decides_like_the_model(seed: int) -> None:
+    import test_gcp as G
+
+    rng = random.Random(seed)
+    model = G.without_source_ports_and_icmp_types(random_model(rng))
+    for rule in model.rules:
+        rule.scope = RuleScope.UNIVERSAL
+    report = Report()
+    text = emit_terraform.emit_terraform_google(model, report, Options(zone_networks=ZONES_AT))
+    assert G.compare(model, report, gcp_script_of(text), rng, seed) == 500
+    assert gcp_script_of(text).count("rules create") == cli.convert(copy.deepcopy(model), "gcp", Report(), Options(zone_networks=ZONES_AT)).count("rules create")
+
+
+def test_google_sample_and_plans() -> None:
+    import test_gcp as G
+
+    bundle = json.loads((DATA / "gcp_sample.json").read_text(encoding="utf-8"))
+    model, report = load("terraform_google_sample.json")
+    assert {"TERRAFORM_SOURCE", "TERRAFORM_MEMBERS", "TERRAFORM_NOT_READ"} <= codes(report)
+    assert G.judged(bundle, model, random.Random(5), 0, packets=4000) > 1500
+    # A plan that creates the network and the policy: their ids are the addresses, and what refers to them still does.
+    network = item("google_compute_network", "vpc", {"name": "net", "network_firewall_policy_enforcement_order": "BEFORE_CLASSIC_FIREWALL"}, provider=GOOGLE)
+    policy = item("google_compute_network_firewall_policy", "p", {"name": "pol"}, provider=GOOGLE)
+    rule = item("google_compute_network_firewall_policy_rule", "r", {"priority": 10, "direction": "INGRESS", "action": "deny", "disabled": False,
+                                                                       "target_service_accounts": [],
+                                                                       "match": [{"src_ip_ranges": ["0.0.0.0/0"], "dest_ip_ranges": [],
+                                                                                  "layer4_configs": [{"ip_protocol": "tcp", "ports": ["22"]}]}]},
+                provider=GOOGLE)  # fmt: skip
+    association = item("google_compute_network_firewall_policy_association", "a", {"name": "a"}, provider=GOOGLE)
+    firewall = item("google_compute_firewall", "f", {"name": "ssh", "direction": "INGRESS", "priority": 1000, "disabled": False,
+                                                     "allow": [{"protocol": "tcp", "ports": ["22"]}], "deny": [], "source_ranges": ["0.0.0.0/0"],
+                                                     "destination_ranges": [], "source_tags": [], "target_tags": [], "source_service_accounts": [],
+                                                     "target_service_accounts": []}, provider=GOOGLE)  # fmt: skip
+    instance = item("google_compute_instance", "i", {"name": "vm", "zone": "r1-a", "tags": [], "service_account": [],
+                                                     "network_interface": [{"network_ip": "10.0.0.5", "access_config": [], "alias_ip_range": []}]},
+                    provider=GOOGLE)  # fmt: skip
+    configuration = [
+        {"address": "google_compute_network_firewall_policy_rule.r", "expressions": {"firewall_policy": {"references": ["google_compute_network_firewall_policy.p.name", "google_compute_network_firewall_policy.p"]}}},
+        {"address": "google_compute_network_firewall_policy_association.a", "expressions": {
+            "firewall_policy": {"references": ["google_compute_network_firewall_policy.p.id", "google_compute_network_firewall_policy.p"]},
+            "attachment_target": {"references": ["google_compute_network.vpc.self_link", "google_compute_network.vpc"]}}},
+        {"address": "google_compute_firewall.f", "expressions": {"network": {"references": ["google_compute_network.vpc.id", "google_compute_network.vpc"]}}},
+        {"address": "google_compute_instance.i", "expressions": {"network_interface": [
+            {"network": {"references": ["google_compute_network.vpc.name", "google_compute_network.vpc"]}, "network_ip": {"constant_value": "10.0.0.5"}}]}},
+    ]  # fmt: skip
+    data = plan([network, policy, rule, association, firewall, instance], configuration)
+    model, report = parse(data)
+    assert "TERRAFORM_PLAN" in codes(report)
+    pkt = Packet("", "", "198.51.100.7", "10.0.0.5", "tcp", 40000, 22)
+    assert model_allows(model, pkt) is False  # (the policy first, BEFORE_CLASSIC_FIREWALL, and it denies)
+    assert [r.destinations for r in model.rules if r.name == "pol:10 (in)"] == [["targets every instance"]] and "TERRAFORM_UNKNOWN" not in codes(report)
+    assert model.address_groups["targets every instance"].members == ["10.0.0.5"]
+
+
+def test_r35_google_regional_policies_of_one_name_and_what_a_plan_does_not_know() -> None:
+    def gfw(name: str, action: str, **more: Any) -> Dict[str, Any]:
+        values = {"name": name, "network": "net", "direction": "INGRESS", "priority": 900 if action == "deny" else 1000, "disabled": False,
+                  "allow": [], "deny": [], "source_ranges": ["0.0.0.0/0"], "destination_ranges": [], "source_tags": [], "target_tags": [],
+                  "source_service_accounts": [], "target_service_accounts": []}  # fmt: skip
+        values["allow" if action == "allow" else "deny"] = [{"protocol": "tcp", "ports": ["22"]}]
+        values.update(more)
+        return item("google_compute_firewall", name, values, provider=GOOGLE)
+
+    def vm_of(name: str, zone: str, address: str, tags: List[str]) -> Dict[str, Any]:
+        return item("google_compute_instance", name, {"name": name, "zone": zone, "tags": tags, "service_account": [],
+                                                      "network_interface": [{"network": "net", "network_ip": address, "access_config": [],
+                                                                             "alias_ip_range": []}]}, provider=GOOGLE)  # fmt: skip
+
+    network = item("google_compute_network", "vpc", {"name": "net", "self_link": "net"}, provider=GOOGLE)
+    # Two regional policies called "pol", in r1 and r2; each rule and association names its own by region.
+    resources_ = [network, gfw("ssh", "allow"), vm_of("a", "r1-a", "10.0.1.5", []), vm_of("b", "r2-a", "10.0.2.5", [])]
+    for region, action in (("r1", "deny"), ("r2", "allow")):
+        resources_ += [item("google_compute_region_network_firewall_policy", f"p{region}", {"name": "pol", "region": region}, provider=GOOGLE),
+                       item("google_compute_region_network_firewall_policy_rule", f"r{region}",
+                            {"firewall_policy": "pol", "region": region, "priority": 10, "direction": "INGRESS", "action": action, "disabled": False,
+                             "target_service_accounts": [], "match": [{"src_ip_ranges": ["198.51.100.0/24"], "dest_ip_ranges": [],
+                                                                       "layer4_configs": [{"ip_protocol": "tcp", "ports": ["80"]}]}]}, provider=GOOGLE),
+                       item("google_compute_region_network_firewall_policy_association", f"a{region}",
+                            {"firewall_policy": "pol", "region": region, "attachment_target": "net", "name": "a"}, provider=GOOGLE)]  # fmt: skip
+    model, report = parse(json.dumps({"format_version": "1.0", "values": {"root_module": {"resources": resources_}}}).encode())
+    assert not model_allows(model, Packet("", "", "198.51.100.7", "10.0.1.5", "tcp", 40000, 80))
+    assert model_allows(model, Packet("", "", "198.51.100.7", "10.0.2.5", "tcp", 40000, 80))
+    assert "TERRAFORM_POLICY_AMBIGUOUS" not in codes(report)
+    # A rule that names "pol" without a region: which one is not known, and that is said.
+    resources_[5]["values"] = dict(resources_[5]["values"], region=None)
+    _, report = parse(json.dumps({"format_version": "1.0", "values": {"root_module": {"resources": resources_}}}).encode())
+    assert "TERRAFORM_POLICY_AMBIGUOUS" in codes(report)
+    # A plan: the target tags of a deny, and the tags of an instance, from variables.
+    deny = gfw("block", "deny")
+    del deny["values"]["target_tags"]
+    data = plan([network, deny, gfw("ssh", "allow"), vm_of("a", "r1-a", "10.0.1.5", ["web"])],
+                [{"address": "google_compute_firewall.block", "expressions": {"target_tags": {"references": ["var.tags"]}}}])
+    model, report = parse(data)
+    assert [r.unsupported for r in model.rules if r.name == "block"][0] and "TERRAFORM_UNKNOWN" in codes(report)
+    instance = vm_of("a", "r1-a", "10.0.1.5", ["web"])
+    del instance["values"]["tags"]
+    data = plan([network, gfw("block", "deny", target_tags=["web"]), gfw("ssh", "allow"), instance],
+                [{"address": "google_compute_instance.a", "expressions": {"tags": {"references": ["var.tags"]}}}])
+    model, report = parse(data)
+    assert [r.unsupported for r in model.rules if r.name == "block"][0]
+
+
+def test_r35_google_policy_rule_whose_state_a_plan_does_not_know() -> None:
+    network = item("google_compute_network", "vpc", {"name": "net", "self_link": "net"}, provider=GOOGLE)
+    policy = item("google_compute_network_firewall_policy", "p", {"name": "pol"}, provider=GOOGLE)
+    rule = item("google_compute_network_firewall_policy_rule", "r", {"firewall_policy": "pol", "priority": 10, "direction": "INGRESS", "action": "deny",
+                                                                       "target_service_accounts": [],
+                                                                       "match": [{"src_ip_ranges": ["198.51.100.0/24"], "dest_ip_ranges": [],
+                                                                                  "layer4_configs": [{"ip_protocol": "tcp", "ports": ["22"]}]}]},
+                provider=GOOGLE)  # fmt: skip
+    association = item("google_compute_network_firewall_policy_association", "a", {"firewall_policy": "pol", "attachment_target": "net", "name": "a"},
+                       provider=GOOGLE)  # fmt: skip
+    instance = item("google_compute_instance", "i", {"name": "vm", "zone": "r1-a", "tags": [], "service_account": [],
+                                                     "network_interface": [{"network": "net", "network_ip": "10.0.0.5", "access_config": [], "alias_ip_range": []}]},
+                    provider=GOOGLE)  # fmt: skip
+    model, report = parse(plan([network, policy, rule, association, instance],
+                               [{"address": "google_compute_network_firewall_policy_rule.r", "expressions": {"disabled": {"references": ["var.off"]}}}]))
+    assert [r.unsupported for r in model.rules if r.name.startswith("pol:10")][0]
