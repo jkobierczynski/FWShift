@@ -339,6 +339,19 @@ back and compared with the source): items 1, 2, 5 and 10 of the list before.
 
 ## Validation
 
+The lab (`lab/`, 0.32.0) scripts much of what follows: AWS, Azure and Google Cloud networks (tier 1), nftables,
+iptables, RouterOS, OPNsense and pfSense on a local host (tier 2), and FortiGate, VM-Series, vSRX, Catalyst 8000V and
+ASAv from the AWS Marketplace (tier 3), each loaded with the converted lab policy and checked with real connections.
+nftables and iptables run in the test suite. Still open there:
+
+* the first real run of each of the others, and correcting what it finds (the Marketplace image names, the logins,
+  the reload commands of OPNsense and pfSense, the second interface of the test hosts on each cloud);
+* the images not scripted yet (Check Point with its management server, SonicWall NSv, Stormshield EVA, Sophos,
+  Barracuda; WatchGuard and Forcepoint need tools of their own, Meraki a Dashboard);
+* the conversion of the other sample configurations, not only the lab policy, and NAT in the plan;
+* a run of the conversion *from* each platform: export the lab policy as the target holds it after loading, read it
+  back with FWShift and compare it with the source (`fwshift compare`).
+
 1. Load `tests/data/expected/fortios_to_panos.set` on a PAN-OS VM,
    `panos_to_fortios.conf` on a FortiGate VM and `panos_to_asa.cfg` on an
    ASAv; record what each CLI rejects and correct the emitters. Work through

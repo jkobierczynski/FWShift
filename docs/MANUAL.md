@@ -8,7 +8,7 @@ rule by rule, how faithful the result is. It can also audit a policy: rules that
 rules that never match, loose ends; show what each zone may reach in each
 other zone; check a policy against a zone and conduit model kept as a file;
 and say which connections two policies decide differently.
-This manual covers version 0.31.
+This manual covers version 0.32.
 
 **Contents**
 
@@ -62,7 +62,7 @@ may reach (section 14), check a policy against a zone and conduit model kept
 as a file (section 16), and name every connection two policies decide
 differently, including a source and its conversion read back (section 17).
 
-> **Status.** Version 0.31 is tested against synthetic configurations. iptables
+> **Status.** Version 0.32 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). Output for PAN-OS, FortiOS, Check Point,
 > Cisco ASA, Cisco IOS, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS, Azure, Google Cloud, RouterOS and Forcepoint has
@@ -113,8 +113,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.31.1.pyz --version
-python3 fwshift-0.31.1.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.32.0.pyz --version
+python3 fwshift-0.32.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -4253,7 +4253,11 @@ The built-in table covers common protocols, among them `web-browsing`, `ssl`,
 
 ## 10. Loading the output
 
-**Always in a lab first.**
+**Always in a lab first.** The repository's `lab/` (its `README.md`) does that for you on several targets: it converts
+a small synthetic policy, loads it on a real target (an AWS, Azure or Google Cloud network; nftables or iptables in a
+network namespace, or RouterOS, OPNsense or pfSense under KVM on your own host; a FortiGate, VM-Series, vSRX, Catalyst
+8000V or ASAv from the AWS Marketplace), sends test connections through it and compares them with what the source
+decides. What follows is how to load a conversion of your own.
 
 ### PAN-OS
 

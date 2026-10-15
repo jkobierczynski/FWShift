@@ -8,10 +8,10 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.31.1 (alpha) |
+| Version | 0.32.0 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Meraki MX (read the answers of the Dashboard API for one network: VLANs, objects, the outbound and layer 7 rules, port forwarding, 1:1 and 1:many NAT, the inbound table with NAT exceptions; write a curl script that puts the outbound and NAT tables); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
 | Tests | 6118, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below). Nothing has been loaded on PAN-OS, FortiOS, an ASA, an IOS router, a Huawei USG, a Stormshield firewall, a Meraki MX, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a Google Cloud project, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
+| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below; and the lab of 0.32.0). Nothing has been loaded on PAN-OS, FortiOS, an ASA, an IOS router, a Huawei USG, a Stormshield firewall, a Meraki MX, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a Google Cloud project, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
 | Analysis | the audit, the zone matrix, rule usage from hit counters and logs, the zone and conduit model as a gate (`fwshift conduits`), the equivalence check (`fwshift compare`, `convert --compare`) |
 | Security | an outside review (ChatGPT, October 2026) and the measures taken: `docs/security/SECURITY_REVIEW.md` |
 | Next | the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
@@ -286,6 +286,11 @@ tests/
                       only the walk knows): every difference is found, a certain
                       one is real; iptables and nftables output read back
     test_cli.py       command line, golden files
+    test_lab.py       the lab: its plan against the judge, the probe, every run
+                      dry, and real runs of nftables and iptables in namespaces
+lab/                  the lab (lab/README.md): the converted lab policy on real
+                      targets (cloud networks, local images, Marketplace
+                      firewalls), checked with real connections
 docs/MANUAL.md        user manual
 docs/guide.html       field guide: the features on one page, per brand what to
                       export, how to load and what to watch for (from the manual)
@@ -2160,6 +2165,88 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-15: version 0.32.0
+
+**The lab**: scripts that put a converted policy on real targets and check it with real connections (`lab/`, its
+`README.md`).
+
+**Built**
+
+* `lab/lab.py` and its modules: one synthetic policy (`lab/policy/lab_panos.xml`, three zones, a deny above the
+  allows, a deny inside a broad allow, ports, a range, UDP, ICMP), converted for the target; a plan of 160 flows
+  between five test hosts with what the source decides (FWShift's first-match simulation), asserted only where every
+  rule that might match was converted exactly and no note on the target's defaults applies; the 32 flows inside a
+  zone shown as `local` where they do not pass the firewall (tiers 2 and 3); a probe in plain Python on each host,
+  which checks itself first; the check and its summary, which does not pass a run that saw only one kind of verdict;
+  `--dry-run`, which converts and plans for real and only writes down the rest.
+* The teardown: after a failure, Ctrl-C, SIGTERM or SIGHUP, with the running command interrupted once and the
+  teardown shielded; `run.json` in the work folder, from which `destroy` and `destroy-all` tear down a run that was
+  kept or killed; what is left after a teardown listed by the run's id.
+* Tier 1, the cloud-native targets: Terraform for AWS, Azure and Google Cloud (a management interface that accepts
+  only the admin address and sends nothing out, and a test interface per host), and the loading of each conversion
+  (the security groups attached by their `# attach` lines and tagged with the run, the NSGs associated by the networks
+  in the template, the network firewall policy associated with the test network).
+* Tier 2, a local Linux host: nftables and iptables in a network namespace (no image), and RouterOS CHR, OPNsense and
+  pfSense under QEMU/KVM from a base image prepared once (the RouterOS script imported and switched on and its rules
+  counted; the pfSense and OPNsense areas put into `config.xml` as a restore does, the filter reloaded and checked
+  with `pfctl -sr`). The bridges and QEMU are in a namespace of their own: the host's network and settings are not
+  touched.
+* Tier 3, AWS Marketplace images: one Terraform module for a firewall with an interface per zone and a route table
+  per zone subnet, and for FortiGate, VM-Series, vSRX, Catalyst 8000V and ASAv the base configuration and the
+  conversion typed into the CLI over SSH, with every refused line, and a missing commit success line, a failure. The
+  images it does not script are listed with the reason.
+* `.github/workflows/lab.yml`: on a change to `lab/`, the Terraform modules validated and every run made dry; by hand,
+  a real run of tier 1 or 3 in the environment `lab`, logged in with OpenID Connect (no stored keys), its inputs
+  checked, a teardown of what is left that always runs, the work folder kept with the Terraform state and without the
+  run's private key.
+* `tests/test_lab.py`: the plan against the test suite's own judge, the probe on loopback (its errors and its
+  self-check too), the reading of each conversion, every run dry, a kept run destroyed later, and real runs through
+  the kernel (nftables and iptables) with a ruleset that lets everything through as the control that must fail, and a
+  SIGTERM in the middle of a run.
+
+**Review**
+
+*Round 40* by the independent reviewer, of the whole lab, with a real run of the kernel tier.
+
+| | Finding | Fix |
+|---|---|---|
+| high | Ctrl-C reached Terraform twice (the process group), which then quit without writing its state | each command in a session of its own; the run passes the interrupt on once and waits |
+| high | A cancelled workflow (SIGTERM) or a closed terminal (SIGHUP) skipped the teardown | both handled as Ctrl-C, the teardown shielded; `destroy`, `destroy-all`; a cleanup step in the workflow that always runs |
+| high | The workflow's AWS credentials (1 hour) ran out before a tier-3 run and its teardown | 3 hours asked for; the README says to allow the role that much |
+| high | AWS: the converted security groups were neither tagged nor sure to go (a group still attached cannot be deleted) | tagged with the run; interfaces moved back to the holding group first; a second try; leftovers listed |
+| high | Google Cloud: the policy's association was deleted only when the run got that far | deleted whenever the policy was made |
+| medium | Workflow inputs went into the shell unchecked; `--admin-cidr` took any network | checked against patterns and passed as an array; one address unless `--allow-wide-admin` |
+| medium | The test hosts' management interfaces could send anywhere | egress denied on each cloud |
+| medium | Tier 3: the VPC delivers by destination, so the hosts' next hop to the firewall was ignored | a route table per zone subnet to the firewall's interface |
+| medium | Tier 3: the Elastic IP could be made before the internet gateway; provider versions open-ended; images of any architecture | `depends_on`; versions bounded; x86_64 only, the image's name and product code printed |
+| medium | Tier 3: the CLI was taken as ready on its first answer; the default zones and rules of VM-Series and vSRX stayed | a ready answer per image; the defaults deleted first |
+| medium | Plan: the report's notes on the target's defaults were ignored | flows they touch not asserted |
+| medium | Probe: a source address it could not bind read as `blocked` | `error`; a self-check before the flows |
+| medium | Flows inside a zone, which never pass the firewall in tiers 2 and 3, were asserted | `local` |
+| medium | `plan` ignored the tier; a dry run printed `PASSED`; a failure to make the run exited 1 like a failed check | the plan per tier; `DRY RUN`; exit 2 |
+| medium | Tier 3: `end` in the IOS and ASA conversions closed the session before the base configuration was saved | dropped from the conversion |
+| medium | Tier 3: sessions had no time limit and no proof of a commit | 20 minutes; the commit's success line required |
+| medium | RouterOS: an import that stopped half way passed | the script's last line required, its rules counted |
+| medium | pfSense/OPNsense: a reload that loaded nothing passed | `pfctl -sr` must name the lab's addresses |
+| medium | Tier 2 turned a setting of the host off (bridge netfilter) and put bridges in its network | the bridges and QEMU in a namespace of their own; nothing of the host changed |
+
+**What the work made necessary**
+
+* *Zone networks under the mapped names.* The OPNsense and pfSense runs gave `--zone-network` the zones' names
+  before `--zone-map`; FWShift read them as further interfaces, every allow became approximated, and no asserted flow
+  was expected to pass. The new check against vacuous runs caught it in the dry runs: the networks now take the
+  mapped names, and 96 flows are asserted.
+
+**Verified, and not**
+
+* The suite (6156 tests, on Python 3.13 and 3.9; mypy and pyflakes clean), with the real runs of nftables and iptables: 128 flows each through the kernel, all as the
+  source decides (21 passed, 107 blocked or refused), 32 local, the host's settings unchanged and no namespace left;
+  the wrong ruleset failing more than 50 asserted flows; a SIGTERM in the middle of a run tearing it down.
+* **Not verified**: no run of tier 1, of the virtual machines of tier 2 or of tier 3 was made; the Terraform modules
+  were neither applied nor validated here (the workflow validates them on GitHub). The Marketplace image names, the
+  logins and first boot of the firewalls, the reload commands of OPNsense and pfSense and the routing of the test
+  hosts' second interface on each cloud are taken from documentation.
 
 ### 2026-10-15: version 0.31.1
 

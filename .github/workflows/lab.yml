@@ -1,0 +1,184 @@
+name: Lab
+
+# The lab (lab/README.md) puts the converted lab policy on a real target and checks test connections through it.
+#
+#   On a push or pull request that changes lab/: the Terraform modules are validated, and every lab run is made dry
+#   (converted and planned for real, nothing created). No cloud account is used.
+#
+#   Run by hand (Actions > Lab > Run workflow): a real run in your account, in the environment "lab", which should
+#   have a required reviewer: a run costs money while it lasts (tier 3: the firewall's hourly price), and it destroys
+#   everything it made at the end, also when a step fails. The login is by OpenID Connect, without stored keys; the
+#   repository variables it reads are in lab/README.md (LAB_AWS_ROLE, LAB_AZURE_*, LAB_GCP_*).
+#
+# Tier 2 (local images under KVM) is not run here: its base images are prepared by hand and stay on your own host.
+
+on:
+  push:
+    paths: ["lab/**", ".github/workflows/lab.yml"]
+  pull_request:
+    paths: ["lab/**", ".github/workflows/lab.yml"]
+  workflow_dispatch:
+    inputs:
+      run:
+        description: "What to run"
+        required: true
+        type: choice
+        options:
+          - tier1 aws
+          - tier1 azure
+          - tier1 gcp
+          - tier3 fortigate
+          - tier3 panos
+          - tier3 vsrx
+          - tier3 c8000v
+          - tier3 asav
+      region:
+        description: "Region (eu-west-1, westeurope, europe-west1 when empty)"
+        required: false
+        type: string
+        default: ""
+      ami:
+        description: "Tier 3: the image id of your Marketplace subscription, where the lab's name pattern does not find it"
+        required: false
+        type: string
+        default: ""
+
+permissions: {}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # Third-party actions are pinned to the commit of a release, not to a tag that can be moved.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.12"
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e  # v4.0.1
+        with:
+          terraform_wrapper: false
+      - name: The Terraform modules are valid
+        run: |
+          for module in lab/tier1/aws lab/tier1/azure lab/tier1/gcp lab/tier3/aws; do
+            echo "== $module"
+            terraform -chdir="$module" init -backend=false -input=false -no-color > /dev/null
+            terraform -chdir="$module" validate -no-color
+            rm -rf "$module/.terraform" "$module/.terraform.lock.hcl"
+          done
+      - name: The first-boot script of the test hosts is valid shell
+        run: |
+          python3 -c "import sys; sys.path[:0] = ['lab', 'src']; import labrun; print(labrun.host_init('10.20.1.10', '10.20.1.1', '10.20.1.0/24'))" > hostinit.sh
+          sh -n hostinit.sh
+      - name: Every lab run, dry
+        run: |
+          set -e
+          python3 -m pip install -q -e .
+          touch base.qcow2 key
+          for run in "tier1 aws" "tier1 azure" "tier1 gcp --project dry-run" "tier2 routeros --image base.qcow2 --ssh-key key" \
+                     "tier2 opnsense --image base.qcow2 --ssh-key key" "tier2 pfsense --image base.qcow2 --ssh-key key" \
+                     "tier3 fortigate" "tier3 panos" "tier3 vsrx" "tier3 c8000v" "tier3 asav"; do
+            echo "== $run"
+            python3 lab/lab.py run $run --dry-run --work lab-work 2> /dev/null
+          done
+
+  run:
+    if: github.event_name == 'workflow_dispatch'
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: lab
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RUN: ${{ inputs.run }}
+      REGION: ${{ inputs.region }}
+      AMI: ${{ inputs.ami }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.12"
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e  # v4.0.1
+        with:
+          terraform_wrapper: false
+
+      - name: AWS login (OpenID Connect)
+        if: startsWith(inputs.run, 'tier1 aws') || startsWith(inputs.run, 'tier3')
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6.3.0
+        with:
+          role-to-assume: ${{ vars.LAB_AWS_ROLE }}
+          aws-region: ${{ inputs.region || 'eu-west-1' }}
+          # A tier-3 run takes up to an hour before its teardown starts: credentials of one hour would expire in it.
+          # The role's maximum session duration must allow this (3 hours).
+          role-duration-seconds: 10800
+      - name: Azure login (OpenID Connect)
+        if: startsWith(inputs.run, 'tier1 azure')
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906  # v3.1.0
+        with:
+          client-id: ${{ vars.LAB_AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.LAB_AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.LAB_AZURE_SUBSCRIPTION_ID }}
+      - name: Google Cloud login (workload identity federation)
+        if: startsWith(inputs.run, 'tier1 gcp')
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.LAB_GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.LAB_GCP_SERVICE_ACCOUNT }}
+      - name: gcloud
+        if: startsWith(inputs.run, 'tier1 gcp')
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db  # v3.0.1
+
+      - name: The lab run
+        env:
+          # Terraform's azurerm provider logs in with the same federated identity.
+          ARM_USE_OIDC: "true"
+          ARM_CLIENT_ID: ${{ vars.LAB_AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ vars.LAB_AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ vars.LAB_AZURE_SUBSCRIPTION_ID }}
+          GCP_PROJECT: ${{ vars.LAB_GCP_PROJECT }}
+        shell: bash
+        run: |
+          python3 -m pip install -q -e .
+          # The inputs are checked, and passed as single arguments: they cannot add options to the run.
+          read -r tier target <<< "$RUN"
+          args=(run "$tier" "$target" --work lab-work)
+          if [ -n "$REGION" ]; then
+            [[ "$REGION" =~ ^[a-z0-9-]+$ ]] || { echo "::error::region '$REGION' is not a region name"; exit 2; }
+            args+=(--region "$REGION")
+          fi
+          if [ -n "$AMI" ]; then
+            [[ "$AMI" =~ ^ami-[0-9a-f]+$ ]] || { echo "::error::'$AMI' is not an image id"; exit 2; }
+            args+=(--ami "$AMI")
+          fi
+          if [ "$target" = gcp ]; then args+=(--project "$GCP_PROJECT"); fi
+          # The runner's own address manages the run; nothing else reaches the test hosts.
+          python3 lab/lab.py "${args[@]}"
+
+      - name: Tear down what a cancelled or failed run left
+        if: always()
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_CLIENT_ID: ${{ vars.LAB_AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ vars.LAB_AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ vars.LAB_AZURE_SUBSCRIPTION_ID }}
+        run: |
+          if [ -d lab-work ]; then python3 lab/lab.py destroy-all lab-work; fi
+
+      - name: Keep the results (without the run's private key or provider plugins)
+        if: always()
+        run: |
+          find lab-work -name 'id_lab' -delete 2> /dev/null || true
+          find lab-work -name '.terraform' -type d -prune -exec rm -rf {} + 2> /dev/null || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        if: always()
+        with:
+          name: lab-results
+          path: lab-work/
+          if-no-files-found: ignore

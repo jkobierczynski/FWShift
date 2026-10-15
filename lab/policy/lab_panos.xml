@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+<!-- The policy of the FWShift lab (lab/README.md). Synthetic: not taken from any network.
+     Three zones, each a /24 of 10.20.0.0/16; the test hosts are .10 and .11 of inside and dmz, and .10 of outside.
+     Every rule is one each target can say, so that a difference is the converter's, not the target's. -->
+<config version="10.2.0" urldb="paloaltonetworks">
+  <devices>
+    <entry name="localhost.localdomain">
+      <vsys>
+        <entry name="vsys1">
+          <zone>
+            <entry name="inside"><network><layer3><member>ethernet1/2</member></layer3></network></entry>
+            <entry name="dmz"><network><layer3><member>ethernet1/3</member></layer3></network></entry>
+            <entry name="outside"><network><layer3><member>ethernet1/1</member></layer3></network></entry>
+          </zone>
+          <address>
+            <entry name="inside-net"><ip-netmask>10.20.1.0/24</ip-netmask></entry>
+            <entry name="dmz-net"><ip-netmask>10.20.2.0/24</ip-netmask></entry>
+            <entry name="outside-net"><ip-netmask>10.20.3.0/24</ip-netmask></entry>
+            <entry name="admin-host"><ip-netmask>10.20.1.10/32</ip-netmask></entry>
+            <entry name="guest-host"><ip-netmask>10.20.1.11/32</ip-netmask></entry>
+            <entry name="web-server"><ip-netmask>10.20.2.10/32</ip-netmask></entry>
+            <entry name="resolver"><ip-netmask>10.20.3.10/32</ip-netmask></entry>
+          </address>
+          <service>
+            <entry name="tcp-ssh"><protocol><tcp><port>22</port></tcp></protocol></entry>
+            <entry name="tcp-web"><protocol><tcp><port>80,443</port></tcp></protocol></entry>
+            <entry name="tcp-http"><protocol><tcp><port>80</port></tcp></protocol></entry>
+            <entry name="tcp-high"><protocol><tcp><port>8000-8010</port></tcp></protocol></entry>
+            <entry name="udp-dns"><protocol><udp><port>53</port></udp></protocol></entry>
+          </service>
+          <rulebase>
+            <security>
+              <rules>
+                <entry name="guest-not-to-dmz">
+                  <from><member>inside</member></from><to><member>dmz</member></to>
+                  <source><member>guest-host</member></source><destination><member>any</member></destination>
+                  <application><member>any</member></application><service><member>any</member></service>
+                  <action>deny</action>
+                  <description>A deny above the allows: the order counts</description>
+                </entry>
+                <entry name="web-to-dmz">
+                  <from><member>inside</member></from><to><member>dmz</member></to>
+                  <source><member>inside-net</member></source><destination><member>web-server</member></destination>
+                  <application><member>any</member></application><service><member>tcp-web</member></service>
+                  <action>allow</action>
+                </entry>
+                <entry name="admin-ssh">
+                  <from><member>inside</member></from><to><member>dmz</member></to>
+                  <source><member>admin-host</member></source><destination><member>dmz-net</member></destination>
+                  <application><member>any</member></application><service><member>tcp-ssh</member></service>
+                  <action>allow</action>
+                </entry>
+                <entry name="outside-web">
+                  <from><member>outside</member></from><to><member>dmz</member></to>
+                  <source><member>any</member></source><destination><member>web-server</member></destination>
+                  <application><member>any</member></application><service><member>tcp-http</member></service>
+                  <action>allow</action>
+                </entry>
+                <entry name="no-dns-out">
+                  <from><member>inside</member></from><to><member>outside</member></to>
+                  <source><member>any</member></source><destination><member>resolver</member></destination>
+                  <application><member>any</member></application><service><member>udp-dns</member></service>
+                  <action>deny</action>
+                </entry>
+                <entry name="inside-out">
+                  <from><member>inside</member></from><to><member>outside</member></to>
+                  <source><member>inside-net</member></source><destination><member>any</member></destination>
+                  <application><member>any</member></application><service><member>any</member></service>
+                  <action>allow</action>
+                </entry>
+                <entry name="dmz-high-ports">
+                  <from><member>dmz</member></from><to><member>outside</member></to>
+                  <source><member>dmz-net</member></source><destination><member>outside-net</member></destination>
+                  <application><member>any</member></application><service><member>tcp-high</member></service>
+                  <action>allow</action>
+                </entry>
+              </rules>
+            </security>
+          </rulebase>
+        </entry>
+      </vsys>
+    </entry>
+  </devices>
+</config>

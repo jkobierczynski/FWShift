@@ -47,7 +47,7 @@ change, or a source and its conversion read back (the **equivalence check**).
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.31).** The converter is tested against synthetic
+> **Status: alpha (0.32).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -127,6 +127,9 @@ The reasons, and what an outside security review found, are in [docs/security/SE
 * **[DEVELOPMENT.md](https://github.com/jkobierczynski/FWShift/blob/HEAD/DEVELOPMENT.md)**: architecture, the rules the code
   follows, how to add a vendor, testing, and the development log.
 * **[TODO.md](https://github.com/jkobierczynski/FWShift/blob/HEAD/TODO.md)**: what is planned, release by release.
+* **[The lab](https://github.com/jkobierczynski/FWShift/blob/HEAD/lab/README.md)**: scripts that put a converted policy on a real target (AWS, Azure
+  and Google Cloud networks; nftables, iptables, RouterOS, OPNsense and pfSense on your own Linux host; firewall
+  images of the AWS Marketplace) and check it with real connections.
 * **[Security review](https://github.com/jkobierczynski/FWShift/blob/HEAD/docs/security/SECURITY_REVIEW.md)**: an outside review of the project (by ChatGPT, October 2026), and what
   was done about each point.
 
@@ -171,8 +174,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.31.1.pyz --version
-python3 fwshift-0.31.1.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.32.0.pyz --version
+python3 fwshift-0.32.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -815,7 +818,9 @@ and everything else outside the policy.
   against, the equivalence check as a command and of a conversion (0.22,
   done); next the networks behind a zone from the source, NAT in the
   comparison, findings as SARIF, zone ranks.
-* Validation of the output on lab devices of every platform.
+* Validation of the output on lab devices of every platform: [the lab](https://github.com/jkobierczynski/FWShift/blob/HEAD/lab/README.md)
+  (0.32) scripts it for the cloud targets, five free images and five Marketplace images; nftables and iptables run
+  in the test suite, the others wait for their first run.
 
 ## Licence
 
