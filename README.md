@@ -111,23 +111,23 @@ Pure Python, standard library only, Python 3.9 or newer.
 6. **Give keys and passwords through the environment or the prompt, to a least-privilege API account; never use `--insecure`.**
 7. **Keep the journal of a loader run until the change is accepted: `--undo` removes exactly what that run created.**
 8. **After loading, read the policy back from the target, compare it again, and test the critical flows on the device.**
-9. **Install only release packages whose checksums match `SHA256SUMS`; publish, install or deploy on the target yourself.**
+9. **Install from PyPI (`pip install fwshift`) or only release packages whose checksums match `SHA256SUMS`; publish, install or deploy on the target yourself.**
 
-The reasons, and what an outside security review found, are in [docs/security/SECURITY_REVIEW.md](docs/security/SECURITY_REVIEW.md).
+The reasons, and what an outside security review found, are in [docs/security/SECURITY_REVIEW.md](https://github.com/jkobierczynski/FWShift/blob/HEAD/docs/security/SECURITY_REVIEW.md).
 
 ## Documentation
 
-* **[User manual](docs/MANUAL.md)**: getting a configuration out of the
+* **[User manual](https://github.com/jkobierczynski/FWShift/blob/HEAD/docs/MANUAL.md)**: getting a configuration out of the
   source firewall, every command and option, how to read the report, a
   reference of all findings, how each difference between the platforms is
   handled, and how to load the result.
-* **[Field guide](docs/guide.html)**: every feature on one page, with real
+* **[Field guide](https://github.com/jkobierczynski/FWShift/blob/HEAD/docs/guide.html)**: every feature on one page, with real
   commands and output, and per brand what to export, how to load the result
   and the edge cases to watch for. Open it in a browser.
-* **[DEVELOPMENT.md](DEVELOPMENT.md)**: architecture, the rules the code
+* **[DEVELOPMENT.md](https://github.com/jkobierczynski/FWShift/blob/HEAD/DEVELOPMENT.md)**: architecture, the rules the code
   follows, how to add a vendor, testing, and the development log.
-* **[TODO.md](TODO.md)**: what is planned, release by release.
-* **[Security review](docs/security/SECURITY_REVIEW.md)**: an outside review of the project (by ChatGPT, October 2026), and what
+* **[TODO.md](https://github.com/jkobierczynski/FWShift/blob/HEAD/TODO.md)**: what is planned, release by release.
+* **[Security review](https://github.com/jkobierczynski/FWShift/blob/HEAD/docs/security/SECURITY_REVIEW.md)**: an outside review of the project (by ChatGPT, October 2026), and what
   was done about each point.
 
 ## Why
@@ -158,19 +158,21 @@ means something different on each platform. FWShift's rule is:
 ## Install
 
 ```sh
-pip install .            # or: pip install -e ".[dev]" for development
+pip install fwshift      # from PyPI; or "pipx install fwshift"
 fwshift --version
 ```
 
-Without installing: `PYTHONPATH=src python3 -m fwshift ...`.
+From the source tree: `pip install .` (or `pip install -e ".[dev]"` for development); without installing,
+`PYTHONPATH=src python3 -m fwshift ...`. The package on PyPI is uploaded by the release workflow of the repository
+(trusted publishing, no stored token), from the same build as the release packages.
 
 Each version tag has a release with packages: `fwshift-X.Y.Z.zip`, the
 project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.31.0.pyz --version
-python3 fwshift-0.31.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.31.1.pyz --version
+python3 fwshift-0.31.1.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -395,7 +397,7 @@ fwshift convert running-config.xml --to iptables -o rules.v4 --report report.txt
     --zone-network trust=10.10.0.0/16 --zone-network untrust=0.0.0.0/0,::/0
 ```
 
-The [manual](docs/MANUAL.md#3-getting-the-source-configuration) shows how to
+The [manual](https://github.com/jkobierczynski/FWShift/blob/HEAD/docs/MANUAL.md#3-getting-the-source-configuration) shows how to
 get the input for each platform; for Check Point that is three `mgmt_cli show`
 calls, for an ASA or an IOS router `show running-config`, for a Huawei USG `display current-configuration`, for a Stormshield firewall its backup opened with `decbackup`, for a Meraki MX the answers of the Dashboard API in one file, for a Sophos Firewall an export under
 *Backup & firmware > Import export*, for a Management Center a handful of
@@ -451,7 +453,7 @@ such a rule changes no verdict; the tests check that against every packet of
 a small world. A rule that was read only approximately is not called dead and
 proves nothing about another rule: the audit lists it instead.
 `--audit-fail-on high` makes it a gate for a pipeline. See
-[section 13 of the manual](docs/MANUAL.md#13-auditing-a-policy).
+[section 13 of the manual](https://github.com/jkobierczynski/FWShift/blob/HEAD/docs/MANUAL.md#13-auditing-a-policy).
 
 ## Rule usage
 
@@ -484,11 +486,11 @@ FortiOS configurations do not say when it changed: `--unchanged-since` is your
 word for it, or for PAN-OS the hit counters). A rule with only
 possible connections is never called unused. Otherwise it says why they prove
 nothing. See
-[section 15 of the manual](docs/MANUAL.md#15-rule-usage-from-logs).
+[section 15 of the manual](https://github.com/jkobierczynski/FWShift/blob/HEAD/docs/MANUAL.md#15-rule-usage-from-logs).
 
 Synthetic configurations to try it on, one per format, are in
-[`tests/data`](tests/data), with their conversions in
-[`tests/data/expected`](tests/data/expected).
+[`tests/data`](https://github.com/jkobierczynski/FWShift/tree/HEAD/tests/data), with their conversions in
+[`tests/data/expected`](https://github.com/jkobierczynski/FWShift/tree/HEAD/tests/data/expected).
 
 ## Zone matrix
 
@@ -516,7 +518,7 @@ and marked, and what a parser did not read is named. Zones can be those
 of the policy or networks of your own (`--network-zone`), which is how the
 zones of an IEC 62443 zone and conduit model are laid over a firewall that
 knows only interfaces. Text, JSON or CSV. See
-[section 14 of the manual](docs/MANUAL.md#14-the-zone-matrix).
+[section 14 of the manual](https://github.com/jkobierczynski/FWShift/blob/HEAD/docs/MANUAL.md#14-the-zone-matrix).
 
 ## Zone and conduit model, and the equivalence check
 
@@ -527,7 +529,7 @@ behind, a target security level) and conduits (from, to, services).
 allows beyond a conduit, between zones without one, inside a zone beyond what
 it may, or to addresses in no zone, and the conduits the policy keeps closed.
 A finding that rests on what cannot be read exactly is said to be possible,
-and fails the gate too. See [section 16](docs/MANUAL.md#16-the-zone-and-conduit-model).
+and fails the gate too. See [section 16](https://github.com/jkobierczynski/FWShift/blob/HEAD/docs/MANUAL.md#16-the-zone-and-conduit-model).
 
 `fwshift compare` reads two configurations, of any formats, and names every
 connection whose verdict differs, per pair of zones: opened or closed, for
@@ -536,7 +538,7 @@ users, URL categories and schedules are compared as labels of a connection;
 objects and rules both hold alike but that cannot be read decide alike.
 `fwshift convert --compare` reads the output back (for the eleven targets
 FWShift reads) and does the same for the conversion. See
-[section 17](docs/MANUAL.md#17-the-equivalence-check).
+[section 17](https://github.com/jkobierczynski/FWShift/blob/HEAD/docs/MANUAL.md#17-the-equivalence-check).
 
 ## What is converted
 
@@ -794,7 +796,7 @@ and everything else outside the policy.
 
 ## Roadmap
 
-[TODO.md](TODO.md) has the list. In short:
+[TODO.md](https://github.com/jkobierczynski/FWShift/blob/HEAD/TODO.md) has the list. In short:
 
 * **Firewall brands**, one per release: Sophos Firewall 0.6, Cisco Secure
   Firewall (formerly Firepower) 0.7, pfSense 0.8, SonicWall 0.9, WatchGuard
@@ -804,7 +806,7 @@ and everything else outside the policy.
   Azure) 0.26, Google Cloud firewall rules (and terraform-google) 0.27, Cisco IOS
   and IOS XE 0.28, Huawei USG 0.29, Stormshield SNS 0.30, Cisco Meraki MX
   0.31; what is still open for each is in TODO.md.
-* **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](docs/RULE_USAGE.md)):
+* **Rule usage**, 0.13 to 0.17 ([docs/RULE_USAGE.md](https://github.com/jkobierczynski/FWShift/blob/HEAD/docs/RULE_USAGE.md)):
   rule identities and hit counters (0.13), Check Point logs (0.14),
   connections without a rule uid and iptables logs (0.15), PAN-OS and FortiOS logs (0.16) and
   narrower rules proposed from the use (0.17), all done, as fwanalyser did for Check
@@ -827,7 +829,7 @@ version.
 FWShift is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 A PARTICULAR PURPOSE. See the GNU General Public License in
-[LICENSE](LICENSE) for more details.
+[LICENSE](https://github.com/jkobierczynski/FWShift/blob/HEAD/LICENSE) for more details.
 
 **Test data is synthetic.** Every configuration in this repository is written
 by hand with documentation address ranges. Do not add configurations from real

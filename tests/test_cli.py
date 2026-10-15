@@ -960,6 +960,19 @@ def test_version_is_the_same_everywhere_a_release_reads_it() -> None:
     assert "src/fwshift/__init__.py" in workflow and 's/^__version__ = "\\(.*\\)"$/\\1/p' in workflow
 
 
+def test_the_page_on_pypi_has_links_that_work() -> None:
+    """The README is the description on PyPI, where a relative link leads nowhere; PyPI shows the project's links."""
+    root = Path(__file__).resolve().parents[1]
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    relative = [target for target in re.findall(r"\]\(([^)\s]+)\)", readme) if not re.match(r"(https?:|mailto:|#)", target)]
+    assert not relative, relative
+    for target in re.findall(r"\]\((https://github\.com/jkobierczynski/FWShift/(?:blob|tree)/HEAD/[^)#\s]+)", readme):
+        path = target.split("/HEAD/", 1)[1]
+        assert (root / path).exists(), target
+    project = (root / "pyproject.toml").read_text(encoding="utf-8")
+    assert "[project.urls]" in project and "Documentation = " in project and "Issues = " in project
+
+
 def test_inputs_larger_than_the_limit_are_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     big = tmp_path / "big.conf"
     big.write_bytes(b"#" * (1024 * 1024 + 1))

@@ -96,9 +96,11 @@ differently, including a source and its conversion read back (section 17).
 FWShift needs Python 3.9 or newer and nothing else.
 
 ```sh
-pip install .
+pip install fwshift        # from PyPI; pipx install fwshift keeps it apart from other packages
 fwshift --version
 ```
+
+From a copy of the source tree, `pip install .` does the same.
 
 To run it from the source tree without installing:
 
@@ -111,8 +113,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.31.0.pyz --version
-python3 fwshift-0.31.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.31.1.pyz --version
+python3 fwshift-0.31.1.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the

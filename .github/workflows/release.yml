@@ -85,14 +85,16 @@ jobs:
           python -m pip install build
           python -m build --outdir dist
           ls -l dist
-          
+
       - name: The packages for PyPI
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9    # v7.0.2
+        # Only the wheel and the source distribution: the zip, the single file and the checksums are for the release.
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: pypi-dists
           path: |
             dist/*.whl
-            dist/*.tar.gz    
+            dist/*.tar.gz
+          if-no-files-found: error
 
       - name: The packages are what they say
         run: |
@@ -158,16 +160,18 @@ jobs:
             gh release create "$TAG" dist/* --title "FWShift $VERSION" --notes-file notes.md --verify-tag
           fi
 
+  # PyPI by Trusted Publishing: no password or token is stored; PyPI trusts this workflow, this job and the environment
+  # "pypi" (which waits for a reviewer). Only a pushed tag: a run by hand builds a version again, and PyPI never takes
+  # the same version twice.
   pypi:
     needs: release
-    # A tag push only; a run by hand rebuilds an old version, which PyPI will not take again.
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     environment:
       name: pypi
       url: https://pypi.org/p/fwshift
     permissions:
-      id-token: write   # this is what Trusted Publishing uses; no password or token is stored
+      id-token: write
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
