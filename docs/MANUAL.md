@@ -64,8 +64,9 @@ differently, including a source and its conversion read back (section 17).
 
 > **Status.** Version 0.32 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
-> rules, one kernel, iptables 1.8.10 and nft 1.0.9). Output for PAN-OS, FortiOS, Check Point,
-> Cisco ASA, Cisco IOS, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, AWS, Azure, Google Cloud, RouterOS and Forcepoint has
+> rules, one kernel, iptables 1.8.10 and nft 1.0.9). AWS, Azure and Google Cloud output was loaded into a real account
+> by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1) and PAN-OS output on a VM-Series (PAN-OS 11.2.15). Output for Check Point,
+> Cisco ASA, Cisco IOS, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, RouterOS and Forcepoint has
 > not been loaded on a device or management server yet, and the Terraform output has not been applied with Terraform; the Check Point input format follows the
 > API documentation, the ASA and FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
@@ -80,7 +81,7 @@ differently, including a source and its conversion read back (section 17).
 > and the dump program for it have only talked to a stand-in written for the tests; the JSON of Terraform from its
 > documentation and source, and the resources of the AWS, Azure and Google providers from their documentation and schemas;
 > the JSON of gcloud and what Google Cloud makes of its firewall rules and policies from Google's API reference and
-> documentation; no gcloud command of a script was run against a project. IOS and IOS XE syntax and behaviour are
+> documentation; the gcloud commands of a script were run against a project only by the lab. IOS and IOS XE syntax and behaviour are
 > taken from Cisco's configuration guides and command references and its IOS XE YANG models, with the grammars of
 > published readers of IOS configurations as corroboration; nothing was loaded on a router. Huawei USG syntax and
 > behaviour are taken from Huawei's documentation, its support pages and configurations it publishes in them; the
@@ -113,8 +114,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.32.0.pyz --version
-python3 fwshift-0.32.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.32.1.pyz --version
+python3 fwshift-0.32.1.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -1495,7 +1496,8 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `ZONES_WITHOUT_INTERFACES` | R | To FortiOS: zones were created empty. Assign interfaces or use `--zone-map` / `--interface-map`. |
 | `ZONES_REQUIRED` | R | To PAN-OS, Check Point, Sophos or a Device Manager: the zones named by the rules must exist on the target and be assigned to interfaces. To a Management Center: the script uses a zone that exists and creates one that does not, empty: it matches no traffic until interfaces are put in it. |
 | `INTERFACES_REQUIRED` | R | To iptables or ASA: zones are written as interface names. Map each zone to its interface with `--zone-map`. For an ASA the note also states what the access lists count on: that the ASA has no other interfaces than the policy names, and does not send traffic back out of the interface it came in on (section 8). To a Device Manager: the NAT rules name interfaces by their logical name and as physical interfaces; map the names with `--interface-map`, and change the type in the file where one is a subinterface, an EtherChannel or a VLAN interface. |
-| `INTRAZONE_ALLOW_MERGED` | R | To PAN-OS or Check Point: `--zone-map` merges a zone that allows intrazone traffic with another one; no allow rule was written for it. |
+| `INTRAZONE_ALLOW_MERGED` | R | To PAN-OS, Check Point, AWS, Azure or Google Cloud: `--zone-map` merges a zone that allows intrazone traffic with another one; no allow rule was written for it (it would open traffic between them, which the source blocks). |
+| `INTRAZONE_DENY_MERGED` | R | To AWS, Azure or Google Cloud: `--zone-map` merges a zone that blocks traffic inside it with another one, and the source allows traffic between zones; the merged zone blocks traffic inside it, also between the zones merged into it. |
 | `NAT_ORDER` | A | To PAN-OS, Check Point or Sophos, from FortiOS, iptables, ASA, or Check Point automatic NAT rules: the source applies a destination NAT rule and a source NAT rule to one connection, the target one NAT rule only (section 8). To ASA from those sources: a destination NAT without a port is written as a rule that leaves the source alone, with the same effect. |
 | `TABLE_NOT_CONVERTED` | R | FortiOS source: a table such as `firewall policy6` or `firewall local-in-policy` has entries and is not converted. iptables source: the `mangle`, `raw` or `security` table has rules. nftables source: a table of the `bridge`, `arp` or `netdev` family has rules. ASA source before 9.0: `ipv6 access-list` lines; the result has no IPv6 rules. |
 | `SUSPICIOUS_QUOTING` | R | FortiOS source: a quoted value runs over lines that look like configuration. An unescaped quote may have hidden entries; check the line given. |
@@ -1606,7 +1608,7 @@ Findings and notes that only an AWS source or target raises (an AWS target also 
 | `AWS_PART_NOT_WRITTEN` | R | Target (on the rule): part of what the rule allows cannot be said by a security group (every protocol but some, source ports, ports of SCTP, many ICMP codes) and is not written: the converted rule allows less. |
 | `AWS_TOO_COMPLEX` | R, disabled | Target (on the rule): without what the blocking rules above it block, the rule falls apart into more pieces than are written. |
 | `AWS_DEFAULT_ALLOW` | R | Target: the source allows what no rule matches; written as rules that allow everything the blocking rules do not block. |
-| `AWS_DEFAULT_NOT_WRITTEN` | R | Target: the source allows what no rule matches between zones; without the networks of every zone that is not written. |
+| `AWS_DEFAULT_NOT_WRITTEN` | R | Target: the source allows what no rule matches between zones, and blocks it inside some zones; without the networks of those zones that is not written. |
 | `DENY_SUBTRACTED` | I | Target (on the rule): a security group cannot block, so the rule is written without what the blocking rules above it match. |
 | `SHADOWED_BY_DENY` | I, skipped | Target (on the rule): the blocking rules above it block everything it allows; nothing is written. |
 | `ACTION_DROP` | I | Target (on a blocking rule): what a group does not allow is dropped without an answer, whatever the action was. |
@@ -2029,8 +2031,8 @@ Findings and notes that only an IOS source or target raises:
 | `SERVICE_NOT_WRITTEN` | R, disabled | Target (on the rule): its services are too many for one list, SCTP with ports (which IOS does not filter) or protocol 0. |
 
 Findings and notes that only a Google Cloud source or target raises (a Google Cloud target also raises
-`ZONE_NETWORK_MISSING`, `ZONE_WIDENED`, `ZONE_DYNAMIC`, `RULE_TYPE`, `INTRAZONE_DEFAULT`, `INTRAZONE_ALLOW` and
-`NAT_NOT_CONVERTED`, as for NSX):
+`ZONE_NETWORK_MISSING`, `ZONE_WIDENED`, `ZONE_DYNAMIC`, `RULE_TYPE` and `NAT_NOT_CONVERTED`, as for NSX, and
+`INTRAZONE_DEFAULT` for the zones without networks whose traffic inside them is decided otherwise than between zones):
 
 | Code | Sev. | Meaning and what to do |
 |---|---|---|
@@ -2056,6 +2058,8 @@ Findings and notes that only a Google Cloud source or target raises (a Google Cl
 | `GCP_PART_NOT_WRITTEN` | A | Target (on the rule): part of what it allows cannot be said by a rule of Google Cloud (ICMP types, source ports, every protocol but some) and is not written: the converted rule allows less. |
 | `GCP_NOT_WRITTEN` | R, skipped | Target (on the rule): nothing of what it allows can be said by a rule of Google Cloud; not written. |
 | `GCP_BLOCKS_MORE` | A | Target (on a blocking rule): it blocks certain ICMP types, source ports or protocols; a rule of Google Cloud blocks all of ICMP, every source port or every protocol there, which blocks more. |
+| `INTRAZONE_DENY_NOT_WRITTEN` | R | Target: the source blocks traffic inside these zones that no rule matches and allows it between zones; without their networks the converted policy **allows** it. Give their networks with `--zone-network`, or add a rule that blocks it. |
+| `INTRAZONE_WRITTEN` | I | Target: the source decides traffic inside a zone that no rule matches otherwise than between zones (PAN-OS allows it, and denies between zones); it was written as rules for the networks of each zone to themselves, after the rules of the policy. The zones are listed. |
 | `REJECT_AS_DENY` | I | Target (on the rule): a reset or reject action; a rule of Google Cloud denies without an answer. |
 | `LOGGING_CONVERTED` | I | Target: rules of the source log; their rules have logging enabled. |
 | `LIST_TOO_LONG` | R, disabled | Target (on the rule): more than 5,000 address ranges on one side; nothing of the rule is written. |
@@ -2750,6 +2754,14 @@ The second column matters too:
   at priorities from 1000 in steps of 10, in the order of the source; the policy ends in the default of the source, for
   both IP versions and directions, so nothing reaches Google's own rules or the VPC rules after it. Zones become the
   networks of `--zone-network`; negation becomes the addresses that are left.
+* What no rule matches inside a zone: where the source decides it otherwise than between zones (PAN-OS allows it,
+  FortiOS with `set intrazone allow` for a zone), rules for the networks of each such zone to themselves come after the
+  rules of the source and before its default (`fwshift-intrazone-ZONE`, `INTRAZONE_WRITTEN`). Of two networks, one
+  inside the other, the smaller one decides, as everywhere with `--zone-network`. A zone without networks cannot be
+  written: the default between zones decides its traffic, which blocks an allow (`INTRAZONE_DEFAULT`) and lets through
+  a block (`INTRAZONE_DENY_NOT_WRITTEN`). A zone that `--zone-map` makes of several gets an allow only where the source
+  allows between zones as well (`INTRAZONE_ALLOW_MERGED`, `INTRAZONE_DENY_MERGED`). A blocking rule that is not written
+  (a host name, a user) then no longer meets the final deny inside its zone, but this allow: its finding says so.
 * What a rule of Google Cloud cannot say: it does not filter ICMP types or source ports, and it names protocols one by
   one. An allow rule leaves such a part out (`GCP_PART_NOT_WRITTEN`, or `GCP_NOT_WRITTEN` when nothing is left); a
   blocking rule blocks more (`GCP_BLOCKS_MORE`). A reset becomes a deny (`REJECT_AS_DENY`).

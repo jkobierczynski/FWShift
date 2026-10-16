@@ -159,11 +159,29 @@ def admin_cidr(given: Optional[str], runner: Runner, wide: bool = False) -> str:
     return f"{address}/32"
 
 
-def ssh_key(runner: Runner) -> Path:
+def _dry_key(kind: str) -> str:
+    """A public key line for a dry run, where ssh-keygen does not run: in the format of a real one (so what reads it
+    reads it), and plainly no key: its numbers spell out what it is. There is no private key to it."""
+
+    def field(data: bytes) -> bytes:
+        return len(data).to_bytes(4, "big") + data
+
+    filler = b"FWShift lab dry run: not a key. "
+    if kind == "rsa":  # (type, exponent 65537, a 4096-bit modulus)
+        blob = field(b"ssh-rsa") + field(b"\x01\x00\x01") + field(b"\x00" + (filler * 16)[:512])
+    else:  # (type, 32 bytes)
+        blob = field(b"ssh-ed25519") + field(filler[:32])
+    return f"ssh-{'rsa' if kind == 'rsa' else 'ed25519'} {base64.b64encode(blob).decode()} dry-run"
+
+
+def ssh_key(runner: Runner, kind: str = "ed25519") -> Path:
+    """A key made for the run. Azure takes only RSA keys for its VMs, and so do some firewall images: those runs ask
+    for "rsa" (4096 bits)."""
     key = runner.work / "id_lab"
-    runner.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", runner.work.name, "-f", str(key)])
+    size = ["-b", "4096"] if kind == "rsa" else []
+    runner.run(["ssh-keygen", "-q", "-t", kind, *size, "-N", "", "-C", runner.work.name, "-f", str(key)])
     if runner.dry_run:
-        key.with_suffix(".pub").write_text("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDRYRUNEVFJZUlVORFJZUlVORFJZUlVORFJZUlVORFJZ dry-run\n")
+        key.with_suffix(".pub").write_text(_dry_key(kind) + "\n")
     return key
 
 
@@ -183,12 +201,13 @@ def fwshift(runner: Runner, target: str, out: Path, options: Sequence[str]) -> D
     return data
 
 
-def host_init(test_ip: str, test_gw: str, test_net: str) -> str:
+def host_init(test_ip: str, test_gw: str, test_net: str, subnet_via_gateway: bool = False) -> str:
     """The first-boot script of a test host (the same on every cloud): the probe, routing of the test address through
     its own interface, and the probe's answers on it."""
     template = (ROOT / "hostinit.sh.tpl").read_text(encoding="utf-8")
     probe = base64.b64encode((ROOT / "probe.py").read_bytes()).decode()
     values = {"test_ip": test_ip, "test_gw": test_gw, "test_net": test_net, "probe_b64": probe,
+              "subnet_via_gw": "yes" if subnet_via_gateway else "no",
               "tcp_ports": ",".join(map(str, labplan.TCP_PORTS)), "udp_ports": ",".join(map(str, labplan.UDP_PORTS))}  # fmt: skip
     for key, value in values.items():
         template = template.replace("${" + key + "}", value)
@@ -220,10 +239,40 @@ def wait_ready(runner: Runner, targets: Sequence[Target], minutes: float = 15, p
             try:
                 runner.run(target.via + [f"{python} {probe_path} selfcheck --bind {target.test_ip} {ports}"], quiet=True, timeout=60)
                 break
-            except LabError:
+            except LabError as error:
                 if time.time() > deadline:
-                    raise LabError(f"the probe of host {target.name} does not answer on all its ports after {minutes:.0f} minutes") from None
+                    where = diagnose(runner, target, f"{python} {probe_path} selfcheck --bind {target.test_ip} {ports}", str(error))
+                    raise LabError(f"the probe of host {target.name} does not answer on all its ports after {minutes:.0f} minutes"
+                                   f" (what the host says: {where})") from None  # fmt: skip
                 time.sleep(15)
+
+
+# What a host that fails its self-check says about itself, before the teardown takes it: its addresses, the routing of
+# its test address, the probe's service and the end of its first boot (cloud-init on AWS and Azure, the startup script
+# on Google Cloud).
+_DIAGNOSE = "; ".join([
+    "echo '== selfcheck'; {selfcheck} 2>&1",
+    "echo '== addresses'; ip -o addr",
+    "echo '== rules'; ip rule",
+    "echo '== table 120'; ip route show table 120",
+    "echo '== routes'; ip route",
+    "echo '== listening'; (ss -lntu 2>/dev/null || netstat -lntu 2>/dev/null) | head -40",
+    "echo '== probe service'; sudo -n systemctl status fwlab-probe --no-pager 2>&1 | tail -25",
+    "echo '== first boot'; (sudo -n tail -60 /var/log/cloud-init-output.log 2>/dev/null"
+    " || sudo -n journalctl -u google-startup-scripts --no-pager 2>/dev/null | tail -60)",
+])  # fmt: skip
+
+
+def diagnose(runner: Runner, target: Target, selfcheck: str, last_error: str) -> str:
+    """Asks the host about itself (never fails), into diagnose-HOST.txt in the work folder; returns that file's name."""
+    path = runner.work / f"diagnose-{target.name}.txt"
+    try:
+        out = runner.run(target.via + [_DIAGNOSE.format(selfcheck=selfcheck)], check=False, quiet=True, timeout=120,
+                         fake="(dry run)")  # fmt: skip
+    except LabError as error:
+        out = f"(the host could not be asked: {error})"
+    path.write_text(f"== the last self-check failed with\n{last_error}\n{out}{runner.last_stderr}", encoding="utf-8")
+    return path.name
 
 
 def probe(runner: Runner, targets: Sequence[Target], data: Dict[str, Any], copy: Callable[[Target, Path], "tuple[str, str]"],

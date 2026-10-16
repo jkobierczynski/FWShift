@@ -98,10 +98,23 @@ account where you may create networks and virtual machines. Each test host has t
 * **AWS**: the converted script creates the security groups in the lab VPC; each test interface gets the groups whose
   `# attach` line holds its address. At the end the groups are taken off, emptied and deleted, then the VPC.
 * **Azure**: the converted template is deployed into the lab's resource group, and each NSG is associated with the
-  subnet of its zone (by the networks in the template's metadata). The teardown deletes the resource group.
+  subnet of its zone (by the networks in the template's metadata). The teardown deletes the resource group. The test
+  VMs log in with an RSA key (Azure takes no other kind). Three things that stop a new subscription:
+  * Azure Resource Manager requires multi-factor authentication: when `az login` finds "no subscriptions" after an
+    `AADSTS50076` message, sign in to the tenant itself, `az login --tenant TENANT_ID` (`--use-device-code` without a
+    browser).
+  * Popular regions refuse new subscriptions ("not accepting new customers", West Europe in October 2026), or do not
+    offer them the VM size (`NotAvailableForSubscription`, North Europe). The regions where `Standard_B1s` is offered
+    to you: `az vm list-skus --size Standard_B1s --all --query "[?!(restrictions[?type=='Location'])].locations[0]" -o tsv`.
+    Germany West Central worked.
+  * The quota: five vCPUs of the B family in the region (`az vm list-usage --location REGION -o table`).
 * **Google Cloud**: the converted script creates the network firewall policy, which is associated with the lab's test
   network (enforcement order `BEFORE_CLASSIC_FIREWALL`, no VPC firewall rules). An organisation policy that forbids
-  external addresses or enforces OS Login stops the run: use a project without them.
+  external addresses or enforces OS Login stops the run: use a project without them. Terraform logs in apart from
+  gcloud: `gcloud auth login` and `gcloud auth application-default login`, and the Compute Engine API enabled in the
+  project (`gcloud services enable compute.googleapis.com`).
+* **AWS**: a user of its own for the lab, with `AmazonEC2FullAccess` and an access key for the CLI (`aws configure`),
+  is enough; never a key of the root user.
 
 ## Tier 2: your own Linux host
 
@@ -157,7 +170,7 @@ booting.
 | Image | Target | Interfaces | Login |
 |---|---|---|---|
 | FortiGate-VM (PAYG) | `fortios`, zones mapped to port2-4 | port2, port3, port4 | `admin`, the run's key; addresses from the user data |
-| Palo Alto VM-Series (PAYG bundle) | `panos` | ethernet1/1-1/3 | `admin` |
+| Palo Alto VM-Series (PAYG Bundle 1, chosen by its product code: BYOL and the bundles share their name; Bundle 2 by `--ami`) | `panos` | ethernet1/1-1/3 (the example of older images deleted first, in a session whose answers do not count) | `admin` |
 | Juniper vSRX (PAYG) | `junos` | ge-0/0/0-2 (the default zones are deleted first) | `ec2-user` |
 | Cisco Catalyst 8000V (IOS XE) | `ios`, interfaces mapped to Gi2-4 | GigabitEthernet2-4, zone members from the output's comments | `ec2-user` |
 | Cisco ASAv | `asa` | GigabitEthernet0/0-0/2, `inspect icmp` added | `admin` (its privilege after a key login is assumed) |
@@ -186,13 +199,21 @@ Terraform state (to destroy by hand if even that failed) and without the run's p
 
 ## What is verified, and what is not
 
+* **Verified in real accounts** (0.32.1, by the author): AWS (eu-west-1), Azure (Germany West Central) and Google
+  Cloud, each run passed and was torn down without leftovers. AWS and Azure: 144 asserted flows as the source decides,
+  16 unasserted that came through as well. Google Cloud (0.32.0): 128 as the source decides, and the 32 inside a zone
+  blocked, as the report announced. 0.32.1 writes them; its first run still saw them blocked, by the lab's routing of
+  the own subnet (on the link, where Google Cloud only delivers through the gateway). With that routed through the
+  gateway, Google Cloud passed with all 160 flows as the source decides. Tier 3: the FortiGate-VM (PAYG, FortiOS
+  8.0.1) and the VM-Series (PAYG Bundle 1, PAN-OS 11.2.15) took every line of the converted policy and passed with 128
+  flows through each as the source decides. `nftables` and `iptables` of
+  tier 2 also passed on the author's own Debian.
 * **Verified**: `nftables` and `iptables` of tier 2, for real: the converted policy in a network namespace, 128 flows
   through the kernel all as the source decides and 32 local ones; a ruleset that lets everything through fails the run;
   a SIGTERM in the middle of a run still tears everything down (all in `tests/test_lab.py`, which runs them where the
   host allows). Every other run is made dry in the tests and in the
   workflow: the conversion, the plan, the order of the commands, the variables against the Terraform modules, the
   first-boot script (`sh -n`), the merging of pfSense and OPNsense areas, the CLI sessions of tier 3.
-* **Not verified**: no run of tier 1, of the VMs of tier 2 or of tier 3 has been made. The Terraform modules have not
-  been applied (the workflow validates them); the name patterns of the Marketplace images, the logins and first-boot
-  behaviour of the firewalls, the reload commands of OPNsense and pfSense and the routing of the test hosts' second
-  interface on each cloud are taken from documentation. The first real run of each will find what is wrong.
+* **Not verified**: no run of the VMs of tier 2 or of the other images of tier 3 (vSRX, Catalyst 8000V, ASAv) has been
+  made, nor a run of the workflow in GitHub. Their image names, logins and first boot, and the reload
+  commands of OPNsense and pfSense, are taken from documentation. The first real run of each will find what is wrong.

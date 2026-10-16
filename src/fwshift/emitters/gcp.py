@@ -28,7 +28,7 @@ import ipaddress
 import re
 import shlex
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import AbstractSet, Dict, List, Optional, Tuple
 
 from .. import regions, transform
 from ..model import ANY, Action, AddressKind, Policy, RuleScope, Rule
@@ -65,6 +65,7 @@ class Plan:
 
 def plan(policy: Policy, report: Report, options: Options) -> Plan:
     p = copy.deepcopy(policy)
+    source_zones = transform.rule_zones(p)
     transform.apply_zone_map(p, options.zone_map)
     transform.ensure_references(p, report)
     zone_spaces(options.zone_networks)
@@ -74,7 +75,7 @@ def plan(policy: Policy, report: Report, options: Options) -> Plan:
     transform.to_post_nat_lookup(p, report, translated)
     if options.written is not None:
         options.written.append(p)
-    return _Planner(p, report, options).run()
+    return _Planner(p, report, options, source_zones).run()
 
 
 def emit(policy: Policy, report: Report, options: Options) -> str:
@@ -84,13 +85,13 @@ def emit(policy: Policy, report: Report, options: Options) -> str:
 
 
 class _Planner:
-    def __init__(self, p: Policy, report: Report, options: Options) -> None:
-        self.p, self.report, self.options = p, report, options
+    def __init__(self, p: Policy, report: Report, options: Options, source_zones: AbstractSet[str] = frozenset()) -> None:
+        self.p, self.report, self.options, self.source_zones = p, report, options, source_zones
         self.taint_a = transform.tainted_addresses(p)
         self.taint_s = transform.tainted_services(p)
         self.spaces = zone_spaces(options.zone_networks)
         used = [z for r in p.rules for z in r.src_zones + r.dst_zones if z != ANY]
-        self.universe = transform.dedupe(list(p.zones) + used + list(options.zone_networks))
+        self.universe = transform.target_zones(p, options.zone_map, used, list(options.zone_networks))
         self.out = Plan()
         self.priority = _FIRST
 
@@ -279,9 +280,52 @@ class _Planner:
                              "after the negation, the networks of its zones and the protocols of each IP version, the rule matches "
                              "no connection here", Severity.INFO)  # fmt: skip
 
+    def _intrazone(self) -> None:
+        """What no rule matches inside a zone, where the source decides it otherwise than between zones (PAN-OS allows
+        it, for one): a rule for the networks of each such zone to themselves, after the rules of the model and before its
+        default. A zone without networks (--zone-network) cannot be written, and is said."""
+        inter = self.p.default_interzone == Action.ALLOW
+        decided = transform.intrazone_decisions(self.p, self.options.zone_map, self.source_zones, self.universe, self.report)
+        written: List[str] = []
+        blocked: List[str] = []  # (an allow inside the zone that the default between zones blocks)
+        opened: List[str] = []  # (a block inside the zone that the default between zones lets through)
+        for zone in self.universe:
+            allow = decided[zone]
+            if allow == inter:
+                continue
+            if zone not in self.spaces:
+                (blocked if allow else opened).append(zone)
+                continue
+            # (zone_spaces gives each address to one zone: of two networks, one inside the other, the smaller one.)
+            for version in (4, 6):
+                cidrs = _cidrs([i for i in self.spaces[zone] if i[0] == version])
+                if not cidrs:
+                    continue
+                for direction in ("INGRESS", "EGRESS"):
+                    self.out.rules.append(Planned(self.priority, direction, "allow" if allow else "deny", cidrs, cidrs, [("all", [])],
+                                                  description=f"fwshift-intrazone-{zone}", origin=""))  # fmt: skip
+                    self.priority += _STEP
+            written.append(zone)
+        if written:
+            self.report.note(Severity.INFO, "INTRAZONE_WRITTEN",
+                             "the source decides traffic inside a zone that no rule matches otherwise than between zones; a network "
+                             "firewall policy has no zones, so that was written as rules for the networks of each zone to "
+                             "themselves (--zone-network), after the rules of the policy: " + ", ".join(written))  # fmt: skip
+        if blocked:
+            self.report.note(Severity.REVIEW, "INTRAZONE_DEFAULT",
+                             "the source allows traffic inside these zones that no rule matches, and blocks it between zones; a "
+                             "network firewall policy has no zones, and without their networks (--zone-network) the converted "
+                             "policy blocks it: " + ", ".join(blocked))  # fmt: skip
+        if opened:
+            self.report.note(Severity.REVIEW, "INTRAZONE_DENY_NOT_WRITTEN",
+                             "the source blocks traffic inside these zones that no rule matches, and allows it between zones; a "
+                             "network firewall policy has no zones, and without their networks (--zone-network) the converted "
+                             "policy ALLOWS it: give their networks, or a rule that blocks it: " + ", ".join(opened))  # fmt: skip
+
     def run(self) -> Plan:
         for rule in self.p.rules:
             self._rule(rule)
+        self._intrazone()
         action = "allow" if self.p.default_interzone == Action.ALLOW else "deny"
         for version, everything in ((4, "0.0.0.0/0"), (6, "::/0")):
             for direction in ("INGRESS", "EGRESS"):
@@ -292,15 +336,6 @@ class _Planner:
             self.report.skip("nat", nat.origin, "NAT_NOT_CONVERTED",
                              "not converted: an external address of an instance, Cloud NAT and the load balancers translate, outside "
                              "the firewall. The rules were written for the internal addresses, which is what the firewall sees")  # fmt: skip
-        if self.p.default_intrazone != self.p.default_interzone:
-            self.report.note(Severity.REVIEW, "INTRAZONE_DEFAULT",
-                             "the source treats traffic inside a zone and between zones differently when no rule matches; a "
-                             "network firewall policy has no zones, and the default of traffic between zones was written")  # fmt: skip
-        open_zones = [zone.name for zone in self.p.zones.values() if zone.intrazone_allow]
-        if open_zones and self.p.default_interzone != Action.ALLOW:
-            self.report.note(Severity.REVIEW, "INTRAZONE_ALLOW",
-                             "these zones allow traffic between their own interfaces on the source without a rule; no rule was "
-                             "written for that: " + ", ".join(open_zones))  # fmt: skip
         if any(rule.log_start or rule.log_end for rule in self.p.rules if rule.enabled):
             self.report.note(Severity.INFO, "LOGGING_CONVERTED", "rules of the source log; their rules have logging enabled")
         return self.out

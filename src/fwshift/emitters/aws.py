@@ -30,7 +30,7 @@ import ipaddress
 import json
 import re
 from dataclasses import dataclass, field
-from typing import Dict, FrozenSet, List, Optional, Set, Tuple
+from typing import AbstractSet, Dict, FrozenSet, List, Optional, Set, Tuple
 
 from .. import regions, transform
 from ..errors import FwshiftError
@@ -47,7 +47,7 @@ Perm = Tuple[str, int, int]  # protocol (AWS spelling, "-1" for all), from port,
 
 
 def emit(policy: Policy, report: Report, options: Options) -> str:
-    return _Emitter(prepare(policy, report, options), report, options).run()
+    return _Emitter(prepare(policy, report, options), report, options, transform.rule_zones(policy)).run()
 
 
 def prepare(policy: Policy, report: Report, options: Options) -> Policy:
@@ -97,13 +97,13 @@ class _Group:
 
 
 class _Emitter:
-    def __init__(self, p: Policy, report: Report, options: Options) -> None:
-        self.p, self.report, self.options = p, report, options
+    def __init__(self, p: Policy, report: Report, options: Options, source_zones: AbstractSet[str] = frozenset()) -> None:
+        self.p, self.report, self.options, self.source_zones = p, report, options, source_zones
         self.taint_a = transform.tainted_addresses(p)
         self.taint_s = transform.tainted_services(p)
         self.spaces = zone_spaces(options.zone_networks)
         used = [z for r in p.rules for z in r.src_zones + r.dst_zones if z != ANY]
-        self.universe = transform.dedupe(list(p.zones) + used + list(options.zone_networks))
+        self.universe = transform.target_zones(p, options.zone_map, used, list(options.zone_networks))
         self.denies: List[regions.Box] = []
         self.pieces: List[_Piece] = []
         self.comments: List[str] = []
@@ -375,18 +375,20 @@ class _Emitter:
     def _defaults(self) -> None:
         """What no rule matches: allowed where the source allows it, as a last rule."""
         inter = self.p.default_interzone == Action.ALLOW
-        intra = self.p.default_intrazone == Action.ALLOW
+        decided = transform.intrazone_decisions(self.p, self.options.zone_map, self.source_zones, self.universe, self.report)
         everything = [(v, [regions.full(v)], [regions.full(v)], regions.ALL_SERVICES) for v in (4, 6)]
-        if inter and intra:
+        if inter and all(decided.values()):
             self._allow(everything, "(default)", "default")
             self.report.note(Severity.REVIEW, "AWS_DEFAULT_ALLOW",
                              "the source allows what no rule matches: written as rules that allow everything the blocking rules do "
                              "not block")  # fmt: skip
             return
-        open_zones = list(self.universe) if intra else [z.name for z in self.p.zones.values() if z.intrazone_allow]
+        open_zones = [zone for zone in self.universe if decided[zone]]
         same: List[regions.Box] = []
         missing: List[str] = []
         for zone in self.universe:
+            if inter and decided[zone]:
+                continue  # (between zones the source allows, and inside this one too: nothing to leave out)
             if zone not in self.spaces:
                 missing.append(zone)
                 continue
@@ -397,8 +399,9 @@ class _Emitter:
         if inter:
             if missing:
                 self.report.note(Severity.REVIEW, "AWS_DEFAULT_NOT_WRITTEN",
-                                 "the source allows what no rule matches between zones; that needs the networks of every zone "
-                                 "(--zone-network), and these have none: " + ", ".join(missing) + ". It is not written")  # fmt: skip
+                                 "the source allows what no rule matches between zones, and blocks it inside some zones; that "
+                                 "needs the networks of those zones (--zone-network), and these have none: " + ", ".join(missing)
+                                 + ". It is not written")  # fmt: skip
                 return
             left = regions.minus_all(everything, same, limit=4096)
             if left:

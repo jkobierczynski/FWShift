@@ -301,6 +301,8 @@ def _networks(values: Sequence[str]) -> Dict[str, List[str]]:
         bad = [network for network in listed if parse_literal(network) is None]
         if not sep or not zone or bad:
             raise FwshiftError(f"--zone-network expects ZONE=NETWORK[,NETWORK...], got '{value[:60]}'")
+        if zone == "any":
+            raise FwshiftError("--zone-network: 'any' stands for every zone and cannot be the name of one")
         out.setdefault(zone, []).extend(listed)
     return out
 

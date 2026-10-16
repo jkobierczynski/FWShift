@@ -28,6 +28,7 @@ import json
 import re
 from typing import Any, Dict, List, Sequence, Set, Tuple
 
+from .. import transform
 from ..model import Policy
 from ..netutil import interval_text
 from ..options import Options
@@ -112,7 +113,7 @@ def header(platform: str, lines: Sequence[str]) -> List[str]:
 
 
 def emit_terraform_aws(policy: Policy, report: Report, options: Options) -> str:
-    return _AwsEmitter(emit_aws.prepare(policy, report, options), report, options).run()
+    return _AwsEmitter(emit_aws.prepare(policy, report, options), report, options, transform.rule_zones(policy)).run()
 
 
 class _AwsEmitter(emit_aws._Emitter):  # pylint: disable=protected-access

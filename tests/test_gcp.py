@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pytest
 from helpers import DATA, load
-from test_iptables import Packet, model_allows, random_model, random_packet
+from test_iptables import Packet, model_allows, model_verdict, random_model, random_packet
 from test_nsx import ZONES_AT, zone_of
 
 from fwshift import cli
@@ -402,7 +402,22 @@ class ScriptJudge:
         return ingress
 
 
-NARROWER = {"ZONE_WIDENED", "RULE_TYPE", "GCP_PART_NOT_WRITTEN", "GCP_BLOCKS_MORE"}
+NARROWER = {"ZONE_WIDENED", "RULE_TYPE", "GCP_PART_NOT_WRITTEN", "GCP_BLOCKS_MORE", "INTRAZONE_DEFAULT"}
+
+
+def model_decides(p: Any, pkt: Packet) -> bool:
+    """The model's verdict with its defaults: inside a zone the zone's own (or the policy's), between zones the other."""
+    from fwshift.model import Action
+
+    verdict = model_verdict(p, pkt)
+    if verdict is not None:
+        return verdict
+    if pkt.in_if == pkt.out_if:
+        zone = p.zones.get(pkt.in_if)
+        if zone is not None and zone.intrazone_allow is not None:
+            return bool(zone.intrazone_allow)
+        return p.default_intrazone == Action.ALLOW
+    return p.default_interzone == Action.ALLOW
 
 
 def compare(model: Any, report: Report, text: str, rng: random.Random, seed: int, packets: int = 500) -> int:
@@ -411,7 +426,7 @@ def compare(model: Any, report: Report, text: str, rng: random.Random, seed: int
     for rule in compared.rules:
         if report.item("rule", rule.origin).disabled:
             rule.enabled = False
-    codes = {f.code for item in report.items.values() for f in item.findings}
+    codes = {f.code for item in report.items.values() for f in item.findings} | {f.code for f in report.notes}
     exact = not codes & NARROWER
     count = 0
     for _ in range(packets):
@@ -420,7 +435,7 @@ def compare(model: Any, report: Report, text: str, rng: random.Random, seed: int
         if rng.random() < 0.15:
             pkt.proto = rng.choice(["50", "sctp"])
         verdict = judge.allows(pkt)
-        wanted = model_allows(compared, pkt)
+        wanted = model_decides(compared, pkt)
         assert verdict <= wanted, (seed, pkt, text)
         if exact:
             assert verdict == wanted, (seed, pkt, text)
@@ -462,6 +477,157 @@ def test_emitted_script_never_allows_more(seed: int) -> None:
     networks = {zone: nets for zone, nets in ZONES_AT.items() if rng.random() < 0.8}
     text = emit_gcp.emit(model, report, Options(zone_networks=networks))
     compare(model, report, text, rng, seed)
+
+
+def with_random_defaults(rng: random.Random, model: Any) -> Any:
+    """Defaults inside and between zones, each allow or deny, and zones with an intrazone setting of their own."""
+    from fwshift.model import Action, Zone
+
+    model.default_intrazone = rng.choice([Action.ALLOW, Action.DENY])
+    model.default_interzone = rng.choice([Action.ALLOW, Action.DENY])
+    for name in ZONES_AT:
+        model.zones.setdefault(name, Zone(name))
+        model.zones[name].intrazone_allow = rng.choice([None, None, True, False])
+    return model
+
+
+@pytest.mark.parametrize("seed", range(40))
+def test_inside_a_zone_is_decided_as_on_the_source(seed: int) -> None:
+    """Traffic inside a zone that no rule matches (PAN-OS allows it, between zones it denies): with the networks of every
+    zone, rules for each zone to itself after the rules of the policy, and every packet decided as the source decides."""
+    from fwshift.emitters import gcp as emit_gcp
+    from fwshift.model import RuleScope
+    from fwshift.options import Options
+
+    rng = random.Random(7000 + seed)
+    model = with_random_defaults(rng, without_source_ports_and_icmp_types(random_model(rng)))
+    for rule in model.rules:
+        rule.scope = RuleScope.UNIVERSAL
+    report = Report()
+    text = emit_gcp.emit(model, report, Options(zone_networks=ZONES_AT))
+    codes = {f.code for f in report.notes}
+    assert "INTRAZONE_DEFAULT" not in codes
+    assert compare(model, report, text, rng, seed) == 500
+
+
+def test_inside_a_zone_without_networks_is_said() -> None:
+    from fwshift.emitters import gcp as emit_gcp
+    from fwshift.model import Action
+    from fwshift.options import Options
+
+    model = random_model(random.Random(1))
+    model.default_intrazone, model.default_interzone = Action.ALLOW, Action.DENY
+    report = Report()
+    text = emit_gcp.emit(model, report, Options(zone_networks={"eth0": ZONES_AT["eth0"], "eth1": ZONES_AT["eth1"]}))
+    notes = {f.code: f.message for f in report.notes}
+    assert notes["INTRAZONE_DEFAULT"].endswith(": eth2")
+    assert sorted(notes["INTRAZONE_WRITTEN"].rsplit(": ", 1)[1].split(", ")) == ["eth0", "eth1"]
+    written = [line for line in text.splitlines() if "fwshift-intrazone-" in line]
+    assert len(written) == 8 and all("--action=allow" in line and "--layer4-configs=all" in line for line in written)
+    eth0 = [line for line in written if "fwshift-intrazone-eth0" in line]
+    assert [("--direction=INGRESS" in line, "--src-ip-ranges=10.0.0.0/23 --dest-ip-ranges=10.0.0.0/23" in line) for line in eth0[:2]] == [
+        (True, True), (False, True)]  # fmt: skip
+    last = [line for line in text.splitlines() if "rules create" in line]
+    assert all("fwshift-default-" in line for line in last[-4:]) and "fwshift-intrazone-" in last[-5]
+    # The same default inside and between zones: nothing more to write, and nothing to say.
+    model.default_intrazone = Action.DENY
+    report = Report()
+    text = emit_gcp.emit(model, report, Options(zone_networks=ZONES_AT))
+    assert "fwshift-intrazone-" not in text and not {"INTRAZONE_DEFAULT", "INTRAZONE_WRITTEN"} & {f.code for f in report.notes}
+
+
+@pytest.mark.parametrize("seed", range(30))
+def test_inside_a_zone_never_allows_more_without_every_network(seed: int) -> None:
+    """Zones without networks: an allow inside them cannot be written (the converted policy blocks it, INTRAZONE_DEFAULT),
+    and a block inside them cannot either. Only that last case lets more through, and only where its note says so."""
+    from fwshift.emitters import gcp as emit_gcp
+    from fwshift.options import Options
+
+    rng = random.Random(9000 + seed)
+    model = with_random_defaults(rng, without_source_ports_and_icmp_types(random_model(rng)))
+    model.rules = []  # (the defaults alone)
+    networks = {zone: nets for zone, nets in ZONES_AT.items() if rng.random() < 0.6}
+    report = Report()
+    judge = ScriptJudge(emit_gcp.emit(model, report, Options(zone_networks=networks)))
+    notes = {f.code: f.message for f in report.notes}
+    opened = set(notes["INTRAZONE_DENY_NOT_WRITTEN"].rsplit(": ", 1)[1].split(", ")) if "INTRAZONE_DENY_NOT_WRITTEN" in notes else set()
+    for _ in range(300):
+        pkt = random_packet(rng, rng.choice([4, 6]))
+        pkt.in_if, pkt.out_if = zone_of(pkt.src), zone_of(pkt.dst)
+        verdict, wanted = judge.allows(pkt), model_decides(model, pkt)
+        if verdict > wanted:
+            assert pkt.in_if == pkt.out_if and pkt.in_if in opened, (seed, pkt, notes)
+        elif pkt.in_if != pkt.out_if or pkt.in_if in networks:
+            assert verdict == wanted, (seed, pkt)
+
+
+@pytest.mark.parametrize("seed", range(30))
+def test_zones_merged_by_the_zone_map_never_open_traffic_between_them(seed: int) -> None:
+    """--zone-map eth0=m eth1=m: traffic between eth0 and eth1 is decided by the default between zones on the source; an
+    allow inside m would open it. The defaults alone, with every network given."""
+    from fwshift.emitters import gcp as emit_gcp
+    from fwshift.options import Options
+
+    rng = random.Random(11000 + seed)
+    model = with_random_defaults(rng, random_model(rng))
+    model.rules = []
+    networks = {"m": ZONES_AT["eth0"] + ZONES_AT["eth1"], "eth2": ZONES_AT["eth2"]}
+    report = Report()
+    judge = ScriptJudge(emit_gcp.emit(model, report, Options(zone_map={"eth0": "m", "eth1": "m"}, zone_networks=networks)))
+    codes = {f.code for f in report.notes}
+    for _ in range(300):
+        pkt = random_packet(rng, rng.choice([4, 6]))
+        pkt.in_if, pkt.out_if = zone_of(pkt.src), zone_of(pkt.dst)
+        verdict, wanted = judge.allows(pkt), model_decides(model, pkt)
+        assert verdict <= wanted, (seed, pkt, codes)
+        if verdict != wanted:
+            assert {pkt.in_if, pkt.out_if} <= {"eth0", "eth1"} and codes & {"INTRAZONE_ALLOW_MERGED", "INTRAZONE_DENY_MERGED"}, (seed, pkt, codes)
+
+
+def test_a_renamed_zone_keeps_its_own_setting_and_any_is_no_zone() -> None:
+    """FortiOS 'set intrazone allow' on zone trust, --zone-map trust=inside: the rule for inside is written; the zone
+    named 'any' in --zone-network is no zone and gets none."""
+    from fwshift.emitters import gcp as emit_gcp
+    from fwshift.model import Action, Zone
+    from fwshift.options import Options
+
+    model = random_model(random.Random(2))
+    model.rules = []
+    model.default_intrazone = model.default_interzone = Action.DENY
+    model.zones["trust"] = Zone("trust", intrazone_allow=True)
+    report = Report()
+    networks = {"inside": ["10.0.1.0/24"], "dmz": ["10.0.2.0/24"], "any": ["10.9.0.0/16"]}
+    text = emit_gcp.emit(model, report, Options(zone_map={"trust": "inside"}, zone_networks=networks))
+    notes = {f.code: f.message for f in report.notes}
+    assert notes["INTRAZONE_WRITTEN"].endswith(": inside") and "INTRAZONE_DEFAULT" not in notes
+    assert [line.count("10.0.1.0/24") for line in text.splitlines() if "fwshift-intrazone-" in line] == [2, 2]
+    assert "fwshift-intrazone-any" not in text and "trust" not in notes["INTRAZONE_WRITTEN"]
+    # A --zone-map entry for a zone the source does not know (a typo) merges nothing.
+    report = Report()
+    text = emit_gcp.emit(model, report, Options(zone_map={"trust": "inside", "trsut": "inside"}, zone_networks=networks))
+    assert "INTRAZONE_ALLOW_MERGED" not in {f.code for f in report.notes} and "fwshift-intrazone-inside" in text
+    assert cli.main(["convert", str(DATA / "panos_sample.xml"), "--to", "gcp", "-o", "-", "--zone-network", "any=10.0.0.0/8"]) == 1
+
+
+def test_the_lab_policy_with_merged_zones() -> None:
+    """The reviewer's case: inside and dmz merged into internal on all three clouds; nothing opens dmz to inside."""
+    from fwshift.emitters import aws as emit_aws, azure as emit_azure, gcp as emit_gcp
+    from fwshift.options import Options
+
+    data = (DATA.parent.parent / "lab" / "policy" / "lab_panos.xml").read_bytes()
+    policy = cli.load(data, cli.detect_format(data), Report())
+    options = dict(zone_map={"inside": "internal", "dmz": "internal"},
+                   zone_networks={"internal": ["10.20.1.0/24", "10.20.2.0/24"], "outside": ["10.20.3.0/24"]})  # fmt: skip
+    for emitter in (emit_gcp, emit_azure, emit_aws):
+        report = Report()
+        text = emitter.emit(policy, report, Options(**options))
+        assert "INTRAZONE_ALLOW_MERGED" in {f.code for f in report.notes}, emitter.__name__
+        if emitter is emit_gcp:
+            assert "fwshift-intrazone-internal" not in text
+            judge = ScriptJudge(text)
+            assert not judge.allows(Packet("dmz", "inside", "10.20.2.10", "10.20.1.10", "tcp", dport=22))
+            assert not judge.allows(Packet("inside", "dmz", "10.20.1.10", "10.20.2.11", "tcp", dport=9999))
+            assert judge.allows(Packet("outside", "outside", "10.20.3.10", "10.20.3.11", "tcp", dport=9999))  # (inside one zone)
 
 
 # -- what is read, and what is not ------------------------------------------------------------------

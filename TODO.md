@@ -336,16 +336,22 @@ back and compared with the source): items 1, 2, 5 and 10 of the list before.
 19. Other emitters read `Zone.intrazone_allow = False` as "the policy's
     default" where the model means "denied inside the zone" (the Azure emitter
     was corrected in review round 29): look at each.
+20. `transform.merged_zones`, used by the PAN-OS and Check Point emitters,
+    counts a `--zone-map` entry for a zone the source does not know (a typo)
+    as a merge, and leaves the allow inside the zone out; the cloud emitters
+    use `transform.intrazone_decisions`, which does not (0.32.1). Make the two
+    one.
 
 ## Validation
 
-The lab (`lab/`, 0.32.0) scripts much of what follows: AWS, Azure and Google Cloud networks (tier 1), nftables,
+The lab (`lab/`, 0.32.0; the clouds first run in 0.32.1) scripts much of what follows: AWS, Azure and Google Cloud networks (tier 1), nftables,
 iptables, RouterOS, OPNsense and pfSense on a local host (tier 2), and FortiGate, VM-Series, vSRX, Catalyst 8000V and
 ASAv from the AWS Marketplace (tier 3), each loaded with the converted lab policy and checked with real connections.
-nftables and iptables run in the test suite. Still open there:
+nftables and iptables run in the test suite; AWS, Azure and Google Cloud have run in real accounts, and the FortiGate of
+tier 3 and the VM-Series (0.32.1). Still open there:
 
 * the first real run of each of the others, and correcting what it finds (the Marketplace image names, the logins,
-  the reload commands of OPNsense and pfSense, the second interface of the test hosts on each cloud);
+  the reload commands of OPNsense and pfSense);
 * the images not scripted yet (Check Point with its management server, SonicWall NSv, Stormshield EVA, Sophos,
   Barracuda; WatchGuard and Forcepoint need tools of their own, Meraki a Dashboard);
 * the conversion of the other sample configurations, not only the lab policy, and NAT in the plan;

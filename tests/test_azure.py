@@ -315,7 +315,7 @@ class TemplateJudge:
 NARROWER = {"ZONE_WIDENED", "RULE_TYPE"}
 
 
-def compare(model: Policy, report: Report, text: str, rng: random.Random, inside: bool, seed: int) -> int:
+def compare(model: Policy, report: Report, text: str, rng: random.Random, inside: bool, seed: int, decide: Any = model_allows) -> int:
     judge = TemplateJudge(text)
     compared = copy.deepcopy(model)
     for rule in compared.rules:
@@ -334,7 +334,7 @@ def compare(model: Policy, report: Report, text: str, rng: random.Random, inside
             assert inside
             continue
         count += 1
-        wanted = model_allows(compared, pkt)
+        wanted = decide(compared, pkt)
         assert verdict <= wanted, (seed, pkt, text)
         # (Left out: ICMP types, ICMPv6 and other protocols; Azure carries TCP, UDP, ICMP, ESP and AH.)
         plain = pkt.proto in ("tcp", "udp", "50", "51") or (pkt.proto == "icmp" and not codes & {"AZURE_PART_NOT_WRITTEN", "ICMP_TYPE_WIDENED"})
@@ -351,6 +351,19 @@ def test_emitted_template_decides_like_the_model(seed: int) -> None:
     report = Report()
     text = emit_azure.emit(model, report, Options(zone_networks=ZONES_AT))
     assert compare(model, report, text, rng, False, seed) == 500
+
+
+@pytest.mark.parametrize("seed", range(30))
+def test_the_defaults_inside_and_between_zones_as_the_source_decides(seed: int) -> None:
+    """Defaults inside and between zones each allow or deny, and zones with a setting of their own: what no rule matches
+    is decided as on the source, inside a zone and between zones."""
+    from test_gcp import model_decides, with_random_defaults
+
+    rng = random.Random(6000 + seed)
+    model = with_random_defaults(rng, random_model(rng))
+    report = Report()
+    text = emit_azure.emit(model, report, Options(zone_networks=ZONES_AT))
+    assert compare(model, report, text, rng, False, seed, decide=model_decides) == 500
 
 
 @pytest.mark.parametrize("seed", range(20))

@@ -49,6 +49,12 @@ class Vendor:
     status: str = "scripted, never run"
     ready_answer: str = r"\S"  # what the answer to `ready` must hold
     success: str = ""  # what the output of the session must hold (a committed configuration), where the CLI says so
+    # The Marketplace product codes of the pay-as-you-go image, where its name does not tell it from the image for a licence
+    # of your own (VM-Series: BYOL, Bundle 1 and Bundle 2 are all named PA-VM-AWS-*).
+    product_codes: Tuple[str, ...] = ()
+    # Lines typed before the session, whose answers do not count: the clean-up of what an image may or may not ship with
+    # (PAN-OS answers a delete of what is not there with an error, also "Invalid syntax").
+    prepare: Callable[[], List[str]] = lambda: []
 
 
 # -- FortiGate ---------------------------------------------------------------------------------------------------
@@ -72,10 +78,15 @@ def _fortigate_session(out: Path) -> List[str]:
 _PAN_PORTS = {"inside": "ethernet1/1", "dmz": "ethernet1/2", "outside": "ethernet1/3"}
 
 
+def _panos_prepare() -> List[str]:
+    """Older images ship an example (a virtual wire, zones trust and untrust on ethernet1/1-2, rule1); 11.2 ships none of
+    it, and a delete of what is not there is an error. Its own session, committed, whose answers do not count."""
+    deletes = ["delete rulebase security rules rule1", "delete network virtual-wire default-vwire", "delete zone trust", "delete zone untrust"]
+    return ["set cli scripting-mode on", "set cli pager off", "configure", *deletes, "commit", "exit", "exit"]
+
+
 def _panos_session(out: Path) -> List[str]:
-    # The image's own example (a virtual wire and zones trust and untrust on ethernet1/1-2) goes first, where it is there.
-    base = ["delete rulebase security rules rule1", "delete network virtual-wire default-vwire", "delete zone trust", "delete zone untrust",
-            "set network profiles interface-management-profile fwlab-ping ping yes"]  # fmt: skip
+    base = ["set network profiles interface-management-profile fwlab-ping ping yes"]
     for zone, port in _PAN_PORTS.items():
         base += [f"set network interface ethernet {port} layer3 ip {_addr(zone)}/24",
                  f"set network interface ethernet {port} layer3 interface-management-profile fwlab-ping",
@@ -149,10 +160,11 @@ VENDORS: Dict[str, Vendor] = {
     "fortigate": Vendor("fortigate", "FortiGate-VM (pay as you go)", "fortios", "FortiGate-VM64-AWSONDEMAND*", "c5.xlarge", "admin",
                         "get system status", r"Command fail|command parse error|Unknown action|entry not found|value parse error",
                         [x for z, p in _FGT_PORTS.items() for x in ("--zone-map", f"{z}={p}")], _fortigate_user_data(), _fortigate_session,
-                        ready_answer=r"Version:"),  # fmt: skip
+                        ready_answer=r"Version:", status="run: passed (FortiOS 8.0.1, 0.32.1)"),  # fmt: skip
     "panos": Vendor("panos", "Palo Alto VM-Series (pay as you go bundle)", "panos", "PA-VM-AWS-*", "m5.xlarge", "admin", "show chassis-ready",
                     r"Invalid syntax|Server error|Commit failed|Validation Error|is not a valid reference|Unknown command", [], "", _panos_session,
-                    ready_answer=r"\byes\b", success=r"Configuration committed successfully"),  # fmt: skip
+                    ready_answer=r"\byes\b", success=r"Configuration committed successfully",
+                    product_codes=("e9yfvyj3uag5uo5j2hjikv74n",), prepare=_panos_prepare, status="run: passed (PAN-OS 11.2.15, 0.32.1)"),  # fmt: skip  (PAYG Bundle 1; Bundle 2 is hd44w1chf26uv4p52cdynb2o, by --ami)
     "vsrx": Vendor("vsrx", "Juniper vSRX (pay as you go)", "junos", "junos-vsrx3-x86-64-*", "c5.xlarge", "ec2-user", "show version",
                    r"syntax error|^error:|\nerror:|missing mandatory|unknown command", [], "", _vsrx_session, ready_answer=r"Junos:",
                    success=r"commit complete"),
@@ -177,18 +189,29 @@ NOT_SCRIPTED = {
 }
 
 
-def find_ami(runner: Runner, region: str, pattern: str) -> str:
-    """The newest x86 Marketplace image of the name. The name does not tell a pay-as-you-go image from a licence of your
-    own (BYOL): the one found is printed, and --ami (the id your subscription's launch page shows) settles it."""
+def find_ami(runner: Runner, region: str, pattern: str, product_codes: Tuple[str, ...] = ()) -> str:
+    """The newest x86 Marketplace image of the name, and of the pay-as-you-go product where the vendor names it (the name
+    alone does not tell it from the image for a licence of your own): the one found is printed, and --ami (the id your
+    subscription's launch page shows) settles it."""
+    codes = ["Name=product-code,Values=" + ",".join(product_codes)] if product_codes else []
     out = runner.run(["aws", "ec2", "describe-images", "--region", region, "--owners", "aws-marketplace", "--filters", f"Name=name,Values={pattern}",
-                      "Name=architecture,Values=x86_64", "--query", "sort_by(Images,&CreationDate)[-1].[ImageId,Name,join(',',ProductCodes[].ProductCodeId)]",
+                      *codes, "Name=architecture,Values=x86_64", "--query", "sort_by(Images,&CreationDate)[-1].[ImageId,Name,join(',',ProductCodes[].ProductCodeId)]",
                       "--output", "text"], fake="ami-0dryrun\tdry run\t")  # fmt: skip
     fields = out.strip().split("\t")
     if not fields or not fields[0].startswith("ami-"):
         raise LabError(f"no Marketplace image named {pattern} in {region}: subscribe to it first, or give --ami (the id the subscription shows)")
     print(f"image {fields[0]}: {' '.join(fields[1:2])} (product code {fields[2] if len(fields) > 2 else '?'}); give --ami if this is not "
           "the pay-as-you-go image you subscribed to", file=sys.stderr)  # fmt: skip
+    labrun.save_state(runner.work, image=fields[0], image_name=" ".join(fields[1:2]), product_code=fields[2] if len(fields) > 2 else "")
     return fields[0]
+
+
+def describe_ami(runner: Runner, region: str, ami: str) -> None:
+    """The name of an image given with --ami, for run.json (which version the firewall ran)."""
+    out = runner.run(["aws", "ec2", "describe-images", "--region", region, "--image-ids", ami, "--query",
+                      "Images[0].[Name,join(',',ProductCodes[].ProductCodeId)]", "--output", "text"], check=False, fake="dry run\t")  # fmt: skip
+    fields = out.strip().split("\t")
+    labrun.save_state(runner.work, image=ami, image_name=fields[0] if fields else "", product_code=fields[1] if len(fields) > 1 else "")
 
 
 def session(runner: Runner, key: Path, user: str, host: str, lines: List[str], errors: str, name: str, success: str = "") -> str:
@@ -199,7 +222,7 @@ def session(runner: Runner, key: Path, user: str, host: str, lines: List[str], e
     (runner.work / f"{name}.commands.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
     out = runner.run(prefix[:1] + ["-tt"] + prefix[1:], stdin="\n".join(lines) + "\n", timeout=1200, fake=f"(dry run) {success}")
     (runner.work / f"{name}.txt").write_text(out, encoding="utf-8")
-    refused = [line.strip() for line in out.splitlines() if re.search(errors, line)]
+    refused = [line.strip() for line in out.splitlines() if errors and re.search(errors, line)]
     if refused:
         raise LabError(f"the firewall refused {len(refused)} lines (all in {name}.txt), the first: {refused[0][:200]}")
     if success and not re.search(success, out):
@@ -215,6 +238,7 @@ def wait_cli(runner: Runner, key: Path, user: str, host: str, command: str, answ
         try:
             out = runner.run(prefix[:1] + ["-tt"] + prefix[1:], stdin=command + "\nexit\n", quiet=True, timeout=120)
             if re.search(answer, out):
+                (runner.work / "ready.txt").write_text(out, encoding="utf-8")  # (the version the firewall runs, for the record)
                 return
         except LabError:  # (not up yet: SSH refused or timed out)
             pass
@@ -234,7 +258,7 @@ def run_vendor(runner: Runner, args: Any) -> bool:
     labrun.save_state(runner.work, tier="tier3", firewall=vendor.name, region=region)
     if not runner.dry_run:
         labrun.need("ssh", "ssh-keygen", "scp", "aws")
-    key = labrun.ssh_key(runner)
+    key = labrun.ssh_key(runner, "rsa")  # (the key pair of AWS reaches the firewall images, and not all take Ed25519)
     out = runner.work / f"policy.{vendor.target}"
     report = labrun.fwshift(runner, vendor.target, out, vendor.options)
     # Two hosts of one zone talk over their subnet, not through the firewall; a reset can be the firewall's own.
@@ -242,13 +266,17 @@ def run_vendor(runner: Runner, args: Any) -> bool:
     labplan.save(runner.work / "plan.json", data)
     tf = tier1.Terraform(runner, labrun.ROOT / "tier3" / "aws", tier1.terraform_binary(args.terraform))
     try:
-        ami = args.ami or find_ami(runner, region, vendor.ami_pattern)
+        ami = args.ami or find_ami(runner, region, vendor.ami_pattern, vendor.product_codes)
+        if args.ami:
+            describe_ami(runner, region, args.ami)
         tf.apply({"region": region, "run_id": runner.work.name, "zone_order": ORDER, "firewall_ami": ami,
                   "firewall_instance_type": args.instance_type or vendor.instance_type, "firewall_user_data": vendor.user_data,
                   **tier1.common_variables(runner, args, key), "hosts": tier1.host_variables(gateway="firewall")})  # fmt: skip
         outputs = tf.output({"firewall_ip": "192.0.2.4", "firewall_instance": "i-0dryrun", "user": "ec2-user", "hosts": tier1.fake_hosts()})
         if not runner.dry_run:
             wait_cli(runner, key, vendor.user, outputs["firewall_ip"], vendor.ready, vendor.ready_answer, args.boot_minutes)
+        if vendor.prepare():  # (answers that do not count, kept in prepare.txt)
+            session(runner, key, vendor.user, outputs["firewall_ip"], vendor.prepare(), "", "prepare")
         session(runner, key, vendor.user, outputs["firewall_ip"], vendor.session(out), vendor.errors, "load", vendor.success)
         return tier1.probe_hosts(runner, key, outputs, data)
     finally:

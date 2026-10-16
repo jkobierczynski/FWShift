@@ -10,7 +10,7 @@ import dataclasses
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import AbstractSet, Any, Dict, List, Mapping, Optional, Set, Tuple, TypeVar
+from typing import AbstractSet, Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple, TypeVar
 
 from .appmap import entries_for, valid_ports
 from .errors import FwshiftError
@@ -550,6 +550,66 @@ def merged_zones(p: Policy, zone_map: Mapping[str, str], source_zones: AbstractS
     for name in list(p.zones) + list(zone_map) + sorted(source_zones):
         sources.setdefault(zone_map.get(name, name), set()).add(name)
     return {target for target, names in sources.items() if len(names) > 1}
+
+
+def rule_zones(p: Policy) -> Set[str]:
+    """The zone and interface names the rules name (before --zone-map is applied, for merged_zones)."""
+    return {z for r in list(p.rules) + list(p.nat_rules) for z in r.src_zones + r.dst_zones if z != ANY}
+
+
+def target_zones(p: Policy, zone_map: Mapping[str, str], used: Sequence[str], given: Sequence[str]) -> List[str]:
+    """Every zone of the target: the zones of the source under their names after --zone-map, those the rules name, and
+    those given networks (--zone-network); never 'any'."""
+    names = [zone_map.get(z, z) for z in p.zones] + list(used) + list(given)
+    return [z for z in _dedupe(names) if z != ANY]
+
+
+def intrazone_decisions(p: Policy, zone_map: Mapping[str, str], source_zones: AbstractSet[str], targets: Sequence[str],
+                        report: Report) -> Dict[str, bool]:  # fmt: skip
+    """For each target zone, whether traffic inside it that no rule matches is allowed, as the source decides it: the
+    zone's own setting (FortiOS set intrazone), or the policy's default inside a zone.
+
+    A target that --zone-map makes of several source zones or interfaces holds traffic between them too, which the source
+    decides by its default between zones: an allow inside it is written only where the source allows between zones as
+    well (else the allow would open traffic between them: none is written, INTRAZONE_ALLOW_MERGED); a block inside one of
+    them blocks inside the target, also between them (INTRAZONE_DENY_MERGED)."""
+    inter = p.default_interzone == Action.ALLOW
+    members: Dict[str, Set[str]] = {}
+    for name in list(p.zones) + sorted(source_zones):  # (a --zone-map entry for a zone the source does not know merges nothing)
+        members.setdefault(zone_map.get(name, name), set()).add(name)
+
+    def own(name: str) -> bool:
+        zone = p.zones.get(name)
+        if zone is not None and zone.intrazone_allow is not None:
+            return bool(zone.intrazone_allow)
+        return p.default_intrazone == Action.ALLOW
+
+    out: Dict[str, bool] = {}
+    opened: List[str] = []
+    closed: List[str] = []
+    for target in targets:
+        verdicts = [own(name) for name in sorted(members.get(target, {target}))]
+        if len(verdicts) == 1:
+            out[target] = verdicts[0]
+        elif inter:
+            out[target] = all(verdicts)
+            if not out[target]:
+                closed.append(target)
+        else:
+            out[target] = False
+            if any(verdicts):
+                opened.append(target)
+    if opened:
+        report.note(Severity.REVIEW, "INTRAZONE_ALLOW_MERGED",
+                    "--zone-map merges zones that allow traffic inside them with other zones or interfaces; an allow inside the "
+                    "merged zone would open traffic between them, which the source blocks, so none was written: "
+                    + ", ".join(opened))  # fmt: skip
+    if closed:
+        report.note(Severity.REVIEW, "INTRAZONE_DENY_MERGED",
+                    "--zone-map merges zones that block traffic inside them with other zones or interfaces; the merged zone "
+                    "blocks traffic inside it, also between the zones merged into it, which the source allows: "
+                    + ", ".join(closed))  # fmt: skip
+    return out
 
 
 def intrazone_allow_zones(
@@ -1716,6 +1776,9 @@ __all__ = [
     "flatten_services",
     "harden",
     "intrazone_allow_zones",
+    "intrazone_decisions",
+    "rule_zones",
+    "target_zones",
     "is_placeholder_group",
     "known_intervals",
     "lower_applications",

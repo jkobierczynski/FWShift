@@ -6,17 +6,29 @@ set -eu
 TEST_IP='${test_ip}'
 TEST_GW='${test_gw}'
 TEST_NET='${test_net}'
+SUBNET_VIA_GW='${subnet_via_gw}'
 LAB_NET='10.20.0.0/16'
 mkdir -p /opt/fwlab
 echo '${probe_b64}' | base64 -d > /opt/fwlab/probe.py
 chmod 755 /opt/fwlab/probe.py
 
-# The test interface may be attached after boot (AWS): wait for its address.
+# The test interface may be attached after boot (AWS): wait for its address. The cloud gives it by DHCP; if that has not
+# happened after two minutes, the address goes on an interface that has none (as /32: the routes below are explicit).
 dev=''
 i=0
 while [ $i -lt 120 ]; do
   dev=$(ip -o -4 addr show | awk -v ip="$TEST_IP" '{ split($4, a, "/"); if (a[1] == ip) { print $2; exit } }')
   [ -n "$dev" ] && break
+  if [ $i -ge 24 ]; then
+    for link in $(ip -o link show | awk -F': ' '{ print $2 }' | cut -d@ -f1); do
+      [ "$link" = lo ] && continue
+      if [ -z "$(ip -o -4 addr show dev "$link")" ]; then
+        echo "fwlab: no DHCP address for $TEST_IP yet; setting it on $link" >&2
+        ip link set dev "$link" up && ip addr add "$TEST_IP/32" dev "$link" || true
+        break
+      fi
+    done
+  fi
   i=$((i + 1))
   sleep 5
 done
@@ -27,7 +39,13 @@ fi
 
 # Replies leave by the interface they came in on: loose reverse-path checks, and a table for the test address.
 sysctl -qw net.ipv4.conf.all.rp_filter=2 "net.ipv4.conf.$dev.rp_filter=2" || true
-ip route replace "$TEST_NET" dev "$dev" src "$TEST_IP" table 120
+if [ "$SUBNET_VIA_GW" = yes ]; then
+  # Google Cloud: the interface has a /32, and the network answers through its gateway, also for the own subnet.
+  ip route replace "$TEST_GW" dev "$dev" src "$TEST_IP" table 120
+  ip route replace "$TEST_NET" via "$TEST_GW" dev "$dev" src "$TEST_IP" table 120
+else
+  ip route replace "$TEST_NET" dev "$dev" src "$TEST_IP" table 120
+fi
 ip route replace "$LAB_NET" via "$TEST_GW" dev "$dev" table 120
 ip rule del from "$TEST_IP" lookup 120 2>/dev/null || true
 ip rule add from "$TEST_IP" lookup 120 priority 120

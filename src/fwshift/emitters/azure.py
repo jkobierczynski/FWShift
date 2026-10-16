@@ -30,7 +30,7 @@ import ipaddress
 import json
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import AbstractSet, Any, Dict, List, Optional, Set, Tuple
 
 from .. import regions, transform
 from ..errors import FwshiftError
@@ -49,6 +49,7 @@ _NAME = re.compile(r"[^A-Za-z0-9_.-]+")
 
 def emit(policy: Policy, report: Report, options: Options) -> str:
     p = copy.deepcopy(policy)
+    source_zones = transform.rule_zones(p)
     transform.apply_zone_map(p, options.zone_map)
     transform.ensure_references(p, report)
     zone_spaces(options.zone_networks)
@@ -59,7 +60,7 @@ def emit(policy: Policy, report: Report, options: Options) -> str:
     transform.to_post_nat_lookup(p, report, translated)
     if options.written is not None:
         options.written.append(p)
-    return _Emitter(p, report, options).run()
+    return _Emitter(p, report, options, source_zones).run()
 
 
 def _name(text: str, limit: int = 80) -> str:
@@ -113,14 +114,15 @@ class _Prepared:
 
 
 class _Emitter:
-    def __init__(self, p: Policy, report: Report, options: Options) -> None:
+    def __init__(self, p: Policy, report: Report, options: Options, source_zones: AbstractSet[str] = frozenset()) -> None:
         self.p, self.report, self.options = p, report, options
         self.native = p.vendor == "azure"
         self.taint_a = transform.tainted_addresses(p, keep_dynamic=self.native)
         self.taint_s = transform.tainted_services(p)
         self.spaces = zone_spaces(options.zone_networks)
         used = [z for r in p.rules for z in r.src_zones + r.dst_zones if z != ANY]
-        self.universe = transform.dedupe(list(p.zones) + used + list(options.zone_networks))
+        self.universe = transform.target_zones(p, options.zone_map, used, list(options.zone_networks))
+        self.inside = transform.intrazone_decisions(p, options.zone_map, source_zones, self.universe, report)
         for zone in options.inside_zones:
             if zone not in self.spaces:
                 raise FwshiftError(f"--inside-zone {zone}: give the networks behind it with --zone-network")
@@ -385,10 +387,8 @@ class _Emitter:
             self._default(nsg, direction, last, "fwshift-default", "", None)
 
     def _intrazone(self, nsg: _Nsg) -> Action:
-        zone = self.p.zones.get(nsg.zone)
-        if zone is not None and zone.intrazone_allow is not None:
-            return Action.ALLOW if zone.intrazone_allow else Action.DENY
-        return Action.ALLOW if self.p.default_intrazone == Action.ALLOW else Action.DENY
+        """What no rule matches inside the group's zone, as the source decides it (transform.intrazone_decisions)."""
+        return Action.ALLOW if self.inside.get(nsg.zone, self.p.default_intrazone == Action.ALLOW) else Action.DENY
 
     def _native_cut(self, rule: Rule) -> None:
         if rule.origin in self.native_cut:

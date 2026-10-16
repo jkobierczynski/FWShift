@@ -8,10 +8,10 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.32.0 (alpha) |
+| Version | 0.32.1 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Meraki MX (read the answers of the Dashboard API for one network: VLANs, objects, the outbound and layer 7 rules, port forwarding, 1:1 and 1:many NAT, the inbound table with NAT exceptions; write a curl script that puts the outbound and NAT tables); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
 | Tests | 6118, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables and nftables only**: rulesets loaded into a Linux kernel and real packets forwarded through it (below; and the lab of 0.32.0). Nothing has been loaded on PAN-OS, FortiOS, an ASA, an IOS router, a Huawei USG, a Stormshield firewall, a Meraki MX, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, an AWS account, an Azure subscription, a Google Cloud project, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
+| Verified on devices | **iptables and nftables**: rulesets loaded into a Linux kernel and real packets forwarded through it (below; and the lab of 0.32.0, also on the author's machine). **AWS, Azure and Google Cloud**: the lab policy's conversion loaded into a real account by the lab, and real connections between instances checked (0.32.1, below). **FortiOS**: the lab policy's conversion loaded on a FortiGate-VM (FortiOS 8.0.1, AWS Marketplace) and real connections through it checked (0.32.1, below). **PAN-OS**: the same on a VM-Series (PAN-OS 11.2.15, AWS Marketplace). Nothing has been loaded on an ASA, an IOS router, a Huawei USG, a Stormshield firewall, a Meraki MX, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
 | Analysis | the audit, the zone matrix, rule usage from hit counters and logs, the zone and conduit model as a gate (`fwshift conduits`), the equivalence check (`fwshift compare`, `convert --compare`) |
 | Security | an outside review (ChatGPT, October 2026) and the measures taken: `docs/security/SECURITY_REVIEW.md` |
 | Next | the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
@@ -2165,6 +2165,125 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-16: version 0.32.1
+
+**The first real runs of the lab**, made by the author on his own machine and accounts, and what they found: one
+difference in the Google Cloud converter, and what the lab got wrong (the key Azure takes, the routing of a host's own
+subnet on Google Cloud).
+
+**The runs** (the lab policy, `lab/policy/lab_panos.xml`, converted by 0.32.0 and the fixes below as they came)
+
+| Run | Target, where | Result | Torn down |
+|---|---|---|---|
+| tier 2 nftables | the author's Debian (network namespaces) | ok 128, local 32: PASSED | yes |
+| tier 2 iptables | the same | ok 128, local 32: PASSED | yes |
+| tier 1 AWS | eu-west-1 | ok 144, ok-unasserted 16: PASSED | yes: no instance, no VPC left |
+| tier 1 Azure, first try | West Europe | refused: the run's Ed25519 key (Azure takes RSA only for its VMs); nothing was made | yes |
+| tier 1 Azure, second try | West Europe | refused by Azure: "the selected region is currently not accepting new customers"; North Europe does not offer `Standard_B1s` to the subscription | yes |
+| tier 1 Azure | Germany West Central | ok 144, ok-unasserted 16: PASSED | yes |
+| tier 1 Google Cloud | (the author's project) | ok 128, differs-announced 32: PASSED | yes: no instance, network or policy left |
+| tier 1 Google Cloud, with the converter of 0.32.1 | the same | ok 128, FAIL 32: the flows inside a zone still blocked | yes |
+| tier 1 Google Cloud, 0.32.1 with the own subnet through the gateway | the same | ok 160: PASSED | yes |
+| tier 3 FortiGate-VM, PAYG (`FortiGate-VM64-AWSONDEMAND build0245 (8.0.1) GA`), c5.xlarge | eu-west-1 | ok 128, local 32: PASSED; every line of the policy accepted | yes |
+| tier 3 VM-Series, first try | eu-west-1 | the BYOL image found (see below); AWS refused it, `OptInRequired`; no firewall ran | yes |
+| tier 3 VM-Series PAYG Bundle 1 (`PA-VM-AWS-11.2.15`), m5.xlarge | eu-west-1 | every line of the converted policy accepted and committed; one line of the lab's own clean-up refused, which stopped the run before the probes | yes |
+| tier 3 VM-Series, the clean-up in its own session | eu-west-1 | both sessions through, the policy committed; then test host in11 never passed its self-check (15 minutes), so no probe was sent | yes |
+| tier 3 VM-Series PAYG Bundle 1 (PAN-OS 11.2.15), with the host diagnostics and the address fallback | eu-west-1 | ok 128, local 32: PASSED | yes |
+
+* The 16 unasserted flows of AWS and Azure are those from inside to outside (in10 and in11 to out10): the rule
+  `inside-out` allows every service, and part of that (protocols other than those a security group or a security rule
+  names) cannot be written, which the report says. All 16 came through as the source decides.
+* The 32 of Google Cloud are the flows inside a zone (in10 and in11, dmz10 and dmz11): PAN-OS allows them when no rule
+  matches, and the converted policy blocked them. The report said so (`INTRAZONE_DEFAULT`), so the lab did not assert
+  them and the run passed; the converter fixed below writes them.
+* The second Google Cloud run, with the rules inside a zone written and asserted, still saw those 32 blocked: not the
+  policy (its rules allow them, and it ends after them), but the lab's routing. The first-boot script sent a host's own
+  subnet out on the link, and a Google Cloud instance has a `/32` and reaches even its neighbours through the gateway,
+  whose network answers ARP for the gateway only ([Compute instance netmasks](https://docs.cloud.google.com/vpc/docs/compute-instance-netmasks)).
+  The first run hid it: the policy blocked those flows as well. On Google Cloud the script now routes the own subnet
+  through the gateway; AWS and Azure, which answer ARP for every address and passed, keep the route on the link. The
+  next run passed with all 160 flows as the source decides.
+* The FortiGate run is the first time a conversion was loaded on a vendor's firewall: the FortiOS configuration
+  written from the PAN-OS policy (addresses, services, seven policies in the source's order, the deny first) was typed
+  into the CLI of FortiOS 8.0.1 over SSH, which added every entry and refused none, and the 128 connections through
+  it came out as PAN-OS decides. The lab's steps for a FortiGate (the image found by name, the login with the run's
+  key, the interfaces from the user data, the ready check) all worked the first time. The run did not keep which
+  version the image had: a tier-3 run now writes the image's name and product code into `run.json` and the answer of
+  the ready check (the version, on a FortiGate) into `ready.txt`.
+* The first VM-Series run found the BYOL image (`PA-VM-AWS-11.1.6-h39`, product code `6njl1pau431dv1qxipg63mvah`): BYOL
+  and the two pay-as-you-go bundles share their name, and the lab looked by name only. It now looks for the product code
+  of PAYG Bundle 1 as well (Palo Alto lists the three codes); Bundle 2 is given with `--ami`.
+* The VM-Series run with Bundle 1: PAN-OS 11.2.15 took every line of the converted policy and committed it. What it
+  refused was the lab's clean-up of the example older images ship with (rule1, the virtual wire `default-vwire`, zones
+  trust and untrust): 11.2 has none of it, and answers a delete of what is not there with an error ("No object to
+  delete", "Object doesn't exist", and for the virtual wire "Invalid syntax."). The clean-up is now a session of its
+  own, committed, whose answers do not count (`prepare.txt`); the session that is checked has no delete.
+* The next VM-Series run loaded and committed the policy, and then one test host (in11) never passed its self-check:
+  the firewall plays no part in that check (the host asks its own address over the loopback). The lab could not say why,
+  as the teardown took the host. A host that fails its self-check is now asked about itself first (its addresses, the
+  routing of its test address, what listens, the probe's service, the end of its first boot) into
+  `diagnose-HOST.txt`, which the error names. And the first-boot script no longer depends on DHCP alone for the test
+  address of an interface attached after boot: after two minutes without it, it puts the address on the interface that
+  has none. The run after that passed: PAN-OS 11.2.15 decided the 128 connections through it as the source does. (The
+  lab policy is itself PAN-OS: this run checks the `set` commands FWShift writes, the policy read into the model and
+  written out again, on a real PAN-OS.)
+* Before the runs, the Windows job of the CI failed two probe tests: Windows reports a closed TCP port only after
+  about two seconds, a closed UDP port as `ConnectionResetError`, and its ping takes other options. The probe speaks
+  each system's ping and takes their error numbers from `errno`; the test waits longer on Windows.
+
+**Built**
+
+* Google Cloud converter: what no rule matches inside a zone, where the source decides it otherwise than between zones
+  (PAN-OS allows it; a FortiOS zone with `set intrazone allow`), is written as rules for the networks of each such
+  zone to themselves, after the rules of the source and before its default (`fwshift-intrazone-ZONE`,
+  `INTRAZONE_WRITTEN`). A zone without networks is said, in the direction it errs: an allow that is blocked
+  (`INTRAZONE_DEFAULT`), a block that is let through (`INTRAZONE_DENY_NOT_WRITTEN`). The AWS and Azure converters
+  already wrote it; their runs showed no difference.
+* `transform.intrazone_decisions`, which the three cloud converters now share: a zone's own setting looked up under
+  its name before `--zone-map`, and a zone the map makes of several gets an allow only where the source allows
+  between zones too (`INTRAZONE_ALLOW_MERGED`), a block also between them (`INTRAZONE_DENY_MERGED`). The zones of the
+  target are named after the map, never `any`.
+* The lab: an RSA key (4096 bits) for Azure and for the images of tier 3; the Azure module refuses another kind. The
+  stand-in public keys of a dry run (where ssh-keygen does not run) are well formed and spell out that they are no key;
+  the RSA one was not even valid base64. The
+  lab README says what stops a new Azure subscription (multi-factor sign-in to the tenant, regions that refuse new
+  subscriptions, the quota), how Google Cloud and AWS are logged in, and what the runs verified.
+* The status of the README, the manual and this file: AWS, Azure and Google Cloud verified by the lab.
+
+**Review**
+
+*Round 41* by the independent reviewer, of the Google Cloud change, with probe scripts and differential tests.
+
+| | Finding | Fix |
+|---|---|---|
+| high | Zones merged by `--zone-map` (inside and dmz into one) got an allow inside the merged zone, which opened traffic between them that the source blocks; Azure did the same (older code) | `intrazone_decisions`: no allow for a merged zone unless the source allows between zones; AWS, Azure and Google Cloud |
+| medium | A zone renamed by `--zone-map` lost its own setting (FortiOS `set intrazone allow`), and the note named the old zone | the setting looked up under the source name; the zones of the target named after the map |
+| medium | `INTRAZONE_DEFAULT` covered a block inside a zone that the converted policy lets through, and the tests counted it as allowing less | its own code, `INTRAZONE_DENY_NOT_WRITTEN`; a test that accepts more only there |
+| low | A zone named `any` in `--zone-network` got rules inside it | `any` is no zone of the target, and `--zone-network` refuses it as `--zone-map` does |
+| low | The overlap subtraction did nothing (`zone_spaces` gives each address to one zone), and the manual said otherwise | removed; the manual says the smaller network decides |
+| low | A blocking rule that is not written now meets the allow inside its zone, not the final deny | said in the manual; its finding already warns |
+
+A second pass by the reviewer over the fixes (a new differential probe on the three clouds: random defaults, zones
+without networks, merges, a zone holding `0.0.0.0/0`, `--inside-zone`, a zone only `--zone-network` names) found
+nothing that allows more without a note naming it, and one more low finding, fixed: a `--zone-map` entry for a zone
+the source does not know (a typo) counted as a merge. (The older `merged_zones` of the PAN-OS and Check Point
+emitters still does; on the list.)
+
+Also found while adding tests: with the default between zones allow and a zone that blocks inside itself, the AWS
+converter wrote "allow everything" and let that zone's traffic through; it now leaves out the zones that block, and
+needs the networks of those zones only.
+
+**Verified, and not**
+
+* The suite (6321 tests, on Python 3.13 and 3.9; mypy and pyflakes clean), with new differential tests: for Google Cloud, AWS and Azure, random policies with random
+  defaults inside and between zones and zones with their own setting, every packet as the source decides; for Google
+  Cloud also zones without networks and zones merged by `--zone-map`. The planted faults (no rules inside a zone, the
+  merge ignored, the AWS default as before) each fail them.
+* The lab on Google Cloud with 0.32.1: all 160 flows asserted and all as the source decides, the 32 inside a zone
+  among them. **Not verified**: AWS and Azure again with 0.32.1 (their converters' change only touches `--zone-map`
+  and a zone that blocks inside itself, which the lab policy has neither of); a real run of the zone map on any cloud;
+  the VMs of tier 2, the other images of tier 3 (vSRX, Catalyst 8000V, ASAv), and the workflow in GitHub.
 
 ### 2026-10-15: version 0.32.0
 

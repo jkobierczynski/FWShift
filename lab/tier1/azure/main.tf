@@ -13,7 +13,13 @@ terraform {
 variable "location" { type = string }
 variable "run_id" { type = string }
 variable "admin_cidr" { type = string }
-variable "ssh_public_key" { type = string }
+variable "ssh_public_key" {
+  type = string
+  validation {
+    condition     = startswith(var.ssh_public_key, "ssh-rsa ")
+    error_message = "Azure takes only RSA keys for its VMs."
+  }
+}
 variable "vm_size" {
   type    = string
   default = "Standard_B1s" # two NICs

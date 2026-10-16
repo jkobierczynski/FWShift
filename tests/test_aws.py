@@ -355,7 +355,7 @@ class ScriptJudge:
 NARROWER = {"SOURCE_PORTS_WIDENED", "SERVICE_SCTP", "ZONE_WIDENED", "RULE_TYPE"}
 
 
-def compare(model: Policy, report: Report, text: str, rng: random.Random, inside: bool, seed: int) -> int:
+def compare(model: Policy, report: Report, text: str, rng: random.Random, inside: bool, seed: int, decide: Any = model_allows) -> int:
     """The script never allows more than the model; it allows as much, unless the report says what it left out."""
     judge = ScriptJudge(text)
     compared = copy.deepcopy(model)
@@ -373,7 +373,7 @@ def compare(model: Policy, report: Report, text: str, rng: random.Random, inside
             assert inside
             continue
         count += 1
-        wanted = model_allows(compared, pkt)
+        wanted = decide(compared, pkt)
         assert verdict <= wanted, (seed, pkt, text)
         # (What is left out of a negated service: the protocols other than TCP, UDP and ICMP.)
         if exact and ("AWS_PART_NOT_WRITTEN" not in codes or pkt.proto in ("tcp", "udp", "icmp", "icmp6")):
@@ -409,6 +409,21 @@ def test_emitted_script_never_allows_more(seed: int) -> None:
     networks = {zone: nets for zone, nets in ZONES_AT.items() if rng.random() < 0.8}
     text = emit_aws.emit(model, report, Options(zone_networks=networks))
     compare(model, report, text, rng, False, seed)
+
+
+@pytest.mark.parametrize("seed", range(30))
+def test_the_defaults_inside_and_between_zones_as_the_source_decides(seed: int) -> None:
+    """Defaults inside and between zones each allow or deny, zones with a setting of their own (FortiOS set intrazone):
+    what no rule matches is allowed exactly where the source allows it (a security group only allows)."""
+    from test_gcp import model_decides, with_random_defaults
+
+    rng = random.Random(5000 + seed)
+    model = with_random_defaults(rng, without_source_ports(random_model(rng)))
+    for rule in model.rules:
+        rule.scope = RuleScope.UNIVERSAL
+    report = Report()
+    text = emit_aws.emit(model, report, Options(zone_networks=ZONES_AT))
+    assert compare(model, report, text, rng, False, seed, decide=model_decides) == 500
 
 
 @pytest.mark.parametrize("seed", range(20))

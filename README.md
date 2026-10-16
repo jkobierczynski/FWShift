@@ -57,8 +57,14 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   backend; nft 1.0.9); NAT rules and IPv6 rules are loaded but no packets
 >   are sent through them. Generated nftables rulesets are also listed back
 >   by nft, as text and as JSON, and both listings must give the same model.
-> * **PAN-OS, FortiOS, Check Point, Cisco ASA, Cisco IOS, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall,
->   Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, VMware NSX, AWS, Azure, Google Cloud, RouterOS and Forcepoint** output has **not been loaded on a
+> * **AWS, Azure and Google Cloud** output was loaded into a real account by [the lab](https://github.com/jkobierczynski/FWShift/blob/HEAD/lab/README.md),
+>   for one synthetic policy: AWS security groups and Azure NSGs decided all 160 test connections between real
+>   instances as the source does (or as the report announced); on Google Cloud the 32 connections inside a zone
+>   differed, as announced, until 0.32.1 wrote them: then all 160 passed.
+> * **FortiOS** and **PAN-OS** output was loaded on a real FortiGate-VM (FortiOS 8.0.1) and VM-Series (PAN-OS 11.2.15),
+>   the AWS Marketplace images, by the lab, for the same policy: all 128 connections through each as the source decides.
+> * **Check Point, Cisco ASA, Cisco IOS, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall,
+>   Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, VMware NSX, RouterOS and Forcepoint** output has **not been loaded on a
 >   device or management server**, and the **Terraform** output has not been applied with Terraform. The Check Point input format is taken from the API
 >   documentation, not from a real export, the ASA and FTD syntax from Cisco's
 >   command references, and the Sophos format from the documentation of its
@@ -88,7 +94,7 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   Python library and Terraform provider Forcepoint publishes for it (the loader and the
 >   dump program have only talked to a stand-in written for the tests); Terraform from the documentation and source of its
 >   JSON output and the documentation and schemas of the AWS, Azure and Google providers; Google Cloud from Google's API
->   reference and the gcloud documentation, and no script was run against a project; IOS from Cisco's configuration
+>   reference and the gcloud documentation, and its scripts were run against a project only by the lab; IOS from Cisco's configuration
 >   guides, command references and IOS XE YANG models, and nothing was loaded on a router; Huawei USG from Huawei's
 >   documentation and support pages (its command reference could not be read), and nothing was loaded on a firewall;
 >   Stormshield from its command reference and, for the configuration files (whose rule syntax is not published), from
@@ -174,8 +180,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.32.0.pyz --version
-python3 fwshift-0.32.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.32.1.pyz --version
+python3 fwshift-0.32.1.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -820,7 +826,7 @@ and everything else outside the policy.
   comparison, findings as SARIF, zone ranks.
 * Validation of the output on lab devices of every platform: [the lab](https://github.com/jkobierczynski/FWShift/blob/HEAD/lab/README.md)
   (0.32) scripts it for the cloud targets, five free images and five Marketplace images; nftables and iptables run
-  in the test suite, the others wait for their first run.
+  in the test suite, AWS, Azure and Google Cloud have had their first runs (0.32.1), the others wait for theirs.
 
 ## Licence
 

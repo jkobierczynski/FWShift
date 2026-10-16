@@ -58,14 +58,16 @@ class Terraform:
             self.runner.run([self.binary, f"-chdir={self.dir}", "destroy", "-auto-approve", "-input=false", "-no-color"], timeout=3600)
 
 
-def host_variables(gateway: str = "first") -> Dict[str, Dict[str, str]]:
+def host_variables(gateway: str = "first", subnet_via_gateway: bool = False) -> Dict[str, Dict[str, str]]:
     """The hosts as the modules take them, with their first-boot script. Tier 1 routes between the test subnets
-    through the cloud's own router (the first address of each subnet); tier 3 through the firewall (.4)."""
+    through the cloud's own router (the first address of each subnet); tier 3 through the firewall (.4).
+    subnet_via_gateway: the host's own subnet through the router too (Google Cloud gives an interface a /32 and its
+    network delivers through the gateway, not to a neighbour found by ARP)."""
     out = {}
     for host in labplan.HOSTS:
         net = labplan.ZONES[host.zone]
         gw = str(ipaddress.ip_network(net).network_address + (1 if gateway == "first" else 4))
-        out[host.name] = {"zone": host.zone, "ip": host.ip, "user_data": labrun.host_init(host.ip, gw, net)}
+        out[host.name] = {"zone": host.zone, "ip": host.ip, "user_data": labrun.host_init(host.ip, gw, net, subnet_via_gateway)}
     return out
 
 
@@ -110,7 +112,7 @@ def conversion(cloud: str, run_id: str) -> Tuple[str, List[str]]:
 def prepare(runner: Runner, cloud: str, out_name: str) -> Tuple[Path, Path, Dict[str, Any]]:
     """The run's key, the conversion and the plan (security groups and NSGs act on each interface, so flows inside a
     zone pass them; they never answer with a reset, so a reset came from the host behind them)."""
-    key = labrun.ssh_key(runner)
+    key = labrun.ssh_key(runner, "rsa" if cloud == "azure" else "ed25519")  # (Azure: RSA only)
     out = runner.work / out_name
     target, options = conversion(cloud, runner.work.name)
     report = labrun.fwshift(runner, target, out, options)
@@ -121,7 +123,8 @@ def prepare(runner: Runner, cloud: str, out_name: str) -> Tuple[Path, Path, Dict
 
 def common_variables(runner: Runner, args: Any, key: Path) -> Dict[str, Any]:
     return {"run_id": runner.work.name, "admin_cidr": labrun.admin_cidr(args.admin_cidr, runner, getattr(args, "allow_wide_admin", False)),
-            "ssh_public_key": key.with_suffix(".pub").read_text().strip(), "zones": labplan.ZONES, "hosts": host_variables()}  # fmt: skip
+            "ssh_public_key": key.with_suffix(".pub").read_text().strip(), "zones": labplan.ZONES,
+            "hosts": host_variables(subnet_via_gateway=getattr(args, "tier", "") == "tier1" and getattr(args, "firewall", "") == "gcp")}  # fmt: skip
 
 
 def report_leftovers(found: List[str], run_id: str) -> None:

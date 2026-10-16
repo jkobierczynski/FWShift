@@ -8,6 +8,7 @@ allows it (root, ip, nft or iptables), a real run with packets through the Linux
 
 from __future__ import annotations
 
+import base64
 import errno
 import ipaddress
 import json
@@ -171,18 +172,34 @@ def test_the_probe_reads_windows_ping(monkeypatch: pytest.MonkeyPatch) -> None:
         assert labprobe.try_icmp("10.20.1.10", "10.20.2.10", 2) == expected, out
 
 
+def test_a_host_that_fails_its_self_check_says_why(tmp_path: Path) -> None:
+    """Before the teardown takes it, the host is asked about itself (addresses, routing, the probe's service, its first
+    boot): into diagnose-HOST.txt, named in the error."""
+    runner = labrun.Runner(tmp_path, echo=False)
+    target = labrun.Target("in11", "127.0.0.1", ["sh", "-c"])
+    with pytest.raises(labrun.LabError, match=r"in11 does not answer.*diagnose-in11\.txt"):
+        labrun.wait_ready(runner, [target], minutes=0, probe_path=str(tmp_path / "missing-probe.py"))
+    text = (tmp_path / "diagnose-in11.txt").read_text()
+    assert "== the last self-check failed with" in text and "== addresses" in text and "== first boot" in text
+    assert "missing-probe.py" in text  # (the self-check's own error)
+
+
 def test_the_first_boot_script() -> None:
     script = labrun.host_init("10.20.1.10", "10.20.1.1", "10.20.1.0/24")
     assert "${" not in script and "TEST_IP='10.20.1.10'" in script and "--tcp 22,80,443,8005,8011" in script
     encoded = re.search(r"echo '([A-Za-z0-9+/=]+)' \| base64 -d", script)
     assert encoded is not None
-    import base64
-
     assert base64.b64decode(encoded.group(1)) == (LAB / "probe.py").read_bytes()
+    # The own subnet: on the link (AWS, Azure answer ARP for every address), or through the gateway (Google Cloud gives an
+    # interface a /32 and answers ARP for its gateway only).
+    assert "SUBNET_VIA_GW='no'" in script
+    gcp = labrun.host_init("10.20.1.10", "10.20.1.1", "10.20.1.0/24", subnet_via_gateway=True)
+    assert "SUBNET_VIA_GW='yes'" in gcp and 'ip route replace "$TEST_NET" via "$TEST_GW"' in gcp
     sh = shutil.which("sh")
     if sh:
-        done = subprocess.run([sh, "-n"], input=script, text=True, capture_output=True)
-        assert done.returncode == 0, done.stderr
+        for text in (script, gcp):
+            done = subprocess.run([sh, "-n"], input=text, text=True, capture_output=True)
+            assert done.returncode == 0, done.stderr
 
 
 # -- reading the conversions ----------------------------------------------------------------------------------------
@@ -241,6 +258,12 @@ def test_the_sessions_of_tier_3(tmp_path: Path, name: str) -> None:
     text = "\n".join(session) + vendor.user_data
     assert all(a in text for a in addresses), name
     re.compile(vendor.errors)
+    # What an image may or may not ship with is deleted in a session of its own, whose answers do not count: never in the
+    # session that is checked (PAN-OS 11.2 has no rule1, default-vwire, trust or untrust, and refuses to delete them).
+    if name == "panos":
+        prepare = vendor.prepare()
+        assert "delete zone trust" in prepare and prepare[-3:] == ["commit", "exit", "exit"]
+        assert not any(line.startswith("delete ") for line in session)
 
 
 def test_the_areas_of_pfsense_and_opnsense() -> None:
@@ -292,6 +315,27 @@ def test_every_run_dry(tmp_path: Path, run: List[str], capsys: pytest.CaptureFix
         required = re.findall(r'^variable "(\w+)" \{ type = [^}]*\}$', (work / "terraform" / "main.tf").read_text(), re.M)
         assert set(variables) <= set(declared) and set(required) <= set(variables), (set(variables) ^ set(declared))
         assert all(line.count("--region") <= 1 for line in log)
+        # The run's key is of a type the cloud takes: Azure's VMs only RSA (its provider refuses the rest before
+        # anything is made); the Marketplace images of tier 3 get RSA as well.
+        rsa = run[1] == "azure" or run[0] == "tier3"
+        assert variables["ssh_public_key"].startswith("ssh-rsa " if rsa else "ssh-ed25519 "), variables["ssh_public_key"]
+        # Google Cloud delivers through the gateway, also inside a subnet: its hosts route their own subnet there.
+        via = {name: "SUBNET_VIA_GW='yes'" in host["user_data"] for name, host in variables["hosts"].items()}
+        assert set(via.values()) == {run[1] == "gcp"}, via
+        if run[0] == "tier3":  # (which image, and so which version, the firewall ran: in run.json)
+            state = json.loads((work / "run.json").read_text())
+            assert state["image"].startswith("ami-") and "image_name" in state and "product_code" in state
+            # VM-Series: BYOL and the bundles share their name; the image is chosen by the product code of PAYG Bundle 1.
+            searched = next(line for line in log if "describe-images" in line)
+            assert ("Name=product-code,Values=e9yfvyj3uag5uo5j2hjikv74n" in searched) == (run[1] == "panos"), searched
+        if run[0] == "tier1":
+            via = {name: "SUBNET_VIA_GW='yes'" in host["user_data"] for name, host in variables["hosts"].items()}
+            assert set(via.values()) == {run[1] == "gcp"}, via
+        # The stand-in key of a dry run is in the format of a real one, and says what it is.
+        kind, blob = variables["ssh_public_key"].split()[:2]
+        decoded = base64.b64decode(blob, validate=True)
+        assert decoded[4:4 + int.from_bytes(decoded[:4], "big")].decode() == kind and b"not a key" in decoded
+        assert any(line.startswith("ssh-keygen") and ("-t rsa -b 4096" in line) == rsa for line in log)
     if run[0] == "tier2":
         assert any("ip netns add" in line for line in log) and any("ip netns del" in line for line in log)
         assert not any("bridge-nf" in line for line in log)  # (nothing of the host's own networking changes)
