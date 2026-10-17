@@ -7,7 +7,7 @@ what was approximated and what a person has to look at.
 
 | | Read | Write |
 |---|---|---|
-| Palo Alto PAN-OS / Panorama | XML configuration export | `set` commands |
+| Palo Alto PAN-OS / Panorama | XML configuration export, or `set` commands | `set` commands |
 | Fortinet FortiOS | configuration backup (CLI text) | CLI configuration |
 | Check Point | Management API export (JSON) | shell script of `mgmt_cli` calls |
 | Cisco ASA (and the running configuration of an FTD, read only) | `show running-config` | ASA commands (9.x) |
@@ -47,7 +47,7 @@ change, or a source and its conversion read back (the **equivalence check**).
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.33).** The converter is tested against synthetic
+> **Status: alpha (0.34).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -180,8 +180,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.33.0.pyz --version
-python3 fwshift-0.33.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.34.0.pyz --version
+python3 fwshift-0.34.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start

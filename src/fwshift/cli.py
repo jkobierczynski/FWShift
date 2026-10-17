@@ -55,6 +55,7 @@ from .parsers import cisco as parse_cisco
 from .parsers import fortios as parse_fortios
 from .parsers import iptables as parse_iptables
 from .parsers import panos as parse_panos
+from .parsers import panos_set
 from .parsers import forcepoint as parse_forcepoint
 from .parsers import gcp as parse_gcp
 from .parsers import opnsense as parse_opnsense
@@ -182,6 +183,8 @@ def detect_format(data: bytes) -> str:
             return "iptables"  # the parser tells IPv4 from IPv6
         if line and not line.startswith(b"#"):
             break
+    if panos_set.looks_like_set(head):
+        return "panos"  # (its set commands, as ``show config running`` prints them in set format)
     if parse_junos.looks_like_junos(head):
         return "junos"
     if parse_huawei.looks_like_huawei(head[:1_000_000].decode("utf-8", errors="replace")):
@@ -944,7 +947,7 @@ def _run_compare(args: argparse.Namespace) -> int:
     return 3 if result.level() >= weight else 0
 
 
-READ_BACK = ("asa", "azure", "fdm", "fortios", "iptables", "ip6tables", "junos", "nftables", "nsx", "routeros", "sophos", "watchguard")
+READ_BACK = ("asa", "azure", "fdm", "fortios", "iptables", "ip6tables", "junos", "nftables", "nsx", "panos", "routeros", "sophos", "watchguard")
 
 
 def _alignment(source: Policy, back: Policy, options: Options) -> Tuple[Dict[str, str], List[str]]:

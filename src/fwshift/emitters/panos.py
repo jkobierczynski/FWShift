@@ -47,9 +47,11 @@ _RESERVED_SERVICES: FrozenSet[str] = frozenset({ANY, APP_DEFAULT, "service-http"
 
 
 def q(text: str) -> str:
+    """A word of a set command. A backslash is written as it is, as PAN-OS prints it ("EXAMPLE\\jdoe"); a double quote
+    inside a value becomes a single one (PAN-OS prints one as it is, and its CLI may end the value there)."""
     if _BARE.fullmatch(text):
         return text
-    return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return '"' + text.replace('"', "'").replace("\n", " ") + '"'
 
 
 def lst(items: List[str]) -> str:
@@ -196,7 +198,7 @@ class _Emitter:
                 continue
             base = f"address-group {q(group.name)}"
             if group.dynamic_filter:
-                escaped = group.dynamic_filter.replace("\\", "\\\\").replace('"', '\\"')
+                escaped = group.dynamic_filter.replace('"', "'")  # (as q() writes a value; PAN-OS's filters quote with ')
                 self.cmd(f'{base} dynamic filter "{escaped}"')
             else:
                 self.cmd(f"{base} static {lst([self._member(m) for m in group.members])}")

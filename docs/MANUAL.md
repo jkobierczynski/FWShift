@@ -8,7 +8,7 @@ rule by rule, how faithful the result is. It can also audit a policy: rules that
 rules that never match, loose ends; show what each zone may reach in each
 other zone; check a policy against a zone and conduit model kept as a file;
 and say which connections two policies decide differently.
-This manual covers version 0.33.
+This manual covers version 0.34.
 
 **Contents**
 
@@ -62,7 +62,7 @@ may reach (section 14), check a policy against a zone and conduit model kept
 as a file (section 16), and name every connection two policies decide
 differently, including a source and its conversion read back (section 17).
 
-> **Status.** Version 0.33 is tested against synthetic configurations. iptables
+> **Status.** Version 0.34 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). AWS, Azure and Google Cloud output was loaded into a real account
 > by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1) and PAN-OS output on a VM-Series (PAN-OS 11.2.15). Output for Check Point,
@@ -114,8 +114,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.33.0.pyz --version
-python3 fwshift-0.33.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.34.0.pyz --version
+python3 fwshift-0.34.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -125,12 +125,52 @@ same, with the same exit status.
 
 **PAN-OS firewall.** FWShift reads the XML configuration, for example the
 `running-config.xml` exported from *Device > Setup > Operations > Export named
-configuration snapshot*. Output in `set` format is not read yet.
+configuration snapshot*, or the configuration in `set` format, as the CLI
+prints it:
 
-**Panorama.** Export the Panorama configuration the same way. FWShift reads one
+```sh
+admin@fw> set cli config-output-format set
+admin@fw> configure
+admin@fw# show
+```
+
+(or `show config running` in operational mode). Save what it prints to a file;
+a copy of the whole session will do: the prompt before a command
+(`admin@fw# set ...`), `[edit]`, `configure`, `show`, `set cli ...` and `#`
+comments are left out. A `set` command stands for the XML its words name, and
+is read as that XML: `set address web ip-netmask 10.0.0.1/32` is the address
+`web`; `set vsys vsys2 ...` belongs to the virtual system `vsys2`, and the
+objects and rules of a command without `vsys` to `vsys1`, as a firewall with
+one virtual system prints them. One command may set several values of one
+entry (`... rules r from trust to untrust action allow`), as the CLI takes
+them, also after a part of a rule (`... profile-setting group default
+log-setting fwd`, `... source-translation static-ip translated-address X
+bi-directional yes`) for the parts the parser reads; after other parts, the
+words that follow are taken as part of them. A value in double quotes may run
+over several lines (a certificate, a banner); a backslash in it is a backslash
+(`"EXAMPLE\domain users"`, as PAN-OS prints it). PAN-OS prints a quote inside
+a value as it is (`"the "office" LAN"`), so a quote ends a value only where
+what follows reads as words of a command, or at the end of a line that a
+command follows; free text (`description`) that is the last value of its line
+runs to the end of the line, and a value that has run over a line ends only at
+the end of one. Two quoted phrases in free text followed by more values on the
+same line can still be split wrongly.
+Commands other than `set` (`delete`, `rename`) are not read, and the report
+says so (`SET_COMMANDS_NOT_READ`). The set format has no `uuid` of a rule, so
+traffic logs (`fwshift usage`, section 15) are matched to its rules by name
+only. The PAN-OS target's own output is read this way too; output of FWShift
+0.33 and earlier wrote a backslash as `\\`, which now reads as two.
+
+**Panorama.** Export the Panorama configuration the same way (in `set` format:
+`set shared ...`, and `set device-group NAME ...` for a device group;
+templates and log collectors are read as part of the device, and hide no
+device group). FWShift reads one
 device group together with its parent device groups and `shared`. The
 hierarchy of device groups is recorded in the `<readonly>` section of the
-export; if that section is missing, parents cannot be found and the report
+export (in `set` format, `set readonly devices localhost.localdomain
+device-group NAME parent-dg PARENT`; whether Panorama prints those lines was
+not confirmed, so for device groups with parents prefer the XML); if that
+section is missing, parents cannot be found and the report
 says so (`NO_HIERARCHY`). Rules that exist only on a firewall, and zones, which
 live in templates, are not in a Panorama export.
 
@@ -1503,6 +1543,8 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `TABLE_NOT_CONVERTED` | R | FortiOS source: a table such as `firewall policy6` or `firewall local-in-policy` has entries and is not converted. iptables source: the `mangle`, `raw` or `security` table has rules. nftables source: a table of the `bridge`, `arp` or `netdev` family has rules. ASA source before 9.0: `ipv6 access-list` lines; the result has no IPv6 rules. |
 | `SUSPICIOUS_QUOTING` | R | FortiOS source: a quoted value runs over lines that look like configuration. An unescaped quote may have hidden entries; check the line given. |
 | `NO_HIERARCHY` | R | Panorama source without `<readonly>`: parent device groups could not be found. |
+| `PANOS_SET_FORMAT` | I | PAN-OS source in `set` format: how many `set` commands were read, as the XML they stand for (section 3). |
+| `SET_COMMANDS_NOT_READ` | R | PAN-OS source in `set` format: commands other than `set` (`delete`, `edit`, ...), with how many of each; they are not read, so what they would change is not in the policy. |
 | `INTRAZONE_DENY_ADDED` | I | To PAN-OS: `fwshift-intrazone-deny` was appended (section 8). |
 | `EXISTING_OBJECTS` | I | To FortiOS, ASA, Sophos or a Device Manager: objects are created by name and change existing ones of the same name; an ASA object group that exists gets the new members added to its own. |
 | `PANORAMA_SOURCE` | I | Reminder of what a Panorama export does not contain. |
@@ -4275,7 +4317,11 @@ decides. What follows is how to load a conversion of your own.
 
 ### PAN-OS
 
-The output contains nothing but `set` commands.
+The output contains nothing but `set` commands. A value with spaces is in
+double quotes; a backslash in it is written as it is, as PAN-OS prints it
+(`"EXAMPLE\jdoe"`), a double quote inside a value (in a description) as a
+single quote, and a line break in it as a space (0.34.0; not yet loaded on a
+device with these characters).
 
 1. Make sure the zones named in `ZONES_REQUIRED` exist.
 2. In the CLI: `set cli scripting-mode on`, then `configure`.
@@ -6672,8 +6718,8 @@ opened connection the report does not explain is a defect: report it.
 
 Read back are `asa` (with `--zone-network`: the output names no interfaces or
 routes), `azure`, `fdm`, `fortios`, `iptables`, `ip6tables`, `junos`,
-`nftables`, `nsx`, `routeros` (read as if its jumps were switched on), `sophos`
-and `watchguard`. The other targets write scripts
+`nftables`, `nsx`, `panos` (its set commands, 0.34.0), `routeros` (read as if
+its jumps were switched on), `sophos` and `watchguard`. The other targets write scripts
 or parts of a configuration FWShift does not read.
 
 ### Limits

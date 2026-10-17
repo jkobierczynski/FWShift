@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional, Set, Tuple
 
 from .. import xmlread
+from . import panos_set
 from ..appmap import valid_ports
 from ..errors import ParseError
 from ..model import (
@@ -70,6 +71,8 @@ def _unique(name: str, taken: Set[str]) -> str:
 
 
 def parse(data: bytes, report: Report, vsys: str = "", device_group: str = "") -> Policy:
+    if not panos_set.is_xml(data):
+        data = panos_set.to_xml(data, report)  # (set commands, as the firewall prints them or FWShift writes them)
     root = xmlread.fromstring(data, "PAN-OS exports")
     config = root if root.tag == "config" else root.find(".//config")
     if config is None:

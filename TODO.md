@@ -215,9 +215,8 @@ back and compared with the source): items 1, 2, 5 and 10 of the list before.
 2. **NAT in the comparison**: compare the NAT rules too, and the rules of a
    source that matches after destination NAT with the connection as it
    arrives, so that a published service is compared as a client sees it.
-3. **More targets read back** for `convert --compare`: PAN-OS set commands,
-   the Check Point script, SonicWall commands, the AWS and Barracuda scripts,
-   the pfSense areas (with the interfaces of the configuration they go into);
+3. **More targets read back** for `convert --compare`: the Check Point script,
+   SonicWall commands, the AWS and Barracuda scripts, the pfSense areas (with the interfaces of the configuration they go into);
    the ASA output with the interfaces and routes of the source.
 4. **What labels hold**: schedules, custom URL categories and user groups are
    compared by name; read their definitions where the source has them.
@@ -239,18 +238,17 @@ back and compared with the source): items 1, 2, 5 and 10 of the list before.
 
 1. Correct services for port-translating destination NAT.
 2. FortiOS output with per-policy NAT as an option.
-3. PAN-OS `set`-format parser, which also allows a PAN-OS round-trip test.
-4. Schedule objects (ASA time ranges, FortiOS and PAN-OS schedules); a
+3. Schedule objects (ASA time ranges, FortiOS and PAN-OS schedules); a
    user and group mapping file.
-5. iptables `NETMAP`, read and written: it is what maps a network address
+4. iptables `NETMAP`, read and written: it is what maps a network address
    for address, where `DNAT` to a range picks an address per connection.
-6. Interface networks in the model (see *Audit and matrix* 3).
-7. Sophos Firewall: users and schedules written back for a Sophos target
+5. Interface networks in the model (see *Audit and matrix* 3).
+6. Sophos Firewall: users and schedules written back for a Sophos target
    (the element names are known, the objects must exist); linked NAT rules
    kept linked, and interface names of NAT rules kept as they are, Sophos to
    Sophos; IP lists written as IP lists. Find out whether a firewall rule
    sees the original or the translated service of a port translation.
-8. Cisco Secure Firewall:
+7. Cisco Secure Firewall:
    * application conditions of a rule as App-ID names of the model (a table
      from Cisco's application names), so that such rules reach PAN-OS as
      application rules and port-based targets through the application map,
@@ -271,10 +269,10 @@ back and compared with the source): items 1, 2, 5 and 10 of the list before.
      reached in;
    * the names of the predefined port objects of both managers with their
      values, so that a partial export that names `HTTPS` can be read.
-9. A note where `--zone-map` merges two zones and a rule between them becomes
+8. A note where `--zone-map` merges two zones and a rule between them becomes
    a rule inside the merged zone (it then covers traffic inside each of the
    two as well). Found by the reviewer in round 15; older than 0.7.0.
-10. pfSense:
+9. pfSense:
     * schedules and virtual IPs written as well, for a full restore of
       `schedules` and `virtualip` (neither can be restored as an area);
     * port forwards from a range of ports to another range (the model has
@@ -290,41 +288,41 @@ back and compared with the source): items 1, 2, 5 and 10 of the list before.
     * whether `no rdr` also ends 1:1 NAT for what arrives, and `no binat`
       outbound NAT (from pf, not checked), which decides how far such an
       exception reaches.
-11. SonicWall: ICMP service objects, IPv6 and MAC address objects as an export
+10. SonicWall: ICMP service objects, IPv6 and MAC address objects as an export
     stores them (from a real export); `priority` of NAT policies; users and
     schedules written back SonicWall to SonicWall; the zone of an address
     object kept SonicWall to SonicWall; Policy mode (SonicOSX).
-12. WatchGuard: network dynamic NAT, 1-to-1 NAT and the NAT settings of a
+11. WatchGuard: network dynamic NAT, 1-to-1 NAT and the NAT settings of a
     policy, read and written, once a real file shows where they are; the
     automatic policy order worked out (the precedence cascade of the Help
     Center) instead of reported; users, schedules and proxy actions written
     back WatchGuard to WatchGuard; a whole configuration file for a restore,
     from a configuration of the target given as an option.
-13. Barracuda: Dst NAT, Map and connection objects, read and written, once
+12. Barracuda: Dst NAT, Map and connection objects, read and written, once
     the JSON of the API is known; rule lists (Cascade) read; hostname objects
     written; the PAR backup read, once a real one shows its format; a script
     that fetches the answers FWShift reads.
-14. Juniper: logical systems and tenants; unified policies
+13. Juniper: logical systems and tenants; unified policies
     (`dynamic-application`) as App-IDs where the target has them; schedulers;
     rule sets of routing instances; the predefined applications taken from a
     real `junos-defaults`; NAT rule sets of several zones at once instead of
     one per zone or pair of zones.
-15. Static NAT between address sets of different size is reported for ASA and
+14. Static NAT between address sets of different size is reported for ASA and
     Cisco Secure Firewall targets, which wrap around, and not for PAN-OS,
     where the commit fails.
-16. NSX: the gateway firewall of Tier-0 and Tier-1 gateways, and its NAT;
+15. NSX: the gateway firewall of Tier-0 and Tier-1 gateways, and its NAT;
     context profiles (layer-7 applications, FQDNs) as App-IDs where the
     target has them; the members of dynamic groups fetched (`.../groups/ID/
     members/ip-addresses`) by a script the manual names; the distributed
     firewall's logs for `fwshift usage`; one policy per category written,
     instead of one policy of category Application.
-17. AWS: a CloudFormation template as a second output; the network ACLs
+16. AWS: a CloudFormation template as a second output; the network ACLs
     written where a blocking rule is for a whole subnet; the members of a
     group kept by interface, so that the groups of the script follow
     interfaces; traffic to the VPC's own public addresses and through NAT
     gateways converted; VPC Flow Logs for `fwshift usage`; several VPCs, with
     peering, at once.
-18. Azure: an interface behind a group of its own and one on its subnet
+17. Azure: an interface behind a group of its own and one on its subnet
     converted as the two lists in turn (now each on its own,
     `AZURE_NSG_CHAIN`); Azure Virtual Network Manager's security admin rules
     read; VPN gateways between virtual networks; Bicep files themselves, and

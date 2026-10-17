@@ -361,8 +361,8 @@ def test_convert_compare_says_what_it_cannot_read_back(tmp_path: object) -> None
     from pathlib import Path
 
     report = Path(str(tmp_path)) / "report.txt"
-    ran = run_cli(["convert", str(DATA / "panos_sample.xml"), "--to", "panos", "-o", str(Path(str(tmp_path)) / "o"), "--report", str(report),
-                   "-q", "--compare"])  # fmt: skip
+    ran = run_cli(["convert", str(DATA / "panos_sample.xml"), "--to", "checkpoint", "-o", str(Path(str(tmp_path)) / "o"), "--report",
+                   str(report), "-q", "--compare"])  # fmt: skip
     assert ran.code == 0 and "COMPARE_NOT_READ_BACK" in report.read_text(encoding="utf-8")
 
 

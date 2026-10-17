@@ -8,7 +8,7 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.33.0 (alpha) |
+| Version | 0.34.0 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Meraki MX (read the answers of the Dashboard API for one network: VLANs, objects, the outbound and layer 7 rules, port forwarding, 1:1 and 1:many NAT, the inbound table with NAT exceptions; write a curl script that puts the outbound and NAT tables); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
 | Tests | 6118, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables and nftables**: rulesets loaded into a Linux kernel and real packets forwarded through it (below; and the lab of 0.32.0, also on the author's machine). **AWS, Azure and Google Cloud**: the lab policy's conversion loaded into a real account by the lab, and real connections between instances checked (0.32.1, below). **FortiOS**: the lab policy's conversion loaded on a FortiGate-VM (FortiOS 8.0.1, AWS Marketplace) and real connections through it checked (0.32.1, below). **PAN-OS**: the same on a VM-Series (PAN-OS 11.2.15, AWS Marketplace). Nothing has been loaded on an ASA, an IOS router, a Huawei USG, a Stormshield firewall, a Meraki MX, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
@@ -2165,6 +2165,78 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-17: version 0.34.0
+
+**PAN-OS in set format, read.** What a firewall or Panorama prints with `set cli config-output-format set` and
+`show config running`, and what FWShift's own PAN-OS target writes (item 3 of the conversion list, and the PAN-OS
+part of item 3 of the audit list: `convert --to panos --compare` reads the output back now).
+
+**Built**
+
+* `parsers/panos_set.py`: a set command stands for the XML its words name, and is read as that XML, which the PAN-OS
+  parser reads as before; the only thing it learned is to tell XML (also UTF-16 or UTF-32 with a byte order mark) from
+  commands. What is an entry, a list of members or a value is PAN-OS's schema, as far as the parser reads it: the
+  objects of a virtual system are entries only where objects stand (`schedule` in a rule is a value), the words of a
+  rule that are lists, the interfaces of a zone and of a virtual router, a NAT rule's one service. Where a command
+  begins: `shared`, `vsys NAME`, `device-group NAME`, the objects and rules of a virtual system without one of them in
+  `vsys1` (made only when one comes), and the rest (`deviceconfig`, `network`, a template of Panorama, a log collector)
+  in the device, where it hides no device group.
+* Commands as the CLI takes them: several values in one command, also after a part of a rule the parser reads
+  (`profile-setting`, `qos`, `target`, `option`, the translations of NAT); a list of entries at once
+  (`vsys [ vsys1 vsys2 ]`).
+* Values as PAN-OS prints them: in double quotes, over several lines (certificates, banners), a backslash as it is
+  (`"EXAMPLE\domain users"`), a quote inside a value as it is. A quote ends a value where what follows reads as words
+  of a command, or at the end of a line that a command follows; free text as the last value of a line runs to its
+  end; a value that ran over a line ends only at the end of one; one that runs into the commands after it is refused.
+* What a session prints around the commands (the prompt, `configure`, `[edit]`, `show`, `set cli ...`) is left out;
+  other commands (`delete`, `rename`) and a relative `[edit LEVEL]` are said (`SET_COMMANDS_NOT_READ`), and how many
+  commands were read (`PANOS_SET_FORMAT`).
+* Detection: PAN-OS set commands before Junos (their first words do not overlap), not where the file has FortiOS's
+  `config`, `next` and `end` lines.
+* The PAN-OS target writes a backslash as it is, as PAN-OS prints it, where it wrote `\\`; a double quote inside a
+  value as a single one, and a line break as a space (descriptions; the goldens of ASA, Management Center and FortiOS to
+  PAN-OS changed by these characters only). Output of 0.33 and earlier, read back, has two backslashes there.
+
+**Review**
+
+*Round 43* by the independent reviewer, of the reader, against what it knows of PAN-OS 9 to 11 and what Palo Alto's
+community shows of the format, with probe scripts and a fuzz of 30,000 cases; then a second pass over the fixes.
+
+| | Finding | Fix |
+|---|---|---|
+| high | `schedule` in a rule was read as an entry: the rule came back without its schedule, a time-limited allow made permanent | objects are entries only where objects stand |
+| high | Any command that was not of the device went to `vsys1`, which made one up: a Panorama dump with a template, a log collector or `set cli` read as `vsys1` with no rules, and no word | first words of a virtual system go to `vsys1`, the rest to the device; `set cli` left out; `set device-group X` alone makes it |
+| high | A quoted value over several lines (a certificate, a banner) refused the whole file | commands are read from the text, not per line |
+| high | A backslash in a quoted value was taken as an escape; PAN-OS prints it as it is (`"pancademo\server operators"`) | taken as it is; the target writes it so too |
+| high (second pass) | A banner over several lines that quotes a word ended at that word, and its last quote swallowed the commands after it | a value that ran over a line ends only at the end of one that a command follows; one that runs into commands is refused |
+| medium | A UTF-16 XML export, which 0.33 read, was taken for set commands | byte order marks recognised, for both |
+| medium | An entry word followed by a list (`target devices X vsys [ vsys1 vsys2 ]`) refused the file | an entry per value |
+| medium | Several values in one command lost all but the first ones (`disabled yes description old` came back enabled); after a part of a rule, the words that followed went into it, and a NAT `service` was taken for a part | value words take their value and the command goes on; back out of a part that does not hold the word; NAT `service`, `translated-address`, the interface address as values |
+| low | A copied session gave a review note of `configure`, `show`, `[edit]` | left out |
+| low | Quoted `"]"` was taken for the end of a list; unquoted `description [legacy]` was lost | words know whether they were quoted; text in brackets is text |
+| low | A path of a thousand words crashed in the XML writer | refused beyond 64 elements |
+| low | A flat FortiOS fragment of another section than `firewall`, `system`, `vpn`, `router` or `user` was taken for PAN-OS | FortiOS is any `config` line with `next` or `end` lines |
+| low | `qos marking follow-c2s-flow` and `override no` lost their value element | written as elements |
+| low | A NAT `service [ x ]` silently matched any service | one value taken, several refused |
+| low | `pre-rulebase` without a virtual system went to the device | to `vsys1` |
+| low | Two quoted phrases in a description ended it at the first | free text as the last value of a line runs to its end |
+| low | The target's dynamic filter still escaped `\` and `"` | as every value |
+| low (tests) | The differential test copied the reader's escaping, and had no schedule, Panorama hierarchy, template, targets, NAT forms, zones other than layer 3, multi-line values | `quoted` prints as PAN-OS does; a synthetic firewall and Panorama in the test file |
+
+**Verified, and not**
+
+* The suite (6,416 tests, on Python 3.13 and 3.9; mypy and pyflakes clean). The differential test prints XML as PAN-OS prints set commands (an entry as the word of its list and its
+  name, a list of members in brackets or as one word, a value after its path, an element without one as a last word),
+  with literal quoting, and checks that the samples, a synthetic firewall with the rest of what the parser reads and a
+  synthetic Panorama (device groups in a hierarchy, a template, targets) read to the same model and the same notes as
+  their XML. Random policies through the PAN-OS target read back to the same rules, and write the same commands again;
+  `convert --compare` to PAN-OS finds them equivalent. Fuzzing (65,000 cases from both review passes) raised nothing
+  but FWShift's own errors.
+* **Not verified**: on a device. No real output of `show config running` in set format was available; the format is
+  from Palo Alto's documentation and community posts, and from the target's own output, which loaded on a VM-Series
+  (0.32.1). Whether Panorama prints `set readonly ...` lines (the hierarchy of device groups) is not confirmed, and how
+  PAN-OS prints a double quote inside a value, and whether its CLI takes one, is not known: the target writes none.
 
 ### 2026-10-17: version 0.33.0
 
