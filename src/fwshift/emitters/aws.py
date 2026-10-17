@@ -55,7 +55,7 @@ def prepare(policy: Policy, report: Report, options: Options) -> Policy:
     p = copy.deepcopy(policy)
     transform.apply_zone_map(p, options.zone_map)
     transform.ensure_references(p, report)
-    zone_spaces(options.zone_networks)  # refuses networks that contradict each other
+    zone_spaces(options.zone_networks, options.zone_excluded)  # refuses networks that contradict each other
     # The internet gateway translates public addresses to private ones before a group sees a connection, and a NAT
     # gateway translates sources after: the groups see the private addresses. The NAT rules are not written.
     translated = {nat.origin for nat in p.nat_rules
@@ -101,7 +101,7 @@ class _Emitter:
         self.p, self.report, self.options, self.source_zones = p, report, options, source_zones
         self.taint_a = transform.tainted_addresses(p)
         self.taint_s = transform.tainted_services(p)
-        self.spaces = zone_spaces(options.zone_networks)
+        self.spaces = zone_spaces(options.zone_networks, options.zone_excluded)
         used = [z for r in p.rules for z in r.src_zones + r.dst_zones if z != ANY]
         self.universe = transform.target_zones(p, options.zone_map, used, list(options.zone_networks))
         self.denies: List[regions.Box] = []

@@ -3,7 +3,7 @@ FWShift conversion report
   target: azure
 
 Summary
-  Security rules:     18   exact 1, approximated 2, needs review 15 (15 emitted disabled), skipped 0
+  Security rules:     18   exact 12, approximated 2, needs review 2 (2 emitted disabled), skipped 2
   NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
   Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
   Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
@@ -12,57 +12,33 @@ Summary
 
 Notes for the whole policy
   [needs-review] AZURE_LOAD: the output is an ARM template (section 10): look at it with az deployment group what-if, deploy it with az deployment group create (incremental mode, never complete), then associate each group with the subnets of its zone (its networks are in the template's metadata). Deploying it replaces all rules of groups of the same name
-  [needs-review] AZURE_ONE_GROUP: no zone has networks (--zone-network): one group holds every rule, inbound and outbound; associate it with every subnet the policy is for
   [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
   [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
   [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; guest=10.30.0.0/24; inside=10.10.0.0/16,10.40.0.0/16,2001:db8:10::/64; outside=0.0.0.0/0,203.0.113.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them. Behind interfaces that are in no zone of the policy, so behind none of its zones (an allow for the zone of the default route does not reach them): mgmt=192.168.1.0/24
   [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=10.20.0.0/24; guest=10.30.0.0/24; inside=10.10.0.0/16,10.40.0.0/16,2001:db8:10::/64; outside=0.0.0.0/0,203.0.113.0/24. Behind no zone, as the configuration routes them (no zone's networks hold them): 192.168.1.0/24. --no-source-networks takes none of them
+  [info] ZONE_NETWORKS_ANY_ZONE: 8 allow rules for any zone and any address are written for FWSHIFT-ROUTED, every address but the networks behind no zone (192.168.1.0/24), which the source does not let them reach
   [info] AZURE_DEFAULTS_OVERRIDDEN: each list ends in the default of the source, which comes before the default rules of Azure: they no longer let the virtual network, the load balancer's health probes or the internet through unless a rule does
   [info] LOGGING_NOT_CONVERTED: rules of the source log; a security rule does not. Flow logs of the virtual network record the connections instead
 
 Security rules
-  outside_access_in-1  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, and a security rule names no zone: give the networks behind it with --zone-network.
-  outside_access_in-2  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, and a security rule names no zone: give the networks behind it with --zone-network.
-  outside_access_in-3  ->  needs-review, emitted disabled
+  outside_access_in-3  ->  skipped
       [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone outside, and a security rule names no zone: give the networks behind it with --zone-network.
-  outside_access_in-4  ->  approximated  (emitted as security rules of FWShift)
-      [approximated] ZONE_WIDENED: the rule blocks traffic of zone outside; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
-  inside_access_in-1  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network.
-  inside_access_in-2  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network.
-  inside_access_in-3  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network.
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
   inside_access_in-4  ->  needs-review, emitted disabled
       [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
       [needs-review] FQDN_NOT_SUPPORTED: host name object updates: a security rule names addresses.
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network.
-  inside_access_in-5  ->  needs-review, emitted disabled
+  inside_access_in-5  ->  approximated  (emitted as security rules of outside, inside, dmz, guest)
       [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network.
-  inside_access_in-6  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network.
   inside_access_in-7  ->  needs-review, emitted disabled
       [needs-review] USER_MATCH: source user match LOCAL\alice is not converted.
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network.
-  inside_access_in-9  ->  needs-review, emitted disabled
+  inside_access_in-9  ->  skipped
       [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network.
-  dmz_access_in-1  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone dmz, and a security rule names no zone: give the networks behind it with --zone-network.
-  dmz_access_in-2  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone dmz, and a security rule names no zone: give the networks behind it with --zone-network.
-  dmz_access_in-3  ->  approximated  (emitted as security rules of FWShift)
-      [approximated] ZONE_WIDENED: the rule blocks traffic of zone dmz; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
-  dmz_access_in-4  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone dmz, and a security rule names no zone: give the networks behind it with --zone-network.
-  implicit-guest  ->  needs-review, emitted disabled
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
+  implicit-guest  ->  approximated  (emitted as security rules of outside, guest)
       [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
       [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone guest, outside, and a security rule names no zone: give the networks behind it with --zone-network.
 
 NAT rules
   nat-1  ->  skipped

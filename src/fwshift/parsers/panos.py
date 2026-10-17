@@ -9,7 +9,7 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional, Set, Tuple
 
-from .. import xmlread
+from .. import xmlread, zonenets
 from . import panos_set
 from ..appmap import valid_ports
 from ..errors import ParseError
@@ -32,7 +32,7 @@ from ..model import (
     SourceNat,
     Zone,
 )
-from ..netutil import is_network, is_range
+from ..netutil import Interval, is_network, is_range, parse_literal
 from ..report import Report, Severity
 
 # Services every PAN-OS release predefines.
@@ -165,6 +165,8 @@ def parse(data: bytes, report: Report, vsys: str = "", device_group: str = "") -
         if name in referenced and name not in policy.services and name not in policy.service_groups:
             policy.services[name] = Service(name, [ServiceEntry(Protocol(proto), dst_ports=ports)], builtin="panos")
 
+    if not panorama:
+        _zone_networks(config, policy, report)
     if panorama:
         report.note(
             Severity.INFO,
@@ -173,6 +175,100 @@ def parse(data: bytes, report: Report, vsys: str = "", device_group: str = "") -
             "firewall are not part of this policy",
         )
     return policy
+
+
+def _zone_networks(config: ET.Element, policy: Policy, report: Report) -> None:
+    """The networks behind the zones: the addresses of their interfaces (literal, or an address object of the policy),
+    the static routes of the virtual routers and logical routers that leave by them (a next hop in the router's own
+    interfaces), and the address pools of GlobalProtect behind their tunnel interface (zonenets). What lies behind an
+    interface in no zone of this virtual system, a route that drops or goes to another router, is behind no zone."""
+    network = config.find("devices/entry/network")
+    if network is None:
+        return
+
+    def literal(text: str, host: bool = False) -> Optional[Interval]:
+        found = parse_literal(text) if ("/" in text or "-" in text or host) else None
+        if found is None and text in policy.addresses and policy.addresses[text].kind in (AddressKind.NETWORK, AddressKind.RANGE):
+            found = parse_literal(policy.addresses[text].value)
+        return found
+
+    routers = network.findall("virtual-router/entry") + network.findall("logical-router/entry/vrf/entry")
+    table_of: Dict[str, str] = {}
+    for position, router in enumerate(routers):
+        for member in _members(router, "interface"):
+            table_of[member] = str(position)
+    routes: List[zonenets.Route] = []
+    unread: List[str] = []
+    holders: List[Tuple[str, Optional[ET.Element]]] = []
+    for kind in ("ethernet", "aggregate-ethernet"):
+        for interface in network.findall(f"interface/{kind}/entry"):
+            holders.append((interface.get("name", ""), interface.find("layer3")))
+            holders += [(unit.get("name", ""), unit) for unit in interface.findall("layer3/units/entry")]
+    for kind in ("vlan", "loopback", "tunnel"):  # (the interface itself, and its units vlan.10, loopback.1, tunnel.1)
+        for interface in network.findall(f"interface/{kind}"):
+            holders.append((kind, interface))
+            holders += [(unit.get("name", ""), unit) for unit in interface.findall("units/entry")]
+    for name, holder in holders:
+        if holder is None:
+            continue
+        for address in holder.findall("ip/entry") + holder.findall("ipv6/address/entry"):
+            found = literal(address.get("name", ""))
+            if found is not None:
+                routes.append(zonenets.Route(found, name, connected=True, table=table_of.get(name, "")))
+        if holder.find("dhcp-client") is not None or holder.find("pppoe") is not None:
+            unread.append(f"{name} takes its address from DHCP or PPPoE")
+    for gateway in config.findall("devices/entry/vsys/entry/global-protect/global-protect-gateway/entry"):
+        tunnel = _text(gateway, "remote-user-tunnel")
+        for pool in gateway.findall(".//ip-pool/member"):
+            found = literal((pool.text or "").strip())
+            if found is not None:
+                routes.append(zonenets.Route(found, tunnel, connected=True, table=table_of.get(tunnel, "")))
+            else:
+                unread.append(f"the GlobalProtect pool {(pool.text or '').strip()}")
+    dynamic: Set[str] = set()
+    for position, router in enumerate(routers):
+        for version, table in ((4, "ip"), (6, "ipv6")):
+            for route in router.findall(f"routing-table/{table}/static-route/entry"):
+                name = route.get("name", "")
+                destination = literal(_text(route, "destination"))
+                if destination is None or destination[0] != version:
+                    unread.append(f"static route {name}")
+                    continue
+                if route.find("route-table/no-install") is not None or route.find("route-table/multicast") is not None:
+                    continue  # (not in the table that forwards)
+                nexthop = route.find("nexthop")
+                why = ""
+                if nexthop is not None and nexthop.find("discard") is not None:
+                    why = "a route that discards"
+                elif nexthop is not None and (nexthop.find("next-vr") is not None or nexthop.find("next-lr") is not None):
+                    why = "a route to another virtual router"
+                hop = _text(route, "nexthop/ip-address") or _text(route, "nexthop/ipv6-address")
+                gateway_address = literal(hop, host=True) if hop else None
+                if hop and gateway_address is None and not why:
+                    why = f"its next hop {hop} is not an address"
+                metric = _text(route, "metric", "10")
+                distance = _text(route, "admin-dist", "10")
+                routes.append(zonenets.Route(destination, _text(route, "interface"), gateway_address,
+                                             (int(distance) if distance.isdigit() else 10, int(metric) if metric.isdigit() else 10),
+                                             nowhere=why, table=str(position)))  # fmt: skip
+        for protocol in ("bgp", "ospf", "ospfv3", "rip"):
+            if _text(router, f"protocol/{protocol}/enable") == "yes" or _text(router, f"{protocol}/enable") == "yes":
+                dynamic.add(protocol)
+    zone_of = {interface: zone.name for zone in policy.zones.values() for interface in zone.interfaces}
+    # The routers of this virtual system: those that hold its interfaces (another's may hold the same networks).
+    mine = {table_of[interface] for interface in zone_of if interface in table_of}
+    if mine:
+        routes = [route for route in routes if not route.table or route.table in mine]
+    partial: List[str] = []
+    if dynamic:
+        partial.append(f"routing protocols are on ({', '.join(sorted(dynamic))})")
+    layer2 = [entry.get("name", "") for entry in config.findall("devices/entry/vsys/entry/zone/entry")
+              if entry.find("network/layer3") is None and entry.get("name", "") in policy.zones
+              and any(entry.find(f"network/{mode}") is not None for mode in ("layer2", "virtual-wire", "tap", "tunnel", "external"))]  # fmt: skip
+    if layer2:
+        partial.append(f"zones without layer-3 interfaces ({', '.join(layer2[:6])}) pass traffic whose addresses are not known")
+    placed = zonenets.place(routes, zone_of, report, unread=unread, partial="; ".join(partial))
+    policy.zone_networks, policy.unzoned_networks = placed.zones, placed.unzoned
 
 
 def _select_scope(

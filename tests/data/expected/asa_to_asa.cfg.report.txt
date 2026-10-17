@@ -3,7 +3,7 @@ FWShift conversion report
   target: asa
 
 Summary
-  Security rules:     18   exact 15, approximated 0, needs review 3 (3 emitted disabled), skipped 0
+  Security rules:     18   exact 15, approximated 1, needs review 2 (2 emitted disabled), skipped 0
   NAT rules:           5   exact 5, approximated 0, needs review 0, skipped 0
   Addresses:           9   exact 9, approximated 0, needs review 0, skipped 0
   Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
@@ -14,8 +14,12 @@ Notes for the whole policy
   [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
   [approximated] ICMP_STATELESS: the ASA does not inspect ICMP ('inspect icmp' is not in a policy map): the reply to a permitted ICMP request got through only where an access list permitted the reply too. Every target lets the replies to a permitted request through by itself
   [approximated] VPN_BYPASS: the ASA lets traffic that arrives through its VPN tunnels past the interface access lists ('sysopt connection permit-vpn' is on by default). The converted rules do not allow that traffic; add rules for it on the target
+  [approximated] ZONE_NETWORK_GAP: the networks given with --zone-network leave out 192.168.1.0/24, ::-2001:db8:f:ffff:ffff:ffff:ffff:ffff, 2001:db8:10:1::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff. Nobody said behind which zone those addresses lie: where a rule for any address is kept to its zones, a permit rule does not cover them and a deny rule does. Give the zone that has the default route 0.0.0.0/0 and ::/0 (a network inside another one goes before it, as with routes)
   [info] UNBOUND_ACL: 1 access lists are not bound with access-group (they serve NAT, VPN or class maps) and are not security rules: branch_vpn
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; guest=10.30.0.0/24; inside=10.10.0.0/16,10.40.0.0/16,2001:db8:10::/64; outside=0.0.0.0/0,203.0.113.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them. Behind interfaces that are in no zone of the policy, so behind none of its zones (an allow for the zone of the default route does not reach them): mgmt=192.168.1.0/24
   [info] EGRESS_BY_ROUTE: an ASA access list names no outgoing interface. For permit entries with destination addresses the destination zone was taken from the interface addresses and static routes in the configuration
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=10.20.0.0/24; guest=10.30.0.0/24; inside=10.10.0.0/16,10.40.0.0/16,2001:db8:10::/64; outside=0.0.0.0/0,203.0.113.0/24. Behind no zone, as the configuration routes them (no zone's networks hold them): 192.168.1.0/24. --no-source-networks takes none of them
+  [info] ZONE_NETWORKS_ANY_ZONE: 8 allow rules for any zone and any address are written for FWSHIFT-ROUTED, every address but the networks behind no zone (192.168.1.0/24), which the source does not let them reach
   [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
   [info] SAME_SECURITY_TRAFFIC: the source did not forward traffic back out of the interface it came in on or between interfaces of the same security level unless 'same-security-traffic' permitted it. The access lists rely on that: keep the security levels and the same-security-traffic settings of the source
   [info] FQDN_DNS: objects with a host name need name resolution on the ASA ('dns domain-lookup' and a DNS server group)
@@ -25,6 +29,6 @@ Security rules
       [needs-review] SCHEDULE: schedule 'business-hours' is not converted; the rule would apply at all times.
   inside_access_in-7  ->  needs-review, emitted disabled  (emitted as inside_access_in)
       [needs-review] USER_MATCH: source user match LOCAL\alice is not converted.
-  implicit-guest  ->  needs-review, emitted disabled  (emitted as guest_access_in)
+  implicit-guest  ->  approximated  (emitted as guest_access_in)
       [info] IMPLICIT_PERMIT: interface 'guest' (security level 10) has no access list: the ASA lets its traffic out by the interfaces its security level and 'same-security-traffic' allow, here outside. This rule says so
-      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by outside, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind inside, dmz, outside with --zone-network.
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone outside. An ASA access list cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given

@@ -46,8 +46,9 @@ data "azurerm_resource_group" "target" {
   name = var.resource_group_name
 }
 
-resource "azurerm_network_security_group" "nsg_FWShift" {
-  name                = "FWShift"
+# associate lan with the subnets of: 10.10.0.0/15
+resource "azurerm_network_security_group" "nsg_lan" {
+  name                = "lan"
   location            = coalesce(var.location, data.azurerm_resource_group.target.location)
   resource_group_name = var.resource_group_name
   tags = {
@@ -55,47 +56,125 @@ resource "azurerm_network_security_group" "nsg_FWShift" {
   }
 
   security_rule {
-    name                       = "OT-no-internet-in"
+    name                       = "fwshift-zone-lan-in"
     priority                   = 100
     direction                  = "Inbound"
     access                     = "Deny"
     protocol                   = "*"
     source_port_range          = "*"
     destination_port_range     = "*"
-    source_address_prefix      = "0.0.0.0/0"
+    source_address_prefix      = "10.10.0.0/15"
     destination_address_prefix = "*"
-    description                = "OT no internet"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
   }
 
   security_rule {
-    name                       = "OT-no-internet-in-2"
+    name                       = "fwshift-zone-lan-in-2"
     priority                   = 110
     direction                  = "Inbound"
     access                     = "Deny"
     protocol                   = "Esp"
     source_port_range          = "*"
     destination_port_range     = "*"
-    source_address_prefix      = "0.0.0.0/0"
+    source_address_prefix      = "10.10.0.0/15"
     destination_address_prefix = "*"
-    description                = "OT no internet"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
   }
 
   security_rule {
-    name                       = "OT-no-internet-in-3"
+    name                       = "fwshift-zone-lan-in-3"
     priority                   = 120
     direction                  = "Inbound"
     access                     = "Deny"
     protocol                   = "Ah"
     source_port_range          = "*"
     destination_port_range     = "*"
-    source_address_prefix      = "0.0.0.0/0"
+    source_address_prefix      = "10.10.0.0/15"
     destination_address_prefix = "*"
-    description                = "OT no internet"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in"
+    priority                   = 130
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in-2"
+    priority                   = 140
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in-3"
+    priority                   = 150
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-in"
+    priority                   = 160
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.1.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-in-2"
+    priority                   = 170
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.1.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-in-3"
+    priority                   = 180
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.1.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
   }
 
   security_rule {
     name                       = "fwshift-default-in"
-    priority                   = 130
+    priority                   = 190
     direction                  = "Inbound"
     access                     = "Deny"
     protocol                   = "*"
@@ -108,7 +187,7 @@ resource "azurerm_network_security_group" "nsg_FWShift" {
 
   security_rule {
     name                       = "fwshift-default-in-2"
-    priority                   = 140
+    priority                   = 200
     direction                  = "Inbound"
     access                     = "Deny"
     protocol                   = "Esp"
@@ -133,47 +212,203 @@ resource "azurerm_network_security_group" "nsg_FWShift" {
   }
 
   security_rule {
-    name                       = "OT-no-internet-out"
+    name                       = "fwshift-zone-lan-out"
     priority                   = 100
     direction                  = "Outbound"
     access                     = "Deny"
     protocol                   = "*"
     source_port_range          = "*"
     destination_port_range     = "*"
-    source_address_prefix      = "0.0.0.0/0"
-    destination_address_prefix = "*"
-    description                = "OT no internet"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/15"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
   }
 
   security_rule {
-    name                       = "OT-no-internet-out-2"
+    name                       = "fwshift-zone-lan-out-2"
     priority                   = 110
     direction                  = "Outbound"
     access                     = "Deny"
     protocol                   = "Esp"
     source_port_range          = "*"
     destination_port_range     = "*"
-    source_address_prefix      = "0.0.0.0/0"
-    destination_address_prefix = "*"
-    description                = "OT no internet"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/15"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
   }
 
   security_rule {
-    name                       = "OT-no-internet-out-3"
+    name                       = "fwshift-zone-lan-out-3"
     priority                   = 120
     direction                  = "Outbound"
     access                     = "Deny"
     protocol                   = "Ah"
     source_port_range          = "*"
     destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/15"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out"
+    priority                   = 130
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out-2"
+    priority                   = 140
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out-3"
+    priority                   = 150
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "SCADA-to-PLCs-out"
+    priority                   = 160
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "502"
+    source_address_prefix      = "10.10.7.15/32"
+    destination_address_prefix = "10.30.1.0/24"
+    description                = "SCADA to PLCs: Engineering access to the controllers"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-out"
+    priority                   = 170
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.1.0/24"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-out-2"
+    priority                   = 180
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.1.0/24"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-out-3"
+    priority                   = 190
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.1.0/24"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "LAN-to-Internet-out"
+    priority                   = 200
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["53", "80", "443"]
+    source_address_prefix      = "10.10.0.0/15"
+    destination_address_prefix = "0.0.0.0/0"
+    description                = "LAN to Internet"
+  }
+
+  security_rule {
+    name                       = "LAN-to-Internet-out-2"
+    priority                   = 210
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "53"
+    source_address_prefix      = "10.10.0.0/15"
+    destination_address_prefix = "0.0.0.0/0"
+    description                = "LAN to Internet"
+  }
+
+  security_rule {
+    name                       = "LAN-basics-out"
+    priority                   = 220
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "53"
     source_address_prefix      = "0.0.0.0/0"
-    destination_address_prefix = "*"
-    description                = "OT no internet"
+    destination_address_prefix = "0.0.0.0/0"
+    description                = "LAN basics"
+  }
+
+  security_rule {
+    name                       = "LAN-basics-out-2"
+    priority                   = 230
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "53"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "0.0.0.0/0"
+    description                = "LAN basics"
+  }
+
+  security_rule {
+    name                       = "Partner-tunnel-out"
+    priority                   = 240
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "1024-65535"
+    destination_port_range     = "514"
+    source_address_prefix      = "10.10.0.0/15"
+    destination_address_prefix = "10.99.0.0/16"
+    description                = "Partner tunnel"
   }
 
   security_rule {
     name                       = "fwshift-default-out"
-    priority                   = 130
+    priority                   = 250
     direction                  = "Outbound"
     access                     = "Deny"
     protocol                   = "*"
@@ -186,7 +421,1181 @@ resource "azurerm_network_security_group" "nsg_FWShift" {
 
   security_rule {
     name                       = "fwshift-default-out-2"
+    priority                   = 260
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out-3"
+    priority                   = 4096
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+}
+
+# associate wan1 with the subnets of: 0.0.0.0/5 8.0.0.0/7 10.0.0.0/13 10.8.0.0/15 10.12.0.0/14 10.16.0.0/14 10.20.1.0/24 10.20.2.0/23 10.20.4.0/22 10.20.8.0/21 10.20.16.0/20 10.20.32.0/19 10.20.64.0/18 10.20.128.0/17 10.21.0.0/16 10.22.0.0/15 10.24.0.0/14 10.28.0.0/15 10.30.0.0/24 10.30.2.0/23 10.30.4.0/22 10.30.8.0/21 10.30.16.0/20 10.30.32.0/19 10.30.64.0/18 10.30.128.0/17 10.31.0.0/16 10.32.0.0/11 10.64.0.0/10 10.128.0.0/9 11.0.0.0/8 12.0.0.0/6 16.0.0.0/4 32.0.0.0/3 64.0.0.0/2 128.0.0.0/1
+resource "azurerm_network_security_group" "nsg_wan1" {
+  name                = "wan1"
+  location            = coalesce(var.location, data.azurerm_resource_group.target.location)
+  resource_group_name = var.resource_group_name
+  tags = {
+    generator = "FWShift"
+  }
+
+  security_rule {
+    name                       = "LAN-to-Internet-in"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["53", "80", "443"]
+    source_address_prefix      = "10.10.0.0/15"
+    destination_address_prefix = "*"
+    description                = "LAN to Internet"
+  }
+
+  security_rule {
+    name                       = "LAN-to-Internet-in-2"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "53"
+    source_address_prefix      = "10.10.0.0/15"
+    destination_address_prefix = "*"
+    description                = "LAN to Internet"
+  }
+
+  security_rule {
+    name                       = "LAN-basics-in"
+    priority                   = 120
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "53"
+    source_address_prefix      = "10.10.0.0/15"
+    destination_address_prefix = "*"
+    description                = "LAN basics"
+  }
+
+  security_rule {
+    name                       = "LAN-basics-in-2"
+    priority                   = 130
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "53"
+    source_address_prefix      = "10.10.0.0/15"
+    destination_address_prefix = "*"
+    description                = "LAN basics"
+  }
+
+  security_rule {
+    name                       = "Partner-tunnel-in"
     priority                   = 140
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "1024-65535"
+    destination_port_range     = "514"
+    source_address_prefix      = "10.10.0.0/15"
+    destination_address_prefix = "10.99.0.0/16"
+    description                = "Partner tunnel"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-in"
+    priority                   = 150
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.10.0.0/15"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-in-2"
+    priority                   = 160
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.10.0.0/15"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-in-3"
+    priority                   = 170
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.10.0.0/15"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in"
+    priority                   = 180
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in-2"
+    priority                   = 190
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in-3"
+    priority                   = 200
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "OT-no-internet-in"
+    priority                   = 210
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.1.0/24"
+    destination_address_prefix = "*"
+    description                = "OT no internet"
+  }
+
+  security_rule {
+    name                       = "OT-no-internet-in-2"
+    priority                   = 220
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.1.0/24"
+    destination_address_prefix = "*"
+    description                = "OT no internet"
+  }
+
+  security_rule {
+    name                       = "OT-no-internet-in-3"
+    priority                   = 230
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.1.0/24"
+    destination_address_prefix = "*"
+    description                = "OT no internet"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-in"
+    priority                   = 240
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.1.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-in-2"
+    priority                   = 250
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.1.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-in-3"
+    priority                   = 260
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.1.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in"
+    priority                   = 270
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in-2"
+    priority                   = 280
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in-3"
+    priority                   = 4096
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-out"
+    priority                   = 100
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/15"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-out-2"
+    priority                   = 110
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/15"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-out-3"
+    priority                   = 120
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/15"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "Inbound-web-out"
+    priority                   = 130
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["8080", "8443", "9000-9010"]
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.10/32"
+    description                = "Inbound web"
+  }
+
+  security_rule {
+    name                       = "Inbound-mail-out"
+    priority                   = 140
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "25"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.25/32"
+    description                = "Inbound mail"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out"
+    priority                   = 150
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out-2"
+    priority                   = 160
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out-3"
+    priority                   = 170
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-out"
+    priority                   = 180
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.1.0/24"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-out-2"
+    priority                   = 190
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.1.0/24"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-out-3"
+    priority                   = 200
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.1.0/24"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out"
+    priority                   = 210
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out-2"
+    priority                   = 220
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out-3"
+    priority                   = 4096
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+}
+
+# associate dmz with the subnets of: 10.20.0.0/24
+resource "azurerm_network_security_group" "nsg_dmz" {
+  name                = "dmz"
+  location            = coalesce(var.location, data.azurerm_resource_group.target.location)
+  resource_group_name = var.resource_group_name
+  tags = {
+    generator = "FWShift"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-in"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.10.0.0/15"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-in-2"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.10.0.0/15"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-in-3"
+    priority                   = 120
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.10.0.0/15"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in"
+    priority                   = 130
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in-2"
+    priority                   = 140
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in-3"
+    priority                   = 150
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-in"
+    priority                   = 160
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.1.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-in-2"
+    priority                   = 170
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.1.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-in-3"
+    priority                   = 180
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.1.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "Inbound-web-in"
+    priority                   = 190
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["8080", "8443", "9000-9010"]
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "10.20.0.10/32"
+    description                = "Inbound web"
+  }
+
+  security_rule {
+    name                       = "Inbound-mail-in"
+    priority                   = 200
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "25"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "10.20.0.25/32"
+    description                = "Inbound mail"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in"
+    priority                   = 210
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in-2"
+    priority                   = 220
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in-3"
+    priority                   = 4096
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-out"
+    priority                   = 100
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/15"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-out-2"
+    priority                   = 110
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/15"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-out-3"
+    priority                   = 120
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/15"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out"
+    priority                   = 130
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out-2"
+    priority                   = 140
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out-3"
+    priority                   = 150
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-out"
+    priority                   = 160
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.1.0/24"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-out-2"
+    priority                   = 170
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.1.0/24"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-out-3"
+    priority                   = 180
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.1.0/24"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out"
+    priority                   = 190
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out-2"
+    priority                   = 200
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out-3"
+    priority                   = 4096
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+}
+
+# associate ot with the subnets of: 10.30.1.0/24
+resource "azurerm_network_security_group" "nsg_ot" {
+  name                = "ot"
+  location            = coalesce(var.location, data.azurerm_resource_group.target.location)
+  resource_group_name = var.resource_group_name
+  tags = {
+    generator = "FWShift"
+  }
+
+  security_rule {
+    name                       = "SCADA-to-PLCs-in"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "502"
+    source_address_prefix      = "10.10.7.15/32"
+    destination_address_prefix = "10.30.1.0/24"
+    description                = "SCADA to PLCs: Engineering access to the controllers"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-in"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.10.0.0/15"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-in-2"
+    priority                   = 120
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.10.0.0/15"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-in-3"
+    priority                   = 130
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.10.0.0/15"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in"
+    priority                   = 140
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in-2"
+    priority                   = 150
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in-3"
+    priority                   = 160
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-in"
+    priority                   = 170
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.1.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-in-2"
+    priority                   = 180
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.1.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-in-3"
+    priority                   = 190
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.1.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in"
+    priority                   = 200
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in-2"
+    priority                   = 210
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in-3"
+    priority                   = 4096
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-out"
+    priority                   = 100
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/15"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-out-2"
+    priority                   = 110
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/15"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-lan-out-3"
+    priority                   = 120
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/15"
+    description                = "fwshift-zone-lan: the default of the source for traffic of zone lan: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out"
+    priority                   = 130
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out-2"
+    priority                   = 140
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out-3"
+    priority                   = 150
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-out"
+    priority                   = 160
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.1.0/24"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-out-2"
+    priority                   = 170
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.1.0/24"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-ot-out-3"
+    priority                   = 180
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.1.0/24"
+    description                = "fwshift-zone-ot: the default of the source for traffic of zone ot: deny"
+  }
+
+  security_rule {
+    name                       = "OT-no-internet-out"
+    priority                   = 190
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "0.0.0.0/0"
+    description                = "OT no internet"
+  }
+
+  security_rule {
+    name                       = "OT-no-internet-out-2"
+    priority                   = 200
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "0.0.0.0/0"
+    description                = "OT no internet"
+  }
+
+  security_rule {
+    name                       = "OT-no-internet-out-3"
+    priority                   = 210
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "0.0.0.0/0"
+    description                = "OT no internet"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out"
+    priority                   = 220
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out-2"
+    priority                   = 230
     direction                  = "Outbound"
     access                     = "Deny"
     protocol                   = "Esp"
@@ -214,24 +1623,28 @@ resource "azurerm_network_security_group" "nsg_FWShift" {
 output "fwshift_networks" {
   description = "Each network security group, with the networks of the subnets to associate it with"
   value = {
-    "FWShift" = {
-      id       = azurerm_network_security_group.nsg_FWShift.id
-      networks = []
+    "lan" = {
+      id       = azurerm_network_security_group.nsg_lan.id
+      networks = ["10.10.0.0/15"]
+    }
+    "wan1" = {
+      id       = azurerm_network_security_group.nsg_wan1.id
+      networks = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/13", "10.8.0.0/15", "10.12.0.0/14", "10.16.0.0/14", "10.20.1.0/24", "10.20.2.0/23", "10.20.4.0/22", "10.20.8.0/21", "10.20.16.0/20", "10.20.32.0/19", "10.20.64.0/18", "10.20.128.0/17", "10.21.0.0/16", "10.22.0.0/15", "10.24.0.0/14", "10.28.0.0/15", "10.30.0.0/24", "10.30.2.0/23", "10.30.4.0/22", "10.30.8.0/21", "10.30.16.0/20", "10.30.32.0/19", "10.30.64.0/18", "10.30.128.0/17", "10.31.0.0/16", "10.32.0.0/11", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/1"]
+    }
+    "dmz" = {
+      id       = azurerm_network_security_group.nsg_dmz.id
+      networks = ["10.20.0.0/24"]
+    }
+    "ot" = {
+      id       = azurerm_network_security_group.nsg_ot.id
+      networks = ["10.30.1.0/24"]
     }
   }
 }
 
 # Not written:
-#   LAN to Internet: the rule is for zone lan, wan1, and a security rule names no zone: give the networks behind it with --zone-network
-#   LAN basics: the rule is for zone lan, wan1, and a security rule names no zone: give the networks behind it with --zone-network
-#   Inbound web: the rule is for zone wan1, dmz, and a security rule names no zone: give the networks behind it with --zone-network
-#   Inbound mail: the rule is for zone wan1, dmz, and a security rule names no zone: give the networks behind it with --zone-network
-#   Admins to DMZ: not converted: groups netadmins; the rule is for zone lan, dmz, and a security rule names no zone: give the networks behind it with --zone-network
+#   Admins to DMZ: not converted: groups netadmins
 #   Block geo: references 'geo-blocked': FortiOS address type 'geography'
-#   DMZ out via pool: host name object updates.example.com: a security rule names addresses; the rule is for zone dmz, wan1, and a security rule names no zone: give the networks behind it with --zone-network
-#   SCADA to PLCs: the rule is for zone lan, ot, and a security rule names no zone: give the networks behind it with --zone-network
-#   Partner tunnel: the rule is for zone lan, wan1, and a security rule names no zone: give the networks behind it with --zone-network
-#   LAN v6 out: the rule is for zone lan, wan1, and a security rule names no zone: give the networks behind it with --zone-network
-#   policy-12: schedule 'office-hours' is not converted; the rule would apply at all times; the rule is for zone lan, dmz, and a security rule names no zone: give the networks behind it with --zone-network
+#   DMZ out via pool: host name object updates.example.com: a security rule names addresses
+#   policy-12: schedule 'office-hours' is not converted; the rule would apply at all times
 #   Not web: disabled in the source
-#   Timestamp probes: the rule is for zone lan, dmz, and a security rule names no zone: give the networks behind it with --zone-network

@@ -3,7 +3,7 @@ FWShift conversion report
   target: barracuda
 
 Summary
-  Security rules:     14   exact 0, approximated 1, needs review 13 (13 emitted disabled), skipped 0
+  Security rules:     14   exact 3, approximated 1, needs review 7 (7 emitted disabled), skipped 3
   NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
   Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
   Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
@@ -11,61 +11,50 @@ Summary
   Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
 
 Notes for the whole policy
+  [needs-review] ZONE_NETWORKS_ONE_VERSION: the policy has IPv6 addresses, and the networks of the zones are all of the other IP version: no IPv6 address lies behind any zone, so a rule for IPv6 that is kept to its zones matches nothing (an allow is left out; a deny keeps the addresses no zone holds). Where the firewall passes IPv6, give its networks with --zone-network
   [needs-review] BARRACUDA_LOAD: the output is a shell script that creates network objects, service objects and forwarding rules through the REST API of the firewall, with curl (section 10). Run it with DRY_RUN=1 first. The rules go to the top of the rule list, above the rules the firewall has, deactivated, and are then activated in order, first rule first: if a call is refused the script stops, and only the rules above that one are active, with the rules the firewall had below them. Barracuda documents the API by examples: assumed are the keys of a service object and its entries (protocol, ports, client ports), the interface of an entry of a network object, the IP version and action types of a rule other than block, and names of up to 32 letters, digits, periods, underscores and hyphens
   [needs-review] BLOCK_RULE_INACTIVE: the source blocks what no rule matches. The rules FWSHIFT-BLOCK and FWSHIFT-BLOCK-v6 that do so follow the converted rules, deactivated: until they are activated, the rules the firewall has below them decide that traffic. Look at those rules (management access, the default rules) and activate the two
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. --no-source-networks takes none of them
 
 Security rules
-  LAN to Internet  ->  needs-review, emitted disabled  (emitted as LAN_to_Internet)
+  LAN to Internet  ->  approximated  (emitted as LAN_to_Internet)
       [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of the firewall names no zone: give the networks behind wan1 with --zone-network.
+      [approximated] ZONE_BY_NETWORKS: the destination in zone wan1 is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
   LAN basics  ->  needs-review, emitted disabled  (emitted as LAN_basics)
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it with --zone-network
+      [approximated] ZONE_BY_NETWORKS: the destination in zone wan1 is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
       [needs-review] UNCONVERTIBLE_OBJECT: references 'basic-net': an ICMP type or code: a service entry of the firewall matches every ICMP type.
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of the firewall names no zone: give the networks behind wan1 with --zone-network.
-  Inbound web  ->  needs-review, emitted disabled  (emitted as Inbound_web)
+  Inbound web  ->  skipped
       [needs-review] NAT_PORT_TRANSLATION: virtual IP 'vip-web' forwards port 443 to 8443; FortiOS policies name the mapped port, the neutral model the original one. Check the service of this rule
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone wan1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind wan1 with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the firewall names no zone: give the networks behind dmz with --zone-network.
-  Inbound mail  ->  needs-review, emitted disabled  (emitted as Inbound_mail)
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone wan1, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind wan1 with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the firewall names no zone: give the networks behind dmz with --zone-network.
+      [approximated] ZONE_BY_NETWORKS: the source in zone wan1 is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it with --zone-network
+      [info] NO_COMMON_FAMILY: no IP version has addresses on both sides (after negation and the zones): the rule matches nothing
+  Inbound mail  ->  skipped
+      [approximated] ZONE_BY_NETWORKS: the source in zone wan1 is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it with --zone-network
+      [info] NO_COMMON_FAMILY: no IP version has addresses on both sides (after negation and the zones): the rule matches nothing
   Admins to DMZ  ->  needs-review, emitted disabled  (emitted as Admins_to_DMZ)
       [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the firewall names no zone: give the networks behind dmz with --zone-network.
   Block geo  ->  needs-review, emitted disabled  (emitted as Block_geo)
-      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone wan1; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
       [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
   DMZ out via pool  ->  needs-review, emitted disabled  (emitted as DMZ_out_via_pool)
       [needs-review] UNCONVERTIBLE_OBJECT: references 'updates.example.com': a host name: how the API spells a hostname object is not known.
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind dmz with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of the firewall names no zone: give the networks behind wan1 with --zone-network.
-  SCADA to PLCs  ->  needs-review, emitted disabled  (emitted as SCADA_to_PLCs)
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone ot, and a rule of the firewall names no zone: give the networks behind ot with --zone-network.
-  OT no internet  ->  approximated  (emitted as OT_no_internet)
-      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone ot; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give its interface with --interface-map, or the networks behind every zone with --zone-network to keep it to its zones
-      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone wan1; a rule of the firewall names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
-  Partner tunnel  ->  needs-review, emitted disabled  (emitted as Partner_tunnel)
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of the firewall names no zone: give the networks behind wan1 with --zone-network.
-  LAN v6 out  ->  needs-review, emitted disabled  (emitted as LAN_v6_out)
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of the firewall names no zone: give the networks behind wan1 with --zone-network.
+  OT no internet  ->  exact  (emitted as OT_no_internet)
+      [info] ZONE_BY_NETWORKS: the source in zone ot is written without the networks given for the other zones with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone wan1 is written without the networks given for the other zones with --zone-network
+  LAN v6 out  ->  skipped
+      [approximated] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [approximated] ZONE_BY_NETWORKS: the destination in zone wan1 is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
+      [info] NO_COMMON_FAMILY: no IP version has addresses on both sides (after negation and the zones): the rule matches nothing
   policy-12  ->  needs-review, emitted disabled
       [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the firewall names no zone: give the networks behind dmz with --zone-network.
   Not web  ->  needs-review, emitted disabled  (emitted as Not_web)
+      [approximated] ZONE_BY_NETWORKS: the destination in zone wan1 is written as the addresses of the networks given for it with --zone-network, without the addresses that lie in none of the networks given
       [needs-review] SERVICE_NEGATE: a negated service cannot be written: the firewall has no negation in a rule.
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind dmz with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a rule of the firewall names no zone: give the networks behind wan1 with --zone-network.
   Timestamp probes  ->  needs-review, emitted disabled  (emitted as Timestamp_probes)
       [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
       [needs-review] UNCONVERTIBLE_OBJECT: references 'TIMESTAMP': an ICMP type or code: a service entry of the firewall matches every ICMP type.
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a rule of the firewall names no zone: give its interface with --interface-map, or the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a rule of the firewall names no zone: give the networks behind dmz with --zone-network.
 
 NAT rules
   vip-web  ->  skipped

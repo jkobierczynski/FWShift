@@ -46,8 +46,9 @@ data "azurerm_resource_group" "target" {
   name = var.resource_group_name
 }
 
-resource "azurerm_network_security_group" "nsg_FWShift" {
-  name                = "FWShift"
+# associate outside with the subnets of: 0.0.0.0/5 8.0.0.0/7 10.0.0.0/13 10.8.0.0/15 10.11.0.0/16 10.12.0.0/14 10.16.0.0/14 10.20.1.0/24 10.20.2.0/23 10.20.4.0/22 10.20.8.0/21 10.20.16.0/20 10.20.32.0/19 10.20.64.0/18 10.20.128.0/17 10.21.0.0/16 10.22.0.0/15 10.24.0.0/14 10.28.0.0/15 10.30.1.0/24 10.30.2.0/23 10.30.4.0/22 10.30.8.0/21 10.30.16.0/20 10.30.32.0/19 10.30.64.0/18 10.30.128.0/17 10.31.0.0/16 10.32.0.0/13 10.41.0.0/16 10.42.0.0/15 10.44.0.0/14 10.48.0.0/12 10.64.0.0/10 10.128.0.0/9 11.0.0.0/8 12.0.0.0/6 16.0.0.0/4 32.0.0.0/3 64.0.0.0/2 128.0.0.0/2 192.0.0.0/9 192.128.0.0/11 192.160.0.0/13 192.168.0.0/24 192.168.2.0/23 192.168.4.0/22 192.168.8.0/21 192.168.16.0/20 192.168.32.0/19 192.168.64.0/18 192.168.128.0/17 192.169.0.0/16 192.170.0.0/15 192.172.0.0/14 192.176.0.0/12 192.192.0.0/10 193.0.0.0/8 194.0.0.0/7 196.0.0.0/6 200.0.0.0/5 208.0.0.0/4 224.0.0.0/3
+resource "azurerm_network_security_group" "nsg_outside" {
+  name                = "outside"
   location            = coalesce(var.location, data.azurerm_resource_group.target.location)
   resource_group_name = var.resource_group_name
   tags = {
@@ -55,86 +56,515 @@ resource "azurerm_network_security_group" "nsg_FWShift" {
   }
 
   security_rule {
-    name                       = "outside_access_in-4-in"
-    priority                   = 100
+    name                         = "inside_access_in-1-in"
+    priority                     = 100
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "53"
+    source_address_prefix        = "10.10.0.0/16"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "inside_access_in-1"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-1-in-2"
+    priority                     = 110
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Udp"
+    source_port_range            = "*"
+    destination_port_ranges      = ["53", "123"]
+    source_address_prefix        = "10.10.0.0/16"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "inside_access_in-1"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-2-in"
+    priority                     = 120
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_ranges      = ["80", "443", "8000-8010"]
+    source_address_prefixes      = ["10.10.0.0/16", "10.40.0.0/16"]
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "inside_access_in-2"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-3-in"
+    priority                     = 130
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "22"
+    source_address_prefixes      = ["10.10.5.10/31", "10.10.5.12/30", "10.10.5.16/30", "10.10.5.20/32"]
+    destination_address_prefixes = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    description                  = "inside_access_in-3"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in"
+    priority                   = 140
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in-2"
+    priority                   = 150
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in-3"
+    priority                   = 160
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Icmp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in-4"
+    priority                   = 170
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in-5"
+    priority                   = 180
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-6-in"
+    priority                   = 190
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5060"
+    source_address_prefix      = "10.10.0.0/16"
+    destination_address_prefix = "10.20.0.50/32"
+    description                = "inside_access_in-6"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-6-in-2"
+    priority                   = 200
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "5060"
+    source_address_prefix      = "10.10.0.0/16"
+    destination_address_prefix = "10.20.0.50/32"
+    description                = "inside_access_in-6"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in"
+    priority                   = 210
     direction                  = "Inbound"
     access                     = "Deny"
     protocol                   = "*"
     source_port_range          = "*"
     destination_port_range     = "*"
-    source_address_prefix      = "*"
+    source_address_prefixes    = ["10.10.0.0/16", "10.40.0.0/16"]
     destination_address_prefix = "*"
-    description                = "outside_access_in-4"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
   }
 
   security_rule {
-    name                       = "outside_access_in-4-in-2"
-    priority                   = 110
+    name                       = "fwshift-zone-inside-in-2"
+    priority                   = 220
     direction                  = "Inbound"
     access                     = "Deny"
     protocol                   = "Esp"
     source_port_range          = "*"
     destination_port_range     = "*"
-    source_address_prefix      = "*"
+    source_address_prefixes    = ["10.10.0.0/16", "10.40.0.0/16"]
     destination_address_prefix = "*"
-    description                = "outside_access_in-4"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
   }
 
   security_rule {
-    name                       = "outside_access_in-4-in-3"
-    priority                   = 120
+    name                       = "fwshift-zone-inside-in-3"
+    priority                   = 230
     direction                  = "Inbound"
     access                     = "Deny"
     protocol                   = "Ah"
     source_port_range          = "*"
     destination_port_range     = "*"
-    source_address_prefix      = "*"
+    source_address_prefixes    = ["10.10.0.0/16", "10.40.0.0/16"]
     destination_address_prefix = "*"
-    description                = "outside_access_in-4"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
   }
 
   security_rule {
-    name                       = "dmz_access_in-3-in"
-    priority                   = 130
+    name                       = "fwshift-zone-inside-in-4"
+    priority                   = 240
     direction                  = "Inbound"
     access                     = "Deny"
     protocol                   = "*"
     source_port_range          = "*"
     destination_port_range     = "*"
-    source_address_prefix      = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in-5"
+    priority                   = 250
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in-6"
+    priority                   = 260
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                         = "dmz_access_in-1-in"
+    priority                     = 270
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Udp"
+    source_port_range            = "*"
+    destination_port_range       = "53"
+    source_address_prefixes      = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "dmz_access_in-1"
+  }
+
+  security_rule {
+    name                         = "dmz_access_in-2-in"
+    priority                     = 280
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "1024-65535"
+    destination_port_range       = "25"
+    source_address_prefix        = "10.20.0.25/32"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "dmz_access_in-2"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-3-in"
+    priority                   = 290
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
     destination_address_prefix = "10.10.0.0/16"
     description                = "dmz_access_in-3"
   }
 
   security_rule {
     name                       = "dmz_access_in-3-in-2"
-    priority                   = 140
+    priority                   = 300
     direction                  = "Inbound"
     access                     = "Deny"
     protocol                   = "Esp"
     source_port_range          = "*"
     destination_port_range     = "*"
-    source_address_prefix      = "*"
+    source_address_prefix      = "10.20.0.0/24"
     destination_address_prefix = "10.10.0.0/16"
     description                = "dmz_access_in-3"
   }
 
   security_rule {
     name                       = "dmz_access_in-3-in-3"
-    priority                   = 150
+    priority                   = 310
     direction                  = "Inbound"
     access                     = "Deny"
     protocol                   = "Ah"
     source_port_range          = "*"
     destination_port_range     = "*"
-    source_address_prefix      = "*"
+    source_address_prefix      = "10.20.0.0/24"
     destination_address_prefix = "10.10.0.0/16"
     description                = "dmz_access_in-3"
   }
 
   security_rule {
+    name                         = "dmz_access_in-4-in"
+    priority                     = 320
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "443"
+    source_address_prefix        = "10.20.0.10/32"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "dmz_access_in-4"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in"
+    priority                   = 330
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in-2"
+    priority                   = 340
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in-3"
+    priority                   = 350
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "implicit-guest-in"
+    priority                   = 360
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.0.0/24"
+    destination_address_prefix = "*"
+    description                = "implicit-guest: ASA implicit rule: traffic to interfaces of a lower security level is permitted"
+  }
+
+  security_rule {
+    name                       = "implicit-guest-in-2"
+    priority                   = 370
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.0.0/24"
+    destination_address_prefix = "*"
+    description                = "implicit-guest: ASA implicit rule: traffic to interfaces of a lower security level is permitted"
+  }
+
+  security_rule {
+    name                       = "implicit-guest-in-3"
+    priority                   = 380
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Icmp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.0.0/24"
+    destination_address_prefix = "*"
+    description                = "implicit-guest: ASA implicit rule: traffic to interfaces of a lower security level is permitted"
+  }
+
+  security_rule {
+    name                       = "implicit-guest-in-4"
+    priority                   = 390
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.0.0/24"
+    destination_address_prefix = "*"
+    description                = "implicit-guest: ASA implicit rule: traffic to interfaces of a lower security level is permitted"
+  }
+
+  security_rule {
+    name                       = "implicit-guest-in-5"
+    priority                   = 400
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.0.0/24"
+    destination_address_prefix = "*"
+    description                = "implicit-guest: ASA implicit rule: traffic to interfaces of a lower security level is permitted"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-in"
+    priority                   = 410
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-in-2"
+    priority                   = 420
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-in-3"
+    priority                   = 430
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-1-in"
+    priority                   = 440
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "8080"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "10.20.0.10/32"
+    description                = "outside_access_in-1: Published web server"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-2-in"
+    priority                   = 450
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["25", "587", "8443"]
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "10.20.0.25/32"
+    description                = "outside_access_in-2"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-in"
+    priority                   = 460
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "*"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-in-2"
+    priority                   = 470
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "*"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-in-3"
+    priority                   = 480
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "*"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
     name                       = "fwshift-default-in"
-    priority                   = 160
+    priority                   = 490
     direction                  = "Inbound"
     access                     = "Deny"
     protocol                   = "*"
@@ -147,7 +577,7 @@ resource "azurerm_network_security_group" "nsg_FWShift" {
 
   security_rule {
     name                       = "fwshift-default-in-2"
-    priority                   = 170
+    priority                   = 500
     direction                  = "Inbound"
     access                     = "Deny"
     protocol                   = "Esp"
@@ -172,46 +602,46 @@ resource "azurerm_network_security_group" "nsg_FWShift" {
   }
 
   security_rule {
-    name                       = "outside_access_in-4-out"
-    priority                   = 100
-    direction                  = "Outbound"
-    access                     = "Deny"
-    protocol                   = "*"
-    source_port_range          = "*"
-    destination_port_range     = "*"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-    description                = "outside_access_in-4"
+    name                         = "outside_access_in-4-out"
+    priority                     = 100
+    direction                    = "Outbound"
+    access                       = "Deny"
+    protocol                     = "*"
+    source_port_range            = "*"
+    destination_port_range       = "*"
+    source_address_prefix        = "*"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "outside_access_in-4"
   }
 
   security_rule {
-    name                       = "outside_access_in-4-out-2"
-    priority                   = 110
-    direction                  = "Outbound"
-    access                     = "Deny"
-    protocol                   = "Esp"
-    source_port_range          = "*"
-    destination_port_range     = "*"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-    description                = "outside_access_in-4"
+    name                         = "outside_access_in-4-out-2"
+    priority                     = 110
+    direction                    = "Outbound"
+    access                       = "Deny"
+    protocol                     = "Esp"
+    source_port_range            = "*"
+    destination_port_range       = "*"
+    source_address_prefix        = "*"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "outside_access_in-4"
   }
 
   security_rule {
-    name                       = "outside_access_in-4-out-3"
-    priority                   = 120
-    direction                  = "Outbound"
-    access                     = "Deny"
-    protocol                   = "Ah"
-    source_port_range          = "*"
-    destination_port_range     = "*"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-    description                = "outside_access_in-4"
+    name                         = "outside_access_in-4-out-3"
+    priority                     = 120
+    direction                    = "Outbound"
+    access                       = "Deny"
+    protocol                     = "Ah"
+    source_port_range            = "*"
+    destination_port_range       = "*"
+    source_address_prefix        = "*"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "outside_access_in-4"
   }
 
   security_rule {
-    name                       = "dmz_access_in-3-out"
+    name                       = "outside_access_in-4-out-4"
     priority                   = 130
     direction                  = "Outbound"
     access                     = "Deny"
@@ -219,12 +649,12 @@ resource "azurerm_network_security_group" "nsg_FWShift" {
     source_port_range          = "*"
     destination_port_range     = "*"
     source_address_prefix      = "*"
-    destination_address_prefix = "10.10.0.0/16"
-    description                = "dmz_access_in-3"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "outside_access_in-4"
   }
 
   security_rule {
-    name                       = "dmz_access_in-3-out-2"
+    name                       = "outside_access_in-4-out-5"
     priority                   = 140
     direction                  = "Outbound"
     access                     = "Deny"
@@ -232,12 +662,12 @@ resource "azurerm_network_security_group" "nsg_FWShift" {
     source_port_range          = "*"
     destination_port_range     = "*"
     source_address_prefix      = "*"
-    destination_address_prefix = "10.10.0.0/16"
-    description                = "dmz_access_in-3"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "outside_access_in-4"
   }
 
   security_rule {
-    name                       = "dmz_access_in-3-out-3"
+    name                       = "outside_access_in-4-out-6"
     priority                   = 150
     direction                  = "Outbound"
     access                     = "Deny"
@@ -245,13 +675,377 @@ resource "azurerm_network_security_group" "nsg_FWShift" {
     source_port_range          = "*"
     destination_port_range     = "*"
     source_address_prefix      = "*"
-    destination_address_prefix = "10.10.0.0/16"
-    description                = "dmz_access_in-3"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                         = "fwshift-zone-inside-out"
+    priority                     = 160
+    direction                    = "Outbound"
+    access                       = "Deny"
+    protocol                     = "*"
+    source_port_range            = "*"
+    destination_port_range       = "*"
+    source_address_prefix        = "*"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                         = "fwshift-zone-inside-out-2"
+    priority                     = 170
+    direction                    = "Outbound"
+    access                       = "Deny"
+    protocol                     = "Esp"
+    source_port_range            = "*"
+    destination_port_range       = "*"
+    source_address_prefix        = "*"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                         = "fwshift-zone-inside-out-3"
+    priority                     = 180
+    direction                    = "Outbound"
+    access                       = "Deny"
+    protocol                     = "Ah"
+    source_port_range            = "*"
+    destination_port_range       = "*"
+    source_address_prefix        = "*"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-out-4"
+    priority                   = 190
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-out-5"
+    priority                   = 200
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-out-6"
+    priority                   = 210
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-1-out"
+    priority                   = 220
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "8080"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.10/32"
+    description                = "outside_access_in-1: Published web server"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-2-out"
+    priority                   = 230
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["25", "587", "8443"]
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.25/32"
+    description                = "outside_access_in-2"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-out-7"
+    priority                   = 240
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-out-8"
+    priority                   = 250
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-out-9"
+    priority                   = 260
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out"
+    priority                   = 270
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out-2"
+    priority                   = 280
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out-3"
+    priority                   = 290
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-out-10"
+    priority                   = 300
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-out-11"
+    priority                   = 310
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-out-12"
+    priority                   = 320
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-out"
+    priority                   = 330
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-out-2"
+    priority                   = 340
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-out-3"
+    priority                   = 350
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-1-out-2"
+    priority                   = 360
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "8080"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.10/32"
+    description                = "outside_access_in-1: Published web server"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-2-out-2"
+    priority                   = 370
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["25", "587", "8443"]
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.25/32"
+    description                = "outside_access_in-2"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-out-13"
+    priority                   = 380
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "0.0.0.0/0"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-out-14"
+    priority                   = 390
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "0.0.0.0/0"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-out-15"
+    priority                   = 400
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "0.0.0.0/0"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-out-16"
+    priority                   = 410
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "::/0"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-out-17"
+    priority                   = 420
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "::/0"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-out-18"
+    priority                   = 430
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "::/0"
+    description                = "outside_access_in-4"
   }
 
   security_rule {
     name                       = "fwshift-default-out"
-    priority                   = 160
+    priority                   = 440
     direction                  = "Outbound"
     access                     = "Deny"
     protocol                   = "*"
@@ -264,7 +1058,2728 @@ resource "azurerm_network_security_group" "nsg_FWShift" {
 
   security_rule {
     name                       = "fwshift-default-out-2"
+    priority                   = 450
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out-3"
+    priority                   = 4096
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+}
+
+# associate inside with the subnets of: 10.10.0.0/16 10.40.0.0/16 2001:db8:10::/64
+resource "azurerm_network_security_group" "nsg_inside" {
+  name                = "inside"
+  location            = coalesce(var.location, data.azurerm_resource_group.target.location)
+  resource_group_name = var.resource_group_name
+  tags = {
+    generator = "FWShift"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-1-in"
+    priority                     = 100
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "53"
+    source_address_prefix        = "10.10.0.0/16"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "inside_access_in-1"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-1-in-2"
+    priority                     = 110
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Udp"
+    source_port_range            = "*"
+    destination_port_ranges      = ["53", "123"]
+    source_address_prefix        = "10.10.0.0/16"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "inside_access_in-1"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-2-in"
+    priority                     = 120
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_ranges      = ["80", "443", "8000-8010"]
+    source_address_prefixes      = ["10.10.0.0/16", "10.40.0.0/16"]
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "inside_access_in-2"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-3-in"
+    priority                     = 130
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "22"
+    source_address_prefixes      = ["10.10.5.10/31", "10.10.5.12/30", "10.10.5.16/30", "10.10.5.20/32"]
+    destination_address_prefixes = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    description                  = "inside_access_in-3"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in"
+    priority                   = 140
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in-2"
+    priority                   = 150
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in-3"
+    priority                   = 160
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Icmp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in-4"
     priority                   = 170
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in-5"
+    priority                   = 180
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-6-in"
+    priority                   = 190
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5060"
+    source_address_prefix      = "10.10.0.0/16"
+    destination_address_prefix = "10.20.0.50/32"
+    description                = "inside_access_in-6"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-6-in-2"
+    priority                   = 200
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "5060"
+    source_address_prefix      = "10.10.0.0/16"
+    destination_address_prefix = "10.20.0.50/32"
+    description                = "inside_access_in-6"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in"
+    priority                   = 210
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefixes    = ["10.10.0.0/16", "10.40.0.0/16"]
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in-2"
+    priority                   = 220
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefixes    = ["10.10.0.0/16", "10.40.0.0/16"]
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in-3"
+    priority                   = 230
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefixes    = ["10.10.0.0/16", "10.40.0.0/16"]
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in-4"
+    priority                   = 240
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in-5"
+    priority                   = 250
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in-6"
+    priority                   = 260
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                         = "dmz_access_in-1-in"
+    priority                     = 270
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Udp"
+    source_port_range            = "*"
+    destination_port_range       = "53"
+    source_address_prefixes      = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "dmz_access_in-1"
+  }
+
+  security_rule {
+    name                         = "dmz_access_in-2-in"
+    priority                     = 280
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "1024-65535"
+    destination_port_range       = "25"
+    source_address_prefix        = "10.20.0.25/32"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "dmz_access_in-2"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-3-in"
+    priority                   = 290
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "10.10.0.0/16"
+    description                = "dmz_access_in-3"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-3-in-2"
+    priority                   = 300
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "10.10.0.0/16"
+    description                = "dmz_access_in-3"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-3-in-3"
+    priority                   = 310
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "10.10.0.0/16"
+    description                = "dmz_access_in-3"
+  }
+
+  security_rule {
+    name                         = "dmz_access_in-4-in"
+    priority                     = 320
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "443"
+    source_address_prefix        = "10.20.0.10/32"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "dmz_access_in-4"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in"
+    priority                   = 330
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in-2"
+    priority                   = 340
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in-3"
+    priority                   = 350
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-in"
+    priority                   = 360
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-in-2"
+    priority                   = 370
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-in-3"
+    priority                   = 380
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-1-in"
+    priority                   = 390
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "8080"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "10.20.0.10/32"
+    description                = "outside_access_in-1: Published web server"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-2-in"
+    priority                   = 400
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["25", "587", "8443"]
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "10.20.0.25/32"
+    description                = "outside_access_in-2"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-in"
+    priority                   = 410
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "*"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-in-2"
+    priority                   = 420
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "*"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-in-3"
+    priority                   = 430
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "*"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in"
+    priority                   = 440
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in-2"
+    priority                   = 450
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in-3"
+    priority                   = 4096
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-1-out"
+    priority                     = 100
+    direction                    = "Outbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "53"
+    source_address_prefix        = "10.10.0.0/16"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "inside_access_in-1"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-1-out-2"
+    priority                     = 110
+    direction                    = "Outbound"
+    access                       = "Allow"
+    protocol                     = "Udp"
+    source_port_range            = "*"
+    destination_port_ranges      = ["53", "123"]
+    source_address_prefix        = "10.10.0.0/16"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "inside_access_in-1"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-2-out"
+    priority                     = 120
+    direction                    = "Outbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_ranges      = ["80", "443", "8000-8010"]
+    source_address_prefixes      = ["10.10.0.0/16", "10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32", "10.40.0.0/16"]
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "inside_access_in-2"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-out"
+    priority                   = 130
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-out-2"
+    priority                   = 140
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-out-3"
+    priority                   = 150
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Icmp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-out-4"
+    priority                   = 160
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-out-5"
+    priority                   = 170
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                         = "fwshift-zone-inside-out"
+    priority                     = 180
+    direction                    = "Outbound"
+    access                       = "Deny"
+    protocol                     = "*"
+    source_port_range            = "*"
+    destination_port_range       = "*"
+    source_address_prefix        = "*"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                         = "fwshift-zone-inside-out-2"
+    priority                     = 190
+    direction                    = "Outbound"
+    access                       = "Deny"
+    protocol                     = "Esp"
+    source_port_range            = "*"
+    destination_port_range       = "*"
+    source_address_prefix        = "*"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                         = "fwshift-zone-inside-out-3"
+    priority                     = 200
+    direction                    = "Outbound"
+    access                       = "Deny"
+    protocol                     = "Ah"
+    source_port_range            = "*"
+    destination_port_range       = "*"
+    source_address_prefix        = "*"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-out-4"
+    priority                   = 210
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-out-5"
+    priority                   = 220
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-out-6"
+    priority                   = 230
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-1-out-3"
+    priority                   = 240
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "53"
+    source_address_prefix      = "10.10.0.0/16"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "inside_access_in-1"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-1-out-4"
+    priority                   = 250
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["53", "123"]
+    source_address_prefix      = "10.10.0.0/16"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "inside_access_in-1"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-2-out-2"
+    priority                   = 260
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["80", "443", "8000-8010"]
+    source_address_prefixes    = ["10.10.0.0/16", "10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32", "10.40.0.0/16"]
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "inside_access_in-2"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-3-out"
+    priority                     = 270
+    direction                    = "Outbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "22"
+    source_address_prefixes      = ["10.10.5.10/31", "10.10.5.12/30", "10.10.5.16/30", "10.10.5.20/32"]
+    destination_address_prefixes = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    description                  = "inside_access_in-3"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-6-out"
+    priority                   = 280
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5060"
+    source_address_prefix      = "10.10.0.0/16"
+    destination_address_prefix = "10.20.0.50/32"
+    description                = "inside_access_in-6"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-6-out-2"
+    priority                   = 290
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "5060"
+    source_address_prefix      = "10.10.0.0/16"
+    destination_address_prefix = "10.20.0.50/32"
+    description                = "inside_access_in-6"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out"
+    priority                   = 300
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out-2"
+    priority                   = 310
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out-3"
+    priority                   = 320
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-1-out-5"
+    priority                   = 330
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "53"
+    source_address_prefix      = "10.10.0.0/16"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "inside_access_in-1"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-1-out-6"
+    priority                   = 340
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["53", "123"]
+    source_address_prefix      = "10.10.0.0/16"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "inside_access_in-1"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-2-out-3"
+    priority                   = 350
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["80", "443", "8000-8010"]
+    source_address_prefixes    = ["10.10.0.0/16", "10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32", "10.40.0.0/16"]
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "inside_access_in-2"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-out"
+    priority                   = 360
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-out-2"
+    priority                   = 370
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-out-3"
+    priority                   = 380
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-1-out-7"
+    priority                     = 390
+    direction                    = "Outbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "53"
+    source_address_prefix        = "10.10.0.0/16"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "inside_access_in-1"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-1-out-8"
+    priority                     = 400
+    direction                    = "Outbound"
+    access                       = "Allow"
+    protocol                     = "Udp"
+    source_port_range            = "*"
+    destination_port_ranges      = ["53", "123"]
+    source_address_prefix        = "10.10.0.0/16"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "inside_access_in-1"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-2-out-4"
+    priority                     = 410
+    direction                    = "Outbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_ranges      = ["80", "443", "8000-8010"]
+    source_address_prefixes      = ["10.10.0.0/16", "10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32", "10.40.0.0/16"]
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "inside_access_in-2"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-3-out-2"
+    priority                     = 420
+    direction                    = "Outbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "22"
+    source_address_prefixes      = ["10.10.5.10/31", "10.10.5.12/30", "10.10.5.16/30", "10.10.5.20/32"]
+    destination_address_prefixes = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    description                  = "inside_access_in-3"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-6-out-3"
+    priority                   = 430
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5060"
+    source_address_prefix      = "10.10.0.0/16"
+    destination_address_prefix = "10.20.0.50/32"
+    description                = "inside_access_in-6"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-6-out-4"
+    priority                   = 440
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "5060"
+    source_address_prefix      = "10.10.0.0/16"
+    destination_address_prefix = "10.20.0.50/32"
+    description                = "inside_access_in-6"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-out-6"
+    priority                   = 450
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-out-7"
+    priority                   = 460
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-out-8"
+    priority                   = 470
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Icmp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-out-9"
+    priority                   = 480
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-out-10"
+    priority                   = 490
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out"
+    priority                   = 500
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out-2"
+    priority                   = 510
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out-3"
+    priority                   = 4096
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+}
+
+# associate dmz with the subnets of: 10.20.0.0/24
+resource "azurerm_network_security_group" "nsg_dmz" {
+  name                = "dmz"
+  location            = coalesce(var.location, data.azurerm_resource_group.target.location)
+  resource_group_name = var.resource_group_name
+  tags = {
+    generator = "FWShift"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-1-in"
+    priority                     = 100
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "53"
+    source_address_prefix        = "10.10.0.0/16"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "inside_access_in-1"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-1-in-2"
+    priority                     = 110
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Udp"
+    source_port_range            = "*"
+    destination_port_ranges      = ["53", "123"]
+    source_address_prefix        = "10.10.0.0/16"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "inside_access_in-1"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-2-in"
+    priority                     = 120
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_ranges      = ["80", "443", "8000-8010"]
+    source_address_prefixes      = ["10.10.0.0/16", "10.40.0.0/16"]
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "inside_access_in-2"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-3-in"
+    priority                     = 130
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "22"
+    source_address_prefixes      = ["10.10.5.10/31", "10.10.5.12/30", "10.10.5.16/30", "10.10.5.20/32"]
+    destination_address_prefixes = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    description                  = "inside_access_in-3"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in"
+    priority                   = 140
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in-2"
+    priority                   = 150
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in-3"
+    priority                   = 160
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Icmp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in-4"
+    priority                   = 170
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in-5"
+    priority                   = 180
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-6-in"
+    priority                   = 190
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5060"
+    source_address_prefix      = "10.10.0.0/16"
+    destination_address_prefix = "10.20.0.50/32"
+    description                = "inside_access_in-6"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-6-in-2"
+    priority                   = 200
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "5060"
+    source_address_prefix      = "10.10.0.0/16"
+    destination_address_prefix = "10.20.0.50/32"
+    description                = "inside_access_in-6"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in"
+    priority                   = 210
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefixes    = ["10.10.0.0/16", "10.40.0.0/16"]
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in-2"
+    priority                   = 220
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefixes    = ["10.10.0.0/16", "10.40.0.0/16"]
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in-3"
+    priority                   = 230
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefixes    = ["10.10.0.0/16", "10.40.0.0/16"]
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in-4"
+    priority                   = 240
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in-5"
+    priority                   = 250
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in-6"
+    priority                   = 260
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                         = "dmz_access_in-1-in"
+    priority                     = 270
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Udp"
+    source_port_range            = "*"
+    destination_port_range       = "53"
+    source_address_prefixes      = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "dmz_access_in-1"
+  }
+
+  security_rule {
+    name                         = "dmz_access_in-2-in"
+    priority                     = 280
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "1024-65535"
+    destination_port_range       = "25"
+    source_address_prefix        = "10.20.0.25/32"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "dmz_access_in-2"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-3-in"
+    priority                   = 290
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "10.10.0.0/16"
+    description                = "dmz_access_in-3"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-3-in-2"
+    priority                   = 300
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "10.10.0.0/16"
+    description                = "dmz_access_in-3"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-3-in-3"
+    priority                   = 310
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "10.10.0.0/16"
+    description                = "dmz_access_in-3"
+  }
+
+  security_rule {
+    name                         = "dmz_access_in-4-in"
+    priority                     = 320
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "443"
+    source_address_prefix        = "10.20.0.10/32"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "dmz_access_in-4"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in"
+    priority                   = 330
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in-2"
+    priority                   = 340
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in-3"
+    priority                   = 350
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-in"
+    priority                   = 360
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-in-2"
+    priority                   = 370
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-in-3"
+    priority                   = 380
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-1-in"
+    priority                   = 390
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "8080"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "10.20.0.10/32"
+    description                = "outside_access_in-1: Published web server"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-2-in"
+    priority                   = 400
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["25", "587", "8443"]
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "10.20.0.25/32"
+    description                = "outside_access_in-2"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-in"
+    priority                   = 410
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "*"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-in-2"
+    priority                   = 420
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "*"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-in-3"
+    priority                   = 430
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "*"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in"
+    priority                   = 440
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in-2"
+    priority                   = 450
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in-3"
+    priority                   = 4096
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                         = "dmz_access_in-1-out"
+    priority                     = 100
+    direction                    = "Outbound"
+    access                       = "Allow"
+    protocol                     = "Udp"
+    source_port_range            = "*"
+    destination_port_range       = "53"
+    source_address_prefixes      = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "dmz_access_in-1"
+  }
+
+  security_rule {
+    name                         = "dmz_access_in-2-out"
+    priority                     = 110
+    direction                    = "Outbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "1024-65535"
+    destination_port_range       = "25"
+    source_address_prefix        = "10.20.0.25/32"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "dmz_access_in-2"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-3-out"
+    priority                   = 120
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/16"
+    description                = "dmz_access_in-3"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-3-out-2"
+    priority                   = 130
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/16"
+    description                = "dmz_access_in-3"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-3-out-3"
+    priority                   = 140
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/16"
+    description                = "dmz_access_in-3"
+  }
+
+  security_rule {
+    name                         = "dmz_access_in-4-out"
+    priority                     = 150
+    direction                    = "Outbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "443"
+    source_address_prefix        = "10.20.0.10/32"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "dmz_access_in-4"
+  }
+
+  security_rule {
+    name                         = "fwshift-zone-inside-out"
+    priority                     = 160
+    direction                    = "Outbound"
+    access                       = "Deny"
+    protocol                     = "*"
+    source_port_range            = "*"
+    destination_port_range       = "*"
+    source_address_prefix        = "*"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                         = "fwshift-zone-inside-out-2"
+    priority                     = 170
+    direction                    = "Outbound"
+    access                       = "Deny"
+    protocol                     = "Esp"
+    source_port_range            = "*"
+    destination_port_range       = "*"
+    source_address_prefix        = "*"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                         = "fwshift-zone-inside-out-3"
+    priority                     = 180
+    direction                    = "Outbound"
+    access                       = "Deny"
+    protocol                     = "Ah"
+    source_port_range            = "*"
+    destination_port_range       = "*"
+    source_address_prefix        = "*"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-out-4"
+    priority                   = 190
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-out-5"
+    priority                   = 200
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-out-6"
+    priority                   = 210
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-1-out-2"
+    priority                   = 220
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "53"
+    source_address_prefixes    = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "dmz_access_in-1"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-2-out-2"
+    priority                   = 230
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "1024-65535"
+    destination_port_range     = "25"
+    source_address_prefix      = "10.20.0.25/32"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "dmz_access_in-2"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-4-out-2"
+    priority                   = 240
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "10.20.0.10/32"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "dmz_access_in-4"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out"
+    priority                   = 250
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out-2"
+    priority                   = 260
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out-3"
+    priority                   = 270
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-1-out-3"
+    priority                   = 280
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "53"
+    source_address_prefixes    = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "dmz_access_in-1"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-2-out-3"
+    priority                   = 290
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "1024-65535"
+    destination_port_range     = "25"
+    source_address_prefix      = "10.20.0.25/32"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "dmz_access_in-2"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-4-out-3"
+    priority                   = 300
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "10.20.0.10/32"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "dmz_access_in-4"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-out"
+    priority                   = 310
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-out-2"
+    priority                   = 320
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-out-3"
+    priority                   = 330
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                         = "dmz_access_in-1-out-4"
+    priority                     = 340
+    direction                    = "Outbound"
+    access                       = "Allow"
+    protocol                     = "Udp"
+    source_port_range            = "*"
+    destination_port_range       = "53"
+    source_address_prefixes      = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "dmz_access_in-1"
+  }
+
+  security_rule {
+    name                         = "dmz_access_in-2-out-4"
+    priority                     = 350
+    direction                    = "Outbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "1024-65535"
+    destination_port_range       = "25"
+    source_address_prefix        = "10.20.0.25/32"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "dmz_access_in-2"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-3-out-4"
+    priority                   = 360
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/16"
+    description                = "dmz_access_in-3"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-3-out-5"
+    priority                   = 370
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/16"
+    description                = "dmz_access_in-3"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-3-out-6"
+    priority                   = 380
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.10.0.0/16"
+    description                = "dmz_access_in-3"
+  }
+
+  security_rule {
+    name                         = "dmz_access_in-4-out-4"
+    priority                     = 390
+    direction                    = "Outbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "443"
+    source_address_prefix        = "10.20.0.10/32"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "dmz_access_in-4"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out"
+    priority                   = 400
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out-2"
+    priority                   = 410
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out-3"
+    priority                   = 4096
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+}
+
+# associate guest with the subnets of: 10.30.0.0/24
+resource "azurerm_network_security_group" "nsg_guest" {
+  name                = "guest"
+  location            = coalesce(var.location, data.azurerm_resource_group.target.location)
+  resource_group_name = var.resource_group_name
+  tags = {
+    generator = "FWShift"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-1-in"
+    priority                     = 100
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "53"
+    source_address_prefix        = "10.10.0.0/16"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "inside_access_in-1"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-1-in-2"
+    priority                     = 110
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Udp"
+    source_port_range            = "*"
+    destination_port_ranges      = ["53", "123"]
+    source_address_prefix        = "10.10.0.0/16"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "inside_access_in-1"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-2-in"
+    priority                     = 120
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_ranges      = ["80", "443", "8000-8010"]
+    source_address_prefixes      = ["10.10.0.0/16", "10.40.0.0/16"]
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "inside_access_in-2"
+  }
+
+  security_rule {
+    name                         = "inside_access_in-3-in"
+    priority                     = 130
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "22"
+    source_address_prefixes      = ["10.10.5.10/31", "10.10.5.12/30", "10.10.5.16/30", "10.10.5.20/32"]
+    destination_address_prefixes = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    description                  = "inside_access_in-3"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in"
+    priority                   = 140
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in-2"
+    priority                   = 150
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in-3"
+    priority                   = 160
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Icmp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in-4"
+    priority                   = 170
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-5-in-5"
+    priority                   = 180
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "::/0"
+    description                = "inside_access_in-5"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-6-in"
+    priority                   = 190
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5060"
+    source_address_prefix      = "10.10.0.0/16"
+    destination_address_prefix = "10.20.0.50/32"
+    description                = "inside_access_in-6"
+  }
+
+  security_rule {
+    name                       = "inside_access_in-6-in-2"
+    priority                   = 200
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "5060"
+    source_address_prefix      = "10.10.0.0/16"
+    destination_address_prefix = "10.20.0.50/32"
+    description                = "inside_access_in-6"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in"
+    priority                   = 210
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefixes    = ["10.10.0.0/16", "10.40.0.0/16"]
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in-2"
+    priority                   = 220
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefixes    = ["10.10.0.0/16", "10.40.0.0/16"]
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in-3"
+    priority                   = 230
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefixes    = ["10.10.0.0/16", "10.40.0.0/16"]
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in-4"
+    priority                   = 240
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in-5"
+    priority                   = 250
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-in-6"
+    priority                   = 260
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "2001:db8:10::/64"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                         = "dmz_access_in-1-in"
+    priority                     = 270
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Udp"
+    source_port_range            = "*"
+    destination_port_range       = "53"
+    source_address_prefixes      = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "dmz_access_in-1"
+  }
+
+  security_rule {
+    name                         = "dmz_access_in-2-in"
+    priority                     = 280
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "1024-65535"
+    destination_port_range       = "25"
+    source_address_prefix        = "10.20.0.25/32"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "dmz_access_in-2"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-3-in"
+    priority                   = 290
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "10.10.0.0/16"
+    description                = "dmz_access_in-3"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-3-in-2"
+    priority                   = 300
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "10.10.0.0/16"
+    description                = "dmz_access_in-3"
+  }
+
+  security_rule {
+    name                       = "dmz_access_in-3-in-3"
+    priority                   = 310
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "10.10.0.0/16"
+    description                = "dmz_access_in-3"
+  }
+
+  security_rule {
+    name                         = "dmz_access_in-4-in"
+    priority                     = 320
+    direction                    = "Inbound"
+    access                       = "Allow"
+    protocol                     = "Tcp"
+    source_port_range            = "*"
+    destination_port_range       = "443"
+    source_address_prefix        = "10.20.0.10/32"
+    destination_address_prefixes = ["0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    description                  = "dmz_access_in-4"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in"
+    priority                   = 330
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in-2"
+    priority                   = 340
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-in-3"
+    priority                   = 350
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.20.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-in"
+    priority                   = 360
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-in-2"
+    priority                   = 370
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-in-3"
+    priority                   = 380
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.30.0.0/24"
+    destination_address_prefix = "*"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-1-in"
+    priority                   = 390
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "8080"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "10.20.0.10/32"
+    description                = "outside_access_in-1: Published web server"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-2-in"
+    priority                   = 400
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["25", "587", "8443"]
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "10.20.0.25/32"
+    description                = "outside_access_in-2"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-in"
+    priority                   = 410
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "*"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-in-2"
+    priority                   = 420
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "*"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "outside_access_in-4-in-3"
+    priority                   = 430
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "0.0.0.0/0"
+    destination_address_prefix = "*"
+    description                = "outside_access_in-4"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in"
+    priority                   = 440
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in-2"
+    priority                   = 450
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-in-3"
+    priority                   = 4096
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                         = "fwshift-zone-inside-out"
+    priority                     = 100
+    direction                    = "Outbound"
+    access                       = "Deny"
+    protocol                     = "*"
+    source_port_range            = "*"
+    destination_port_range       = "*"
+    source_address_prefix        = "*"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                         = "fwshift-zone-inside-out-2"
+    priority                     = 110
+    direction                    = "Outbound"
+    access                       = "Deny"
+    protocol                     = "Esp"
+    source_port_range            = "*"
+    destination_port_range       = "*"
+    source_address_prefix        = "*"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                         = "fwshift-zone-inside-out-3"
+    priority                     = 120
+    direction                    = "Outbound"
+    access                       = "Deny"
+    protocol                     = "Ah"
+    source_port_range            = "*"
+    destination_port_range       = "*"
+    source_address_prefix        = "*"
+    destination_address_prefixes = ["10.10.0.0/16", "10.40.0.0/16"]
+    description                  = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-out-4"
+    priority                   = 130
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-out-5"
+    priority                   = 140
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-inside-out-6"
+    priority                   = 150
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "2001:db8:10::/64"
+    description                = "fwshift-zone-inside: the default of the source for traffic of zone inside: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out"
+    priority                   = 160
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out-2"
+    priority                   = 170
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-dmz-out-3"
+    priority                   = 180
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.20.0.0/24"
+    description                = "fwshift-zone-dmz: the default of the source for traffic of zone dmz: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-out"
+    priority                   = 190
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-out-2"
+    priority                   = 200
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-zone-guest-out-3"
+    priority                   = 210
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.30.0.0/24"
+    description                = "fwshift-zone-guest: the default of the source for traffic of zone guest: deny"
+  }
+
+  security_rule {
+    name                       = "implicit-guest-out"
+    priority                   = 220
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "0.0.0.0/0"
+    description                = "implicit-guest: ASA implicit rule: traffic to interfaces of a lower security level is permitted"
+  }
+
+  security_rule {
+    name                       = "implicit-guest-out-2"
+    priority                   = 230
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "0.0.0.0/0"
+    description                = "implicit-guest: ASA implicit rule: traffic to interfaces of a lower security level is permitted"
+  }
+
+  security_rule {
+    name                       = "implicit-guest-out-3"
+    priority                   = 240
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Icmp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "0.0.0.0/0"
+    description                = "implicit-guest: ASA implicit rule: traffic to interfaces of a lower security level is permitted"
+  }
+
+  security_rule {
+    name                       = "implicit-guest-out-4"
+    priority                   = 250
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Esp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "0.0.0.0/0"
+    description                = "implicit-guest: ASA implicit rule: traffic to interfaces of a lower security level is permitted"
+  }
+
+  security_rule {
+    name                       = "implicit-guest-out-5"
+    priority                   = 260
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Ah"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "0.0.0.0/0"
+    description                = "implicit-guest: ASA implicit rule: traffic to interfaces of a lower security level is permitted"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out"
+    priority                   = 270
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+    description                = "fwshift-default: the default of the source for what no rule matches: deny"
+  }
+
+  security_rule {
+    name                       = "fwshift-default-out-2"
+    priority                   = 280
     direction                  = "Outbound"
     access                     = "Deny"
     protocol                   = "Esp"
@@ -292,27 +3807,26 @@ resource "azurerm_network_security_group" "nsg_FWShift" {
 output "fwshift_networks" {
   description = "Each network security group, with the networks of the subnets to associate it with"
   value = {
-    "FWShift" = {
-      id       = azurerm_network_security_group.nsg_FWShift.id
-      networks = []
+    "outside" = {
+      id       = azurerm_network_security_group.nsg_outside.id
+      networks = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/13", "10.8.0.0/15", "10.11.0.0/16", "10.12.0.0/14", "10.16.0.0/14", "10.20.1.0/24", "10.20.2.0/23", "10.20.4.0/22", "10.20.8.0/21", "10.20.16.0/20", "10.20.32.0/19", "10.20.64.0/18", "10.20.128.0/17", "10.21.0.0/16", "10.22.0.0/15", "10.24.0.0/14", "10.28.0.0/15", "10.30.1.0/24", "10.30.2.0/23", "10.30.4.0/22", "10.30.8.0/21", "10.30.16.0/20", "10.30.32.0/19", "10.30.64.0/18", "10.30.128.0/17", "10.31.0.0/16", "10.32.0.0/13", "10.41.0.0/16", "10.42.0.0/15", "10.44.0.0/14", "10.48.0.0/12", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    }
+    "inside" = {
+      id       = azurerm_network_security_group.nsg_inside.id
+      networks = ["10.10.0.0/16", "10.40.0.0/16", "2001:db8:10::/64"]
+    }
+    "dmz" = {
+      id       = azurerm_network_security_group.nsg_dmz.id
+      networks = ["10.20.0.0/24"]
+    }
+    "guest" = {
+      id       = azurerm_network_security_group.nsg_guest.id
+      networks = ["10.30.0.0/24"]
     }
   }
 }
 
 # Not written:
-#   outside_access_in-1: the rule is for zone outside, and a security rule names no zone: give the networks behind it with --zone-network
-#   outside_access_in-2: the rule is for zone outside, and a security rule names no zone: give the networks behind it with --zone-network
-#   outside_access_in-3: the rule is for zone outside, and a security rule names no zone: give the networks behind it with --zone-network
-#   inside_access_in-1: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network
-#   inside_access_in-2: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network
-#   inside_access_in-3: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network
-#   inside_access_in-4: schedule 'business-hours' is not converted; the rule would apply at all times; host name object updates: a security rule names addresses; the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network
-#   inside_access_in-5: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network
-#   inside_access_in-6: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network
-#   inside_access_in-7: source user match LOCAL\alice is not converted; the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network
+#   inside_access_in-4: schedule 'business-hours' is not converted; the rule would apply at all times; host name object updates: a security rule names addresses
+#   inside_access_in-7: source user match LOCAL\alice is not converted
 #   inside_access_in-8: disabled in the source
-#   inside_access_in-9: the rule is for zone inside, and a security rule names no zone: give the networks behind it with --zone-network
-#   dmz_access_in-1: the rule is for zone dmz, and a security rule names no zone: give the networks behind it with --zone-network
-#   dmz_access_in-2: the rule is for zone dmz, and a security rule names no zone: give the networks behind it with --zone-network
-#   dmz_access_in-4: the rule is for zone dmz, and a security rule names no zone: give the networks behind it with --zone-network
-#   implicit-guest: the rule is for zone guest, outside, and a security rule names no zone: give the networks behind it with --zone-network

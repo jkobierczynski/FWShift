@@ -311,6 +311,11 @@ class Policy:
     # True when a rule of the source that names the object of a destination NAT itself applied
     # to the translated traffic (a FortiOS virtual IP in a policy).
     named_translations: bool = False
+    # The networks behind each zone, as the source tells them (its interfaces and static routes; 0.35.0), by the names
+    # of the zones of the policy; empty where the source does not say.
+    zone_networks: Dict[str, List[str]] = field(default_factory=dict)
+    # The networks the source routes to no zone of the policy: an interface in no zone, a route that drops, ...
+    unzoned_networks: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return dataclasses.asdict(self)

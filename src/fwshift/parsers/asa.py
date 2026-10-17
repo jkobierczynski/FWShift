@@ -34,7 +34,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Set, Tuple, TypeVar
 
-from .. import transform
+from .. import transform, zonenets
 from ..errors import ParseError
 from ..model import (
     ANY,
@@ -395,8 +395,46 @@ class _Builder:
             raise ParseError("no Cisco ASA configuration found; expected the output of 'show running-config'")
         if self.modern_nat:
             transform.rewrite_destinations(self.p, self.report, to_post_nat=False)
+        self._zone_networks()
         self._notes()
         return self.p
+
+    def _zone_networks(self) -> None:
+        """The networks behind the interfaces (the zones): their own, and the static routes that leave by them, with the
+        distance of each route (zonenets). What lies behind an interface that is shut down or only manages, or a route
+        to Null0, is behind no zone."""
+        routes: List[zonenets.Route] = []
+        for interface in self.interfaces.values():
+            why = "its interface is shut down" if interface.shutdown else ""
+            routes += [zonenets.Route(network, interface.nameif, connected=True, nowhere=why) for network in interface.networks]
+        unread: List[str] = []
+        for entry in self._top("route") + self._top("ipv6", "route"):
+            words = entry.words[1:] if entry.words[0] == "route" else entry.words[2:]
+            if entry.words[0] == "route":
+                address, mask = (["0.0.0.0" if w == "0" else w for w in words[1:3]] + ["", ""])[:2]
+                network = parse_literal(netmask_to_cidr(self._ip(address), mask) or "") if len(words) >= 3 else None
+                rest = words[3:]
+            else:
+                network = parse_literal(words[1]) if len(words) >= 2 and "/" in words[1] else None
+                rest = words[2:]
+            if network is None or not words:
+                unread.append(" ".join(entry.words)[:80])
+                continue
+            if words[0] == "Null0":
+                routes.append(zonenets.Route(network, nowhere="a route to Null0"))
+                continue
+            if words[0] not in self.interfaces or "tunneled" in rest:
+                unread.append(" ".join(entry.words)[:80] + (" (for traffic from VPN tunnels only)" if "tunneled" in rest else ""))
+                continue
+            distance = int(rest[1]) if len(rest) > 1 and is_number(rest[1]) else 1
+            why = "its interface is shut down" if self.interfaces[words[0]].shutdown else ""
+            routes.append(zonenets.Route(network, words[0], None, (distance, 0), nowhere=why))
+        zone_of = {name: name for name, interface in self.interfaces.items() if not interface.management_only and name in self.p.zones}
+        partial = [text for flag, text in ((self.dynamic_routing, "routing protocols or policy routing are configured"),
+                                           (self.bridged, "bridge groups (transparent mode) pass traffic whose addresses are not known"))
+                   if flag]  # fmt: skip
+        placed = zonenets.place(routes, zone_of, self.report, unread=unread, partial="; ".join(partial))
+        self.p.zone_networks, self.p.unzoned_networks = placed.zones, placed.unzoned
 
     def _version(self) -> None:
         version: Optional[Tuple[int, int]] = None

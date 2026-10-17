@@ -3,7 +3,7 @@ FWShift conversion report
   target: asa
 
 Summary
-  Security rules:     14   exact 0, approximated 5, needs review 9 (8 emitted disabled), skipped 0
+  Security rules:     14   exact 3, approximated 6, needs review 5 (4 emitted disabled), skipped 0
   NAT rules:           5   exact 1, approximated 1, needs review 2, skipped 1
   Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
   Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
@@ -11,49 +11,44 @@ Summary
   Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
 
 Notes for the whole policy
+  [needs-review] ZONE_NETWORKS_ONE_VERSION: the policy has IPv6 addresses, and the networks of the zones are all of the other IP version: no IPv6 address lies behind any zone, so a rule for IPv6 that is kept to its zones matches nothing (an allow is left out; a deny keeps the addresses no zone holds). Where the firewall passes IPv6, give its networks with --zone-network
   [needs-review] ASA_LOAD: the output binds its access lists with 'access-group', which replaces the lists bound to those interfaces now. Its NAT lines go to the end of section 1 of the NAT table: manual NAT rules the ASA has stay in front of them and win, only its network object NAT and after-auto rules come after them. The global access list ends the policy for every interface of the ASA, also for those the policy does not name: none of them keeps the ASA's own permit towards lower security levels. Entries of an access list that exists under the same name are added to it: load the output on an ASA without them, or remove them first
   [needs-review] INTERFACES_REQUIRED: zones are written as interface names (nameif); map each zone to its interface with --zone-map: lan, wan1, dmz, ot. The access lists are written for an ASA whose interfaces are these and no others: a rule to every other zone is written as a rule to any destination, which reaches a further interface as well. They also count on the ASA not sending traffic back out of the interface it came in on: leave 'same-security-traffic permit intra-interface' off, or give the networks of every zone with --zone-network. An ASA forwards between two interfaces of the same security level only with 'same-security-traffic permit inter-interface': give the interfaces different levels or set it
   [approximated] NAT_ORDER: the source applies a destination NAT rule and a source NAT rule to the same connection. 1 destination NAT rule is written as a rule that names the source as well and leaves it as it is: a connection that needed both translations gets the destination translation only. Combine the two in one rule where that matters
+  [approximated] ZONE_NETWORK_GAP: the networks given with --zone-network leave out every IPv6 address. Nobody said behind which zone those addresses lie: where a rule for any address is kept to its zones, a permit rule does not cover them and a deny rule does. Give the zone that has the default route 0.0.0.0/0 and ::/0 (a network inside another one goes before it, as with routes)
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. --no-source-networks takes none of them
   [info] EXISTING_OBJECTS: objects are created by name: an object that exists on the target under the same name is changed, and an object group that exists gets the new members next to its own. --target-prefix keeps them apart
   [info] FQDN_DNS: objects with a host name need name resolution on the ASA ('dns domain-lookup' and a DNS server group)
 
 Security rules
-  LAN to Internet  ->  needs-review, emitted disabled  (emitted as lan_access_in)
+  LAN to Internet  ->  approximated  (emitted as lan_access_in)
       [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
-      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, ot, wan1 with --zone-network.
-  LAN basics  ->  needs-review, emitted disabled  (emitted as lan_access_in)
-      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, ot, wan1 with --zone-network.
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone wan1. An ASA access list cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given
+  LAN basics  ->  approximated  (emitted as lan_access_in)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone wan1. An ASA access list cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given
   Inbound web  ->  needs-review  (emitted as wan1_access_in)
       [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination 'vip-web' with post-NAT '10.20.0.10' because of NAT rule 'vip-web', which translates only some of the services of this rule: for the others the rule now names '10.20.0.10', sent there directly, and no longer 'vip-web'
-      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
   Inbound mail  ->  approximated  (emitted as wan1_access_in)
       [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'vip-mail' with post-NAT '10.20.0.25' because of NAT rule 'vip-mail'; check that this rule is meant to cover the translated traffic
-      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
   Admins to DMZ  ->  needs-review, emitted disabled  (emitted as lan_access_in)
-      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
       [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
   Block geo  ->  needs-review, emitted disabled  (emitted as global_access)
       [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
       [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
   DMZ out via pool  ->  approximated  (emitted as dmz_access_in)
       [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
-  SCADA to PLCs  ->  approximated  (emitted as lan_access_in)
-      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by ot. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
-  OT no internet  ->  needs-review, emitted disabled  (emitted as ot_access_in)
-      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind lan, dmz, wan1 with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
-  Partner tunnel  ->  approximated  (emitted as lan_access_in)
-      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
-  LAN v6 out  ->  needs-review, emitted disabled  (emitted as lan_access_in)
-      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind dmz, ot, wan1 with --zone-network.
+  OT no internet  ->  approximated  (emitted as ot_access_in)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone wan1. An ASA access list cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network). The addresses that lie in none of the networks given are denied by it as well
+  LAN v6 out  ->  approximated  (emitted as lan_access_in)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone wan1. An ASA access list cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given
   policy-12  ->  needs-review, emitted disabled  (emitted as lan_access_in)
-      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
       [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
   Not web  ->  needs-review, emitted disabled  (emitted as dmz_access_in)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone wan1. An ASA access list cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given
       [needs-review] SERVICE_NEGATE: a negated service match does not exist in an ASA access list.
-      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind lan, ot, wan1 with --zone-network.
-  Timestamp probes  ->  approximated  (emitted as lan_access_in)
+  Timestamp probes  ->  exact  (emitted as lan_access_in)
       [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
-      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. An ASA access list cannot name the interface traffic leaves by: the entry applies to its destination addresses by whatever interface they are reached.
 
 NAT rules
   vip-mail  ->  approximated  (emitted as 1 NAT line)

@@ -52,7 +52,7 @@ def emit(policy: Policy, report: Report, options: Options) -> str:
     source_zones = transform.rule_zones(p)
     transform.apply_zone_map(p, options.zone_map)
     transform.ensure_references(p, report)
-    zone_spaces(options.zone_networks)
+    zone_spaces(options.zone_networks, options.zone_excluded)
     # A group sees the private destination of what comes in (after the translation) and the private source of what goes
     # out (before it). The NAT rules are not written.
     translated = {nat.origin for nat in p.nat_rules
@@ -119,7 +119,7 @@ class _Emitter:
         self.native = p.vendor == "azure"
         self.taint_a = transform.tainted_addresses(p, keep_dynamic=self.native)
         self.taint_s = transform.tainted_services(p)
-        self.spaces = zone_spaces(options.zone_networks)
+        self.spaces = zone_spaces(options.zone_networks, options.zone_excluded)
         used = [z for r in p.rules for z in r.src_zones + r.dst_zones if z != ANY]
         self.universe = transform.target_zones(p, options.zone_map, used, list(options.zone_networks))
         self.inside = transform.intrazone_decisions(p, options.zone_map, source_zones, self.universe, report)

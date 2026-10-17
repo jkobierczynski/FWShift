@@ -8,7 +8,7 @@ rule by rule, how faithful the result is. It can also audit a policy: rules that
 rules that never match, loose ends; show what each zone may reach in each
 other zone; check a policy against a zone and conduit model kept as a file;
 and say which connections two policies decide differently.
-This manual covers version 0.34.
+This manual covers version 0.35.
 
 **Contents**
 
@@ -62,7 +62,7 @@ may reach (section 14), check a policy against a zone and conduit model kept
 as a file (section 16), and name every connection two policies decide
 differently, including a source and its conversion read back (section 17).
 
-> **Status.** Version 0.34 is tested against synthetic configurations. iptables
+> **Status.** Version 0.35 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). AWS, Azure and Google Cloud output was loaded into a real account
 > by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1) and PAN-OS output on a VM-Series (PAN-OS 11.2.15). Output for Check Point,
@@ -114,8 +114,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.34.0.pyz --version
-python3 fwshift-0.34.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.35.0.pyz --version
+python3 fwshift-0.35.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -968,6 +968,54 @@ findings while reading:
   address odd-hosts: UNSUPPORTED_ADDRESS: wildcard mask 10.20.1.2/0.0.254.0 cannot be converted
 ```
 
+**The networks behind the zones** (0.35.0). Where a configuration holds its
+interfaces and routes, FWShift reads where each address lies, as the firewall
+routes it: FortiOS (`config system interface` of the VDOM with its secondary
+and extra IPv6 addresses, `config system zone`, `config router static` and
+`static6`, also by SD-WAN zone and to an address object, the pools of SSL VPN
+and IPsec mode-config and the remote networks of a phase 2 behind their tunnel
+interface; a route to an internet service places nothing), PAN-OS (the layer-3
+interfaces, their units, VLAN, loopback and tunnel interfaces, with literal
+addresses or address objects; the static routes of the virtual routers and of
+the logical routers, a next hop in the router's own interfaces; the pools of
+GlobalProtect behind their tunnel interface; only the routers that hold
+interfaces of the virtual system read) and the ASA (`nameif` interfaces,
+`route` and `ipv6 route`; a `tunneled` route places nothing). A pool that is a
+range is taken as the networks it is made of. Each network goes to the zone of the
+interface it is on or that its route leaves by (by the route to the next hop
+where a route names no interface, the longest prefix first); a default route
+makes `0.0.0.0/0` or `::/0` that zone's, "everything that is behind no other
+zone". Of two routes to one network the connected one wins, then the one the
+firewall prefers (distance, then metric).
+
+What the configuration routes to **no zone of the policy** is kept apart: the
+networks of an interface no zone holds (a management interface, one of
+another virtual system or VDOM, an SSL VPN no rule names), of an interface
+that is down or shut down, routes that drop (blackhole, discard, `Null0`) or
+lead to another virtual router, networks routed by several zones alike
+(`ZONE_NETWORKS_CONFLICT`), routes whose next hop leads nowhere known. They are
+no zone's, and not "everything else" either: the zone with the default route
+does not take them, so an allow for that zone does not reach them, nor does an
+allow for any zone and any address (`ZONE_NETWORKS_ANY_ZONE`: it is written for
+`FWSHIFT-ROUTED`, every address but these); a deny for any address still does.
+With routing protocols configured, or zones whose interfaces are not layer 3
+(virtual wire, layer 2, tap; FortiOS virtual-wire pairs; ASA bridge groups),
+not every network is known (`ZONE_NETWORKS_PARTIAL`), and the default route is
+not taken as "everything else": give the zone that leads to them with
+`--zone-network`. The report says what was found (`ZONE_NETWORKS`).
+
+The targets that need the networks of the zones (ASA, pfSense, OPNsense,
+Barracuda, NSX, AWS, Azure, Google Cloud, Meraki, SonicWall) and the
+equivalence check take them from there for every zone `--zone-network` does
+not give (`ZONE_NETWORKS_FROM_SOURCE`, by the names after `--zone-map`); the
+networks of the source that a zone given with `--zone-network` does not hold
+are then behind no zone. `--no-source-networks` takes none. Where the policy
+has addresses of an IP version no zone's networks have (a configuration
+without IPv6 addresses on its interfaces), `ZONE_NETWORKS_ONE_VERSION` says
+so. Panorama keeps interfaces and routes in templates: from a device group
+nothing is taken. The matrix and the conduit check draw their zones as before:
+`--network-zone` is for zones of your own.
+
 Configurations hold sensitive data. FWShift works offline and sends nothing
 anywhere, but treat its output and reports like the source.
 
@@ -1098,7 +1146,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
 | `--target-prefix TEXT` | Check Point, ASA, IOS, Huawei, Stormshield, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS, Azure (also as Terraform), Google Cloud (also as Terraform), RouterOS and Forcepoint: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on Azure every network security group; on Google Cloud the network firewall policy; on IOS every zone, access list, object group, class map and policy map, instead of `FWS-`; on Huawei every zone, address set, service set, rule, address pool and `nat server`, instead of `FWS_`; on Stormshield every object, instead of `fws_` (not `Firewall_` or `Network_`); on RouterOS every interface list and address list, instead of `fws-`) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
-| `--compare[=FILE]` | Read the output back (for the targets FWShift reads: `asa`, `azure`, `fdm`, `fortios`, `iptables`, `ip6tables`, `junos`, `nftables`, `nsx`, `routeros`, `sophos`, `watchguard`) and compare it with the policy as it was read: every connection the two decide differently is in the report (`COMPARE_OPENED`, `COMPARE_CLOSED`, section 17). With `FILE` the whole comparison is written there. Give `--zone-network` for every zone, so that only connections that can happen are compared. |
+| `--compare[=FILE]` | Read the output back (for the targets FWShift reads: `asa`, `azure`, `fdm`, `fortios`, `iptables`, `ip6tables`, `junos`, `nftables`, `nsx`, `routeros`, `sophos`, `watchguard`) and compare it with the policy as it was read: every connection the two decide differently is in the report (`COMPARE_OPENED`, `COMPARE_CLOSED`, section 17). With `FILE` the whole comparison is written there. Give `--zone-network` for every zone, so that only connections that can happen are compared (from a FortiOS, PAN-OS or ASA source, the networks its interfaces and routes tell are taken for the zones not given). |
 | `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates; the script can be given another name when it is run (`--name`). NSX: the name of the security policy. Azure and `terraform-azure`: the name of the one network security group written when no zone has networks. `gcp` and `terraform-google`: the name of the network firewall policy, in lower case with hyphens (`fwshift` when not given). Default `FWShift`. Forcepoint: the name of the firewall policy the program creates (`--name` when it is run gives another). |
 | `--target-template NAME` | Forcepoint: the template the new firewall policy is based on (default `Firewall Template`, the predefined one). The loader stops when the SMC has no template of that name; it can be given another when it is run (`--template`). |
 
@@ -1107,7 +1155,8 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | Option | Meaning |
 |---|---|
 | `--zone-map SRC=DST` | Use `DST` wherever the source names zone or interface `SRC`. Repeatable. For iptables and ASA this is how a zone becomes an interface name, and the other way round; for pfSense how it becomes an interface (`lan`, `opt1`) or an interface group. |
-| `--zone-network ZONE=NET[,NET...]` | ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Google Cloud (also `terraform-aws`, `terraform-azure` and `terraform-google`) and Meraki targets: the networks that lie behind a zone (SonicWall: the zone an address object is created in; Barracuda, NSX, AWS, Google Cloud and Meraki: both sides of a rule, which names no zone) (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". |
+| `--zone-network ZONE=NET[,NET...]` | ASA, pfSense, OPNsense, Barracuda, NSX, AWS, Azure, Google Cloud (also `terraform-aws`, `terraform-azure` and `terraform-google`) and Meraki targets: the networks that lie behind a zone (SonicWall: the zone an address object is created in; Barracuda, NSX, AWS, Google Cloud and Meraki: both sides of a rule, which names no zone) (its name after `--zone-map`). Repeatable. An ASA access list, like a rule of pfSense, cannot name the interface traffic leaves by; with the networks FWShift keeps a rule for one destination zone to that zone (section 8). Networks may be addresses, prefixes or ranges. Give the networks of **every** zone, IPv4 and IPv6: nothing is assumed about a zone without networks, or about an address that lies in none of them. Of two networks, one inside the other, the smaller one decides, as a route would: give the zone that has the default route `0.0.0.0/0,::/0`, which then says "everything that is not behind another zone". Where the configuration tells them (FortiOS, PAN-OS and ASA sources: the addresses of the interfaces and the static routes, section 3), the networks of the zones this option does not name are taken from it (`ZONE_NETWORKS_FROM_SOURCE`). |
+| `--no-source-networks` | Take no networks of the zones from the configuration: only those of `--zone-network`. |
 | `--inside-zone ZONE` | AWS and Azure targets (also `terraform-aws` and `terraform-azure`): a zone whose networks (`--zone-network`) are inside the VPC or the virtual network. Repeatable. For Azure only those zones get a network security group. Only addresses inside get security groups, and their outbound rules leave the addresses inside to the inbound rules of the destination's group, which keeps them short. Without it every address gets a group (those outside are never attached), and each end says everything. From an AWS source the VPC it was read from is the inside. Meraki target: a zone of the LAN of the MX; the other zones are the internet, from which only NAT lets traffic in (section 8). Without it every zone is taken as LAN (`MERAKI_INSIDE`); from a Meraki source the VLANs are. |
 | `--interface-map SRC=DST` | Map a source interface to a target interface: zone members written for FortiOS, source NAT to an interface address on PAN-OS, and the interfaces of a NAT rule on Sophos Firewall, SonicWall and a Device Manager, which match interfaces and not zones (SonicWall: `X1`, `X3:V10`); for a Barracuda target, the interface of the entries of the source of a rule in that zone (`port2`). For those two, map every interface of a zone the NAT rules name (for an iptables or ASA source, whose zones are interfaces, that is the zone name itself); for a Device Manager `DST` is the logical name of the interface (`inside`, `outside`). Repeatable. |
 | `--app-map FILE` | JSON file that adds or overrides application port definitions (section 9). |
@@ -1207,7 +1256,8 @@ conversion read back.
 |---|---|
 | `--from FORMAT`, `--from-second FORMAT` | The format of the first and of the second. Default: detected. The other source options apply to both. |
 | `--zone-map FIRST=SECOND` | A zone of the first as the second names it. Several may become one. Repeatable. |
-| `--zone-network ZONE=NET[,NET]` | The networks behind a zone, by the name the first gives it: only connections that can happen are compared. Repeatable. |
+| `--zone-network ZONE=NET[,NET]` | The networks behind a zone, by the name the first gives it: only connections that can happen are compared. Repeatable. Where the first is a FortiOS, PAN-OS or ASA configuration, the networks of the zones this option does not name are taken from its interfaces and static routes (the result says which). |
+| `--no-source-networks` | Take no networks of the zones from the first configuration. |
 | `--app-map FILE` | The application map (section 9): the default ports of applications. |
 | `-o FILE`, `--json` | Where the result goes, and as JSON. |
 | `--fail-on LEVEL` | Exit with status 3 when a difference of this weight or more is found: `low` (any difference, the default), `medium` (opened possibly, or closed for certain), `high` (opened for certain), or `none`. |
@@ -1560,7 +1610,7 @@ Notes of `convert --compare` (section 17):
 | `COMPARE_OPENED` | R | The output read back allows connections the policy does not, for certain or possibly; the first of them are listed (all of them with `--compare FILE`). Most come from what the report already says (an application written as its ports lets other applications through on them); anything else is a defect to report. |
 | `COMPARE_CLOSED` | A | The output read back blocks connections the policy allows: what the target cannot say, written narrower (section 8), and rules that are not written. |
 | `COMPARE_ZONES` | I | Zones of the source the output does not name; they are compared as zones the output does not name either. |
-| `COMPARE_NOT_READ_BACK` | R | Nothing was compared: FWShift does not read the target's format, the output could not be read, an ASA output was given no `--zone-network`, or the two have no IP version in common. |
+| `COMPARE_NOT_READ_BACK` | R | Nothing was compared: FWShift does not read the target's format, the output could not be read, an ASA output has no networks of its zones (neither `--zone-network` nor the source's interfaces and routes), or the two have no IP version in common. |
 
 Notes that only an iptables source or target raises:
 
@@ -1741,6 +1791,13 @@ Notes that only a Cisco ASA source or target raises:
 | `FTD_CONFIGURATION` | R | Source: the configuration of an FTD device (section 3). |
 | `ASA_LOAD` | R | Target: what loading the output does to the ASA (section 10). |
 | `SAME_SECURITY_TRAFFIC` | I | ASA to ASA: the access lists rely on the security levels and `same-security-traffic` settings of the source. Keep them. |
+| `ZONE_NETWORKS` | I | Source (FortiOS, PAN-OS, ASA): the networks behind the zones, from the addresses of their interfaces and the static routes that leave by them (section 3); and those behind no zone of the policy, with why (an interface in no zone, down, a route that drops or leads to another router, a next hop that leads nowhere known). |
+| `ZONE_NETWORKS_CONFLICT` | R | Source: networks the configuration routes by several zones alike (equal-cost routes, the same network on two interfaces, a route by SD-WAN as well as by an interface), placed behind no zone. Give them with `--zone-network`. |
+| `ZONE_NETWORKS_PARTIAL` | R | Source: not every network behind the zones is known: routing protocols are configured, or zones whose interfaces are not layer 3 pass traffic (virtual wire, layer 2, tap, a virtual-wire pair, a bridge group). The default route is not taken as "everything behind no other zone": give the networks of the zones with `--zone-network`. |
+| `ZONE_ROUTES_NOT_READ` | I | Source: routes or interfaces that place no network: a destination that cannot be read, a route to an internet service (FortiOS), an SD-WAN route whose zone is not told, a pool that is no address object, a `tunneled` route (ASA), an interface that takes its address from DHCP or PPPoE (PAN-OS). |
+| `ZONE_NETWORKS_ANY_ZONE` | I | Target: allow rules for any zone and any address (or to any address by every zone traffic leaves by) are written for the group `FWSHIFT-ROUTED`, every address but the networks the source routes to no zone, which the source does not let them reach. |
+| `ZONE_NETWORKS_FROM_SOURCE` | I | Target, or `--compare`: the networks of these zones are taken from the source as if given with `--zone-network` (after `--zone-map`), and those behind no zone are no zone's; a network `--zone-network` gives to another zone is left out, one of a zone given other networks that they do not hold is behind no zone. `--no-source-networks` takes none. |
+| `ZONE_NETWORKS_ONE_VERSION` | R | Target, or `--compare`: the policy has addresses of an IP version that none of the networks of the zones (from the source, and given) has. No address of it lies behind a zone: a rule for it that is kept to its zones matches nothing (an allow is left out, a deny keeps the addresses no zone holds). Give the networks of that version where the firewall passes it. |
 | `ZONE_NETWORK_UNKNOWN` | R | Target: `--zone-network` names a zone the policy does not know. It was taken as a further interface, and rules for other zones leave its networks out. Check the name: it is the name after `--zone-map`. |
 | `ZONE_NETWORK_GAP` | A | Target: the networks given with `--zone-network` leave addresses out (the note lists them; "every IPv6 address" when only IPv4 networks were given). Nobody said behind which zone they lie: in rules for any address that are kept to their zones, a permit does not cover them and a deny does. Give the zone with the default route `0.0.0.0/0` and `::/0`. |
 | `ZONE_NETWORK_INCOMPLETE` | R | Target: the networks given cover every address of an IP version, and a zone was given none. "Everything else" for one zone only means something when every other zone has its networks: as it is, what lies behind the zone without networks counts as lying behind another. Rules that had to be told apart from traffic to that zone were not kept to their zones (`EGRESS_INTERFACE`). |
@@ -6706,7 +6763,11 @@ target, and compared with the policy as it was read (before the audit's
 actions, which are part of what is compared). The zones of the output are
 matched to those of the source by name (exactly, through `--interface-map`,
 without case and punctuation, without the `--target-prefix`, or `fws-` for
-RouterOS). For Azure, the
+RouterOS). The networks of the zones, which keep the comparison to connections
+that can happen, are those of `--zone-network` and, for the other zones, those
+the source tells (section 3). The output is judged with the same networks it
+was written with: a network the source's routes put behind the wrong zone is
+not found by the comparison; check the `ZONE_NETWORKS` note. For Azure, the
 zones no group stands for are the template's `outside`, and only pairs with a
 group at one end are compared.
 
@@ -6716,8 +6777,9 @@ application written as its ports lets other applications through on them
 default (closed); what a target cannot say, written narrower (closed). An
 opened connection the report does not explain is a defect: report it.
 
-Read back are `asa` (with `--zone-network`: the output names no interfaces or
-routes), `azure`, `fdm`, `fortios`, `iptables`, `ip6tables`, `junos`,
+Read back are `asa` (with the networks of its zones, `--zone-network` or from
+the source's interfaces and routes: the output names no interfaces or routes),
+`azure`, `fdm`, `fortios`, `iptables`, `ip6tables`, `junos`,
 `nftables`, `nsx`, `panos` (its set commands, 0.34.0), `routeros` (read as if
 its jumps were switched on), `sophos` and `watchguard`. The other targets write scripts
 or parts of a configuration FWShift does not read.

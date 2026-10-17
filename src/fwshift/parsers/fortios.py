@@ -20,7 +20,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
-from .. import transform
+from .. import transform, zonenets
 from ..appmap import FORTIOS_DEFAULT_SERVICES, parse_spec, valid_ports
 from ..errors import ParseError
 from ..model import (
@@ -461,6 +461,7 @@ class _Builder:
         self.p.named_translations = True
         transform.rewrite_destinations(self.p, self.report, to_post_nat=False, report_deny=False, named_translations=True)
         self._deny_and_vips(infos)
+        self._zone_networks()
         for table in _UNCONVERTED_TABLES:
             if self.section(table).entries:
                 self.report.note(
@@ -481,6 +482,143 @@ class _Builder:
                     self.interface_net[name] = network
         for name, block in self.section("system zone").entries.items():
             self.p.zones[name] = Zone(name, block.list("interface"), block.get("intrazone", "deny") == "allow")
+
+    def _zone_networks(self) -> None:
+        """The networks behind the zones (and interfaces) the policy names: those of their interfaces (with their
+        secondary addresses), the static routes of the VDOM that leave by them, and the address pools of SSL VPN and
+        of IPsec mode-config, behind their tunnel interfaces (zonenets). What lies behind an interface that is down, a
+        blackhole route, or an interface no rule names, is behind no zone."""
+        table = self.global_scope.children.get("system interface") or self.section("system interface")
+        vdom = self.p.scope
+        routes: List[zonenets.Route] = []
+        unread: List[str] = []
+        down: Set[str] = set()
+
+        def ipv4(values: List[str]) -> Optional[Interval]:
+            if len(values) == 2 and values[0] != "0.0.0.0":
+                return parse_literal(netmask_to_cidr(values[0], values[1]) or "")
+            if len(values) == 1 and "/" in values[0] and not values[0].startswith("0.0.0.0"):
+                return parse_literal(values[0])
+            return None
+
+        def connect(name: str, network: Optional[Interval]) -> None:
+            if network is not None:
+                routes.append(zonenets.Route(network, name, connected=True, nowhere="its interface is down" if name in down else ""))
+
+        objects: Dict[str, Interval] = {}  # the firewall addresses (subnets and ranges), for pools and routes to an address
+        for key in ("firewall address", "firewall address6"):
+            for name, block in self.section(key).entries.items():
+                found = ipv4(block.list("subnet")) if block.list("subnet") else parse_literal(block.get("ip6")) if block.get("ip6") else None
+                if found is None and block.get("start-ip") and block.get("end-ip"):
+                    found = parse_literal(f"{block.get('start-ip')}-{block.get('end-ip')}")
+                if found is not None:
+                    objects[name] = found
+        for name, block in table.entries.items():
+            if vdom and block.get("vdom", vdom) != vdom:
+                continue
+            if block.get("status") == "down":
+                down.add(name)
+            connect(name, ipv4(block.list("ip")))
+            for secondary in (block.children.get("secondaryip") or Block()).entries.values():
+                connect(name, ipv4(secondary.list("ip")))
+            v6 = block.children.get("ipv6")
+            if v6 is not None:
+                for address in v6.list("ip6-address") + list((v6.children.get("ip6-extra-addr") or Block()).entries):
+                    found = parse_literal(address) if "/" in address else None
+                    connect(name, found if found is not None and found[0] == 6 else None)
+        settings = self.section("vpn ssl settings")
+        tunnel = f"ssl.{vdom or 'root'}"
+        for pool in settings.list("tunnel-ip-pools") + settings.list("tunnel-ipv6-pools"):
+            connect(tunnel, objects.get(pool))
+            if pool not in objects:
+                unread.append(f"the SSL VPN pool {pool}")
+        for key, block in self.section("vpn ipsec phase1-interface").entries.items():
+            if block.get("mode-cfg") == "enable":
+                for family in ("ipv4", "ipv6"):
+                    first, last = block.get(f"{family}-start-ip"), block.get(f"{family}-end-ip")
+                    if first and last:
+                        connect(key, parse_literal(f"{first}-{last}"))
+        sdwan = self.section("system sdwan") if self.section("system sdwan").children else self.section("system virtual-wan-link")
+        sdwan_zones = list((sdwan.children.get("zone") or Block()).entries) or (["virtual-wan-link"] if sdwan.settings or sdwan.children else [])
+        for path, version in (("router static", 4), ("router static6", 6)):
+            for key, block in self.section(path).entries.items():
+                if block.get("status") == "disable":
+                    continue
+                dst = block.list("dst")
+                if any(block.get(key) or block.list(key) for key in ("internet-service", "internet-service-custom", "internet-service-app-ctrl",
+                                                                     "internet-service-app-ctrl-group")):  # fmt: skip
+                    unread.append(f"{path} {key} (to an internet service: no network)")
+                    continue
+                if block.get("dstaddr"):
+                    destination = objects.get(block.get("dstaddr"))
+                elif version == 4:
+                    destination = parse_literal(netmask_to_cidr(dst[0], dst[1]) or "") if len(dst) == 2 else parse_literal(dst[0] if dst else "0.0.0.0/0")
+                else:
+                    destination = parse_literal(dst[0] if dst else "::/0")
+                if destination is None or destination[0] != version:
+                    unread.append(f"{path} {key}")
+                    continue
+                device = block.get("device")
+                if block.list("sdwan-zone"):
+                    device = block.list("sdwan-zone")[0]
+                elif block.get("virtual-wan-link") == "enable" or block.get("sdwan") == "enable":
+                    device = sdwan_zones[0] if len(sdwan_zones) == 1 else ""
+                    if not device:
+                        unread.append(f"{path} {key} (by SD-WAN, whose zone is not told)")
+                why = ("a blackhole route" if block.get("blackhole") == "enable" else "its interface is down" if device in down
+                       else "by SD-WAN, whose zone is not told" if not device and block.get("virtual-wan-link") == "enable" else "")  # fmt: skip
+                gateway = parse_literal(block.get("gateway")) if block.get("gateway") else None
+                distance = int(block.get("distance", "10")) if block.get("distance", "10").isdigit() else 10
+                priority = int(block.get("priority", "0")) if block.get("priority", "0").isdigit() else 0
+                routes.append(zonenets.Route(destination, device, gateway, (distance, priority), nowhere=why))
+        named = set(self.p.zones) | {z for r in self.p.rules for z in r.src_zones + r.dst_zones} | {
+            z for n in self.p.nat_rules for z in n.src_zones + n.dst_zones}  # fmt: skip
+        zone_of: Dict[str, str] = {}
+        for name in list(table.entries) + [tunnel] + list(self.section("vpn ipsec phase1-interface").entries) + sdwan_zones:  # (all its names)
+            zone = self._zone_of(name)
+            if zone in named and zone != ANY:
+                zone_of[name] = zone
+        # Dial-up IPsec: the remote networks its phase 2 names are routed by the tunnel when it is up.
+        phase1 = self.section("vpn ipsec phase1-interface").entries
+        for key, block in self.section("vpn ipsec phase2-interface").entries.items():
+            tunnel_name = block.get("phase1name")
+            dst = block.list("dst-subnet")
+            remote = parse_literal(netmask_to_cidr(dst[0], dst[1]) or "") if len(dst) == 2 else None
+            if block.get("dst-addr-type") == "name":
+                remote = objects.get(block.get("dst-name"))
+            elif block.get("dst-addr-type") == "range":
+                remote = parse_literal(f"{block.get('dst-start-ip')}-{block.get('dst-end-ip')}")
+            if remote is None or remote in {(4, 0, 2**32 - 1), (6, 0, 2**128 - 1)} or tunnel_name not in phase1:
+                continue
+            routes.append(zonenets.Route(remote, tunnel_name, None, (15, 0)))
+        partial: List[str] = []
+        dynamic = self._dynamic_routing()
+        if dynamic:
+            partial.append(f"routing protocols are configured ({', '.join(dynamic)})")
+        wires = [m for pair in self.section("system virtual-wire-pair").entries.values() for m in pair.list("member")]
+        if wires:
+            partial.append(f"virtual-wire pairs ({', '.join(wires[:6])}) pass traffic whose addresses are not known")
+        placed = zonenets.place(routes, zone_of, self.report, unread=unread, partial="; ".join(partial))
+        self.p.zone_networks, self.p.unzoned_networks = placed.zones, placed.unzoned
+
+    def _dynamic_routing(self) -> List[str]:
+        """The routing protocols that are configured (not the empty blocks a full configuration prints)."""
+        out: List[str] = []
+        bgp = self.section("router bgp")
+        if bgp.get("as") not in ("", "0") or (bgp.children.get("neighbor") or Block()).entries:
+            out.append("bgp")
+        for name in ("ospf", "ospf6"):
+            block = self.section(f"router {name}")
+            if (block.children.get("area") or Block()).entries or block.get("router-id") not in ("", "0.0.0.0"):
+                out.append(name)
+        for name in ("rip", "ripng"):
+            block = self.section(f"router {name}")
+            if (block.children.get("network") or Block()).entries or (block.children.get("interface") or Block()).entries:
+                out.append(name)
+        isis = self.section("router isis")
+        if (isis.children.get("isis-net") or Block()).entries:
+            out.append("isis")
+        return out
 
     def _zone_of(self, interface: str) -> str:
         if interface == ANY:

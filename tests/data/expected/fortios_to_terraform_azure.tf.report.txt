@@ -3,7 +3,7 @@ FWShift conversion report
   target: terraform-azure
 
 Summary
-  Security rules:     14   exact 1, approximated 1, needs review 12 (12 emitted disabled), skipped 0
+  Security rules:     14   exact 3, approximated 4, needs review 5 (4 emitted disabled), skipped 2
   NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
   Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
   Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
@@ -11,49 +11,38 @@ Summary
   Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
 
 Notes for the whole policy
-  [needs-review] AZURE_ONE_GROUP: no zone has networks (--zone-network): one group holds every rule, inbound and outbound; associate it with every subnet the policy is for
+  [needs-review] ZONE_NETWORKS_ONE_VERSION: the policy has IPv6 addresses, and the networks of the zones are all of the other IP version: no IPv6 address lies behind any zone, so a rule for IPv6 that is kept to its zones matches nothing (an allow is left out; a deny keeps the addresses no zone holds). Where the firewall passes IPv6, give its networks with --zone-network
   [needs-review] TERRAFORM_LOAD: the output is Terraform configuration (section 10): terraform plan -var resource_group_name=... shows what it creates, terraform apply creates new network security groups with their rules; a group of the same name in the resource group makes it fail (it is not in the state). Then associate each group with the subnets of its networks (the comments and the output fwshift_networks), with azurerm_subnet_network_security_group_association
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. --no-source-networks takes none of them
   [info] AZURE_DEFAULTS_OVERRIDDEN: each list ends in the default of the source, which comes before the default rules of Azure: they no longer let the virtual network, the load balancer's health probes or the internet through unless a rule does
   [info] LOGGING_NOT_CONVERTED: rules of the source log; a security rule does not. Flow logs of the virtual network record the connections instead
 
 Security rules
-  LAN to Internet  ->  needs-review, emitted disabled
+  LAN to Internet  ->  approximated  (emitted as security rules of lan, wan1)
       [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone lan, wan1, and a security rule names no zone: give the networks behind it with --zone-network.
-  LAN basics  ->  needs-review, emitted disabled
+  LAN basics  ->  approximated  (emitted as security rules of lan, wan1)
       [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone lan, wan1, and a security rule names no zone: give the networks behind it with --zone-network.
-  Inbound web  ->  needs-review, emitted disabled
+  Inbound web  ->  needs-review  (emitted as security rules of wan1, dmz)
       [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination 'vip-web' with post-NAT '10.20.0.10' because of NAT rule 'vip-web', which translates only some of the services of this rule: for the others the rule now names '10.20.0.10', sent there directly, and no longer 'vip-web'
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone wan1, dmz, and a security rule names no zone: give the networks behind it with --zone-network.
-  Inbound mail  ->  needs-review, emitted disabled
+  Inbound mail  ->  approximated  (emitted as security rules of wan1, dmz)
       [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'vip-mail' with post-NAT '10.20.0.25' because of NAT rule 'vip-mail'; check that this rule is meant to cover the translated traffic
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone wan1, dmz, and a security rule names no zone: give the networks behind it with --zone-network.
   Admins to DMZ  ->  needs-review, emitted disabled
       [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone lan, dmz, and a security rule names no zone: give the networks behind it with --zone-network.
   Block geo  ->  needs-review, emitted disabled
-      [approximated] ZONE_WIDENED: the rule blocks traffic of zone wan1; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
       [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
   DMZ out via pool  ->  needs-review, emitted disabled
       [needs-review] FQDN_NOT_SUPPORTED: host name object updates.example.com: a security rule names addresses.
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone dmz, wan1, and a security rule names no zone: give the networks behind it with --zone-network.
-  SCADA to PLCs  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone lan, ot, and a security rule names no zone: give the networks behind it with --zone-network.
-  OT no internet  ->  approximated  (emitted as security rules of FWShift)
-      [approximated] ZONE_WIDENED: the rule blocks traffic of zone ot, wan1; a security rule names no zone, and without the networks of the zones it blocks that traffic in every zone, which is more
-  Partner tunnel  ->  needs-review, emitted disabled
+  Partner tunnel  ->  approximated  (emitted as security rules of lan, wan1)
       [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone lan, wan1, and a security rule names no zone: give the networks behind it with --zone-network.
-  LAN v6 out  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone lan, wan1, and a security rule names no zone: give the networks behind it with --zone-network.
+  LAN v6 out  ->  skipped
+      [info] MATCHES_NOTHING: after the negation and the networks of its zones, the rule matches no connection here
   policy-12  ->  needs-review, emitted disabled
       [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone lan, dmz, and a security rule names no zone: give the networks behind it with --zone-network.
-  Timestamp probes  ->  needs-review, emitted disabled
+  Timestamp probes  ->  skipped
       [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
       [approximated] AZURE_PART_NOT_WRITTEN: part of what the rule allows cannot be said by a security rule (ICMP types, ICMPv6, protocols other than TCP, UDP, ICMP, ESP and AH) and is not written: the converted rule allows less
-      [needs-review] ZONE_NETWORK_MISSING: the rule is for zone lan, dmz, and a security rule names no zone: give the networks behind it with --zone-network.
+      [info] MATCHES_NOTHING: nothing of what the rule matches can be said by a security rule
 
 NAT rules
   vip-web  ->  skipped

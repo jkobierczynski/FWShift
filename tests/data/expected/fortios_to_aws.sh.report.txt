@@ -3,7 +3,7 @@ FWShift conversion report
   target: aws
 
 Summary
-  Security rules:     14   exact 1, approximated 1, needs review 12 (12 emitted disabled), skipped 0
+  Security rules:     14   exact 5, approximated 2, needs review 6 (5 emitted disabled), skipped 1
   NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
   Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
   Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
@@ -11,56 +11,46 @@ Summary
   Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
 
 Notes for the whole policy
+  [needs-review] ZONE_NETWORKS_ONE_VERSION: the policy has IPv6 addresses, and the networks of the zones are all of the other IP version: no IPv6 address lies behind any zone, so a rule for IPv6 that is kept to its zones matches nothing (an allow is left out; a deny keeps the addresses no zone holds). Where the firewall passes IPv6, give its networks with --zone-network
   [needs-review] AWS_LOAD: the output is a shell script of AWS CLI calls (section 10): DRY_RUN=1 prints them, CHECK=1 with VPC_ID sends each with --dry-run, VPC_ID alone creates the groups and their rules. It creates new groups only, and stops if a group of the same name exists. The groups have no members when it is done: nothing changes until they are attached
-  [needs-review] AWS_ATTACH: 1 group: attach each to the network interfaces whose private addresses its '# attach' line lists, and take the other groups off those interfaces; an interface with addresses of both IP versions gets a group for each. A group applies to the whole interface: an interface with several addresses of one IP version in different groups gives each address the rules of all of them, so give such addresses the same group. Attaching (aws ec2 modify-network-interface-attribute --groups ...) replaces the groups of an interface: it is left to you
+  [needs-review] AWS_ATTACH: 8 groups: attach each to the network interfaces whose private addresses its '# attach' line lists, and take the other groups off those interfaces; an interface with addresses of both IP versions gets a group for each. A group applies to the whole interface: an interface with several addresses of one IP version in different groups gives each address the rules of all of them, so give such addresses the same group. Attaching (aws ec2 modify-network-interface-attribute --groups ...) replaces the groups of an interface: it is left to you
+  [needs-review] AWS_RULE_QUOTA: these groups have more rules than the default quota of 60 per direction and IP version; AWS refuses the call that goes over it unless the quota was raised (a group whose addresses are not in the VPC is never attached, and its call can be taken out of the script): fwshift-lan (180 outbound IPv4), fwshift-admin-range (182 outbound IPv4), fwshift-scada-server (181 outbound IPv4), fwshift-web-1 (112 inbound IPv4)
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. --no-source-networks takes none of them
   [info] LOGGING_NOT_CONVERTED: rules of the source log; a security group does not. VPC Flow Logs record the connections of the interfaces instead
 
 Security rules
-  LAN to Internet  ->  needs-review, emitted disabled
+  LAN to Internet  ->  approximated  (emitted as security groups fwshift-wan1, fwshift-lan, fwshift-admin-range, fwshift-scada-server)
       [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a security group names no zone: give the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a security group names no zone: give the networks behind wan1 with --zone-network.
-  LAN basics  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a security group names no zone: give the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a security group names no zone: give the networks behind wan1 with --zone-network.
-  Inbound web  ->  needs-review, emitted disabled
+      [info] ZONE_BY_NETWORKS: the destination in zone wan1 is written as the addresses of the networks given for it with --zone-network
+  LAN basics  ->  exact  (emitted as security groups fwshift-wan1, fwshift-lan, fwshift-admin-range, fwshift-scada-server)
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone wan1 is written as the addresses of the networks given for it with --zone-network
+  Inbound web  ->  needs-review  (emitted as security groups fwshift-wan1, fwshift-web-1)
       [needs-review] NAT_DESTINATION_WIDENED: replaced pre-NAT destination 'vip-web' with post-NAT '10.20.0.10' because of NAT rule 'vip-web', which translates only some of the services of this rule: for the others the rule now names '10.20.0.10', sent there directly, and no longer 'vip-web'
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone wan1, and a security group names no zone: give the networks behind wan1 with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a security group names no zone: give the networks behind dmz with --zone-network.
-  Inbound mail  ->  needs-review, emitted disabled
+      [info] ZONE_BY_NETWORKS: the source in zone wan1 is written as the addresses of the networks given for it with --zone-network
+  Inbound mail  ->  approximated  (emitted as security groups fwshift-wan1, fwshift-mail-1)
       [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'vip-mail' with post-NAT '10.20.0.25' because of NAT rule 'vip-mail'; check that this rule is meant to cover the translated traffic
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone wan1, and a security group names no zone: give the networks behind wan1 with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a security group names no zone: give the networks behind dmz with --zone-network.
+      [info] ZONE_BY_NETWORKS: the source in zone wan1 is written as the addresses of the networks given for it with --zone-network
   Admins to DMZ  ->  needs-review, emitted disabled
       [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a security group names no zone: give the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a security group names no zone: give the networks behind dmz with --zone-network.
   Block geo  ->  needs-review, emitted disabled
       [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
   DMZ out via pool  ->  needs-review, emitted disabled
       [needs-review] FQDN_NOT_SUPPORTED: host name object updates.example.com: a security group names addresses.
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and a security group names no zone: give the networks behind dmz with --zone-network.
-  SCADA to PLCs  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a security group names no zone: give the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone ot, and a security group names no zone: give the networks behind ot with --zone-network.
-  OT no internet  ->  approximated  (emitted as taken out of the rules below it)
-      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone ot; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
-      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone wan1; a security group names no zone, and it blocks that traffic in every zone. Give the networks behind every zone with --zone-network to keep it to its zones
+  OT no internet  ->  exact  (emitted as taken out of the rules below it)
+      [info] ZONE_BY_NETWORKS: the source in zone ot is written without the networks given for the other zones with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone wan1 is written without the networks given for the other zones with --zone-network
   Partner tunnel  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a security group names no zone: give the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a security group names no zone: give the networks behind wan1 with --zone-network.
       [needs-review] SOURCE_PORTS: source ports: a security group rule matches destination ports only.
-  LAN v6 out  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a security group names no zone: give the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and a security group names no zone: give the networks behind wan1 with --zone-network.
+  LAN v6 out  ->  skipped
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it with --zone-network
+      [info] ZONE_BY_NETWORKS: the destination in zone wan1 is written as the addresses of the networks given for it with --zone-network
+      [info] MATCHES_NOTHING: after the negation and the networks of its zones, the rule matches no connection
   policy-12  ->  needs-review, emitted disabled
       [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a security group names no zone: give the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a security group names no zone: give the networks behind dmz with --zone-network.
-  Timestamp probes  ->  needs-review, emitted disabled
+  Timestamp probes  ->  exact  (emitted as security groups fwshift-admin-range, fwshift-web-1, fwshift-mail-1)
       [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and a security group names no zone: give the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and a security group names no zone: give the networks behind dmz with --zone-network.
 
 NAT rules
   vip-web  ->  skipped

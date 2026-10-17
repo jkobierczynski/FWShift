@@ -29,13 +29,63 @@ cat > "$OUT/l3FirewallRules.json" <<'FWSHIFT_EOF'
 {
  "rules": [
   {
+   "comment": "LAN to Internet",
+   "policy": "allow",
+   "protocol": "tcp",
+   "srcPort": "Any",
+   "srcCidr": "10.10.0.0/15",
+   "destPort": "80",
+   "destCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/13,10.8.0.0/15,10.12.0.0/14,10.16.0.0/14,10.20.1.0/24,10.20.2.0/23,10.20.4.0/22,10.20.8.0/21,10.20.16.0/20,10.20.32.0/19,10.20.64.0/18,10.20.128.0/17,10.21.0.0/16,10.22.0.0/15,10.24.0.0/14,10.28.0.0/15,10.30.0.0/24,10.30.2.0/23,10.30.4.0/22,10.30.8.0/21,10.30.16.0/20,10.30.32.0/19,10.30.64.0/18,10.30.128.0/17,10.31.0.0/16,10.32.0.0/11,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/1",
+   "syslogEnabled": true
+  },
+  {
+   "comment": "LAN to Internet",
+   "policy": "allow",
+   "protocol": "tcp",
+   "srcPort": "Any",
+   "srcCidr": "10.10.0.0/15",
+   "destPort": "443",
+   "destCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/13,10.8.0.0/15,10.12.0.0/14,10.16.0.0/14,10.20.1.0/24,10.20.2.0/23,10.20.4.0/22,10.20.8.0/21,10.20.16.0/20,10.20.32.0/19,10.20.64.0/18,10.20.128.0/17,10.21.0.0/16,10.22.0.0/15,10.24.0.0/14,10.28.0.0/15,10.30.0.0/24,10.30.2.0/23,10.30.4.0/22,10.30.8.0/21,10.30.16.0/20,10.30.32.0/19,10.30.64.0/18,10.30.128.0/17,10.31.0.0/16,10.32.0.0/11,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/1",
+   "syslogEnabled": true
+  },
+  {
+   "comment": "LAN to Internet",
+   "policy": "allow",
+   "protocol": "tcp",
+   "srcPort": "Any",
+   "srcCidr": "10.10.0.0/15",
+   "destPort": "53",
+   "destCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/13,10.8.0.0/15,10.12.0.0/14,10.16.0.0/14,10.20.1.0/24,10.20.2.0/23,10.20.4.0/22,10.20.8.0/21,10.20.16.0/20,10.20.32.0/19,10.20.64.0/18,10.20.128.0/17,10.21.0.0/16,10.22.0.0/15,10.24.0.0/14,10.28.0.0/15,10.30.0.0/24,10.30.2.0/23,10.30.4.0/22,10.30.8.0/21,10.30.16.0/20,10.30.32.0/19,10.30.64.0/18,10.30.128.0/17,10.31.0.0/16,10.32.0.0/11,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/1",
+   "syslogEnabled": true
+  },
+  {
+   "comment": "LAN to Internet",
+   "policy": "allow",
+   "protocol": "udp",
+   "srcPort": "Any",
+   "srcCidr": "10.10.0.0/15",
+   "destPort": "53",
+   "destCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/13,10.8.0.0/15,10.12.0.0/14,10.16.0.0/14,10.20.1.0/24,10.20.2.0/23,10.20.4.0/22,10.20.8.0/21,10.20.16.0/20,10.20.32.0/19,10.20.64.0/18,10.20.128.0/17,10.21.0.0/16,10.22.0.0/15,10.24.0.0/14,10.28.0.0/15,10.30.0.0/24,10.30.2.0/23,10.30.4.0/22,10.30.8.0/21,10.30.16.0/20,10.30.32.0/19,10.30.64.0/18,10.30.128.0/17,10.31.0.0/16,10.32.0.0/11,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/1",
+   "syslogEnabled": true
+  },
+  {
+   "comment": "Engineering access to the controllers",
+   "policy": "allow",
+   "protocol": "tcp",
+   "srcPort": "Any",
+   "srcCidr": "10.10.7.15/32",
+   "destPort": "502",
+   "destCidr": "10.30.1.0/24",
+   "syslogEnabled": true
+  },
+  {
    "comment": "OT no internet",
    "policy": "deny",
    "protocol": "any",
    "srcPort": "Any",
-   "srcCidr": "0.0.0.0/0",
+   "srcCidr": "10.30.1.0/24",
    "destPort": "Any",
-   "destCidr": "Any",
+   "destCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/13,10.8.0.0/15,10.12.0.0/14,10.16.0.0/14,10.20.1.0/24,10.20.2.0/23,10.20.4.0/22,10.20.8.0/21,10.20.16.0/20,10.20.32.0/19,10.20.64.0/18,10.20.128.0/17,10.21.0.0/16,10.22.0.0/15,10.24.0.0/14,10.28.0.0/15,10.30.0.0/24,10.30.2.0/23,10.30.4.0/22,10.30.8.0/21,10.30.16.0/20,10.30.32.0/19,10.30.64.0/18,10.30.128.0/17,10.31.0.0/16,10.32.0.0/11,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/1",
    "syslogEnabled": true
   },
   {
@@ -61,15 +111,13 @@ api PUT "/networks/$NETWORK_ID/appliance/firewall/l3FirewallRules" "$OUT/l3Firew
 sleep 0.2
 echo "done; the tables as they were are in $OUT/before-*.json"
 # Not written:
-#   LAN to Internet: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network; the destination of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network
-#   LAN basics: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network; the destination of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network; an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv
-#   Inbound web: the source of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network; the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network
-#   Inbound mail: the source of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network; the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network
-#   Admins to DMZ: not converted: groups netadmins; the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network; the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network
+#   LAN basics: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it
+#   Inbound web: no rule of the MX matches what it matches: host names with IPv6 sources only, or ICMPv6 with IPv4 addresses only (the MX takes host names for IPv4 only)
+#   Inbound mail: no rule of the MX matches what it matches: host names with IPv6 sources only, or ICMPv6 with IPv4 addresses only (the MX takes host names for IPv4 only)
+#   Admins to DMZ: not converted: groups netadmins
 #   Block geo: references 'geo-blocked': FortiOS address type 'geography'
-#   DMZ out via pool: the source of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network; the destination of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network
-#   SCADA to PLCs: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network; the destination of the rule is in zone ot, and the MX names no zone: give the networks behind ot with --zone-network
-#   Partner tunnel: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network; the destination of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network; an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv
-#   LAN v6 out: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network; the destination of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network
-#   policy-12: schedule 'office-hours' is not converted; the rule would apply at all times; schedule office-hours is not converted; the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network; the destination of the rule is in zone dmz, and the MX names no zone
-#   Timestamp probes: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network; the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network; an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6:
+#   DMZ out via pool: host names in a rule kept to zones: their addresses are not known
+#   Partner tunnel: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it
+#   LAN v6 out: no rule of the MX matches what it matches: host names with IPv6 sources only, or ICMPv6 with IPv4 addresses only (the MX takes host names for IPv4 only)
+#   policy-12: schedule 'office-hours' is not converted; the rule would apply at all times; schedule office-hours is not converted
+#   Timestamp probes: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it

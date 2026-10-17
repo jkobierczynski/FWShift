@@ -3,7 +3,7 @@ FWShift conversion report
   target: opnsense
 
 Summary
-  Security rules:     14   exact 0, approximated 4, needs review 10 (10 emitted disabled), skipped 0
+  Security rules:     14   exact 3, approximated 4, needs review 6 (6 emitted disabled), skipped 1
   NAT rules:           5   exact 0, approximated 0, needs review 0, skipped 5
   Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
   Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
@@ -11,24 +11,28 @@ Summary
   Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
 
 Notes for the whole policy
+  [needs-review] ZONE_NETWORKS_ONE_VERSION: the policy has IPv6 addresses, and the networks of the zones are all of the other IP version: no IPv6 address lies behind any zone, so a rule for IPv6 that is kept to its zones matches nothing (an allow is left out; a deny keeps the addresses no zone holds). Where the firewall passes IPv6, give its networks with --zone-network
   [needs-review] INTERFACES_REQUIRED: OPNsense loads a rule only for an interface or an interface group it has. These zones are neither wan, lan nor an optN: map each to its interface with --zone-map (or its interfaces with --interface-map), or create an interface group of that name on the firewall: dmz, ot
   [needs-review] OPNSENSE_RESTORE: the output holds the areas Aliases, NAT and Firewall Rules of an OPNsense configuration, for 26.7 (--target-version). Under System > Configuration > Backups, restore the file once per area, the aliases first. Each restore replaces that area of the firewall with what the file holds: every alias and every NAT rule that is there now is gone, and the Firewall Rules area replaces the rules of both rule pages ('Rules' and 'Rules [new]'), with the setting to bypass the rules for static routes. What the interfaces say (Block private networks, Block bogon networks) stays as it is on the firewall. There is no NAT area in the file: the NAT of the firewall stays as it is. OPNsense does not check what it restores and does not load it until the rules are applied or the firewall restarts; keep a backup, and look at the rules before anything depends on them
-  [info] SELF_EXCLUDED: on OPNsense the rules of an interface are also the rules for traffic to the firewall itself. Rules of the source that pass traffic to any destination are written for any destination but the firewall itself ('not This Firewall'). A rule that names addresses of the firewall still reaches them
+  [approximated] ZONE_NETWORK_GAP: the networks given with --zone-network do not cover every address: ::/0. Rules that pass traffic to a zone leave those addresses out, rules that block keep them
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. --no-source-networks takes none of them
 
 Security rules
-  LAN to Internet  ->  needs-review, emitted disabled  (emitted as lan)
+  LAN to Internet  ->  approximated  (emitted as lan (2 rules))
       [approximated] PROFILES_NOT_CONVERTED: security profiles are not converted (av-profile=default, ssl-ssh-profile=certificate-inspection); attach equivalent inspection on the target
-      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind lan, dmz, ot, wan1 with --zone-network.
-  LAN basics  ->  needs-review, emitted disabled  (emitted as lan)
-      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind lan, dmz, ot, wan1 with --zone-network.
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone wan1. A rule of OPNsense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given
+      [info] RULE_SPLIT: a rule of OPNsense names one protocol: the rule is written as 2 rules, one per kind of service
+  LAN basics  ->  approximated  (emitted as lan (2 rules))
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone wan1. A rule of OPNsense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given
+      [info] RULE_SPLIT: a rule of OPNsense names one protocol: the rule is written as 2 rules, one per kind of service
   Inbound web  ->  needs-review, emitted disabled
-      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [info] EGRESS_BY_NETWORKS: the rule is for traffic to zone dmz. A rule of pfSense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network)
       [needs-review] INTERFACE_NAME: 'wan1' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
   Inbound mail  ->  needs-review, emitted disabled
-      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+      [info] EGRESS_BY_NETWORKS: the rule is for traffic to zone dmz. A rule of OPNsense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network)
       [needs-review] INTERFACE_NAME: 'wan1' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map.
   Admins to DMZ  ->  needs-review, emitted disabled  (emitted as lan)
-      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
       [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
   Block geo  ->  needs-review, emitted disabled  (emitted as lan, dmz, ot)
       [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
@@ -36,24 +40,20 @@ Security rules
       [needs-review] INTERFACE_NAME: 'wan1' is no interface a rule of OPNsense can name; map the zone to wan, lan or an optN with --zone-map. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
   DMZ out via pool  ->  approximated  (emitted as dmz)
       [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
-  SCADA to PLCs  ->  approximated  (emitted as lan)
-      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by ot. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
-  OT no internet  ->  needs-review, emitted disabled  (emitted as ot)
-      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind lan, dmz, ot, wan1 with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
-  Partner tunnel  ->  approximated  (emitted as lan (2 rules))
-      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
+  OT no internet  ->  approximated  (emitted as ot)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone wan1. A rule of OPNsense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network). The addresses that lie in none of the networks given are blocked by it as well
+  Partner tunnel  ->  exact  (emitted as lan (2 rules))
       [info] RULE_SPLIT: a rule of OPNsense names one protocol: the rule is written as 2 rules, one per kind of service
-  LAN v6 out  ->  needs-review, emitted disabled  (emitted as lan)
-      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind lan, dmz, ot, wan1 with --zone-network.
+  LAN v6 out  ->  skipped
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone wan1. A rule of OPNsense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given
+      [info] NO_COMMON_FAMILY: source, destination and service share no IP version, or a negation leaves no address: the rule matches nothing and is left out
   policy-12  ->  needs-review, emitted disabled  (emitted as lan)
-      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
       [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
   Not web  ->  needs-review, emitted disabled  (emitted as dmz)
+      [approximated] EGRESS_BY_NETWORKS: the rule is for traffic to zone wan1. A rule of OPNsense cannot name the interface traffic leaves by: the destination leaves out the networks given for the other zones (--zone-network), and the addresses that lie in none of the networks given
       [needs-review] SERVICE_NEGATE: a negated service match does not exist in a rule of OPNsense.
-      [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by wan1, to any address. A rule of OPNsense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind lan, dmz, ot, wan1 with --zone-network.
-  Timestamp probes  ->  approximated  (emitted as lan)
+  Timestamp probes  ->  exact  (emitted as lan)
       [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
-      [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of OPNsense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
 
 NAT rules
   vip-web  ->  skipped

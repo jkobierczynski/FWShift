@@ -88,26 +88,33 @@ class _NatPlan:
     interface_keyword: bool = False  # written with "interface" where the model holds the address of one
 
 
-def zone_spaces(zone_networks: Dict[str, List[str]]) -> Dict[str, List[Interval]]:
+def zone_spaces(zone_networks: Dict[str, List[str]], excluded: Sequence[str] = ()) -> Dict[str, List[Interval]]:
     """The addresses behind each zone, as --zone-network gives them.
 
     Of two networks, one inside the other, the smaller one decides, as a route would: a zone may be
-    given ``0.0.0.0/0`` for "everything that is not behind another zone".
+    given ``0.0.0.0/0`` for "everything that is not behind another zone". ``excluded`` are networks that lie behind
+    no zone of the policy (a management interface, a route that drops, from the source's routes: 0.35.0): they take
+    their addresses from the zones as a zone would, and are no zone's, so that they lie in none of the networks.
     """
+    aside = "\0excluded"
     listed = sorted(
-        {(interval, zone) for zone, networks in zone_networks.items() for interval in map(parse_literal, networks) if interval},
+        {(interval, zone) for zone, networks in zone_networks.items() for interval in map(parse_literal, networks) if interval}
+        | {(interval, aside) for interval in map(parse_literal, excluded) if interval},
         key=lambda item: (size(item[0]), item),
     )
     spaces: Dict[str, List[Interval]] = {zone: [] for zone in zone_networks}
     taken: List[Tuple[Interval, str]] = []
     for interval, zone in listed:
         for other, other_zone in taken:
+            if aside in (zone, other_zone):
+                continue
             if other_zone != zone and overlaps([other], [interval]) and (other == interval or not within([other], [interval])):
                 raise FwshiftError(
                     f"--zone-network: {interval_text(other)} of '{other_zone}' and {interval_text(interval)} of '{zone}' "
                     "overlap without one lying inside the other"
                 )
-        spaces[zone] += subtract([interval], [other for other, other_zone in taken if other_zone != zone])
+        if zone != aside:
+            spaces[zone] += subtract([interval], [other for other, other_zone in taken if other_zone != zone])
         taken.append((interval, zone))
     return {zone: normalize(space) for zone, space in spaces.items()}
 
@@ -150,7 +157,7 @@ def _listing(intervals: List[Interval], limit: int = 4) -> str:
 def emit(policy: Policy, report: Report, options: Options) -> str:
     if options.nat_zone and not valid_interface(options.nat_zone):
         raise FwshiftError(f"--target-nat-zone: '{options.nat_zone[:40]}' cannot be an interface name")
-    zone_spaces(options.zone_networks)  # refuses networks that contradict each other
+    zone_spaces(options.zone_networks, options.zone_excluded)  # refuses networks that contradict each other
     p = copy.deepcopy(policy)
     zone_names = transform.dedupe([options.zone_map.get(name, name) for name in p.zones])
     transform.apply_zone_map(p, options.zone_map)
@@ -251,7 +258,7 @@ class _Emitter:
         # a rule to any zone, for an ASA that never sends traffic back where it came from.
         used = [z for r in p.rules for z in r.src_zones + r.dst_zones if z != ANY]
         self.universe: List[str] = transform.dedupe(zone_names + used + list(options.zone_networks))
-        self.spaces = zone_spaces(options.zone_networks)
+        self.spaces = zone_spaces(options.zone_networks, options.zone_excluded)
         self.areas = zone_areas(self.universe, self.spaces)
         self.gap_used = False  # a rule was kept to its zones where the networks given leave addresses out
         self.strangers = [zone for zone in options.zone_networks if zone not in zone_names + used]
@@ -601,7 +608,9 @@ class _Emitter:
             to = "zone " + ", ".join(reached)
             extra, severity = "", Severity.INFO
             if named:
-                if overlaps(subtract(intervals, away), areas.nowhere):
+                stray = overlaps(subtract(intervals, away), areas.nowhere)
+                cut = normalize(away + areas.nowhere) if allow and stray else away
+                if stray and not allow:
                     self.report.add(
                         "rule",
                         rule.origin,
@@ -611,9 +620,14 @@ class _Emitter:
                         "given with --zone-network. An ASA access list cannot name the interface traffic leaves by: "
                         "for those addresses the entry applies by whatever interface they are reached",
                     )
-                if not overlaps(intervals, away):
+                if not overlaps(intervals, cut):
                     continue  # the destination lies where the rule is for as it is
-                limits[source] = away
+                limits[source] = cut
+                if stray and allow:
+                    # (an address in none of the networks lies behind no zone of the rule: an allow leaves it out)
+                    self.gap_used = True
+                    severity = Severity.APPROX
+                    extra = ", and the addresses of its destination that lie in none of the networks given"
             else:
                 # Any address: what nobody placed is left to the side that allows less.
                 limits[source] = normalize(away + areas.nowhere) if allow else away

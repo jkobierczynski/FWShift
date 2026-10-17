@@ -40,6 +40,7 @@ from ..report import Report, Severity
 _ENTRIES = {
     "rules", "vsys", "device-group", "ethernet", "units", "virtual-router", "aggregate-ethernet", "loopback", "vlan",
     "devices", "template", "template-stack", "static-route", "log-settings-profiles", "custom-url-category",
+    "logical-router", "vrf",
 }  # fmt: skip
 # Words followed by the name of an entry where the objects of a virtual system, a device group or shared stand (in a
 # rule, the same words are a value or a list: service, application, tag, schedule).
@@ -74,7 +75,7 @@ _LEAVES = {
     "negate-destination", "schedule", "icmp-unreachable", "group-tag", "negate", "ip-netmask", "ip-range", "fqdn",
     "ip-wildcard", "color", "comments", "port", "source-port", "nat-type", "to-interface", "translated-port",
     "bi-directional", "filter", "parent-dg", "ip-address", "metric", "comment", "translated-address", "distribution",
-    "direction", "ip-dscp", "ip-precedence", "disable-server-response-inspection",
+    "direction", "ip-dscp", "ip-precedence", "disable-server-response-inspection", "admin-dist", "ipv6-address",
 }  # fmt: skip
 # Free text, where a value in [ ] unquoted is text too (description [legacy]).
 _TEXT = {"description", "comment", "comments"}
@@ -90,6 +91,7 @@ _CHILDREN = {
     "static-ip": {"translated-address", "bi-directional"},
     "destination-translation": {"translated-address", "translated-port", "dns-rewrite"}, "dns-rewrite": {"direction"},
     "dynamic-destination-translation": {"translated-address", "translated-port", "distribution"},
+    "nexthop": {"ip-address", "ipv6-address", "discard", "next-vr", "next-lr", "fqdn"},
 }  # fmt: skip
 # Elements whose value is an element of its own (qos marking follow-c2s-flow: <marking><follow-c2s-flow/></marking>).
 _FLAG_HOLDERS = {"marking", "override"}
@@ -258,7 +260,14 @@ def _rule(lineage: List[str]) -> str:
     return ""
 
 
+def _anchor(lineage: List[str]) -> bool:
+    """Where a command that sets several values goes back to after a part: a rule, or a static route."""
+    return bool(_rule(lineage)) or lineage[-2:] == ["static-route", "entry"]
+
+
 def _is_entry_word(word: str, lineage: List[str]) -> bool:
+    if word == "address" and lineage[-1] == "ipv6" and "interface" in lineage:
+        return True  # (layer3 ipv6 address 2001:db8::1/64: an entry each)
     if word in _OBJECTS:
         return _top(lineage)
     if word == "tunnel":
@@ -387,7 +396,7 @@ def _command(tree: _Tree, path: List[Word], number: int) -> None:
             raise ParseError(f"line {number}: a path deeper than {_DEPTH} elements")
         word, quoted = rest[position]
         # Several values in one command: back out of a part of a rule that does not hold this word.
-        while frames and not _rule(lineage) and any(_rule(f[1]) for f in frames):
+        while frames and not _anchor(lineage) and any(_anchor(f[1]) for f in frames):
             key = lineage[-1] if lineage[-1] != "entry" else lineage[-2] + "/entry"
             if key not in _CHILDREN or word in _CHILDREN[key]:
                 break
@@ -418,6 +427,7 @@ def _command(tree: _Tree, path: List[Word], number: int) -> None:
             continue
         valid = bool(_NAME.match(word))
         single = (word in _LEAVES or (word == "service" and _rule(lineage) == "nat")
+                  or (word == "destination" and lineage[-2:] == ["static-route", "entry"])
                   or (word in ("interface", "ip", "floating-ip") and lineage[-1] in ("interface-address", "nexthop"))
                   or (word == "interface" and lineage[-2:] == ["static-route", "entry"]))  # fmt: skip
         if remaining >= 1 and rest[position + 1] == ("[", False):

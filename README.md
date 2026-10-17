@@ -44,10 +44,14 @@ on which services, through which rules; checks a policy against a **zone and
 conduit model** kept as a file (IEC 62443), as a gate for a pipeline; and
 names every connection two policies decide differently - before and after a
 change, or a source and its conversion read back (the **equivalence check**).
+Where a FortiOS, PAN-OS or ASA configuration holds its interfaces and static
+routes, FWShift reads the **networks behind each zone** from them, for the
+targets that have no zones (cloud security groups, NSX, Meraki) or keep a rule
+to its zones by its addresses (ASA, pfSense), and for the equivalence check.
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.34).** The converter is tested against synthetic
+> **Status: alpha (0.35).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -180,8 +184,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.34.0.pyz --version
-python3 fwshift-0.34.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.35.0.pyz --version
+python3 fwshift-0.35.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -822,8 +826,8 @@ and everything else outside the policy.
   Point.
 * Audit and matrix: the zone and conduit model as a file to check a policy
   against, the equivalence check as a command and of a conversion (0.22,
-  done); next the networks behind a zone from the source, NAT in the
-  comparison, findings as SARIF, zone ranks.
+  done), the networks behind a zone from the source (0.35, done); next NAT in
+  the comparison, findings as SARIF, zone ranks.
 * Validation of the output on lab devices of every platform: [the lab](https://github.com/jkobierczynski/FWShift/blob/HEAD/lab/README.md)
   (0.32) scripts it for the cloud targets, five free images and five Marketplace images; nftables and iptables run
   in the test suite, AWS, Azure and Google Cloud have had their first runs (0.32.1), the others wait for theirs.

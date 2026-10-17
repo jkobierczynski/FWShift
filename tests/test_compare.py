@@ -495,8 +495,9 @@ def test_r30_convert_compare_needs_the_networks_for_asa(tmp_path: object) -> Non
 
     report = Path(str(tmp_path)) / "report.txt"
     ran = run_cli(["convert", str(DATA / "asa_sample.cfg"), "--to", "asa", "-o", str(Path(str(tmp_path)) / "o"), "--report", str(report),
-                   "-q", "--compare"])  # fmt: skip
+                   "-q", "--compare", "--no-source-networks"])  # fmt: skip
     assert ran.code == 0 and "COMPARE_NOT_READ_BACK" in report.read_text(encoding="utf-8")
+    # (0.35.0: without --no-source-networks the networks of the ASA's interfaces and routes are taken, and it is compared)
     ran = run_cli(["convert", str(DATA / "iptables_sample.rules"), "--to", "ip6tables", "-o", str(Path(str(tmp_path)) / "o6"), "--report",
                    str(report), "-q", "--compare"])  # fmt: skip
     assert ran.code == 0 and "different IP versions" in report.read_text(encoding="utf-8")

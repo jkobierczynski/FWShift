@@ -75,7 +75,7 @@ class _Emitter:
                 group = p.address_groups.get(f"zone {zone}")
                 if zone not in given and group is not None and group.builtin == "meraki":
                     given[zone] = list(group.members)
-        self.spaces = zone_spaces(given)
+        self.spaces = zone_spaces(given, options.zone_excluded)
         used = [z for r in p.rules for z in r.src_zones + r.dst_zones if z != ANY]
         self.universe = transform.dedupe(list(p.zones) + used + list(options.zone_networks))
         if options.inside_zones:

@@ -135,7 +135,7 @@ def _rename(p: Policy, report: Report, names: _Names, prefix: str) -> None:
 
 
 def emit(policy: Policy, report: Report, options: Options) -> str:
-    zone_spaces(options.zone_networks)
+    zone_spaces(options.zone_networks, options.zone_excluded)
     p = copy.deepcopy(policy)
     source_zones = transform.rule_zones(p)
     transform.apply_zone_map(p, options.zone_map)
@@ -259,7 +259,7 @@ class _Emitter:
     def _object_zones(self) -> Dict[str, str]:
         """The zone an object is created in: where the networks given put it, or where the first rule that names it
         sees it. SonicOS asks for one, and does not match by it."""
-        spaces = zone_spaces(self.options.zone_networks)
+        spaces = zone_spaces(self.options.zone_networks, self.options.zone_excluded)
         out: Dict[str, str] = {}
 
         def place(member: str, zone: str, seen: FrozenSet[str] = frozenset()) -> None:

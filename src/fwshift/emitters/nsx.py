@@ -48,7 +48,7 @@ def emit(policy: Policy, report: Report, options: Options) -> str:
     p = copy.deepcopy(policy)
     transform.apply_zone_map(p, options.zone_map)
     transform.ensure_references(p, report)
-    zone_spaces(options.zone_networks)  # refuses networks that contradict each other
+    zone_spaces(options.zone_networks, options.zone_excluded)  # refuses networks that contradict each other
     # The gateways translate before the distributed firewall sees a connection: it sees the address of the workload.
     # The NAT rules are not written (they belong on the gateway); the rules are written for what they translate to.
     translated = {nat.origin for nat in p.nat_rules
@@ -86,7 +86,7 @@ class _Emitter:
         self.native = p.vendor == "nsx"
         self.taint_a = transform.tainted_addresses(p, keep_dynamic=self.native)
         self.taint_s = transform.tainted_services(p)
-        self.spaces = zone_spaces(options.zone_networks)
+        self.spaces = zone_spaces(options.zone_networks, options.zone_excluded)
         used = [z for r in p.rules for z in r.src_zones + r.dst_zones if z != ANY]
         self.universe = transform.dedupe(list(p.zones) + used + list(options.zone_networks))
         self.ids: Set[str] = set()  # of groups and of the policy

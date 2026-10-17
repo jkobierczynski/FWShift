@@ -29,24 +29,184 @@ cat > "$OUT/l3FirewallRules.json" <<'FWSHIFT_EOF'
 {
  "rules": [
   {
+   "comment": "Published web server",
+   "policy": "allow",
+   "protocol": "tcp",
+   "srcPort": "Any",
+   "srcCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/13,10.8.0.0/15,10.11.0.0/16,10.12.0.0/14,10.16.0.0/14,10.20.1.0/24,10.20.2.0/23,10.20.4.0/22,10.20.8.0/21,10.20.16.0/20,10.20.32.0/19,10.20.64.0/18,10.20.128.0/17,10.21.0.0/16,10.22.0.0/15,10.24.0.0/14,10.28.0.0/15,10.30.1.0/24,10.30.2.0/23,10.30.4.0/22,10.30.8.0/21,10.30.16.0/20,10.30.32.0/19,10.30.64.0/18,10.30.128.0/17,10.31.0.0/16,10.32.0.0/13,10.41.0.0/16,10.42.0.0/15,10.44.0.0/14,10.48.0.0/12,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/2,192.0.0.0/9,192.128.0.0/11,192.160.0.0/13,192.168.0.0/24,192.168.2.0/23,192.168.4.0/22,192.168.8.0/21,192.168.16.0/20,192.168.32.0/19,192.168.64.0/18,192.168.128.0/17,192.169.0.0/16,192.170.0.0/15,192.172.0.0/14,192.176.0.0/12,192.192.0.0/10,193.0.0.0/8,194.0.0.0/7,196.0.0.0/6,200.0.0.0/5,208.0.0.0/4,224.0.0.0/3",
+   "destPort": "8080",
+   "destCidr": "10.20.0.10/32",
+   "syslogEnabled": false
+  },
+  {
+   "comment": "outside_access_in-2",
+   "policy": "allow",
+   "protocol": "tcp",
+   "srcPort": "Any",
+   "srcCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/13,10.8.0.0/15,10.11.0.0/16,10.12.0.0/14,10.16.0.0/14,10.20.1.0/24,10.20.2.0/23,10.20.4.0/22,10.20.8.0/21,10.20.16.0/20,10.20.32.0/19,10.20.64.0/18,10.20.128.0/17,10.21.0.0/16,10.22.0.0/15,10.24.0.0/14,10.28.0.0/15,10.30.1.0/24,10.30.2.0/23,10.30.4.0/22,10.30.8.0/21,10.30.16.0/20,10.30.32.0/19,10.30.64.0/18,10.30.128.0/17,10.31.0.0/16,10.32.0.0/13,10.41.0.0/16,10.42.0.0/15,10.44.0.0/14,10.48.0.0/12,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/2,192.0.0.0/9,192.128.0.0/11,192.160.0.0/13,192.168.0.0/24,192.168.2.0/23,192.168.4.0/22,192.168.8.0/21,192.168.16.0/20,192.168.32.0/19,192.168.64.0/18,192.168.128.0/17,192.169.0.0/16,192.170.0.0/15,192.172.0.0/14,192.176.0.0/12,192.192.0.0/10,193.0.0.0/8,194.0.0.0/7,196.0.0.0/6,200.0.0.0/5,208.0.0.0/4,224.0.0.0/3",
+   "destPort": "8443",
+   "destCidr": "10.20.0.25/32",
+   "syslogEnabled": true
+  },
+  {
+   "comment": "outside_access_in-2",
+   "policy": "allow",
+   "protocol": "tcp",
+   "srcPort": "Any",
+   "srcCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/13,10.8.0.0/15,10.11.0.0/16,10.12.0.0/14,10.16.0.0/14,10.20.1.0/24,10.20.2.0/23,10.20.4.0/22,10.20.8.0/21,10.20.16.0/20,10.20.32.0/19,10.20.64.0/18,10.20.128.0/17,10.21.0.0/16,10.22.0.0/15,10.24.0.0/14,10.28.0.0/15,10.30.1.0/24,10.30.2.0/23,10.30.4.0/22,10.30.8.0/21,10.30.16.0/20,10.30.32.0/19,10.30.64.0/18,10.30.128.0/17,10.31.0.0/16,10.32.0.0/13,10.41.0.0/16,10.42.0.0/15,10.44.0.0/14,10.48.0.0/12,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/2,192.0.0.0/9,192.128.0.0/11,192.160.0.0/13,192.168.0.0/24,192.168.2.0/23,192.168.4.0/22,192.168.8.0/21,192.168.16.0/20,192.168.32.0/19,192.168.64.0/18,192.168.128.0/17,192.169.0.0/16,192.170.0.0/15,192.172.0.0/14,192.176.0.0/12,192.192.0.0/10,193.0.0.0/8,194.0.0.0/7,196.0.0.0/6,200.0.0.0/5,208.0.0.0/4,224.0.0.0/3",
+   "destPort": "25",
+   "destCidr": "10.20.0.25/32",
+   "syslogEnabled": true
+  },
+  {
+   "comment": "outside_access_in-2",
+   "policy": "allow",
+   "protocol": "tcp",
+   "srcPort": "Any",
+   "srcCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/13,10.8.0.0/15,10.11.0.0/16,10.12.0.0/14,10.16.0.0/14,10.20.1.0/24,10.20.2.0/23,10.20.4.0/22,10.20.8.0/21,10.20.16.0/20,10.20.32.0/19,10.20.64.0/18,10.20.128.0/17,10.21.0.0/16,10.22.0.0/15,10.24.0.0/14,10.28.0.0/15,10.30.1.0/24,10.30.2.0/23,10.30.4.0/22,10.30.8.0/21,10.30.16.0/20,10.30.32.0/19,10.30.64.0/18,10.30.128.0/17,10.31.0.0/16,10.32.0.0/13,10.41.0.0/16,10.42.0.0/15,10.44.0.0/14,10.48.0.0/12,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/2,192.0.0.0/9,192.128.0.0/11,192.160.0.0/13,192.168.0.0/24,192.168.2.0/23,192.168.4.0/22,192.168.8.0/21,192.168.16.0/20,192.168.32.0/19,192.168.64.0/18,192.168.128.0/17,192.169.0.0/16,192.170.0.0/15,192.172.0.0/14,192.176.0.0/12,192.192.0.0/10,193.0.0.0/8,194.0.0.0/7,196.0.0.0/6,200.0.0.0/5,208.0.0.0/4,224.0.0.0/3",
+   "destPort": "587",
+   "destCidr": "10.20.0.25/32",
+   "syslogEnabled": true
+  },
+  {
    "comment": "outside_access_in-4",
    "policy": "deny",
    "protocol": "any",
    "srcPort": "Any",
-   "srcCidr": "Any",
+   "srcCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/13,10.8.0.0/15,10.11.0.0/16,10.12.0.0/14,10.16.0.0/14,10.20.1.0/24,10.20.2.0/23,10.20.4.0/22,10.20.8.0/21,10.20.16.0/20,10.20.32.0/19,10.20.64.0/18,10.20.128.0/17,10.21.0.0/16,10.22.0.0/15,10.24.0.0/14,10.28.0.0/15,10.30.1.0/24,10.30.2.0/23,10.30.4.0/22,10.30.8.0/21,10.30.16.0/20,10.30.32.0/19,10.30.64.0/18,10.30.128.0/17,10.31.0.0/16,10.32.0.0/13,10.41.0.0/16,10.42.0.0/15,10.44.0.0/14,10.48.0.0/12,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/2,192.0.0.0/9,192.128.0.0/11,192.160.0.0/13,192.168.0.0/24,192.168.2.0/23,192.168.4.0/22,192.168.8.0/21,192.168.16.0/20,192.168.32.0/19,192.168.64.0/18,192.168.128.0/17,192.169.0.0/16,192.170.0.0/15,192.172.0.0/14,192.176.0.0/12,192.192.0.0/10,193.0.0.0/8,194.0.0.0/7,196.0.0.0/6,200.0.0.0/5,208.0.0.0/4,224.0.0.0/3",
    "destPort": "Any",
    "destCidr": "Any",
    "syslogEnabled": true
+  },
+  {
+   "comment": "inside_access_in-1",
+   "policy": "allow",
+   "protocol": "tcp",
+   "srcPort": "Any",
+   "srcCidr": "10.10.0.0/16",
+   "destPort": "53",
+   "destCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/13,10.8.0.0/15,10.11.0.0/16,10.12.0.0/14,10.16.0.0/12,10.32.0.0/13,10.41.0.0/16,10.42.0.0/15,10.44.0.0/14,10.48.0.0/12,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/2,192.0.0.0/9,192.128.0.0/11,192.160.0.0/13,192.168.0.0/24,192.168.2.0/23,192.168.4.0/22,192.168.8.0/21,192.168.16.0/20,192.168.32.0/19,192.168.64.0/18,192.168.128.0/17,192.169.0.0/16,192.170.0.0/15,192.172.0.0/14,192.176.0.0/12,192.192.0.0/10,193.0.0.0/8,194.0.0.0/7,196.0.0.0/6,200.0.0.0/5,208.0.0.0/4,224.0.0.0/3",
+   "syslogEnabled": false
+  },
+  {
+   "comment": "inside_access_in-1",
+   "policy": "allow",
+   "protocol": "udp",
+   "srcPort": "Any",
+   "srcCidr": "10.10.0.0/16",
+   "destPort": "53",
+   "destCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/13,10.8.0.0/15,10.11.0.0/16,10.12.0.0/14,10.16.0.0/12,10.32.0.0/13,10.41.0.0/16,10.42.0.0/15,10.44.0.0/14,10.48.0.0/12,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/2,192.0.0.0/9,192.128.0.0/11,192.160.0.0/13,192.168.0.0/24,192.168.2.0/23,192.168.4.0/22,192.168.8.0/21,192.168.16.0/20,192.168.32.0/19,192.168.64.0/18,192.168.128.0/17,192.169.0.0/16,192.170.0.0/15,192.172.0.0/14,192.176.0.0/12,192.192.0.0/10,193.0.0.0/8,194.0.0.0/7,196.0.0.0/6,200.0.0.0/5,208.0.0.0/4,224.0.0.0/3",
+   "syslogEnabled": false
+  },
+  {
+   "comment": "inside_access_in-1",
+   "policy": "allow",
+   "protocol": "udp",
+   "srcPort": "Any",
+   "srcCidr": "10.10.0.0/16",
+   "destPort": "123",
+   "destCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/13,10.8.0.0/15,10.11.0.0/16,10.12.0.0/14,10.16.0.0/12,10.32.0.0/13,10.41.0.0/16,10.42.0.0/15,10.44.0.0/14,10.48.0.0/12,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/2,192.0.0.0/9,192.128.0.0/11,192.160.0.0/13,192.168.0.0/24,192.168.2.0/23,192.168.4.0/22,192.168.8.0/21,192.168.16.0/20,192.168.32.0/19,192.168.64.0/18,192.168.128.0/17,192.169.0.0/16,192.170.0.0/15,192.172.0.0/14,192.176.0.0/12,192.192.0.0/10,193.0.0.0/8,194.0.0.0/7,196.0.0.0/6,200.0.0.0/5,208.0.0.0/4,224.0.0.0/3",
+   "syslogEnabled": false
+  },
+  {
+   "comment": "inside_access_in-2",
+   "policy": "allow",
+   "protocol": "tcp",
+   "srcPort": "Any",
+   "srcCidr": "10.10.0.0/16,10.40.0.0/16",
+   "destPort": "80,443",
+   "destCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/13,10.8.0.0/15,10.11.0.0/16,10.12.0.0/14,10.16.0.0/12,10.32.0.0/13,10.41.0.0/16,10.42.0.0/15,10.44.0.0/14,10.48.0.0/12,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/2,192.0.0.0/9,192.128.0.0/11,192.160.0.0/13,192.168.0.0/24,192.168.2.0/23,192.168.4.0/22,192.168.8.0/21,192.168.16.0/20,192.168.32.0/19,192.168.64.0/18,192.168.128.0/17,192.169.0.0/16,192.170.0.0/15,192.172.0.0/14,192.176.0.0/12,192.192.0.0/10,193.0.0.0/8,194.0.0.0/7,196.0.0.0/6,200.0.0.0/5,208.0.0.0/4,224.0.0.0/3",
+   "syslogEnabled": false
+  },
+  {
+   "comment": "inside_access_in-2",
+   "policy": "allow",
+   "protocol": "tcp",
+   "srcPort": "Any",
+   "srcCidr": "10.10.0.0/16,10.40.0.0/16",
+   "destPort": "8000-8010",
+   "destCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/13,10.8.0.0/15,10.11.0.0/16,10.12.0.0/14,10.16.0.0/12,10.32.0.0/13,10.41.0.0/16,10.42.0.0/15,10.44.0.0/14,10.48.0.0/12,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/2,192.0.0.0/9,192.128.0.0/11,192.160.0.0/13,192.168.0.0/24,192.168.2.0/23,192.168.4.0/22,192.168.8.0/21,192.168.16.0/20,192.168.32.0/19,192.168.64.0/18,192.168.128.0/17,192.169.0.0/16,192.170.0.0/15,192.172.0.0/14,192.176.0.0/12,192.192.0.0/10,193.0.0.0/8,194.0.0.0/7,196.0.0.0/6,200.0.0.0/5,208.0.0.0/4,224.0.0.0/3",
+   "syslogEnabled": false
+  },
+  {
+   "comment": "inside_access_in-3",
+   "policy": "allow",
+   "protocol": "tcp",
+   "srcPort": "Any",
+   "srcCidr": "10.10.5.10/31,10.10.5.12/30,10.10.5.16/30,10.10.5.20/32",
+   "destPort": "22",
+   "destCidr": "10.20.0.10/32,10.20.0.25/32,10.20.0.50/32",
+   "syslogEnabled": false
+  },
+  {
+   "comment": "inside_access_in-6",
+   "policy": "allow",
+   "protocol": "tcp",
+   "srcPort": "Any",
+   "srcCidr": "10.10.0.0/16",
+   "destPort": "5060",
+   "destCidr": "10.20.0.50/32",
+   "syslogEnabled": false
+  },
+  {
+   "comment": "inside_access_in-6",
+   "policy": "allow",
+   "protocol": "udp",
+   "srcPort": "Any",
+   "srcCidr": "10.10.0.0/16",
+   "destPort": "5060",
+   "destCidr": "10.20.0.50/32",
+   "syslogEnabled": false
+  },
+  {
+   "comment": "dmz_access_in-1",
+   "policy": "allow",
+   "protocol": "udp",
+   "srcPort": "Any",
+   "srcCidr": "10.20.0.10/32,10.20.0.25/32,10.20.0.50/32",
+   "destPort": "53",
+   "destCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/12,10.16.0.0/14,10.20.1.0/24,10.20.2.0/23,10.20.4.0/22,10.20.8.0/21,10.20.16.0/20,10.20.32.0/19,10.20.64.0/18,10.20.128.0/17,10.21.0.0/16,10.22.0.0/15,10.24.0.0/13,10.32.0.0/11,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/2,192.0.0.0/9,192.128.0.0/11,192.160.0.0/13,192.168.0.0/24,192.168.2.0/23,192.168.4.0/22,192.168.8.0/21,192.168.16.0/20,192.168.32.0/19,192.168.64.0/18,192.168.128.0/17,192.169.0.0/16,192.170.0.0/15,192.172.0.0/14,192.176.0.0/12,192.192.0.0/10,193.0.0.0/8,194.0.0.0/7,196.0.0.0/6,200.0.0.0/5,208.0.0.0/4,224.0.0.0/3",
+   "syslogEnabled": false
+  },
+  {
+   "comment": "dmz_access_in-2",
+   "policy": "allow",
+   "protocol": "tcp",
+   "srcPort": "1024-65535",
+   "srcCidr": "10.20.0.25/32",
+   "destPort": "25",
+   "destCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/12,10.16.0.0/14,10.20.1.0/24,10.20.2.0/23,10.20.4.0/22,10.20.8.0/21,10.20.16.0/20,10.20.32.0/19,10.20.64.0/18,10.20.128.0/17,10.21.0.0/16,10.22.0.0/15,10.24.0.0/13,10.32.0.0/11,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/2,192.0.0.0/9,192.128.0.0/11,192.160.0.0/13,192.168.0.0/24,192.168.2.0/23,192.168.4.0/22,192.168.8.0/21,192.168.16.0/20,192.168.32.0/19,192.168.64.0/18,192.168.128.0/17,192.169.0.0/16,192.170.0.0/15,192.172.0.0/14,192.176.0.0/12,192.192.0.0/10,193.0.0.0/8,194.0.0.0/7,196.0.0.0/6,200.0.0.0/5,208.0.0.0/4,224.0.0.0/3",
+   "syslogEnabled": false
   },
   {
    "comment": "dmz_access_in-3",
    "policy": "deny",
    "protocol": "any",
    "srcPort": "Any",
-   "srcCidr": "Any",
+   "srcCidr": "10.20.0.0/24",
    "destPort": "Any",
    "destCidr": "10.10.0.0/16",
    "syslogEnabled": true
+  },
+  {
+   "comment": "dmz_access_in-4",
+   "policy": "allow",
+   "protocol": "tcp",
+   "srcPort": "Any",
+   "srcCidr": "10.20.0.10/32",
+   "destPort": "443",
+   "destCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/12,10.16.0.0/14,10.20.1.0/24,10.20.2.0/23,10.20.4.0/22,10.20.8.0/21,10.20.16.0/20,10.20.32.0/19,10.20.64.0/18,10.20.128.0/17,10.21.0.0/16,10.22.0.0/15,10.24.0.0/13,10.32.0.0/11,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/2,192.0.0.0/9,192.128.0.0/11,192.160.0.0/13,192.168.0.0/24,192.168.2.0/23,192.168.4.0/22,192.168.8.0/21,192.168.16.0/20,192.168.32.0/19,192.168.64.0/18,192.168.128.0/17,192.169.0.0/16,192.170.0.0/15,192.172.0.0/14,192.176.0.0/12,192.192.0.0/10,193.0.0.0/8,194.0.0.0/7,196.0.0.0/6,200.0.0.0/5,208.0.0.0/4,224.0.0.0/3",
+   "syslogEnabled": false
+  },
+  {
+   "comment": "ASA implicit rule: traffic to interfaces of a lower security level is permitted",
+   "policy": "allow",
+   "protocol": "any",
+   "srcPort": "Any",
+   "srcCidr": "10.30.0.0/24",
+   "destPort": "Any",
+   "destCidr": "0.0.0.0/5,8.0.0.0/7,10.0.0.0/13,10.8.0.0/15,10.11.0.0/16,10.12.0.0/14,10.16.0.0/14,10.20.1.0/24,10.20.2.0/23,10.20.4.0/22,10.20.8.0/21,10.20.16.0/20,10.20.32.0/19,10.20.64.0/18,10.20.128.0/17,10.21.0.0/16,10.22.0.0/15,10.24.0.0/14,10.28.0.0/15,10.30.1.0/24,10.30.2.0/23,10.30.4.0/22,10.30.8.0/21,10.30.16.0/20,10.30.32.0/19,10.30.64.0/18,10.30.128.0/17,10.31.0.0/16,10.32.0.0/13,10.41.0.0/16,10.42.0.0/15,10.44.0.0/14,10.48.0.0/12,10.64.0.0/10,10.128.0.0/9,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4,32.0.0.0/3,64.0.0.0/2,128.0.0.0/2,192.0.0.0/9,192.128.0.0/11,192.160.0.0/13,192.168.0.0/24,192.168.2.0/23,192.168.4.0/22,192.168.8.0/21,192.168.16.0/20,192.168.32.0/19,192.168.64.0/18,192.168.128.0/17,192.169.0.0/16,192.170.0.0/15,192.172.0.0/14,192.176.0.0/12,192.192.0.0/10,193.0.0.0/8,194.0.0.0/7,196.0.0.0/6,200.0.0.0/5,208.0.0.0/4,224.0.0.0/3",
+   "syslogEnabled": false
   },
   {
    "comment": "the source blocks what no rule matches",
@@ -71,18 +231,8 @@ api PUT "/networks/$NETWORK_ID/appliance/firewall/l3FirewallRules" "$OUT/l3Firew
 sleep 0.2
 echo "done; the tables as they were are in $OUT/before-*.json"
 # Not written:
-#   outside_access_in-1: the source of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network; the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network
-#   outside_access_in-2: the source of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network; the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network
-#   outside_access_in-3: the source of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network; the destination of the rule is in zone inside, dmz, guest, and the MX names no zone: give the networks behind inside, dmz, guest with --zone-network; an ICMP type, or a protocol
-#   inside_access_in-1: the source of the rule is in zone inside, and the MX names no zone: give the networks behind inside with --zone-network; the destination of the rule is in zone outside, dmz, guest, and the MX names no zone: give the networks behind outside, dmz, guest with --zone-network
-#   inside_access_in-2: the source of the rule is in zone inside, and the MX names no zone: give the networks behind inside with --zone-network; the destination of the rule is in zone outside, dmz, guest, and the MX names no zone: give the networks behind outside, dmz, guest with --zone-network
-#   inside_access_in-3: the source of the rule is in zone inside, and the MX names no zone: give the networks behind inside with --zone-network; the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network
-#   inside_access_in-4: schedule 'business-hours' is not converted; the rule would apply at all times; schedule business-hours is not converted; the source of the rule is in zone inside, and the MX names no zone: give the networks behind inside with --zone-network; the destination of the rule is in zone outside, dmz, guest
-#   inside_access_in-5: the source of the rule is in zone inside, and the MX names no zone: give the networks behind inside with --zone-network; the destination of the rule is in zone outside, dmz, guest, and the MX names no zone: give the networks behind outside, dmz, guest with --zone-network
-#   inside_access_in-6: the source of the rule is in zone inside, and the MX names no zone: give the networks behind inside with --zone-network; the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network
-#   inside_access_in-7: source user match LOCAL\alice is not converted; the source of the rule is in zone inside, and the MX names no zone: give the networks behind inside with --zone-network; the destination of the rule is in zone outside, dmz, guest, and the MX names no zone: give the networks behind outside, dmz, guest 
-#   inside_access_in-9: the source of the rule is in zone inside, and the MX names no zone: give the networks behind inside with --zone-network; the destination of the rule is in zone outside, dmz, guest, and the MX names no zone: give the networks behind outside, dmz, guest with --zone-network; an ICMP type, or a protocol
-#   dmz_access_in-1: the source of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network; the destination of the rule is in zone outside, inside, guest, and the MX names no zone: give the networks behind outside, inside, guest with --zone-network
-#   dmz_access_in-2: the source of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network; the destination of the rule is in zone outside, inside, guest, and the MX names no zone: give the networks behind outside, inside, guest with --zone-network
-#   dmz_access_in-4: the source of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network; the destination of the rule is in zone outside, inside, guest, and the MX names no zone: give the networks behind outside, inside, guest with --zone-network
-#   implicit-guest: the source of the rule is in zone guest, and the MX names no zone: give the networks behind guest with --zone-network; the destination of the rule is in zone outside, and the MX names no zone: give the networks behind outside with --zone-network
+#   outside_access_in-3: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it
+#   inside_access_in-4: schedule 'business-hours' is not converted; the rule would apply at all times; schedule business-hours is not converted; host names in a rule kept to zones: their addresses are not known
+#   inside_access_in-5: no rule of the MX matches what it matches: host names with IPv6 sources only, or ICMPv6 with IPv4 addresses only (the MX takes host names for IPv4 only)
+#   inside_access_in-7: source user match LOCAL\alice is not converted
+#   inside_access_in-9: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it

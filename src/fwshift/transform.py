@@ -1830,3 +1830,49 @@ __all__ = [
     "topo_groups",
     "zone_pairs",
 ]
+
+
+ROUTED = "FWSHIFT-ROUTED"
+
+
+def keep_from_unzoned(p: Policy, excluded: Sequence[str], report: Report) -> int:
+    """Allow rules for any zone (or, to any address, for every zone traffic may leave by) and any address no longer reach
+    the networks the source routes to no zone of the policy (a management interface, a route that drops: zonenets,
+    0.35.0): that side becomes the group FWSHIFT-ROUTED, every address but those. A target that writes zones as networks would otherwise write "any", which reaches them; a deny
+    keeps them. Returns how many rules changed."""
+    holes = normalize([interval for interval in map(parse_literal, excluded) if interval])
+    if not holes:
+        return 0
+    taken = set(p.addresses) | set(p.address_groups)
+    group = ROUTED
+    while group in taken:
+        group += "_"
+    members: List[str] = []
+    for position, interval in enumerate(subtract([FULL_V4, FULL_V6], holes), 1):
+        name = f"{group}-{position}"
+        while name in taken:
+            name += "_"
+        text = interval_text(interval)
+        kind = AddressKind.RANGE if "-" in text and "/" not in text else AddressKind.NETWORK
+        p.addresses[name] = Address(name, kind, text, "every address but the networks behind no zone")
+        members.append(name)
+    changed = 0
+    for rule in p.rules:
+        if rule.action != Action.ALLOW or not rule.enabled:
+            continue
+        touched = False
+        if ANY in rule.src_zones and rule.sources == [ANY] and not rule.negate_source:
+            rule.sources, touched = [group], True
+        if (ANY in rule.dst_zones or rule.egress_implied) and rule.destinations == [ANY] and not rule.negate_destination:
+            rule.destinations, touched = [group], True
+        changed += touched
+    if changed:
+        p.address_groups[group] = AddressGroup(group, members, "every address but the networks the source routes to no zone")
+        report.note(Severity.INFO, "ZONE_NETWORKS_ANY_ZONE",
+                    f"{changed} allow rules for any zone and any address are written for {group}, every address but the networks "
+                    "behind no zone (" + ", ".join(interval_text(h) for h in holes[:8]) + (" and more" if len(holes) > 8 else "")
+                    + "), which the source does not let them reach")  # fmt: skip
+    else:
+        for name in members:
+            del p.addresses[name]
+    return changed

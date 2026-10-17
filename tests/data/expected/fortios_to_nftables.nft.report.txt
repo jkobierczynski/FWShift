@@ -13,6 +13,7 @@ Summary
 Notes for the whole policy
   [needs-review] NFT_LOAD: the output is one table, inet fwshift, which replaces itself when loaded: check it with 'nft -c -f FILE', load it with 'nft -f FILE'. Other tables stay as they are, but every base chain at the forward hook sees each packet: the drop policy here drops what this table does not accept even where another table (firewalld, Docker, libvirt, iptables-nft) accepts it, and a drop in another table still wins over an accept here
   [needs-review] INTERFACES_REQUIRED: zones are written as interface names; map each zone to its interface with --zone-map: lan, wan1, dmz, ot
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
   [info] LOGGING_AT_END: 3 rules log the end of a connection on the source; an nftables rule logs the packet it matches, so only rules that log the start of a connection got a log statement. Connection ends are in the conntrack events (conntrack -E, ulogd)
   [info] LOG_STATEMENTS: rules that log the start of a connection have a log statement, which writes a line to the kernel log for the first packet of each connection they accept (and for every packet a deny rule drops)
 

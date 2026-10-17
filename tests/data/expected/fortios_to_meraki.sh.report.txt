@@ -3,7 +3,7 @@ FWShift conversion report
   target: meraki
 
 Summary
-  Security rules:     14   exact 0, approximated 1, needs review 12 (12 emitted disabled), skipped 1
+  Security rules:     14   exact 3, approximated 0, needs review 10 (10 emitted disabled), skipped 1
   NAT rules:           5   exact 0, approximated 0, needs review 2, skipped 3
   Addresses:          13   exact 12, approximated 0, needs review 1, skipped 0
   Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
@@ -11,60 +11,66 @@ Summary
   Service groups:      2   exact 2, approximated 0, needs review 0, skipped 0
 
 Notes for the whole policy
+  [needs-review] ZONE_NETWORKS_ONE_VERSION: the policy has IPv6 addresses, and the networks of the zones are all of the other IP version: no IPv6 address lies behind any zone, so a rule for IPv6 that is kept to its zones matches nothing (an allow is left out; a deny keeps the addresses no zone holds). Where the firewall passes IPv6, give its networks with --zone-network
   [needs-review] MERAKI_INSIDE: no --inside-zone: every zone was taken as a LAN of the MX; rules from a zone that is the internet are then written as outbound rules, which the MX never matches for traffic from the internet
   [needs-review] MERAKI_INTRAZONE_DEFAULT: the source blocks traffic inside a zone that no rule matches; inside one VLAN the MX passes everything: lan, wan1, dmz, ot
   [needs-review] MERAKI_LOAD: the output is a shell script for the Dashboard API (section 10): it backs up and replaces the outbound table; DRY_RUN=1 writes the bodies only. The fixed default rule of the MX (allow) stays at the end
+  [info] ZONE_NETWORKS: the networks behind the zones, from the addresses of their interfaces and the static routes: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. Targets and --compare that need the networks of the zones take them from here where --zone-network does not give them
+  [info] ZONE_NETWORKS_FROM_SOURCE: the networks of these zones are taken from the configuration (its interfaces and static routes), as if given with --zone-network: dmz=10.20.0.0/24; lan=10.10.0.0/16,10.11.0.0/16; ot=10.30.1.0/24; wan1=0.0.0.0/0,198.51.100.0/24. --no-source-networks takes none of them
   [info] MERAKI_DEFAULT_DENY: the source blocks what no rule matches: the outbound table ends in a rule that blocks everything, before the fixed default rule of the MX
   [info] LOGGING_CONVERTED: rules of the source log; their rules have syslogEnabled
 
 Security rules
-  LAN to Internet  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network.
+  LAN to Internet  ->  exact  (emitted as 4 rules of the outbound table)
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone wan1 is written as the addresses of the networks given for it
   LAN basics  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network.
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone wan1 is written as the addresses of the networks given for it
       [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
   Inbound web  ->  needs-review, emitted disabled
       [needs-review] NAT_PORT_TRANSLATION: virtual IP 'vip-web' forwards port 443 to 8443; FortiOS policies name the mapped port, the neutral model the original one. Check the service of this rule
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
+      [info] ZONE_BY_NETWORKS: the source in zone wan1 is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it
+      [needs-review] NOT_WRITTEN: no rule of the MX matches what it matches: host names with IPv6 sources only, or ICMPv6 with IPv4 addresses only (the MX takes host names for IPv4 only).
   Inbound mail  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
+      [info] ZONE_BY_NETWORKS: the source in zone wan1 is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it
+      [needs-review] NOT_WRITTEN: no rule of the MX matches what it matches: host names with IPv6 sources only, or ICMPv6 with IPv4 addresses only (the MX takes host names for IPv4 only).
   Admins to DMZ  ->  needs-review, emitted disabled
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it
       [needs-review] UNSUPPORTED_MATCH: not converted: groups netadmins.
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
   Block geo  ->  needs-review, emitted disabled
       [needs-review] UNCONVERTIBLE_OBJECT: references 'geo-blocked': FortiOS address type 'geography'. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.
   DMZ out via pool  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network.
-  SCADA to PLCs  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone ot, and the MX names no zone: give the networks behind ot with --zone-network.
-  OT no internet  ->  approximated  (emitted as 1 rules of the outbound table)
-      [approximated] ZONE_WIDENED: the rule blocks traffic whose source is in zone ot; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
-      [approximated] ZONE_WIDENED: the rule blocks traffic whose destination is in zone wan1; the MX names no zone, and it blocks that traffic from every zone. Give the networks behind the zones with --zone-network
+      [info] ZONE_BY_NETWORKS: the source in zone dmz is written as the addresses of the networks given for it
+      [needs-review] FQDN_NOT_SUPPORTED: host names in a rule kept to zones: their addresses are not known.
+  SCADA to PLCs  ->  exact  (emitted as 1 rules of the outbound table)
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone ot is written as the addresses of the networks given for it
+  OT no internet  ->  exact  (emitted as 1 rules of the outbound table)
+      [info] ZONE_BY_NETWORKS: the source in zone ot is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone wan1 is written as the addresses of the networks given for it
   Partner tunnel  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network.
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone wan1 is written as the addresses of the networks given for it
       [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
   LAN v6 out  ->  needs-review, emitted disabled
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone wan1, and the MX names no zone: give the networks behind wan1 with --zone-network.
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone wan1 is written as the addresses of the networks given for it
+      [needs-review] NOT_WRITTEN: no rule of the MX matches what it matches: host names with IPv6 sources only, or ICMPv6 with IPv4 addresses only (the MX takes host names for IPv4 only).
   policy-12  ->  needs-review, emitted disabled
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it
       [needs-review] SCHEDULE: schedule 'office-hours' is not converted; the rule would apply at all times.
       [needs-review] SCHEDULE: schedule office-hours is not converted.
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
   Not web  ->  skipped
       [info] DISABLED_NOT_WRITTEN: disabled in the source; a rule of the MX cannot be disabled
   Timestamp probes  ->  needs-review, emitted disabled
       [info] ATTRIBUTES_IGNORED: NAT attributes without an equivalent were ignored: fixedport
-      [needs-review] ZONE_NETWORK_MISSING: the source of the rule is in zone lan, and the MX names no zone: give the networks behind lan with --zone-network.
-      [needs-review] ZONE_NETWORK_MISSING: the destination of the rule is in zone dmz, and the MX names no zone: give the networks behind dmz with --zone-network.
+      [info] ZONE_BY_NETWORKS: the source in zone lan is written as the addresses of the networks given for it
+      [info] ZONE_BY_NETWORKS: the destination in zone dmz is written as the addresses of the networks given for it
       [needs-review] SERVICE_NOT_WRITTEN: an ICMP type, or a protocol other than TCP, UDP, ICMP and ICMPv6: the MX has no field for it.
 
 NAT rules

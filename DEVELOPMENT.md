@@ -8,7 +8,7 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.34.0 (alpha) |
+| Version | 0.35.0 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Meraki MX (read the answers of the Dashboard API for one network: VLANs, objects, the outbound and layer 7 rules, port forwarding, 1:1 and 1:many NAT, the inbound table with NAT exceptions; write a curl script that puts the outbound and NAT tables); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
 | Tests | 6118, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables and nftables**: rulesets loaded into a Linux kernel and real packets forwarded through it (below; and the lab of 0.32.0, also on the author's machine). **AWS, Azure and Google Cloud**: the lab policy's conversion loaded into a real account by the lab, and real connections between instances checked (0.32.1, below). **FortiOS**: the lab policy's conversion loaded on a FortiGate-VM (FortiOS 8.0.1, AWS Marketplace) and real connections through it checked (0.32.1, below). **PAN-OS**: the same on a VM-Series (PAN-OS 11.2.15, AWS Marketplace). Nothing has been loaded on an ASA, an IOS router, a Huawei USG, a Stormshield firewall, a Meraki MX, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
@@ -2165,6 +2165,88 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-17: version 0.35.0
+
+**The networks behind the zones, from the source.** Item 1 of the audit list: where a FortiOS, PAN-OS or ASA
+configuration holds its interfaces and static routes, FWShift reads where each address lies, and the targets that need
+the networks of the zones, and the equivalence check, take them from there where `--zone-network` does not give them.
+
+**Built**
+
+* `zonenets.place`: each network (of an interface, a static route, an address pool) in the zone of the interface it is
+  on or that its route leaves by; a route that names only its next hop by the route to that address, the longest prefix
+  first, in its own routing table, recursively. Of routes to one network the connected one wins, then distance, then
+  metric; routes alike by different zones place it behind no zone (`ZONE_NETWORKS_CONFLICT`). A range is the networks
+  it is made of.
+* **Behind no zone** (`Policy.unzoned_networks`, `Options.zone_excluded`): the networks of an interface in no zone of
+  the policy (management, another virtual system or VDOM, a VPN no rule names), of one that is down, routes that drop or
+  lead to another router, conflicts, next hops that lead nowhere known. `zone_spaces` takes them like a zone in "the
+  smaller decides" and gives them to no zone, so that the zone of the default route does not take them: an allow for it
+  leaves them out, a deny keeps them. Allow rules for any zone and any address are written for `FWSHIFT-ROUTED`, every
+  address but these (`ZONE_NETWORKS_ANY_ZONE`).
+* With routing protocols, or zones whose interfaces are not layer 3 (virtual wire, layer 2, tap, virtual-wire pairs,
+  bridge groups), not every network is known: the default route is then not taken as "everything else"
+  (`ZONE_NETWORKS_PARTIAL`).
+* The parsers: FortiOS (interfaces of the VDOM with secondary and extra IPv6 addresses, status down, zones, static
+  routes by interface, SD-WAN zone or to an address object, blackholes, routes to internet services placing nothing,
+  SSL VPN and mode-config pools, phase 2 remote networks), PAN-OS (layer-3 interfaces, units, VLAN, loopback, tunnel,
+  literal or object addresses, virtual and logical routers of the virtual system, discard, next router, no-install,
+  GlobalProtect pools), ASA (interfaces, shut down, management-only, `route`, `ipv6 route`, Null0, `tunneled`, the
+  shorthand `0 0`). The set reader of 0.34 learned logical routers, VRFs, IPv6 interface addresses and static routes
+  in one command.
+* `zonenets.for_target`: the networks for a target, by the names after `--zone-map`, under `--zone-network` (what is
+  given decides; what the source puts in a zone that is given other networks, and they do not hold, is behind no zone);
+  `--no-source-networks` on `convert` and `compare`. `ZONE_NETWORKS_ONE_VERSION` where the policy has addresses of an IP
+  version that no zone's networks have.
+* ASA and pfSense targets: a rule that names its destination, for some zones, now leaves out the part of the destination
+  that lies in none of the networks when it allows (it kept it, with a note): the reviewer's side finding, which the
+  networks behind no zone made matter.
+* `convert --compare` to an ASA target compares where the source tells the networks; the FortiOS sample got a default
+  route; the goldens of the ASA and FortiOS samples changed accordingly (rules that were written disabled for want of
+  networks are written).
+
+**Review**
+
+*Round 44* by the independent reviewer, of the feature, with synthetic configurations written to find where the
+networks make a converted policy allow more than the source, and a fuzz; then a second pass over the fixes.
+
+| | Finding | Fix |
+|---|---|---|
+| high | The networks of interfaces in no zone (management), and of routes that drop, conflicts and other routers, fell into the zone of the default route: an allow for it reached them (rules 0.34 wrote disabled) | behind no zone, carved out of every zone (`zone_spaces`) |
+| high | With routing protocols the default route still made "everything else" one zone's, learned networks with it | not taken; `ZONE_NETWORKS_PARTIAL` |
+| high | FortiOS secondary addresses were not read: they fell into the default zone | read |
+| high | The suite was red (goldens, a stale test, the version) | fixed |
+| high (second pass) | An ASA `tunneled` default route made inside the zone of 0/0 (SSH from almost everywhere on NSX) | not read |
+| high (second pass) | A FortiOS route to an internet service, which has no `dst`, was read as a default route | not read |
+| medium | Next hops were resolved across virtual routers and virtual systems; a next hop behind a static route was lost | in its own table, recursively, by longest prefix; checked by an independent routing oracle |
+| medium | A zone given with `--zone-network` dropped the rest of its source networks into the default zone | behind no zone |
+| medium | VPN pools fell into the default zone | FortiOS SSL VPN, mode-config and phase 2, PAN-OS GlobalProtect, behind their tunnel |
+| medium | Routing protocols of logical routers were not seen | seen |
+| medium (second pass) | An allow for any zone and any address was written as ANY, reaching the networks behind no zone | `FWSHIFT-ROUTED` |
+| medium (second pass) | A pool range across two networks aborted the conversion with an error about `--zone-network` | taken as its networks |
+| medium (second pass) | Dial-up IPsec remote networks fell into the default zone | behind the tunnel |
+| low-medium (second pass) | Another virtual system's routers took part, making the own networks conflicted | only the routers of the virtual system |
+| low-medium (second pass) | The addresses behind virtual-wire, layer-2 and tap zones went to the default zone | no default then (`ZONE_NETWORKS_PARTIAL`) |
+| low | Routes through a shut-down ASA interface were placed; FortiOS `status down` ignored; `route outside 0 0` not read | behind no zone; read |
+| low | PAN-OS no-install and multicast routes placed; a next hop as an address object lost | skipped; resolved |
+| low | `ZONE_NETWORKS_ONE_VERSION` on policies without the other version; FortiOS full configurations looked like dynamic routing | only where the policy has such addresses; real protocol settings only |
+| low | Docs: management networks "not taken" without saying where they went; `--compare` shares the networks | rewritten; §17 says so |
+
+Kept as it is: `ZONE_NETWORKS_FROM_SOURCE` stays a note (information), not a review item, also where a default route
+is taken; what the networks are is in it and in `ZONE_NETWORKS`.
+
+**Verified, and not**
+
+* The suite (6,603 tests, on Python 3.13 and 3.9; mypy and pyflakes clean). `tests/test_zonenets.py`: an independent longest-prefix routing judge against `zone_spaces(place(...))`
+  for random routing tables (interfaces in zones and in none, routes by interface and by next hop, floating and
+  equal-cost routes, routes that drop, pools; 150 in the suite, 3,000 more run once), the three parsers on synthetic
+  configurations of each case above, and a differential: the output with the networks of the source is the output with
+  them given, for nine targets and two samples.
+* **Not verified**: on a device, and against configurations of real networks (there are none in the project). PAN-OS
+  templates of Panorama, and the other sources that hold interfaces (Junos, Huawei, IOS, Sophos, pfSense, OPNsense,
+  RouterOS, SonicWall), give no networks yet. The equivalence check judges the output with the networks it was written
+  with: a network the routes put behind the wrong zone is found by reading `ZONE_NETWORKS`, not by the comparison.
 
 ### 2026-10-17: version 0.34.0
 

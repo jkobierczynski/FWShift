@@ -16,7 +16,7 @@ import pkgutil
 import sys
 from typing import Callable, Dict, List, Optional, Sequence, Set, TextIO, Tuple
 
-from . import __version__, audit, compare, conduits, hits, matrix, narrow, transform, usage
+from . import __version__, audit, compare, conduits, hits, matrix, narrow, transform, usage, zonenets
 from .appmap import load_app_map
 from .emitters import asa as emit_asa
 from .emitters import aws as emit_aws
@@ -44,7 +44,7 @@ from .emitters import stormshield as emit_stormshield
 from .emitters import sophos as emit_sophos
 from .emitters import watchguard as emit_watchguard
 from .errors import FwshiftError
-from .model import ANY, Policy
+from .model import ANY, AddressKind, Policy
 from .netutil import parse_literal
 from .options import Options
 from .parsers import asa as parse_asa
@@ -283,7 +283,16 @@ def convert(policy: Policy, target: str, report: Report, options: Optional[Optio
     report.register("rule", [rule.origin for rule in policy.rules])
     if target not in EMITTERS:
         raise FwshiftError(f"unknown target format '{target}'")
+    if options.zone_excluded and target in NETWORK_TARGETS:
+        policy = copy.deepcopy(policy)
+        transform.keep_from_unzoned(policy, options.zone_excluded, report)
     return EMITTERS[target](policy, report, options)
+
+
+def _versions(policy: Policy) -> Set[int]:
+    """The IP versions of the addresses a policy defines."""
+    return {found[0] for address in policy.addresses.values() if address.kind in (AddressKind.NETWORK, AddressKind.RANGE)
+            for found in [parse_literal(address.value)] if found}  # fmt: skip
 
 
 def _pairs(values: Sequence[str], option: str) -> Dict[str, str]:
@@ -563,6 +572,11 @@ def build_parser() -> argparse.ArgumentParser:
         "them for every zone; 0.0.0.0/0,::/0 for the zone with the default route",
     )  # fmt: skip
     conv.add_argument(
+        "--no-source-networks", action="store_true",
+        help="do not take the networks behind the zones from the configuration (its interfaces and static routes, FortiOS, PAN-OS "
+        "and ASA) where --zone-network does not give them",
+    )  # fmt: skip
+    conv.add_argument(
         "--inside-zone", action="append", default=[], metavar="ZONE",
         help="AWS and Azure targets (also terraform-aws and terraform-azure): a zone whose networks (--zone-network) are inside the VPC or virtual network; only its "
         "addresses get security groups (Azure: only it gets a network security group). Meraki: a zone of the LAN of the MX; the others are the internet. Repeatable",
@@ -675,6 +689,9 @@ def build_parser() -> argparse.ArgumentParser:
     cmp.add_argument("--zone-network", action="append", default=[], metavar="ZONE=NET[,NET]",
                      help="the networks behind a zone, named as the first configuration names it: only connections that can happen "
                      "are compared; repeatable")
+    cmp.add_argument("--no-source-networks", action="store_true",
+                     help="do not take the networks behind the zones of the first from its configuration (interfaces and static routes) "
+                     "where --zone-network does not give them")  # fmt: skip
     cmp.add_argument("--app-map", metavar="FILE", help="JSON file: application name -> list of port specs (the default ports of applications)")
     cmp.add_argument("-o", "--output", help="write the result here (default: standard output)")
     cmp.add_argument("--json", action="store_true", help="write the result as JSON")
@@ -760,6 +777,10 @@ def _run_convert(args: argparse.Namespace) -> int:
         zone_networks=_networks(args.zone_network),
         inside_zones=list(dict.fromkeys(args.inside_zone)),
     )
+    if (policy.zone_networks or policy.unzoned_networks) and not args.no_source_networks and (
+            args.target in NETWORK_TARGETS or args.compare is not None):  # fmt: skip
+        options.zone_networks, options.zone_excluded = zonenets.for_target(
+            policy.zone_networks, policy.unzoned_networks, options.zone_map, options.zone_networks, report, _versions(policy))
     auditing = bool(args.audit or args.audit_config or args.audit_action or args.audit_accept or args.audit_fail_on or args.hits
                     or args.hits_since or args.usage_store)
     if auditing and args.target == "json":
@@ -936,9 +957,15 @@ def _run_compare(args: argparse.Namespace) -> int:
         transform.harden(policy, report)
         loaded.append((path, source, policy, report))
     (first, first_source, a, ra), (second, second_source, b, rb) = loaded
+    networks = _networks(args.zone_network)
+    taken = Report()
+    excluded: List[str] = []
+    if (a.zone_networks or a.unzoned_networks) and not args.no_source_networks:
+        networks, excluded = zonenets.for_target(a.zone_networks, a.unzoned_networks, {}, networks, taken, _versions(a))
     result = compare.compare(a, b, f"{first} ({first_source})", f"{second} ({second_source})", (ra, rb),
-                             compare.parse_zone_map(args.zone_map), _networks(args.zone_network),
-                             app_ports=load_app_map(args.app_map) if args.app_map else None)  # fmt: skip
+                             compare.parse_zone_map(args.zone_map), networks,
+                             app_ports=load_app_map(args.app_map) if args.app_map else None, excluded=excluded)  # fmt: skip
+    result.notes[:0] = [note.message[0].upper() + note.message[1:] + "." for note in taken.notes]
     text = (json.dumps(result.to_dict(), indent=2, ensure_ascii=False) + "\n") if args.json else "FWShift comparison\n" + result.to_text()
     if args.output:
         _write(args.output, text)
@@ -947,6 +974,9 @@ def _run_compare(args: argparse.Namespace) -> int:
     return 3 if result.level() >= weight else 0
 
 
+# The targets that use the networks behind the zones (--zone-network), and take them from the source where it says.
+NETWORK_TARGETS = ("asa", "pfsense", "opnsense", "barracuda", "nsx", "aws", "azure", "gcp", "terraform-aws", "terraform-azure",
+                   "terraform-google", "meraki", "sonicwall")  # fmt: skip
 READ_BACK = ("asa", "azure", "fdm", "fortios", "iptables", "ip6tables", "junos", "nftables", "nsx", "panos", "routeros", "sophos", "watchguard")
 
 
@@ -1028,7 +1058,7 @@ def _compare_output(args: argparse.Namespace, source: Policy, source_report: aud
         missing = []
     try:
         result = compare.compare(source, back, "the source", "the output read back", (source_report, back_report), zone_map, networks,
-                                 pairs, options.app_ports)  # fmt: skip
+                                 pairs, options.app_ports, options.zone_excluded)  # fmt: skip
     except FwshiftError as error:
         report.note(Severity.REVIEW, "COMPARE_NOT_READ_BACK", f"--compare: nothing was compared: {error}")
         return

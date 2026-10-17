@@ -26,40 +26,19236 @@ variable "vpc_id" {
   type        = string
 }
 
-# attach fwshift-no-rules: 0.0.0.0/0 ::/0
+# attach fwshift-outside: 0.0.0.0-10.9.255.255 10.11.0.0-10.19.255.255 10.20.1.0-10.29.255.255 10.30.1.0-10.39.255.255 10.41.0.0-192.168.0.255 192.168.2.0-255.255.255.255
 resource "aws_security_group" "g1" {
-  name        = "fwshift-no-rules"
-  description = "FWShift: for the interfaces of 0.0.0.0/0 ::/0"
+  name        = "fwshift-outside"
+  description = "FWShift: for the interfaces of 0.0.0.0-10.9.255.255 10.11.0.0-10.19.255.255 10.20.1.0-10.29.255.255 10.30.1.0-10.39.255.255 10.41.0.0-192.168.0.255 192.168.2.0-255.255.255.255"
   vpc_id      = var.vpc_id
   tags = {
     fwshift = "generated"
   }
 }
 
+# attach fwshift-inside: 10.10.0.0-10.10.5.9 10.10.5.21-10.10.255.255
+resource "aws_security_group" "g2" {
+  name        = "fwshift-inside"
+  description = "FWShift: for the interfaces of 10.10.0.0-10.10.5.9 10.10.5.21-10.10.255.255"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+# attach fwshift-admin-range: 10.10.5.10-10.10.5.20
+resource "aws_security_group" "g3" {
+  name        = "fwshift-admin-range"
+  description = "FWShift: for the interfaces of 10.10.5.10-10.10.5.20"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+# attach fwshift-dmz: 10.20.0.0-10.20.0.9 10.20.0.11-10.20.0.24 10.20.0.26-10.20.0.49 10.20.0.51-10.20.0.255
+resource "aws_security_group" "g4" {
+  name        = "fwshift-dmz"
+  description = "FWShift: for the interfaces of 10.20.0.0-10.20.0.9 10.20.0.11-10.20.0.24 10.20.0.26-10.20.0.49 10.20.0.51-10.20.0.255"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+# attach fwshift-web-srv: 10.20.0.10
+resource "aws_security_group" "g5" {
+  name        = "fwshift-web-srv"
+  description = "FWShift: for the interfaces of 10.20.0.10"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+# attach fwshift-mail-srv: 10.20.0.25
+resource "aws_security_group" "g6" {
+  name        = "fwshift-mail-srv"
+  description = "FWShift: for the interfaces of 10.20.0.25"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+# attach fwshift-dmz-2: 10.20.0.50
+resource "aws_security_group" "g7" {
+  name        = "fwshift-dmz-2"
+  description = "FWShift: for the interfaces of 10.20.0.50"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+# attach fwshift-guest: 10.30.0.0/24
+resource "aws_security_group" "g8" {
+  name        = "fwshift-guest"
+  description = "FWShift: for the interfaces of 10.30.0.0/24"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+# attach fwshift-inside-2: 10.40.0.0/16
+resource "aws_security_group" "g9" {
+  name        = "fwshift-inside-2"
+  description = "FWShift: for the interfaces of 10.40.0.0/16"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+# attach fwshift-addresses-ipv6: ::-2001:db8:f:ffff:ffff:ffff:ffff:ffff 2001:db8:10:1::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+resource "aws_security_group" "g10" {
+  name        = "fwshift-addresses-ipv6"
+  description = "FWShift: for the interfaces of ::-2001:db8:f:ffff:ffff:ffff:ffff:ffff 2001:db8:10:1::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+# attach fwshift-inside-v6-ipv6: 2001:db8:10::/64
+resource "aws_security_group" "g11" {
+  name        = "fwshift-inside-v6-ipv6"
+  description = "FWShift: for the interfaces of 2001:db8:10::/64"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+# attach fwshift-no-rules: 192.168.1.0/24
+resource "aws_security_group" "g12" {
+  name        = "fwshift-no-rules"
+  description = "FWShift: for the interfaces of 192.168.1.0/24"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_1" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_2" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_3" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_4" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_5" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_6" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_7" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_8" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_9" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_10" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_11" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_12" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.25/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_13" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.50/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_14" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_15" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_16" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_17" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_18" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_19" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.11.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_20" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_21" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_22" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_23" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_24" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_25" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_26" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_27" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_28" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_29" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_30" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_31" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_32" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_33" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_34" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_35" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_36" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_37" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_38" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_39" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_40" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_41" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_42" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_43" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_44" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_45" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_46" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_47" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_48" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_49" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_50" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_51" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_52" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_53" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_54" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_55" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_56" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_57" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_58" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_59" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_60" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_61" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_62" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_63" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_64" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_65" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_66" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_67" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_68" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_69" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_70" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_71" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_72" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_73" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_74" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_75" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_76" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_77" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_78" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_79" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_80" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_81" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_82" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_83" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_84" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_85" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_86" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_87" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_88" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_89" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_90" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_91" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_92" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_93" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_94" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_95" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_96" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_97" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_98" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_99" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_100" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_101" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_102" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_103" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_104" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_105" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_106" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_107" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_108" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_109" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_110" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_111" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_112" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_113" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_114" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_115" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_116" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_117" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_118" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_119" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_120" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_121" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_122" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_123" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_124" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_125" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_126" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_127" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_128" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_129" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_130" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_131" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_132" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_133" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_134" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_135" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_136" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_137" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_1" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.0.25/32"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_2" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.20.0.25/32"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_3" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_4" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.0.25/32"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_5" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_6" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_7" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_8" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_9" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_10" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_11" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_12" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_13" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_14" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_15" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_16" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_17" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_18" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_19" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_20" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_21" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_22" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_23" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_24" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_25" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_26" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_27" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_28" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_29" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_30" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_31" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_32" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_33" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_34" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_35" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_36" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_37" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_38" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_39" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_40" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_41" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_42" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_43" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_44" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_45" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_46" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_47" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_48" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_49" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_50" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_51" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_52" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_1" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_2" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_3" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_4" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_5" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_6" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_7" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_8" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_9" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_10" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.25/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_11" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.50/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_12" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_13" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_14" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_15" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_16" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_17" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.11.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_18" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_19" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_20" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_21" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_22" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_23" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_24" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_25" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_26" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_27" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_28" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_29" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_30" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_31" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_32" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_33" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_34" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_35" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_36" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_37" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_38" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_39" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_40" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_41" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_42" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_43" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_44" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_45" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_46" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_47" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_48" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_49" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_50" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_51" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_52" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_53" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_54" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_55" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_56" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_57" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_58" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_59" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_60" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_61" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_62" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_63" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_64" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_65" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_66" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_67" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_68" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_69" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_70" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_71" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_72" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_73" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_74" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_75" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_76" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_77" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_78" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_79" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_80" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_81" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_82" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_83" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_84" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_85" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_86" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_87" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_88" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_89" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_90" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_91" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_92" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_93" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_94" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_95" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_96" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_97" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_98" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_99" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_100" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_101" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_102" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_103" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_104" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_105" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_106" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_107" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_108" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_109" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_110" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_111" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_112" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_113" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_114" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_115" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_116" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_117" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_118" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_119" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_120" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_121" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_122" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_123" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_124" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_125" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_126" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_127" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_128" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_129" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_130" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_131" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_132" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_133" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_134" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g2_in_135" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_1" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_2" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_3" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_4" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_5" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_6" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_7" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_8" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_9" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_10" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_11" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_12" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_13" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_14" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_15" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_16" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_17" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_18" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_19" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_20" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_21" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_22" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_23" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_24" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_25" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_26" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_27" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_28" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_29" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_30" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_31" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_32" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_33" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_34" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_35" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_36" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_37" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_38" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_39" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_40" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_41" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_42" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_43" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_44" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_45" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_46" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_47" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_48" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_49" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_50" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_51" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_52" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_53" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_54" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_55" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_56" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_57" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_58" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_59" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_60" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_61" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_62" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_63" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_64" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_65" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_66" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_67" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_68" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_69" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_70" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_71" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_72" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_73" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 5060
+  to_port           = 5060
+  cidr_ipv4         = "10.20.0.50/32"
+  description       = "FWShift: inside_access_in-6"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_74" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_75" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_76" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_77" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_78" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_79" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_80" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_81" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_82" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_83" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_84" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_85" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_86" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_87" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_88" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_89" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_90" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_91" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_92" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_93" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_94" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_95" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_96" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_97" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_98" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_99" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_100" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_101" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_102" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_103" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_104" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_105" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_106" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_107" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_108" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_109" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_110" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_111" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_112" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_113" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_114" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_115" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_116" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_117" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_118" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_119" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_120" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_121" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_122" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_123" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_124" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_125" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_126" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_127" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_128" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_129" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_130" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_131" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_132" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_133" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_134" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_135" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_136" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_137" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_138" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_139" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_140" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_141" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_142" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_143" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_144" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_145" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_146" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 5060
+  to_port           = 5060
+  cidr_ipv4         = "10.20.0.50/32"
+  description       = "FWShift: inside_access_in-6"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_147" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_148" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_149" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_150" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_151" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_152" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_153" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_154" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_155" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_156" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_157" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_158" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_159" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_160" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_161" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_162" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_163" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_164" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_165" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_166" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_167" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_168" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_169" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_170" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_1" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_2" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_3" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_4" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_5" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_6" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_7" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_8" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_9" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_10" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.25/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_11" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.50/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_12" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_13" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_14" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_15" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_16" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_17" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.11.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_18" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_19" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_20" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_21" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_22" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_23" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_24" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_25" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_26" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_27" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_28" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_29" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_30" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_31" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_32" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_33" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_34" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_35" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_36" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_37" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_38" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_39" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_40" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_41" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_42" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_43" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_44" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_45" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_46" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_47" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_48" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_49" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_50" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_51" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_52" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_53" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_54" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_55" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_56" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_57" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_58" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_59" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_60" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_61" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_62" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_63" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_64" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_65" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_66" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_67" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_68" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_69" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_70" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_71" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_72" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_73" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_74" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_75" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_76" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_77" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_78" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_79" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_80" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_81" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_82" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_83" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_84" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_85" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_86" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_87" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_88" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_89" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_90" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_91" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_92" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_93" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_94" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_95" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_96" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_97" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_98" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_99" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_100" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_101" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_102" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_103" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_104" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_105" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_106" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_107" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_108" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_109" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_110" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_111" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_112" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_113" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_114" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_115" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_116" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_117" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_118" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_119" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_120" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_121" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_122" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_123" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_124" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_125" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_126" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_127" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_128" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_129" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_130" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_131" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_132" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_133" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_134" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g3_in_135" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_1" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: inside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_2" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "10.20.0.25/32"
+  description       = "FWShift: inside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_3" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "10.20.0.50/32"
+  description       = "FWShift: inside_access_in-3"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_4" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_5" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_6" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_7" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_8" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_9" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_10" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_11" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_12" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_13" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_14" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_15" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_16" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_17" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_18" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_19" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_20" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_21" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_22" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_23" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_24" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_25" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_26" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_27" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_28" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_29" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_30" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_31" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_32" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_33" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_34" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_35" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_36" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_37" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_38" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_39" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_40" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_41" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_42" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_43" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_44" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_45" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_46" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_47" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_48" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_49" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_50" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_51" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_52" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_53" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_54" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_55" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_56" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_57" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_58" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_59" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_60" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_61" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_62" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_63" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_64" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_65" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_66" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_67" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_68" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_69" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_70" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_71" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_72" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_73" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_74" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_75" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_76" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 5060
+  to_port           = 5060
+  cidr_ipv4         = "10.20.0.50/32"
+  description       = "FWShift: inside_access_in-6"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_77" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_78" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_79" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_80" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_81" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_82" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_83" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_84" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_85" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_86" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_87" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_88" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_89" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_90" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_91" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_92" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_93" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_94" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_95" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_96" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_97" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_98" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_99" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_100" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_101" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_102" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_103" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_104" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_105" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_106" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_107" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_108" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_109" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_110" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_111" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_112" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_113" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_114" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_115" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_116" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_117" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_118" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_119" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_120" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_121" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_122" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_123" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_124" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_125" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_126" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_127" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_128" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_129" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_130" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_131" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_132" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_133" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_134" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_135" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_136" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_137" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_138" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_139" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_140" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_141" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_142" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_143" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_144" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_145" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_146" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_147" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_148" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_149" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 5060
+  to_port           = 5060
+  cidr_ipv4         = "10.20.0.50/32"
+  description       = "FWShift: inside_access_in-6"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_150" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_151" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_152" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_153" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_154" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_155" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_156" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_157" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_158" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_159" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_160" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_161" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_162" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_163" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_164" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_165" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_166" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_167" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_168" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_169" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_170" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_171" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_172" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_173" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_1" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_2" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_3" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_4" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_5" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_6" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_7" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_8" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_9" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_10" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_11" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.25/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_12" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.50/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_13" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_14" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_15" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_16" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_17" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_18" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.11.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_19" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_20" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_21" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_22" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_23" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_24" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_25" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_26" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_27" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_28" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_29" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_30" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_31" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_32" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_33" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_34" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_35" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_36" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_37" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_38" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_39" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_40" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_41" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_42" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_43" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_44" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_45" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_46" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_47" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_48" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_49" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_50" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_51" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_52" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_53" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_54" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_55" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_56" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_57" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_58" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_59" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_60" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_61" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_62" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_63" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_64" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_65" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_66" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_67" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_68" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_69" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_70" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_71" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_72" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_73" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_74" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_75" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_76" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_77" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_78" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_79" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_80" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_81" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_82" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_83" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_84" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_85" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_86" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_87" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_88" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_89" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_90" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_91" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_92" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_93" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_94" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_95" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_96" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_97" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_98" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_99" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_100" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_101" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_102" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_103" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_104" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_105" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_106" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_107" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_108" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_109" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_110" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_111" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_112" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_113" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_114" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_115" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_116" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_117" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_118" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_119" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_120" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_121" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_122" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_123" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_124" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_125" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_126" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_127" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_128" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_129" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_130" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_131" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_132" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_133" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_134" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_135" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g4_in_136" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_1" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "10.10.5.10/31"
+  description       = "FWShift: inside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_2" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "10.10.5.12/30"
+  description       = "FWShift: inside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_3" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "10.10.5.16/30"
+  description       = "FWShift: inside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_4" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "10.10.5.20/32"
+  description       = "FWShift: inside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_5" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_6" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_7" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_8" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_9" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_10" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_11" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_12" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_13" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_14" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_15" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_16" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_17" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.11.0.0/16"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_18" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_19" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_20" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_21" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_22" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_23" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_24" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_25" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_26" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_27" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_28" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_29" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_30" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_31" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_32" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_33" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_34" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_35" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_36" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_37" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_38" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_39" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_40" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_41" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_42" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_43" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_44" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_45" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_46" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_47" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_48" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_49" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_50" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_51" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_52" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_53" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_54" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_55" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_56" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_57" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_58" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_59" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_60" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_61" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_62" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_63" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_64" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_65" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_66" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_67" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_68" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_69" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_70" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_71" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_72" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_73" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_74" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_75" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_76" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_77" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_78" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.25/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_79" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.50/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_80" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_81" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_82" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_83" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_84" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_85" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.11.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_86" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_87" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_88" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_89" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_90" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_91" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_92" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_93" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_94" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_95" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_96" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_97" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_98" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_99" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_100" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_101" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_102" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_103" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_104" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_105" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_106" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_107" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_108" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_109" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_110" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_111" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_112" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_113" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_114" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_115" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_116" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_117" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_118" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_119" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_120" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_121" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_122" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_123" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_124" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_125" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_126" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_127" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_128" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_129" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_130" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_131" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_132" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_133" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_134" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_135" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_136" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_137" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_138" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_139" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_140" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_141" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_142" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_143" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_144" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_145" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_146" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_147" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_148" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_149" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_150" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_151" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_152" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_153" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_154" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_155" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_156" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_157" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_158" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_159" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_160" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_161" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_162" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_163" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_164" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_165" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_166" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_167" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_168" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_169" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_170" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_171" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_172" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_173" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_174" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_175" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_176" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_177" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_178" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_179" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_180" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_181" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_182" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_183" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_184" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_185" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_186" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_187" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_188" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_189" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_190" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_191" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_192" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_193" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_194" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_195" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_196" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_197" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_198" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_199" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_200" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_201" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_202" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_203" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_1" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_2" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_3" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_4" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_5" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.11.0.0/16"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_6" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_7" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.16.0.0/12"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_8" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_9" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_10" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_11" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_12" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_13" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_14" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_15" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_16" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_17" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_18" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_19" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_20" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_21" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_22" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_23" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_24" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_25" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_26" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_27" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_28" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_29" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_30" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_31" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_32" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_33" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_34" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_35" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_36" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_37" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_38" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_39" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_40" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_41" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_42" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_43" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_44" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_45" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_46" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_47" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_48" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_49" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_50" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_51" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_52" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_53" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_54" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_55" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_56" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_57" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_58" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_59" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_60" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_61" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g5_out_62" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_1" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "10.10.5.10/31"
+  description       = "FWShift: inside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_2" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "10.10.5.12/30"
+  description       = "FWShift: inside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_3" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "10.10.5.16/30"
+  description       = "FWShift: inside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_4" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "10.10.5.20/32"
+  description       = "FWShift: inside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_5" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_6" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_7" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_8" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_9" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.11.0.0/16"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_10" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_11" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_12" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_13" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_14" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_15" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_16" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_17" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_18" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_19" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_20" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_21" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_22" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_23" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_24" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_25" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_26" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_27" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_28" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_29" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_30" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_31" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_32" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_33" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_34" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_35" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_36" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_37" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_38" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_39" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_40" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_41" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_42" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_43" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_44" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_45" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_46" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_47" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_48" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_49" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_50" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_51" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_52" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_53" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_54" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_55" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_56" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_57" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_58" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_59" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_60" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_61" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_62" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_63" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_64" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_65" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_66" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_67" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_68" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_69" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_70" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_71" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_72" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_73" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_74" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_75" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_76" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_77" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_78" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.11.0.0/16"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_79" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_80" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_81" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_82" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_83" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_84" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_85" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_86" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_87" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_88" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_89" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_90" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_91" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_92" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_93" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_94" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_95" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_96" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_97" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_98" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_99" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_100" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_101" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_102" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_103" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_104" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_105" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_106" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_107" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_108" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_109" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_110" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_111" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_112" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_113" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_114" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_115" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_116" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_117" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_118" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_119" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_120" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_121" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_122" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_123" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_124" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_125" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_126" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_127" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_128" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_129" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_130" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_131" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_132" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_133" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_134" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_135" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_136" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_137" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_138" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_139" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_140" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_141" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_142" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_143" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.11.0.0/16"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_144" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_145" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_146" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_147" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_148" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_149" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_150" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_151" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_152" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_153" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_154" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_155" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_156" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_157" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_158" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_159" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_160" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_161" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_162" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_163" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_164" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_165" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_166" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_167" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_168" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_169" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_170" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_171" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_172" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_173" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_174" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_175" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_176" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_177" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_178" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_179" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_180" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_181" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_182" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_183" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_184" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_185" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_186" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_187" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_188" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_189" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_190" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_191" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_192" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_193" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_194" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_195" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_196" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_197" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_198" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_199" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_200" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_201" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_202" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_203" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_204" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.25/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_205" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.50/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_206" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_207" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_208" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_209" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_210" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_211" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.11.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_212" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_213" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_214" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_215" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_216" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_217" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_218" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_219" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_220" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_221" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_222" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_223" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_224" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_225" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_226" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_227" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_228" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_229" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_230" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_231" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_232" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_233" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_234" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_235" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_236" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_237" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_238" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_239" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_240" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_241" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_242" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_243" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_244" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_245" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_246" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_247" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_248" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_249" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_250" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_251" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_252" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_253" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_254" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_255" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_256" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_257" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_258" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_259" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_260" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_261" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_262" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_263" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_264" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_265" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_266" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_267" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_268" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_269" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_270" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_271" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_272" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_273" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_274" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_275" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_276" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_277" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_278" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_279" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_280" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_281" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_282" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_283" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_284" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_285" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_286" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_287" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_288" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_289" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_290" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_291" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_292" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_293" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_294" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_295" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_296" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_297" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_298" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_299" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_300" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_301" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_302" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_303" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_304" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_305" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_306" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_307" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_308" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_309" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_310" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_311" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_312" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_313" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_314" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_315" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_316" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_317" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_318" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_319" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_320" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_321" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_322" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_323" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_324" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_325" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_326" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_327" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_328" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_329" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_1" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_2" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_3" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_4" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_5" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_6" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_7" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_8" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_9" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_10" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_11" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_12" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_13" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_14" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_15" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_16" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_17" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_18" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_19" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_20" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_21" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_22" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_23" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g6_out_24" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_1" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "10.10.5.10/31"
+  description       = "FWShift: inside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_2" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "10.10.5.12/30"
+  description       = "FWShift: inside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_3" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "10.10.5.16/30"
+  description       = "FWShift: inside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_4" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_ipv4         = "10.10.5.20/32"
+  description       = "FWShift: inside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_5" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_6" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_7" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_8" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_9" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_10" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_11" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "tcp"
+  from_port         = 5060
+  to_port           = 5060
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-6"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_12" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_13" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_14" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_15" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_16" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.25/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_17" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.50/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_18" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_19" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 5060
+  to_port           = 5060
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-6"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_20" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_21" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_22" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_23" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_24" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.11.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_25" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_26" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_27" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_28" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_29" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_30" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_31" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_32" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_33" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_34" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_35" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_36" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_37" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_38" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_39" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_40" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_41" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_42" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_43" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_44" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_45" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_46" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_47" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_48" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_49" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_50" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_51" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_52" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_53" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_54" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_55" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_56" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_57" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_58" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_59" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_60" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_61" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_62" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_63" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_64" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_65" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_66" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_67" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_68" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_69" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_70" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_71" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_72" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_73" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_74" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_75" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_76" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_77" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_78" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_79" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_80" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_81" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_82" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_83" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_84" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_85" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_86" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_87" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_88" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_89" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_90" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_91" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_92" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_93" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_94" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_95" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_96" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_97" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_98" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_99" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_100" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_101" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_102" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_103" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_104" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_105" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_106" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_107" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_108" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_109" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_110" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_111" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_112" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_113" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_114" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_115" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_116" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_117" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_118" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_119" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_120" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_121" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_122" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_123" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_124" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_125" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_126" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_127" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_128" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_129" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_130" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_131" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_132" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_133" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_134" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_135" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_136" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_137" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_138" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_139" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_140" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_141" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_142" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_1" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_2" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_3" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_4" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_5" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_6" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_7" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_8" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_9" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_10" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_11" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_12" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_13" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_14" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_15" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_16" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_17" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_18" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_19" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_20" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_21" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_22" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_23" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g7_out_24" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_1" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_2" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_3" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_4" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_5" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_6" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_7" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_8" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_9" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_10" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_11" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.25/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_12" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.50/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_13" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_14" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_15" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_16" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_17" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_18" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.11.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_19" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_20" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_21" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_22" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_23" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_24" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_25" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_26" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_27" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_28" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_29" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_30" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_31" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_32" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_33" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_34" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_35" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_36" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_37" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_38" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_39" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_40" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_41" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_42" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_43" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_44" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_45" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_46" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_47" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_48" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_49" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_50" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_51" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_52" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_53" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_54" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_55" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_56" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_57" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_58" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_59" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_60" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_61" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_62" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_63" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_64" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_65" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_66" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_67" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_68" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_69" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_70" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_71" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_72" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_73" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_74" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_75" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_76" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_77" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_78" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_79" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_80" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_81" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_82" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_83" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_84" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_85" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_86" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_87" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_88" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_89" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_90" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_91" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_92" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_93" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_94" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_95" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_96" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_97" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_98" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_99" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_100" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_101" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_102" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_103" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_104" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_105" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_106" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_107" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_108" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_109" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_110" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_111" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_112" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_113" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_114" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_115" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_116" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_117" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_118" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_119" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_120" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_121" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_122" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_123" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_124" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_125" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_126" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_127" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_128" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_129" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_130" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_131" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_132" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_133" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_134" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_135" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g8_in_136" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_1" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_2" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_3" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_4" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_5" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.11.0.0/16"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_6" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_7" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_8" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_9" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_10" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_11" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_12" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_13" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_14" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_15" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_16" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_17" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_18" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_19" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_20" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_21" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_22" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_23" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_24" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_25" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_26" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_27" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_28" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_29" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_30" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_31" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_32" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_33" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_34" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_35" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_36" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_37" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_38" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_39" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_40" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_41" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_42" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_43" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_44" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_45" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_46" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_47" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_48" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_49" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_50" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_51" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_52" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_53" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_54" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_55" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_56" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_57" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_58" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_59" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_60" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_61" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_62" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g8_out_63" {
+  security_group_id = aws_security_group.g8.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: implicit-guest"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_1" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_2" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_3" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_4" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_5" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_6" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2, dmz_access_in-4"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_7" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_8" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "10.40.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_9" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_10" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_11" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.25/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_12" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.0.50/32"
+  description       = "FWShift: inside_access_in-1, dmz_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_13" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "udp"
+  from_port         = 123
+  to_port           = 123
+  cidr_ipv4         = "10.10.0.0/16"
+  description       = "FWShift: inside_access_in-1"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_14" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_15" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_16" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_17" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_18" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.11.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_19" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_20" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_21" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_22" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_23" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_24" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_25" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_26" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_27" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_28" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_29" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_30" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_31" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_32" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_33" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_34" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_35" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_36" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_37" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_38" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_39" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_40" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_41" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_42" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_43" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_44" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_45" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_46" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_47" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_48" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_49" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_50" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_51" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_52" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_53" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_54" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_55" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_56" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_57" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_58" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_59" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_60" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_61" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_62" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_63" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_64" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_65" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_66" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_67" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_68" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_69" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_70" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_71" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_72" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_73" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_74" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_75" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_76" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 0
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_77" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_78" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_79" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_80" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_81" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_82" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_83" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_84" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_85" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_86" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_87" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_88" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_89" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_90" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_91" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_92" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_93" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_94" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_95" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_96" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_97" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_98" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_99" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_100" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_101" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_102" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_103" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.41.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_104" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.42.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_105" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.44.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_106" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.48.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_107" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_108" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_109" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_110" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_111" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_112" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_113" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_114" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_115" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_116" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_117" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_118" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_119" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_120" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_121" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_122" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_123" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_124" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_125" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_126" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_127" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_128" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_129" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_130" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_131" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_132" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_133" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_134" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_135" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g9_in_136" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: outside_access_in-3, inside_access_in-9"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_1" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_2" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_3" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_4" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_5" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_6" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_7" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_8" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_9" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_10" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_11" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_12" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_13" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_14" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_15" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_16" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_17" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_18" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_19" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_20" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_21" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_22" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_23" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_24" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_25" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_26" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_27" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_28" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_29" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_30" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_31" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_32" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_33" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_34" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_35" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_36" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_37" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_38" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_39" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_40" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_41" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_42" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_43" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_44" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_45" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_46" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_47" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_48" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_49" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "0.0.0.0/1"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_50" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "128.0.0.0/2"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_51" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.0.0.0/9"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_52" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.128.0.0/11"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_53" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.160.0.0/13"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_54" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.0.0/24"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_55" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.2.0/23"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_56" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.4.0/22"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_57" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.8.0/21"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_58" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.16.0/20"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_59" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.32.0/19"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_60" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.64.0/18"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_61" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.168.128.0/17"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_62" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.169.0.0/16"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_63" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.170.0.0/15"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_64" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.172.0.0/14"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_65" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.176.0.0/12"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_66" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "192.192.0.0/10"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_67" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "193.0.0.0/8"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_68" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "194.0.0.0/7"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_69" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "196.0.0.0/6"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_70" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "200.0.0.0/5"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_71" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "208.0.0.0/4"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g9_out_72" {
+  security_group_id = aws_security_group.g9.id
+  ip_protocol       = "tcp"
+  from_port         = 8000
+  to_port           = 8010
+  cidr_ipv4         = "224.0.0.0/3"
+  description       = "FWShift: inside_access_in-2"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g10_in_1" {
+  security_group_id = aws_security_group.g10.id
+  ip_protocol       = "-1"
+  cidr_ipv6         = "2001:db8:10::/64"
+  description       = "FWShift: inside_access_in-5"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g11_in_1" {
+  security_group_id = aws_security_group.g11.id
+  ip_protocol       = "-1"
+  cidr_ipv6         = "2001:db8:10::/64"
+  description       = "FWShift: inside_access_in-5"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g11_out_1" {
+  security_group_id = aws_security_group.g11.id
+  ip_protocol       = "-1"
+  cidr_ipv6         = "::/0"
+  description       = "FWShift: inside_access_in-5"
+}
+
 output "fwshift_attach" {
   description = "Each security group, with the private addresses of the network interfaces to attach it to"
   value = {
-    "fwshift-no-rules" = {
+    "fwshift-outside" = {
       id        = aws_security_group.g1.id
-      addresses = ["0.0.0.0/0", "::/0"]
+      addresses = ["0.0.0.0-10.9.255.255", "10.11.0.0-10.19.255.255", "10.20.1.0-10.29.255.255", "10.30.1.0-10.39.255.255", "10.41.0.0-192.168.0.255", "192.168.2.0-255.255.255.255"]
+    }
+    "fwshift-inside" = {
+      id        = aws_security_group.g2.id
+      addresses = ["10.10.0.0-10.10.5.9", "10.10.5.21-10.10.255.255"]
+    }
+    "fwshift-admin-range" = {
+      id        = aws_security_group.g3.id
+      addresses = ["10.10.5.10-10.10.5.20"]
+    }
+    "fwshift-dmz" = {
+      id        = aws_security_group.g4.id
+      addresses = ["10.20.0.0-10.20.0.9", "10.20.0.11-10.20.0.24", "10.20.0.26-10.20.0.49", "10.20.0.51-10.20.0.255"]
+    }
+    "fwshift-web-srv" = {
+      id        = aws_security_group.g5.id
+      addresses = ["10.20.0.10"]
+    }
+    "fwshift-mail-srv" = {
+      id        = aws_security_group.g6.id
+      addresses = ["10.20.0.25"]
+    }
+    "fwshift-dmz-2" = {
+      id        = aws_security_group.g7.id
+      addresses = ["10.20.0.50"]
+    }
+    "fwshift-guest" = {
+      id        = aws_security_group.g8.id
+      addresses = ["10.30.0.0/24"]
+    }
+    "fwshift-inside-2" = {
+      id        = aws_security_group.g9.id
+      addresses = ["10.40.0.0/16"]
+    }
+    "fwshift-addresses-ipv6" = {
+      id        = aws_security_group.g10.id
+      addresses = ["::-2001:db8:f:ffff:ffff:ffff:ffff:ffff", "2001:db8:10:1::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"]
+    }
+    "fwshift-inside-v6-ipv6" = {
+      id        = aws_security_group.g11.id
+      addresses = ["2001:db8:10::/64"]
+    }
+    "fwshift-no-rules" = {
+      id        = aws_security_group.g12.id
+      addresses = ["192.168.1.0/24"]
     }
   }
 }
 
 # Not written:
-#   rule outside_access_in-1: not written, see the report
-#   rule outside_access_in-2: not written, see the report
-#   rule outside_access_in-3: not written, see the report
-#   rule inside_access_in-1: not written, see the report
-#   rule inside_access_in-2: not written, see the report
-#   rule inside_access_in-3: not written, see the report
 #   rule inside_access_in-4: not written, see the report
-#   rule inside_access_in-5: not written, see the report
-#   rule inside_access_in-6: not written, see the report
 #   rule inside_access_in-7: not written, see the report
 #   rule inside_access_in-8: disabled in the source, not written
-#   rule inside_access_in-9: not written, see the report
-#   rule dmz_access_in-1: not written, see the report
 #   rule dmz_access_in-2: not written, see the report
-#   rule dmz_access_in-4: not written, see the report
-#   rule implicit-guest: not written, see the report

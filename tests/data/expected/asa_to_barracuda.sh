@@ -51,10 +51,22 @@ call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "guest-pool", "included": [{"entry": {"ip": "203.0.113.100/30"}}, {"entry": {"ip": "203.0.113.104/30"}}, {"entry": {"ip": "203.0.113.108/31"}}, {"entry": {"ip": "203.0.113.110"}}]}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "FWSHIFT-ROUTED-1", "included": [{"entry": {"ip": "0.0.0.0/1"}}, {"entry": {"ip": "128.0.0.0/2"}}, {"entry": {"ip": "192.0.0.0/9"}}, {"entry": {"ip": "192.128.0.0/11"}}, {"entry": {"ip": "192.160.0.0/13"}}, {"entry": {"ip": "192.168.0.0/24"}}], "comment": "every address but the networks behind no zone"}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "FWSHIFT-ROUTED-2", "included": [{"entry": {"ip": "192.168.2.0/23"}}, {"entry": {"ip": "192.168.4.0/22"}}, {"entry": {"ip": "192.168.8.0/21"}}, {"entry": {"ip": "192.168.16.0/20"}}, {"entry": {"ip": "192.168.32.0/19"}}, {"entry": {"ip": "192.168.64.0/18"}}, {"entry": {"ip": "192.168.128.0/17"}}, {"entry": {"ip": "192.169.0.0/16"}}, {"entry": {"ip": "192.170.0.0/15"}}, {"entry": {"ip": "192.172.0.0/14"}}, {"entry": {"ip": "192.176.0.0/12"}}, {"entry": {"ip": "192.192.0.0/10"}}, {"entry": {"ip": "193.0.0.0/8"}}, {"entry": {"ip": "194.0.0.0/7"}}, {"entry": {"ip": "196.0.0.0/6"}}, {"entry": {"ip": "200.0.0.0/5"}}, {"entry": {"ip": "208.0.0.0/4"}}, {"entry": {"ip": "224.0.0.0/3"}}], "comment": "every address but the networks behind no zone"}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "FWSHIFT-ROUTED-3", "included": [{"entry": {"ip": "::/0"}}], "comment": "every address but the networks behind no zone"}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "dmz-servers", "included": [{"entry": {"ip": "10.20.0.10"}}, {"entry": {"ip": "10.20.0.25"}}, {"entry": {"ip": "10.20.0.50"}}], "comment": "Servers in the DMZ"}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "internal", "included": [{"entry": {"ip": "10.10.0.0/16"}}, {"entry": {"ip": "10.20.0.10"}}, {"entry": {"ip": "10.20.0.25"}}, {"entry": {"ip": "10.20.0.50"}}, {"entry": {"ip": "10.40.0.0/16"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "FWSHIFT-ROUTED", "included": [{"entry": {"ip": "0.0.0.0/1"}}, {"entry": {"ip": "128.0.0.0/2"}}, {"entry": {"ip": "192.0.0.0/9"}}, {"entry": {"ip": "192.128.0.0/11"}}, {"entry": {"ip": "192.160.0.0/13"}}, {"entry": {"ip": "192.168.0.0/24"}}, {"entry": {"ip": "192.168.2.0/23"}}, {"entry": {"ip": "192.168.4.0/22"}}, {"entry": {"ip": "192.168.8.0/21"}}, {"entry": {"ip": "192.168.16.0/20"}}, {"entry": {"ip": "192.168.32.0/19"}}, {"entry": {"ip": "192.168.64.0/18"}}, {"entry": {"ip": "192.168.128.0/17"}}, {"entry": {"ip": "192.169.0.0/16"}}, {"entry": {"ip": "192.170.0.0/15"}}, {"entry": {"ip": "192.172.0.0/14"}}, {"entry": {"ip": "192.176.0.0/12"}}, {"entry": {"ip": "192.192.0.0/10"}}, {"entry": {"ip": "193.0.0.0/8"}}, {"entry": {"ip": "194.0.0.0/7"}}, {"entry": {"ip": "196.0.0.0/6"}}, {"entry": {"ip": "200.0.0.0/5"}}, {"entry": {"ip": "208.0.0.0/4"}}, {"entry": {"ip": "224.0.0.0/3"}}, {"entry": {"ip": "::/0"}}], "comment": "every address but the networks the source routes to no zone"}
 FWSHIFT_JSON
 call POST objects/services <<'FWSHIFT_JSON'
 {"name": "app-8443", "entries": [{"entry": {"protocol": "tcp", "ports": ["8443"]}}]}
@@ -105,16 +117,40 @@ call POST objects/services <<'FWSHIFT_JSON'
 {"name": "mail-services", "entries": [{"entry": {"protocol": "tcp", "ports": ["8443"]}}, {"entry": {"protocol": "tcp", "ports": ["25"]}}, {"entry": {"protocol": "tcp", "ports": ["587"]}}]}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "outside_access_in-1.src", "included": [{"entry": {"ip": "0.0.0.0/5"}}, {"entry": {"ip": "8.0.0.0/7"}}, {"entry": {"ip": "10.0.0.0/13"}}, {"entry": {"ip": "10.8.0.0/15"}}, {"entry": {"ip": "10.11.0.0/16"}}, {"entry": {"ip": "10.12.0.0/14"}}, {"entry": {"ip": "10.16.0.0/14"}}, {"entry": {"ip": "10.20.1.0/24"}}, {"entry": {"ip": "10.20.2.0/23"}}, {"entry": {"ip": "10.20.4.0/22"}}, {"entry": {"ip": "10.20.8.0/21"}}, {"entry": {"ip": "10.20.16.0/20"}}, {"entry": {"ip": "10.20.32.0/19"}}, {"entry": {"ip": "10.20.64.0/18"}}, {"entry": {"ip": "10.20.128.0/17"}}, {"entry": {"ip": "10.21.0.0/16"}}, {"entry": {"ip": "10.22.0.0/15"}}, {"entry": {"ip": "10.24.0.0/14"}}, {"entry": {"ip": "10.28.0.0/15"}}, {"entry": {"ip": "10.30.1.0/24"}}, {"entry": {"ip": "10.30.2.0/23"}}, {"entry": {"ip": "10.30.4.0/22"}}, {"entry": {"ip": "10.30.8.0/21"}}, {"entry": {"ip": "10.30.16.0/20"}}, {"entry": {"ip": "10.30.32.0/19"}}, {"entry": {"ip": "10.30.64.0/18"}}, {"entry": {"ip": "10.30.128.0/17"}}, {"entry": {"ip": "10.31.0.0/16"}}, {"entry": {"ip": "10.32.0.0/13"}}, {"entry": {"ip": "10.41.0.0/16"}}, {"entry": {"ip": "10.42.0.0/15"}}, {"entry": {"ip": "10.44.0.0/14"}}, {"entry": {"ip": "10.48.0.0/12"}}, {"entry": {"ip": "10.64.0.0/10"}}, {"entry": {"ip": "10.128.0.0/9"}}, {"entry": {"ip": "11.0.0.0/8"}}, {"entry": {"ip": "12.0.0.0/6"}}, {"entry": {"ip": "16.0.0.0/4"}}, {"entry": {"ip": "32.0.0.0/3"}}, {"entry": {"ip": "64.0.0.0/2"}}, {"entry": {"ip": "128.0.0.0/2"}}, {"entry": {"ip": "192.0.0.0/9"}}, {"entry": {"ip": "192.128.0.0/11"}}, {"entry": {"ip": "192.160.0.0/13"}}, {"entry": {"ip": "192.168.0.0/24"}}, {"entry": {"ip": "192.168.2.0/23"}}, {"entry": {"ip": "192.168.4.0/22"}}, {"entry": {"ip": "192.168.8.0/21"}}, {"entry": {"ip": "192.168.16.0/20"}}, {"entry": {"ip": "192.168.32.0/19"}}, {"entry": {"ip": "192.168.64.0/18"}}, {"entry": {"ip": "192.168.128.0/17"}}, {"entry": {"ip": "192.169.0.0/16"}}, {"entry": {"ip": "192.170.0.0/15"}}, {"entry": {"ip": "192.172.0.0/14"}}, {"entry": {"ip": "192.176.0.0/12"}}, {"entry": {"ip": "192.192.0.0/10"}}, {"entry": {"ip": "193.0.0.0/8"}}, {"entry": {"ip": "194.0.0.0/7"}}, {"entry": {"ip": "196.0.0.0/6"}}, {"entry": {"ip": "200.0.0.0/5"}}, {"entry": {"ip": "208.0.0.0/4"}}, {"entry": {"ip": "224.0.0.0/3"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "outside_access_in-1.dst", "included": [{"entry": {"ip": "10.20.0.10"}}, {"entry": {"ip": "203.0.113.10"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "outside_access_in-2.src", "included": [{"entry": {"ip": "0.0.0.0/5"}}, {"entry": {"ip": "8.0.0.0/7"}}, {"entry": {"ip": "10.0.0.0/13"}}, {"entry": {"ip": "10.8.0.0/15"}}, {"entry": {"ip": "10.11.0.0/16"}}, {"entry": {"ip": "10.12.0.0/14"}}, {"entry": {"ip": "10.16.0.0/14"}}, {"entry": {"ip": "10.20.1.0/24"}}, {"entry": {"ip": "10.20.2.0/23"}}, {"entry": {"ip": "10.20.4.0/22"}}, {"entry": {"ip": "10.20.8.0/21"}}, {"entry": {"ip": "10.20.16.0/20"}}, {"entry": {"ip": "10.20.32.0/19"}}, {"entry": {"ip": "10.20.64.0/18"}}, {"entry": {"ip": "10.20.128.0/17"}}, {"entry": {"ip": "10.21.0.0/16"}}, {"entry": {"ip": "10.22.0.0/15"}}, {"entry": {"ip": "10.24.0.0/14"}}, {"entry": {"ip": "10.28.0.0/15"}}, {"entry": {"ip": "10.30.1.0/24"}}, {"entry": {"ip": "10.30.2.0/23"}}, {"entry": {"ip": "10.30.4.0/22"}}, {"entry": {"ip": "10.30.8.0/21"}}, {"entry": {"ip": "10.30.16.0/20"}}, {"entry": {"ip": "10.30.32.0/19"}}, {"entry": {"ip": "10.30.64.0/18"}}, {"entry": {"ip": "10.30.128.0/17"}}, {"entry": {"ip": "10.31.0.0/16"}}, {"entry": {"ip": "10.32.0.0/13"}}, {"entry": {"ip": "10.41.0.0/16"}}, {"entry": {"ip": "10.42.0.0/15"}}, {"entry": {"ip": "10.44.0.0/14"}}, {"entry": {"ip": "10.48.0.0/12"}}, {"entry": {"ip": "10.64.0.0/10"}}, {"entry": {"ip": "10.128.0.0/9"}}, {"entry": {"ip": "11.0.0.0/8"}}, {"entry": {"ip": "12.0.0.0/6"}}, {"entry": {"ip": "16.0.0.0/4"}}, {"entry": {"ip": "32.0.0.0/3"}}, {"entry": {"ip": "64.0.0.0/2"}}, {"entry": {"ip": "128.0.0.0/2"}}, {"entry": {"ip": "192.0.0.0/9"}}, {"entry": {"ip": "192.128.0.0/11"}}, {"entry": {"ip": "192.160.0.0/13"}}, {"entry": {"ip": "192.168.0.0/24"}}, {"entry": {"ip": "192.168.2.0/23"}}, {"entry": {"ip": "192.168.4.0/22"}}, {"entry": {"ip": "192.168.8.0/21"}}, {"entry": {"ip": "192.168.16.0/20"}}, {"entry": {"ip": "192.168.32.0/19"}}, {"entry": {"ip": "192.168.64.0/18"}}, {"entry": {"ip": "192.168.128.0/17"}}, {"entry": {"ip": "192.169.0.0/16"}}, {"entry": {"ip": "192.170.0.0/15"}}, {"entry": {"ip": "192.172.0.0/14"}}, {"entry": {"ip": "192.176.0.0/12"}}, {"entry": {"ip": "192.192.0.0/10"}}, {"entry": {"ip": "193.0.0.0/8"}}, {"entry": {"ip": "194.0.0.0/7"}}, {"entry": {"ip": "196.0.0.0/6"}}, {"entry": {"ip": "200.0.0.0/5"}}, {"entry": {"ip": "208.0.0.0/4"}}, {"entry": {"ip": "224.0.0.0/3"}}]}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "outside_access_in-2.dst", "included": [{"entry": {"ip": "10.20.0.25"}}, {"entry": {"ip": "203.0.113.25"}}]}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "outside_access_in-3.src", "included": [{"entry": {"ip": "0.0.0.0/5"}}, {"entry": {"ip": "8.0.0.0/7"}}, {"entry": {"ip": "10.0.0.0/13"}}, {"entry": {"ip": "10.8.0.0/15"}}, {"entry": {"ip": "10.11.0.0/16"}}, {"entry": {"ip": "10.12.0.0/14"}}, {"entry": {"ip": "10.16.0.0/14"}}, {"entry": {"ip": "10.20.1.0/24"}}, {"entry": {"ip": "10.20.2.0/23"}}, {"entry": {"ip": "10.20.4.0/22"}}, {"entry": {"ip": "10.20.8.0/21"}}, {"entry": {"ip": "10.20.16.0/20"}}, {"entry": {"ip": "10.20.32.0/19"}}, {"entry": {"ip": "10.20.64.0/18"}}, {"entry": {"ip": "10.20.128.0/17"}}, {"entry": {"ip": "10.21.0.0/16"}}, {"entry": {"ip": "10.22.0.0/15"}}, {"entry": {"ip": "10.24.0.0/14"}}, {"entry": {"ip": "10.28.0.0/15"}}, {"entry": {"ip": "10.30.1.0/24"}}, {"entry": {"ip": "10.30.2.0/23"}}, {"entry": {"ip": "10.30.4.0/22"}}, {"entry": {"ip": "10.30.8.0/21"}}, {"entry": {"ip": "10.30.16.0/20"}}, {"entry": {"ip": "10.30.32.0/19"}}, {"entry": {"ip": "10.30.64.0/18"}}, {"entry": {"ip": "10.30.128.0/17"}}, {"entry": {"ip": "10.31.0.0/16"}}, {"entry": {"ip": "10.32.0.0/13"}}, {"entry": {"ip": "10.41.0.0/16"}}, {"entry": {"ip": "10.42.0.0/15"}}, {"entry": {"ip": "10.44.0.0/14"}}, {"entry": {"ip": "10.48.0.0/12"}}, {"entry": {"ip": "10.64.0.0/10"}}, {"entry": {"ip": "10.128.0.0/9"}}, {"entry": {"ip": "11.0.0.0/8"}}, {"entry": {"ip": "12.0.0.0/6"}}, {"entry": {"ip": "16.0.0.0/4"}}, {"entry": {"ip": "32.0.0.0/3"}}, {"entry": {"ip": "64.0.0.0/2"}}, {"entry": {"ip": "128.0.0.0/2"}}, {"entry": {"ip": "192.0.0.0/9"}}, {"entry": {"ip": "192.128.0.0/11"}}, {"entry": {"ip": "192.160.0.0/13"}}, {"entry": {"ip": "192.168.0.0/24"}}, {"entry": {"ip": "192.168.2.0/23"}}, {"entry": {"ip": "192.168.4.0/22"}}, {"entry": {"ip": "192.168.8.0/21"}}, {"entry": {"ip": "192.168.16.0/20"}}, {"entry": {"ip": "192.168.32.0/19"}}, {"entry": {"ip": "192.168.64.0/18"}}, {"entry": {"ip": "192.168.128.0/17"}}, {"entry": {"ip": "192.169.0.0/16"}}, {"entry": {"ip": "192.170.0.0/15"}}, {"entry": {"ip": "192.172.0.0/14"}}, {"entry": {"ip": "192.176.0.0/12"}}, {"entry": {"ip": "192.192.0.0/10"}}, {"entry": {"ip": "193.0.0.0/8"}}, {"entry": {"ip": "194.0.0.0/7"}}, {"entry": {"ip": "196.0.0.0/6"}}, {"entry": {"ip": "200.0.0.0/5"}}, {"entry": {"ip": "208.0.0.0/4"}}, {"entry": {"ip": "224.0.0.0/3"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "outside_access_in-3.dst", "included": [{"entry": {"ip": "0.0.0.0/1"}}, {"entry": {"ip": "128.0.0.0/2"}}, {"entry": {"ip": "192.0.0.0/9"}}, {"entry": {"ip": "192.128.0.0/11"}}, {"entry": {"ip": "192.160.0.0/13"}}, {"entry": {"ip": "192.168.0.0/24"}}, {"entry": {"ip": "192.168.2.0/23"}}, {"entry": {"ip": "192.168.4.0/22"}}, {"entry": {"ip": "192.168.8.0/21"}}, {"entry": {"ip": "192.168.16.0/20"}}, {"entry": {"ip": "192.168.32.0/19"}}, {"entry": {"ip": "192.168.64.0/18"}}, {"entry": {"ip": "192.168.128.0/17"}}, {"entry": {"ip": "192.169.0.0/16"}}, {"entry": {"ip": "192.170.0.0/15"}}, {"entry": {"ip": "192.172.0.0/14"}}, {"entry": {"ip": "192.176.0.0/12"}}, {"entry": {"ip": "192.192.0.0/10"}}, {"entry": {"ip": "193.0.0.0/8"}}, {"entry": {"ip": "194.0.0.0/7"}}, {"entry": {"ip": "196.0.0.0/6"}}, {"entry": {"ip": "200.0.0.0/5"}}, {"entry": {"ip": "208.0.0.0/4"}}, {"entry": {"ip": "224.0.0.0/3"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "outside_access_in-4.src", "included": [{"entry": {"ip": "0.0.0.0/5"}}, {"entry": {"ip": "8.0.0.0/7"}}, {"entry": {"ip": "10.0.0.0/13"}}, {"entry": {"ip": "10.8.0.0/15"}}, {"entry": {"ip": "10.11.0.0/16"}}, {"entry": {"ip": "10.12.0.0/14"}}, {"entry": {"ip": "10.16.0.0/14"}}, {"entry": {"ip": "10.20.1.0/24"}}, {"entry": {"ip": "10.20.2.0/23"}}, {"entry": {"ip": "10.20.4.0/22"}}, {"entry": {"ip": "10.20.8.0/21"}}, {"entry": {"ip": "10.20.16.0/20"}}, {"entry": {"ip": "10.20.32.0/19"}}, {"entry": {"ip": "10.20.64.0/18"}}, {"entry": {"ip": "10.20.128.0/17"}}, {"entry": {"ip": "10.21.0.0/16"}}, {"entry": {"ip": "10.22.0.0/15"}}, {"entry": {"ip": "10.24.0.0/14"}}, {"entry": {"ip": "10.28.0.0/15"}}, {"entry": {"ip": "10.30.1.0/24"}}, {"entry": {"ip": "10.30.2.0/23"}}, {"entry": {"ip": "10.30.4.0/22"}}, {"entry": {"ip": "10.30.8.0/21"}}, {"entry": {"ip": "10.30.16.0/20"}}, {"entry": {"ip": "10.30.32.0/19"}}, {"entry": {"ip": "10.30.64.0/18"}}, {"entry": {"ip": "10.30.128.0/17"}}, {"entry": {"ip": "10.31.0.0/16"}}, {"entry": {"ip": "10.32.0.0/13"}}, {"entry": {"ip": "10.41.0.0/16"}}, {"entry": {"ip": "10.42.0.0/15"}}, {"entry": {"ip": "10.44.0.0/14"}}, {"entry": {"ip": "10.48.0.0/12"}}, {"entry": {"ip": "10.64.0.0/10"}}, {"entry": {"ip": "10.128.0.0/9"}}, {"entry": {"ip": "11.0.0.0/8"}}, {"entry": {"ip": "12.0.0.0/6"}}, {"entry": {"ip": "16.0.0.0/4"}}, {"entry": {"ip": "32.0.0.0/3"}}, {"entry": {"ip": "64.0.0.0/2"}}, {"entry": {"ip": "128.0.0.0/1"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "outside_access_in-4.src.v6", "included": [{"entry": {"ip": "::/3"}}, {"entry": {"ip": "2000::/16"}}, {"entry": {"ip": "2001::/21"}}, {"entry": {"ip": "2001:800::/22"}}, {"entry": {"ip": "2001:c00::/24"}}, {"entry": {"ip": "2001:d00::/25"}}, {"entry": {"ip": "2001:d80::/27"}}, {"entry": {"ip": "2001:da0::/28"}}, {"entry": {"ip": "2001:db0::/29"}}, {"entry": {"ip": "2001:db8::/44"}}, {"entry": {"ip": "2001:db8:10:1::/64"}}, {"entry": {"ip": "2001:db8:10:2::/63"}}, {"entry": {"ip": "2001:db8:10:4::/62"}}, {"entry": {"ip": "2001:db8:10:8::/61"}}, {"entry": {"ip": "2001:db8:10:10::/60"}}, {"entry": {"ip": "2001:db8:10:20::/59"}}, {"entry": {"ip": "2001:db8:10:40::/58"}}, {"entry": {"ip": "2001:db8:10:80::/57"}}, {"entry": {"ip": "2001:db8:10:100::/56"}}, {"entry": {"ip": "2001:db8:10:200::/55"}}, {"entry": {"ip": "2001:db8:10:400::/54"}}, {"entry": {"ip": "2001:db8:10:800::/53"}}, {"entry": {"ip": "2001:db8:10:1000::/52"}}, {"entry": {"ip": "2001:db8:10:2000::/51"}}, {"entry": {"ip": "2001:db8:10:4000::/50"}}, {"entry": {"ip": "2001:db8:10:8000::/49"}}, {"entry": {"ip": "2001:db8:11::/48"}}, {"entry": {"ip": "2001:db8:12::/47"}}, {"entry": {"ip": "2001:db8:14::/46"}}, {"entry": {"ip": "2001:db8:18::/45"}}, {"entry": {"ip": "2001:db8:20::/43"}}, {"entry": {"ip": "2001:db8:40::/42"}}, {"entry": {"ip": "2001:db8:80::/41"}}, {"entry": {"ip": "2001:db8:100::/40"}}, {"entry": {"ip": "2001:db8:200::/39"}}, {"entry": {"ip": "2001:db8:400::/38"}}, {"entry": {"ip": "2001:db8:800::/37"}}, {"entry": {"ip": "2001:db8:1000::/36"}}, {"entry": {"ip": "2001:db8:2000::/35"}}, {"entry": {"ip": "2001:db8:4000::/34"}}, {"entry": {"ip": "2001:db8:8000::/33"}}, {"entry": {"ip": "2001:db9::/32"}}, {"entry": {"ip": "2001:dba::/31"}}, {"entry": {"ip": "2001:dbc::/30"}}, {"entry": {"ip": "2001:dc0::/26"}}, {"entry": {"ip": "2001:e00::/23"}}, {"entry": {"ip": "2001:1000::/20"}}, {"entry": {"ip": "2001:2000::/19"}}, {"entry": {"ip": "2001:4000::/18"}}, {"entry": {"ip": "2001:8000::/17"}}, {"entry": {"ip": "2002::/15"}}, {"entry": {"ip": "2004::/14"}}, {"entry": {"ip": "2008::/13"}}, {"entry": {"ip": "2010::/12"}}, {"entry": {"ip": "2020::/11"}}, {"entry": {"ip": "2040::/10"}}, {"entry": {"ip": "2080::/9"}}, {"entry": {"ip": "2100::/8"}}, {"entry": {"ip": "2200::/7"}}, {"entry": {"ip": "2400::/6"}}, {"entry": {"ip": "2800::/5"}}, {"entry": {"ip": "3000::/4"}}, {"entry": {"ip": "4000::/2"}}, {"entry": {"ip": "8000::/1"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "inside_access_in-1.src", "included": [{"entry": {"ip": "10.10.0.0/16"}}]}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
-{"name": "inside_access_in-2.src", "included": [{"entry": {"ip": "10.10.0.0/16"}}, {"entry": {"ip": "10.20.0.10"}}, {"entry": {"ip": "10.20.0.25"}}, {"entry": {"ip": "10.20.0.50"}}, {"entry": {"ip": "10.40.0.0/16"}}]}
+{"name": "inside_access_in-1.dst", "included": [{"entry": {"ip": "0.0.0.0/1"}}, {"entry": {"ip": "128.0.0.0/2"}}, {"entry": {"ip": "192.0.0.0/9"}}, {"entry": {"ip": "192.128.0.0/11"}}, {"entry": {"ip": "192.160.0.0/13"}}, {"entry": {"ip": "192.168.0.0/24"}}, {"entry": {"ip": "192.168.2.0/23"}}, {"entry": {"ip": "192.168.4.0/22"}}, {"entry": {"ip": "192.168.8.0/21"}}, {"entry": {"ip": "192.168.16.0/20"}}, {"entry": {"ip": "192.168.32.0/19"}}, {"entry": {"ip": "192.168.64.0/18"}}, {"entry": {"ip": "192.168.128.0/17"}}, {"entry": {"ip": "192.169.0.0/16"}}, {"entry": {"ip": "192.170.0.0/15"}}, {"entry": {"ip": "192.172.0.0/14"}}, {"entry": {"ip": "192.176.0.0/12"}}, {"entry": {"ip": "192.192.0.0/10"}}, {"entry": {"ip": "193.0.0.0/8"}}, {"entry": {"ip": "194.0.0.0/7"}}, {"entry": {"ip": "196.0.0.0/6"}}, {"entry": {"ip": "200.0.0.0/5"}}, {"entry": {"ip": "208.0.0.0/4"}}, {"entry": {"ip": "224.0.0.0/3"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "inside_access_in-2.src", "included": [{"entry": {"ip": "10.10.0.0/16"}}, {"entry": {"ip": "10.40.0.0/16"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "inside_access_in-2.dst", "included": [{"entry": {"ip": "0.0.0.0/1"}}, {"entry": {"ip": "128.0.0.0/2"}}, {"entry": {"ip": "192.0.0.0/9"}}, {"entry": {"ip": "192.128.0.0/11"}}, {"entry": {"ip": "192.160.0.0/13"}}, {"entry": {"ip": "192.168.0.0/24"}}, {"entry": {"ip": "192.168.2.0/23"}}, {"entry": {"ip": "192.168.4.0/22"}}, {"entry": {"ip": "192.168.8.0/21"}}, {"entry": {"ip": "192.168.16.0/20"}}, {"entry": {"ip": "192.168.32.0/19"}}, {"entry": {"ip": "192.168.64.0/18"}}, {"entry": {"ip": "192.168.128.0/17"}}, {"entry": {"ip": "192.169.0.0/16"}}, {"entry": {"ip": "192.170.0.0/15"}}, {"entry": {"ip": "192.172.0.0/14"}}, {"entry": {"ip": "192.176.0.0/12"}}, {"entry": {"ip": "192.192.0.0/10"}}, {"entry": {"ip": "193.0.0.0/8"}}, {"entry": {"ip": "194.0.0.0/7"}}, {"entry": {"ip": "196.0.0.0/6"}}, {"entry": {"ip": "200.0.0.0/5"}}, {"entry": {"ip": "208.0.0.0/4"}}, {"entry": {"ip": "224.0.0.0/3"}}]}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "inside_access_in-3.src", "included": [{"entry": {"ip": "10.10.5.10/31"}}, {"entry": {"ip": "10.10.5.12/30"}}, {"entry": {"ip": "10.10.5.16/30"}}, {"entry": {"ip": "10.10.5.20"}}]}
@@ -141,16 +177,43 @@ call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "inside_access_in-7.src", "included": [{"entry": {"ip": "10.10.0.0/16"}}]}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "inside_access_in-7.dst", "included": [{"entry": {"ip": "0.0.0.0/1"}}, {"entry": {"ip": "128.0.0.0/2"}}, {"entry": {"ip": "192.0.0.0/9"}}, {"entry": {"ip": "192.128.0.0/11"}}, {"entry": {"ip": "192.160.0.0/13"}}, {"entry": {"ip": "192.168.0.0/24"}}, {"entry": {"ip": "192.168.2.0/23"}}, {"entry": {"ip": "192.168.4.0/22"}}, {"entry": {"ip": "192.168.8.0/21"}}, {"entry": {"ip": "192.168.16.0/20"}}, {"entry": {"ip": "192.168.32.0/19"}}, {"entry": {"ip": "192.168.64.0/18"}}, {"entry": {"ip": "192.168.128.0/17"}}, {"entry": {"ip": "192.169.0.0/16"}}, {"entry": {"ip": "192.170.0.0/15"}}, {"entry": {"ip": "192.172.0.0/14"}}, {"entry": {"ip": "192.176.0.0/12"}}, {"entry": {"ip": "192.192.0.0/10"}}, {"entry": {"ip": "193.0.0.0/8"}}, {"entry": {"ip": "194.0.0.0/7"}}, {"entry": {"ip": "196.0.0.0/6"}}, {"entry": {"ip": "200.0.0.0/5"}}, {"entry": {"ip": "208.0.0.0/4"}}, {"entry": {"ip": "224.0.0.0/3"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "inside_access_in-8.src", "included": [{"entry": {"ip": "10.10.0.0/16"}}, {"entry": {"ip": "10.40.0.0/16"}}, {"entry": {"ip": "192.168.1.0/24"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "inside_access_in-9.src", "included": [{"entry": {"ip": "10.10.0.0/16"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "inside_access_in-9.dst", "included": [{"entry": {"ip": "0.0.0.0/1"}}, {"entry": {"ip": "128.0.0.0/2"}}, {"entry": {"ip": "192.0.0.0/9"}}, {"entry": {"ip": "192.128.0.0/11"}}, {"entry": {"ip": "192.160.0.0/13"}}, {"entry": {"ip": "192.168.0.0/24"}}, {"entry": {"ip": "192.168.2.0/23"}}, {"entry": {"ip": "192.168.4.0/22"}}, {"entry": {"ip": "192.168.8.0/21"}}, {"entry": {"ip": "192.168.16.0/20"}}, {"entry": {"ip": "192.168.32.0/19"}}, {"entry": {"ip": "192.168.64.0/18"}}, {"entry": {"ip": "192.168.128.0/17"}}, {"entry": {"ip": "192.169.0.0/16"}}, {"entry": {"ip": "192.170.0.0/15"}}, {"entry": {"ip": "192.172.0.0/14"}}, {"entry": {"ip": "192.176.0.0/12"}}, {"entry": {"ip": "192.192.0.0/10"}}, {"entry": {"ip": "193.0.0.0/8"}}, {"entry": {"ip": "194.0.0.0/7"}}, {"entry": {"ip": "196.0.0.0/6"}}, {"entry": {"ip": "200.0.0.0/5"}}, {"entry": {"ip": "208.0.0.0/4"}}, {"entry": {"ip": "224.0.0.0/3"}}]}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "dmz_access_in-1.src", "included": [{"entry": {"ip": "10.20.0.10"}}, {"entry": {"ip": "10.20.0.25"}}, {"entry": {"ip": "10.20.0.50"}}]}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "dmz_access_in-1.dst", "included": [{"entry": {"ip": "0.0.0.0/1"}}, {"entry": {"ip": "128.0.0.0/2"}}, {"entry": {"ip": "192.0.0.0/9"}}, {"entry": {"ip": "192.128.0.0/11"}}, {"entry": {"ip": "192.160.0.0/13"}}, {"entry": {"ip": "192.168.0.0/24"}}, {"entry": {"ip": "192.168.2.0/23"}}, {"entry": {"ip": "192.168.4.0/22"}}, {"entry": {"ip": "192.168.8.0/21"}}, {"entry": {"ip": "192.168.16.0/20"}}, {"entry": {"ip": "192.168.32.0/19"}}, {"entry": {"ip": "192.168.64.0/18"}}, {"entry": {"ip": "192.168.128.0/17"}}, {"entry": {"ip": "192.169.0.0/16"}}, {"entry": {"ip": "192.170.0.0/15"}}, {"entry": {"ip": "192.172.0.0/14"}}, {"entry": {"ip": "192.176.0.0/12"}}, {"entry": {"ip": "192.192.0.0/10"}}, {"entry": {"ip": "193.0.0.0/8"}}, {"entry": {"ip": "194.0.0.0/7"}}, {"entry": {"ip": "196.0.0.0/6"}}, {"entry": {"ip": "200.0.0.0/5"}}, {"entry": {"ip": "208.0.0.0/4"}}, {"entry": {"ip": "224.0.0.0/3"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "dmz_access_in-2.src", "included": [{"entry": {"ip": "10.20.0.25"}}]}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "dmz_access_in-2.dst", "included": [{"entry": {"ip": "0.0.0.0/1"}}, {"entry": {"ip": "128.0.0.0/2"}}, {"entry": {"ip": "192.0.0.0/9"}}, {"entry": {"ip": "192.128.0.0/11"}}, {"entry": {"ip": "192.160.0.0/13"}}, {"entry": {"ip": "192.168.0.0/24"}}, {"entry": {"ip": "192.168.2.0/23"}}, {"entry": {"ip": "192.168.4.0/22"}}, {"entry": {"ip": "192.168.8.0/21"}}, {"entry": {"ip": "192.168.16.0/20"}}, {"entry": {"ip": "192.168.32.0/19"}}, {"entry": {"ip": "192.168.64.0/18"}}, {"entry": {"ip": "192.168.128.0/17"}}, {"entry": {"ip": "192.169.0.0/16"}}, {"entry": {"ip": "192.170.0.0/15"}}, {"entry": {"ip": "192.172.0.0/14"}}, {"entry": {"ip": "192.176.0.0/12"}}, {"entry": {"ip": "192.192.0.0/10"}}, {"entry": {"ip": "193.0.0.0/8"}}, {"entry": {"ip": "194.0.0.0/7"}}, {"entry": {"ip": "196.0.0.0/6"}}, {"entry": {"ip": "200.0.0.0/5"}}, {"entry": {"ip": "208.0.0.0/4"}}, {"entry": {"ip": "224.0.0.0/3"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "dmz_access_in-3.src", "included": [{"entry": {"ip": "10.20.0.0/24"}}, {"entry": {"ip": "192.168.1.0/24"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "dmz_access_in-4.src", "included": [{"entry": {"ip": "10.20.0.10"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "dmz_access_in-4.dst", "included": [{"entry": {"ip": "0.0.0.0/1"}}, {"entry": {"ip": "128.0.0.0/2"}}, {"entry": {"ip": "192.0.0.0/9"}}, {"entry": {"ip": "192.128.0.0/11"}}, {"entry": {"ip": "192.160.0.0/13"}}, {"entry": {"ip": "192.168.0.0/24"}}, {"entry": {"ip": "192.168.2.0/23"}}, {"entry": {"ip": "192.168.4.0/22"}}, {"entry": {"ip": "192.168.8.0/21"}}, {"entry": {"ip": "192.168.16.0/20"}}, {"entry": {"ip": "192.168.32.0/19"}}, {"entry": {"ip": "192.168.64.0/18"}}, {"entry": {"ip": "192.168.128.0/17"}}, {"entry": {"ip": "192.169.0.0/16"}}, {"entry": {"ip": "192.170.0.0/15"}}, {"entry": {"ip": "192.172.0.0/14"}}, {"entry": {"ip": "192.176.0.0/12"}}, {"entry": {"ip": "192.192.0.0/10"}}, {"entry": {"ip": "193.0.0.0/8"}}, {"entry": {"ip": "194.0.0.0/7"}}, {"entry": {"ip": "196.0.0.0/6"}}, {"entry": {"ip": "200.0.0.0/5"}}, {"entry": {"ip": "208.0.0.0/4"}}, {"entry": {"ip": "224.0.0.0/3"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "implicit-guest.src", "included": [{"entry": {"ip": "10.30.0.0/24"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "implicit-guest.dst", "included": [{"entry": {"ip": "0.0.0.0/5"}}, {"entry": {"ip": "8.0.0.0/7"}}, {"entry": {"ip": "10.0.0.0/13"}}, {"entry": {"ip": "10.8.0.0/15"}}, {"entry": {"ip": "10.11.0.0/16"}}, {"entry": {"ip": "10.12.0.0/14"}}, {"entry": {"ip": "10.16.0.0/14"}}, {"entry": {"ip": "10.20.1.0/24"}}, {"entry": {"ip": "10.20.2.0/23"}}, {"entry": {"ip": "10.20.4.0/22"}}, {"entry": {"ip": "10.20.8.0/21"}}, {"entry": {"ip": "10.20.16.0/20"}}, {"entry": {"ip": "10.20.32.0/19"}}, {"entry": {"ip": "10.20.64.0/18"}}, {"entry": {"ip": "10.20.128.0/17"}}, {"entry": {"ip": "10.21.0.0/16"}}, {"entry": {"ip": "10.22.0.0/15"}}, {"entry": {"ip": "10.24.0.0/14"}}, {"entry": {"ip": "10.28.0.0/15"}}, {"entry": {"ip": "10.30.1.0/24"}}, {"entry": {"ip": "10.30.2.0/23"}}, {"entry": {"ip": "10.30.4.0/22"}}, {"entry": {"ip": "10.30.8.0/21"}}, {"entry": {"ip": "10.30.16.0/20"}}, {"entry": {"ip": "10.30.32.0/19"}}, {"entry": {"ip": "10.30.64.0/18"}}, {"entry": {"ip": "10.30.128.0/17"}}, {"entry": {"ip": "10.31.0.0/16"}}, {"entry": {"ip": "10.32.0.0/13"}}, {"entry": {"ip": "10.41.0.0/16"}}, {"entry": {"ip": "10.42.0.0/15"}}, {"entry": {"ip": "10.44.0.0/14"}}, {"entry": {"ip": "10.48.0.0/12"}}, {"entry": {"ip": "10.64.0.0/10"}}, {"entry": {"ip": "10.128.0.0/9"}}, {"entry": {"ip": "11.0.0.0/8"}}, {"entry": {"ip": "12.0.0.0/6"}}, {"entry": {"ip": "16.0.0.0/4"}}, {"entry": {"ip": "32.0.0.0/3"}}, {"entry": {"ip": "64.0.0.0/2"}}, {"entry": {"ip": "128.0.0.0/2"}}, {"entry": {"ip": "192.0.0.0/9"}}, {"entry": {"ip": "192.128.0.0/11"}}, {"entry": {"ip": "192.160.0.0/13"}}, {"entry": {"ip": "192.168.0.0/24"}}, {"entry": {"ip": "192.168.2.0/23"}}, {"entry": {"ip": "192.168.4.0/22"}}, {"entry": {"ip": "192.168.8.0/21"}}, {"entry": {"ip": "192.168.16.0/20"}}, {"entry": {"ip": "192.168.32.0/19"}}, {"entry": {"ip": "192.168.64.0/18"}}, {"entry": {"ip": "192.168.128.0/17"}}, {"entry": {"ip": "192.169.0.0/16"}}, {"entry": {"ip": "192.170.0.0/15"}}, {"entry": {"ip": "192.172.0.0/14"}}, {"entry": {"ip": "192.176.0.0/12"}}, {"entry": {"ip": "192.192.0.0/10"}}, {"entry": {"ip": "193.0.0.0/8"}}, {"entry": {"ip": "194.0.0.0/7"}}, {"entry": {"ip": "196.0.0.0/6"}}, {"entry": {"ip": "200.0.0.0/5"}}, {"entry": {"ip": "208.0.0.0/4"}}, {"entry": {"ip": "224.0.0.0/3"}}]}
 FWSHIFT_JSON
 
 # Rules, deactivated: each goes to the top of the list, last rule first.
@@ -161,79 +224,106 @@ call POST rules <<'FWSHIFT_JSON'
 {"name": "FWSHIFT-BLOCK", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Any"}, "destination": {"references": "Any"}, "service": {"references": "Any"}, "action": {"type": "block"}, "position": {"placement": "top"}, "comment": "FWSHIFT: what the converted policy does not allow. Activate after looking at the rules below"}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "implicit-guest-v6", "ipVersion": "IPv6", "deactivated": true, "bidirectional": false, "source": {"references": "Any"}, "destination": {"references": "Any"}, "service": {"references": "Any"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report. ASA implicit rule: traffic to interfaces of a lower security level is permitted"}
+{"name": "implicit-guest", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "implicit-guest.src"}, "destination": {"references": "implicit-guest.dst"}, "service": {"references": "Any"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "ASA implicit rule: traffic to interfaces of a lower security level is permitted"}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "implicit-guest", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Any"}, "destination": {"references": "Any"}, "service": {"references": "Any"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report. ASA implicit rule: traffic to interfaces of a lower security level is permitted"}
+{"name": "dmz_access_in-4", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "dmz_access_in-4.src"}, "destination": {"references": "dmz_access_in-4.dst"}, "service": {"references": "tcp-443"}, "action": {"type": "pass"}, "position": {"placement": "top"}}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "dmz_access_in-4", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "dmz_access_in-4.src"}, "destination": {"references": "Any"}, "service": {"references": "tcp-443"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
+{"name": "dmz_access_in-3", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "dmz_access_in-3.src"}, "destination": {"references": "inside-net"}, "service": {"references": "Any"}, "action": {"type": "block"}, "position": {"placement": "top"}}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "dmz_access_in-3", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Any"}, "destination": {"references": "inside-net"}, "service": {"references": "Any"}, "action": {"type": "block"}, "position": {"placement": "top"}}
+{"name": "dmz_access_in-2", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "dmz_access_in-2.src"}, "destination": {"references": "dmz_access_in-2.dst"}, "service": {"references": "tcp-src-1024-65535-dst-25"}, "action": {"type": "pass"}, "position": {"placement": "top"}}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "dmz_access_in-2", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "dmz_access_in-2.src"}, "destination": {"references": "Any"}, "service": {"references": "tcp-src-1024-65535-dst-25"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
+{"name": "dmz_access_in-1", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "dmz_access_in-1.src"}, "destination": {"references": "dmz_access_in-1.dst"}, "service": {"references": "udp-53"}, "action": {"type": "pass"}, "position": {"placement": "top"}}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "dmz_access_in-1", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "dmz_access_in-1.src"}, "destination": {"references": "Any"}, "service": {"references": "udp-53"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
-FWSHIFT_JSON
-call POST rules <<'FWSHIFT_JSON'
-{"name": "inside_access_in-9", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "inside_access_in-9.src"}, "destination": {"references": "Any"}, "service": {"references": "Any"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
+{"name": "inside_access_in-9", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "inside_access_in-9.src"}, "destination": {"references": "inside_access_in-9.dst"}, "service": {"references": "Any"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
 {"name": "inside_access_in-8-v6", "ipVersion": "IPv6", "deactivated": true, "bidirectional": false, "source": {"references": "Any"}, "destination": {"references": "Any"}, "service": {"references": "tcp-23"}, "action": {"type": "block"}, "position": {"placement": "top"}}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "inside_access_in-8", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Any"}, "destination": {"references": "Any"}, "service": {"references": "tcp-23"}, "action": {"type": "block"}, "position": {"placement": "top"}}
+{"name": "inside_access_in-8", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "inside_access_in-8.src"}, "destination": {"references": "Any"}, "service": {"references": "tcp-23"}, "action": {"type": "block"}, "position": {"placement": "top"}}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "inside_access_in-7", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "inside_access_in-7.src"}, "destination": {"references": "Any"}, "service": {"references": "tcp-3389"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
+{"name": "inside_access_in-7", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "inside_access_in-7.src"}, "destination": {"references": "inside_access_in-7.dst"}, "service": {"references": "tcp-3389"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "inside_access_in-6", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "inside_access_in-6.src"}, "destination": {"references": "inside_access_in-6.dst"}, "service": {"references": "tcp-udp-5060"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
+{"name": "inside_access_in-6", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "inside_access_in-6.src"}, "destination": {"references": "inside_access_in-6.dst"}, "service": {"references": "tcp-udp-5060"}, "action": {"type": "pass"}, "position": {"placement": "top"}}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "inside_access_in-5", "ipVersion": "IPv6", "deactivated": true, "bidirectional": false, "source": {"references": "inside_access_in-5.src.v6"}, "destination": {"references": "Any"}, "service": {"references": "Any"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
+{"name": "inside_access_in-5", "ipVersion": "IPv6", "deactivated": true, "bidirectional": false, "source": {"references": "inside_access_in-5.src.v6"}, "destination": {"references": "Any"}, "service": {"references": "Any"}, "action": {"type": "pass"}, "position": {"placement": "top"}}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
 {"name": "inside_access_in-4", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "inside_access_in-4.src"}, "destination": {"references": "inside_access_in-4.dst"}, "service": {"references": "tcp-443"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report. Software updates during office hours"}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "inside_access_in-3", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "inside_access_in-3.src"}, "destination": {"references": "inside_access_in-3.dst"}, "service": {"references": "tcp-22"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
+{"name": "inside_access_in-3", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "inside_access_in-3.src"}, "destination": {"references": "inside_access_in-3.dst"}, "service": {"references": "tcp-22"}, "action": {"type": "pass"}, "position": {"placement": "top"}}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "inside_access_in-2", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "inside_access_in-2.src"}, "destination": {"references": "Any"}, "service": {"references": "web-ports"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
+{"name": "inside_access_in-2", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "inside_access_in-2.src"}, "destination": {"references": "inside_access_in-2.dst"}, "service": {"references": "web-ports"}, "action": {"type": "pass"}, "position": {"placement": "top"}}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "inside_access_in-1", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "inside_access_in-1.src"}, "destination": {"references": "Any"}, "service": {"references": "dns-ntp"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
+{"name": "inside_access_in-1", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "inside_access_in-1.src"}, "destination": {"references": "inside_access_in-1.dst"}, "service": {"references": "dns-ntp"}, "action": {"type": "pass"}, "position": {"placement": "top"}}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "outside_access_in-4-v6", "ipVersion": "IPv6", "deactivated": true, "bidirectional": false, "source": {"references": "Any"}, "destination": {"references": "Any"}, "service": {"references": "Any"}, "action": {"type": "block"}, "position": {"placement": "top"}}
+{"name": "outside_access_in-4-v6", "ipVersion": "IPv6", "deactivated": true, "bidirectional": false, "source": {"references": "outside_access_in-4.src.v6"}, "destination": {"references": "Any"}, "service": {"references": "Any"}, "action": {"type": "block"}, "position": {"placement": "top"}}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "outside_access_in-4", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Any"}, "destination": {"references": "Any"}, "service": {"references": "Any"}, "action": {"type": "block"}, "position": {"placement": "top"}}
+{"name": "outside_access_in-4", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "outside_access_in-4.src"}, "destination": {"references": "Any"}, "service": {"references": "Any"}, "action": {"type": "block"}, "position": {"placement": "top"}}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "outside_access_in-3-v6", "ipVersion": "IPv6", "deactivated": true, "bidirectional": false, "source": {"references": "Any"}, "destination": {"references": "Any"}, "service": {"references": "Any"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
+{"name": "outside_access_in-3", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "outside_access_in-3.src"}, "destination": {"references": "outside_access_in-3.dst"}, "service": {"references": "Any"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "outside_access_in-3", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Any"}, "destination": {"references": "Any"}, "service": {"references": "Any"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
+{"name": "outside_access_in-2", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "outside_access_in-2.src"}, "destination": {"references": "outside_access_in-2.dst"}, "service": {"references": "mail-services"}, "action": {"type": "pass"}, "position": {"placement": "top"}}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "outside_access_in-2", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Any"}, "destination": {"references": "outside_access_in-2.dst"}, "service": {"references": "mail-services"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
-FWSHIFT_JSON
-call POST rules <<'FWSHIFT_JSON'
-{"name": "outside_access_in-1", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Any"}, "destination": {"references": "outside_access_in-1.dst"}, "service": {"references": "tcp-8080"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report. Published web server"}
+{"name": "outside_access_in-1", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "outside_access_in-1.src"}, "destination": {"references": "outside_access_in-1.dst"}, "service": {"references": "tcp-8080"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "Published web server"}
 FWSHIFT_JSON
 
 # The rules that are to be active, first rule first.
+call PATCH rules/outside_access_in-1 <<'FWSHIFT_JSON'
+{"deactivated": false}
+FWSHIFT_JSON
+call PATCH rules/outside_access_in-2 <<'FWSHIFT_JSON'
+{"deactivated": false}
+FWSHIFT_JSON
 call PATCH rules/outside_access_in-4 <<'FWSHIFT_JSON'
 {"deactivated": false}
 FWSHIFT_JSON
 call PATCH rules/outside_access_in-4-v6 <<'FWSHIFT_JSON'
 {"deactivated": false}
 FWSHIFT_JSON
+call PATCH rules/inside_access_in-1 <<'FWSHIFT_JSON'
+{"deactivated": false}
+FWSHIFT_JSON
+call PATCH rules/inside_access_in-2 <<'FWSHIFT_JSON'
+{"deactivated": false}
+FWSHIFT_JSON
+call PATCH rules/inside_access_in-3 <<'FWSHIFT_JSON'
+{"deactivated": false}
+FWSHIFT_JSON
+call PATCH rules/inside_access_in-5 <<'FWSHIFT_JSON'
+{"deactivated": false}
+FWSHIFT_JSON
+call PATCH rules/inside_access_in-6 <<'FWSHIFT_JSON'
+{"deactivated": false}
+FWSHIFT_JSON
+call PATCH rules/dmz_access_in-1 <<'FWSHIFT_JSON'
+{"deactivated": false}
+FWSHIFT_JSON
+call PATCH rules/dmz_access_in-2 <<'FWSHIFT_JSON'
+{"deactivated": false}
+FWSHIFT_JSON
 call PATCH rules/dmz_access_in-3 <<'FWSHIFT_JSON'
+{"deactivated": false}
+FWSHIFT_JSON
+call PATCH rules/dmz_access_in-4 <<'FWSHIFT_JSON'
+{"deactivated": false}
+FWSHIFT_JSON
+call PATCH rules/implicit-guest <<'FWSHIFT_JSON'
 {"deactivated": false}
 FWSHIFT_JSON

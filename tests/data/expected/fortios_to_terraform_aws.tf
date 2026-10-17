@@ -26,37 +26,6473 @@ variable "vpc_id" {
   type        = string
 }
 
-# attach fwshift-no-rules: 0.0.0.0/0 ::/0
+# attach fwshift-wan1: 0.0.0.0-10.9.255.255 10.12.0.0-10.19.255.255 10.20.1.0-10.30.0.255 10.30.2.0-255.255.255.255
 resource "aws_security_group" "g1" {
-  name        = "fwshift-no-rules"
-  description = "FWShift: for the interfaces of 0.0.0.0/0 ::/0"
+  name        = "fwshift-wan1"
+  description = "FWShift: for the interfaces of 0.0.0.0-10.9.255.255 10.12.0.0-10.19.255.255 10.20.1.0-10.30.0.255 10.30.2.0-255.255.255.255"
   vpc_id      = var.vpc_id
   tags = {
     fwshift = "generated"
   }
 }
 
+# attach fwshift-lan: 10.10.0.0-10.10.5.9 10.10.5.21-10.10.7.14 10.10.7.16-10.11.255.255
+resource "aws_security_group" "g2" {
+  name        = "fwshift-lan"
+  description = "FWShift: for the interfaces of 10.10.0.0-10.10.5.9 10.10.5.21-10.10.7.14 10.10.7.16-10.11.255.255"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+# attach fwshift-admin-range: 10.10.5.10-10.10.5.20
+resource "aws_security_group" "g3" {
+  name        = "fwshift-admin-range"
+  description = "FWShift: for the interfaces of 10.10.5.10-10.10.5.20"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+# attach fwshift-scada-server: 10.10.7.15
+resource "aws_security_group" "g4" {
+  name        = "fwshift-scada-server"
+  description = "FWShift: for the interfaces of 10.10.7.15"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+# attach fwshift-web-1: 10.20.0.10
+resource "aws_security_group" "g5" {
+  name        = "fwshift-web-1"
+  description = "FWShift: for the interfaces of 10.20.0.10"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+# attach fwshift-mail-1: 10.20.0.25
+resource "aws_security_group" "g6" {
+  name        = "fwshift-mail-1"
+  description = "FWShift: for the interfaces of 10.20.0.25"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+# attach fwshift-plc-net: 10.30.1.0/24
+resource "aws_security_group" "g7" {
+  name        = "fwshift-plc-net"
+  description = "FWShift: for the interfaces of 10.30.1.0/24"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+# attach fwshift-no-rules: 10.20.0.0-10.20.0.9 10.20.0.11-10.20.0.24 10.20.0.26-10.20.0.255 ::/0
+resource "aws_security_group" "g8" {
+  name        = "fwshift-no-rules"
+  description = "FWShift: for the interfaces of 10.20.0.0-10.20.0.9 10.20.0.11-10.20.0.24 10.20.0.26-10.20.0.255 ::/0"
+  vpc_id      = var.vpc_id
+  tags = {
+    fwshift = "generated"
+  }
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_1" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_2" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.10.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_3" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.10.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_4" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.10.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g1_in_5" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.10.0.0/15"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_1" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.0.25/32"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_2" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_3" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g1_out_4" {
+  security_group_id = aws_security_group.g1.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_1" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_2" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_3" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_4" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_5" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_6" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_7" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_8" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_9" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_10" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_11" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_12" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_13" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_14" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_15" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_16" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_17" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_18" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_19" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_20" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_21" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_22" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_23" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_24" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_25" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_26" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_27" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_28" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_29" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_30" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_31" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_32" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_33" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_34" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_35" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_36" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_37" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_38" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_39" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_40" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_41" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_42" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_43" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_44" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_45" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_46" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_47" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_48" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_49" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_50" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_51" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_52" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_53" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_54" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_55" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_56" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_57" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_58" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_59" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_60" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_61" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_62" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_63" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_64" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_65" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_66" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_67" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_68" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_69" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_70" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_71" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_72" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_73" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_74" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_75" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_76" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_77" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_78" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_79" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_80" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_81" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_82" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_83" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_84" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_85" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_86" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_87" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_88" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_89" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_90" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_91" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_92" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_93" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_94" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_95" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_96" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_97" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_98" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_99" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_100" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_101" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_102" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_103" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_104" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_105" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_106" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_107" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_108" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_109" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_110" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_111" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_112" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_113" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_114" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_115" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_116" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_117" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_118" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_119" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_120" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_121" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_122" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_123" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_124" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_125" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_126" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_127" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_128" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_129" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_130" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_131" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_132" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_133" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_134" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_135" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_136" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_137" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_138" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_139" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_140" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_141" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_142" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_143" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_144" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_145" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_146" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_147" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_148" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_149" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_150" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_151" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_152" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_153" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_154" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_155" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_156" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_157" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_158" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_159" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_160" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_161" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_162" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_163" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_164" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_165" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_166" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_167" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_168" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_169" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_170" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_171" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_172" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_173" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_174" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_175" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_176" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_177" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_178" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_179" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g2_out_180" {
+  security_group_id = aws_security_group.g2.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_1" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_2" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_3" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_4" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_5" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_6" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_7" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_8" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_9" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_10" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_11" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_12" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_13" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_14" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_15" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_16" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_17" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_18" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_19" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_20" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_21" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_22" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_23" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_24" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_25" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_26" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_27" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_28" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_29" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_30" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_31" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_32" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_33" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_34" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_35" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_36" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_37" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_38" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_39" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_40" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_41" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_42" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_43" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_44" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_45" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_46" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_47" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_48" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_49" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_50" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_51" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_52" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_53" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_54" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_55" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_56" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_57" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_58" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_59" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_60" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_61" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_62" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_63" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_64" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_65" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_66" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_67" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_68" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_69" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_70" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_71" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_72" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_73" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_74" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_75" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_76" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_77" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_78" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_79" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_80" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_81" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_82" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_83" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_84" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_85" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_86" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_87" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_88" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_89" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_90" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_91" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_92" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_93" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_94" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_95" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_96" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_97" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_98" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_99" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_100" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_101" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_102" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_103" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_104" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_105" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_106" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_107" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_108" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_109" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_110" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_111" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_112" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_113" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_114" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_115" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_116" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_117" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_118" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_119" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_120" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_121" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_122" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_123" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_124" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_125" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_126" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_127" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_128" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_129" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_130" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_131" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_132" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_133" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_134" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_135" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_136" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_137" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_138" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_139" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_140" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_141" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_142" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_143" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_144" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_145" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_146" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_147" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_148" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_149" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_150" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_151" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_152" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_153" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_154" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_155" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_156" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_157" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_158" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_159" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_160" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_161" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_162" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_163" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_164" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_165" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_166" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_167" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_168" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_169" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_170" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_171" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_172" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_173" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_174" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_175" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_176" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_177" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_178" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_179" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_180" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_181" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 13
+  to_port           = -1
+  cidr_ipv4         = "10.20.0.10/32"
+  description       = "FWShift: Timestamp probes"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g3_out_182" {
+  security_group_id = aws_security_group.g3.id
+  ip_protocol       = "icmp"
+  from_port         = 13
+  to_port           = -1
+  cidr_ipv4         = "10.20.0.25/32"
+  description       = "FWShift: Timestamp probes"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_1" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_2" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_3" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_4" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_5" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_6" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_7" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_8" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_9" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_10" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_11" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_12" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_13" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_14" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_15" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_16" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_17" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_18" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_19" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_20" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_21" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_22" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_23" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_24" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_25" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_26" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_27" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_28" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_29" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_30" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_31" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_32" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_33" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_34" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_35" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_36" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_37" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_38" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_39" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_40" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_41" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_42" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_43" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_44" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_45" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_46" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_47" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_48" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_49" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_50" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_51" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_52" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_53" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_54" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_55" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_56" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_57" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_58" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_59" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_60" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_61" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_62" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_63" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_64" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_65" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_66" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_67" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_68" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_69" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_70" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_71" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_72" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_73" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_74" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_75" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_76" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_77" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_78" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_79" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_80" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_81" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_82" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_83" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_84" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_85" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_86" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_87" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_88" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_89" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_90" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_91" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_92" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_93" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_94" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_95" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_96" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_97" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_98" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_99" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_100" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_101" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_102" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_103" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_104" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_105" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_106" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_107" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_108" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: LAN to Internet"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_109" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "tcp"
+  from_port         = 502
+  to_port           = 502
+  cidr_ipv4         = "10.30.1.0/24"
+  description       = "FWShift: SCADA to PLCs"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_110" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_111" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_112" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_113" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_114" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_115" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_116" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_117" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_118" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_119" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_120" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_121" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_122" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_123" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_124" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_125" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_126" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_127" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_128" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_129" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_130" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_131" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_132" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_133" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_134" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_135" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_136" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_137" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_138" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_139" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_140" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_141" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_142" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_143" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_144" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_145" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "udp"
+  from_port         = 53
+  to_port           = 53
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: LAN to Internet, LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_146" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_147" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_148" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_149" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_150" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_151" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_152" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_153" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_154" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_155" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_156" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_157" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_158" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_159" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_160" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_161" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_162" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_163" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_164" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_165" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_166" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_167" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_168" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_169" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_170" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_171" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_172" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_173" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_174" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_175" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_176" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_177" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_178" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_179" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_180" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_egress_rule" "g4_out_181" {
+  security_group_id = aws_security_group.g4.id
+  ip_protocol       = "icmp"
+  from_port         = 8
+  to_port           = -1
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: LAN basics"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_1" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_2" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_3" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_4" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_5" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_6" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_7" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_8" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_9" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_10" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_11" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_12" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_13" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_14" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_15" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_16" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_17" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_18" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_19" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_20" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_21" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_22" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_23" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_24" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_25" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_26" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_27" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_28" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_29" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_30" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_31" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_32" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_33" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_34" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_35" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_36" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_37" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_38" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_39" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_40" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_41" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_42" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_43" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_44" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_45" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_46" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_47" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_48" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_49" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_50" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_51" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_52" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_53" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_54" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_55" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_56" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_57" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_58" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_59" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_60" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_61" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_62" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_63" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_64" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_65" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_66" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_67" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_68" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_69" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_70" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_71" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_72" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 8443
+  to_port           = 8443
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_73" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_74" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_75" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_76" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_77" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_78" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_79" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_80" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_81" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_82" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_83" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_84" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_85" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_86" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_87" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_88" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_89" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_90" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_91" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_92" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_93" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_94" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_95" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_96" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_97" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_98" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_99" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_100" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_101" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_102" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_103" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_104" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_105" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_106" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_107" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_108" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "tcp"
+  from_port         = 9000
+  to_port           = 9010
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: Inbound web"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_109" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 13
+  to_port           = -1
+  cidr_ipv4         = "10.10.5.10/31"
+  description       = "FWShift: Timestamp probes"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_110" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 13
+  to_port           = -1
+  cidr_ipv4         = "10.10.5.12/30"
+  description       = "FWShift: Timestamp probes"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_111" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 13
+  to_port           = -1
+  cidr_ipv4         = "10.10.5.16/30"
+  description       = "FWShift: Timestamp probes"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g5_in_112" {
+  security_group_id = aws_security_group.g5.id
+  ip_protocol       = "icmp"
+  from_port         = 13
+  to_port           = -1
+  cidr_ipv4         = "10.10.5.20/32"
+  description       = "FWShift: Timestamp probes"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_1" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "0.0.0.0/5"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_2" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "8.0.0.0/7"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_3" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.0.0.0/13"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_4" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.8.0.0/15"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_5" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.12.0.0/14"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_6" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.16.0.0/14"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_7" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.1.0/24"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_8" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.2.0/23"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_9" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.4.0/22"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_10" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.8.0/21"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_11" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.16.0/20"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_12" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.32.0/19"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_13" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.64.0/18"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_14" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.20.128.0/17"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_15" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.21.0.0/16"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_16" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.22.0.0/15"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_17" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.24.0.0/14"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_18" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.28.0.0/15"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_19" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.30.0.0/24"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_20" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.30.2.0/23"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_21" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.30.4.0/22"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_22" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.30.8.0/21"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_23" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.30.16.0/20"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_24" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.30.32.0/19"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_25" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.30.64.0/18"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_26" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.30.128.0/17"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_27" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.31.0.0/16"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_28" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.32.0.0/11"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_29" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.64.0.0/10"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_30" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "10.128.0.0/9"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_31" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "11.0.0.0/8"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_32" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "12.0.0.0/6"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_33" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "16.0.0.0/4"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_34" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "32.0.0.0/3"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_35" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "64.0.0.0/2"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_36" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "tcp"
+  from_port         = 25
+  to_port           = 25
+  cidr_ipv4         = "128.0.0.0/1"
+  description       = "FWShift: Inbound mail"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_37" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 13
+  to_port           = -1
+  cidr_ipv4         = "10.10.5.10/31"
+  description       = "FWShift: Timestamp probes"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_38" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 13
+  to_port           = -1
+  cidr_ipv4         = "10.10.5.12/30"
+  description       = "FWShift: Timestamp probes"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_39" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 13
+  to_port           = -1
+  cidr_ipv4         = "10.10.5.16/30"
+  description       = "FWShift: Timestamp probes"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g6_in_40" {
+  security_group_id = aws_security_group.g6.id
+  ip_protocol       = "icmp"
+  from_port         = 13
+  to_port           = -1
+  cidr_ipv4         = "10.10.5.20/32"
+  description       = "FWShift: Timestamp probes"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "g7_in_1" {
+  security_group_id = aws_security_group.g7.id
+  ip_protocol       = "tcp"
+  from_port         = 502
+  to_port           = 502
+  cidr_ipv4         = "10.10.7.15/32"
+  description       = "FWShift: SCADA to PLCs"
+}
+
 output "fwshift_attach" {
   description = "Each security group, with the private addresses of the network interfaces to attach it to"
   value = {
-    "fwshift-no-rules" = {
+    "fwshift-wan1" = {
       id        = aws_security_group.g1.id
-      addresses = ["0.0.0.0/0", "::/0"]
+      addresses = ["0.0.0.0-10.9.255.255", "10.12.0.0-10.19.255.255", "10.20.1.0-10.30.0.255", "10.30.2.0-255.255.255.255"]
+    }
+    "fwshift-lan" = {
+      id        = aws_security_group.g2.id
+      addresses = ["10.10.0.0-10.10.5.9", "10.10.5.21-10.10.7.14", "10.10.7.16-10.11.255.255"]
+    }
+    "fwshift-admin-range" = {
+      id        = aws_security_group.g3.id
+      addresses = ["10.10.5.10-10.10.5.20"]
+    }
+    "fwshift-scada-server" = {
+      id        = aws_security_group.g4.id
+      addresses = ["10.10.7.15"]
+    }
+    "fwshift-web-1" = {
+      id        = aws_security_group.g5.id
+      addresses = ["10.20.0.10"]
+    }
+    "fwshift-mail-1" = {
+      id        = aws_security_group.g6.id
+      addresses = ["10.20.0.25"]
+    }
+    "fwshift-plc-net" = {
+      id        = aws_security_group.g7.id
+      addresses = ["10.30.1.0/24"]
+    }
+    "fwshift-no-rules" = {
+      id        = aws_security_group.g8.id
+      addresses = ["10.20.0.0-10.20.0.9", "10.20.0.11-10.20.0.24", "10.20.0.26-10.20.0.255", "::/0"]
     }
   }
 }
 
 # Not written:
-#   rule LAN to Internet: not written, see the report
-#   rule LAN basics: not written, see the report
-#   rule Inbound web: not written, see the report
-#   rule Inbound mail: not written, see the report
 #   rule Admins to DMZ: not written, see the report
 #   rule Block geo: not written, see the report
 #   rule DMZ out via pool: not written, see the report
-#   rule SCADA to PLCs: not written, see the report
 #   rule Partner tunnel: not written, see the report
-#   rule LAN v6 out: not written, see the report
 #   rule policy-12: not written, see the report
 #   rule Not web: disabled in the source, not written
-#   rule Timestamp probes: not written, see the report

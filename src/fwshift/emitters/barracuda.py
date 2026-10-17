@@ -54,7 +54,7 @@ Entries = List[Tuple[Interval, str]]  # addresses, each with the interface of it
 
 
 def emit(policy: Policy, report: Report, options: Options) -> str:
-    zone_spaces(options.zone_networks)  # refuses networks that contradict each other
+    zone_spaces(options.zone_networks, options.zone_excluded)  # refuses networks that contradict each other
     for zone, interface in options.interface_map.items():
         if not _INTERFACE.fullmatch(interface):
             raise FwshiftError(f"--interface-map: '{interface[:40]}' is not the name of an interface of a CloudGen Firewall")
@@ -100,7 +100,7 @@ class _Emitter:
         self.rules: List[Tuple[str, Dict[str, Any], bool]] = []  # (name, body, to be active), in the order of the model
         self.single: Dict[str, Tuple[int, List[Interval]]] = {}  # named object -> (its IP version, its addresses), when of one
         self.svc_written: Set[str] = set()
-        self.spaces = zone_spaces(options.zone_networks)
+        self.spaces = zone_spaces(options.zone_networks, options.zone_excluded)
         used = [z for r in p.rules for z in r.src_zones + r.dst_zones if z != ANY]
         self.universe = transform.dedupe(list(p.zones) + used + list(options.zone_networks))
         self.interfaces: Set[str] = set()

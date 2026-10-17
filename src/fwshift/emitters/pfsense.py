@@ -173,7 +173,7 @@ def emit(policy: Policy, report: Report, options: Options) -> str:
 
 def emit_with(policy: Policy, report: Report, options: Options, emitter: Type["_Emitter"]) -> str:
     """The conversion with an emitter that writes what pfSense has in another form (OPNsense)."""
-    zone_spaces(options.zone_networks)  # refuses networks that contradict each other
+    zone_spaces(options.zone_networks, options.zone_excluded)  # refuses networks that contradict each other
     interfaces = _target_interfaces(policy, options)
     if options.nat_zone and not all(valid_interface(i) for i in interfaces[options.nat_zone]):
         raise FwshiftError(f"--target-nat-zone: '{options.nat_zone[:40]}' is no interface a pfSense rule can name")
@@ -291,7 +291,7 @@ class _Emitter:
         self.known_zones = {options.zone_map.get(zone, zone) for zone in p.zones} | {
             z for r in list(p.rules) + list(p.nat_rules) for z in r.src_zones + r.dst_zones
         }
-        self.areas: _Areas = zone_areas(self.universe, zone_spaces(options.zone_networks))
+        self.areas: _Areas = zone_areas(self.universe, zone_spaces(options.zone_networks, options.zone_excluded))
         # An object pfSense has a word for is written as that word, whatever its addresses; a group that holds
         # one whose addresses are not known stays unusable.
         self.taint_all = transform.tainted_addresses(p)
@@ -646,16 +646,23 @@ class _Emitter:
             to = "zone " + ", ".join(reached)
             extra, severity = "", Severity.INFO
             if named:
-                if overlaps(subtract(intervals, away), areas.nowhere):
+                stray = overlaps(subtract(intervals, away), areas.nowhere)
+                cut = normalize(away + areas.nowhere) if allow and stray else away
+                if stray and not allow:
                     self.report.add(
                         "rule", rule.origin, Severity.APPROX, "EGRESS_INTERFACE",
                         f"the rule is for traffic to {to}, and part of its destination lies in none of the networks given "
                         "with --zone-network. A rule of pfSense cannot name the interface traffic leaves by: for those "
                         "addresses it applies by whatever interface they are reached",
                     )  # fmt: skip
-                if not overlaps(intervals, away):
+                if not overlaps(intervals, cut):
                     continue  # the destination lies where the rule is for as it is
-                limits[source] = away
+                limits[source] = cut
+                if stray and allow:
+                    # (an address in none of the networks lies behind no zone of the rule: an allow leaves it out)
+                    self.gap_used = True
+                    severity = Severity.APPROX
+                    extra = ", and the addresses of its destination that lie in none of the networks given"
             else:
                 limits[source] = normalize(away + areas.nowhere) if allow else away
                 if areas.nowhere:

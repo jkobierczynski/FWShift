@@ -45,6 +45,9 @@ class Options:
     # ASA target: networks behind a zone, for rules that an access list can only keep to their
     # destination zone by leaving out the networks of the other zones.
     zone_networks: Dict[str, List[str]] = field(default_factory=dict)
+    # Networks that lie behind no zone of the policy, from the source's routes (zonenets, 0.35.0): no zone's networks
+    # hold them, and they are not taken for unknown addresses either.
+    zone_excluded: List[str] = field(default_factory=list)
     # AWS target: the zones whose networks are inside the VPC, where the interfaces the groups are attached to are.
     inside_zones: List[str] = field(default_factory=list)
     # OPNsense target: the series the output is written for ("" is the latest FWShift knows).

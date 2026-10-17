@@ -651,7 +651,7 @@ def _decider(side: _Side, pair: _Pair, atom: Atom, dropped: Set[str], point: Tup
 def compare(first: Policy, second: Policy, first_label: str = "first", second_label: str = "second",
             readings: Tuple[Optional[Any], Optional[Any]] = (None, None), zone_map: Optional[Dict[str, str]] = None,
             zone_networks: Optional[Dict[str, List[str]]] = None, pairs: Optional[Sequence[Tuple[str, str]]] = None,
-            app_ports: Optional[Dict[str, List[str]]] = None) -> Comparison:  # fmt: skip
+            app_ports: Optional[Dict[str, List[str]]] = None, excluded: Sequence[str] = ()) -> Comparison:  # fmt: skip
     """Every connection whose verdict differs between two policies.
 
     ``zone_map`` gives the zones of the first as the second names them (several may become one); ``zone_networks``
@@ -682,7 +682,7 @@ def compare(first: Policy, second: Policy, first_label: str = "first", second_la
     names += [name for name in b.names if name not in image and name not in names]
     to_second = {name: mapping.get(name, name) for name in names}
     networks = dict(zone_networks or {})
-    spaces = zone_spaces(networks) if networks else {}
+    spaces = zone_spaces(networks, excluded) if networks else {}
     missing = [name for name in names if networks and name not in spaces]
     if missing:
         result.notes.append("No networks were given for zone(s) " + ", ".join(missing[:12]) + ": every address is compared there.")

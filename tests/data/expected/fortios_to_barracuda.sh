@@ -111,10 +111,13 @@ call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "LAN_to_Internet.src", "included": [{"entry": {"ip": "10.10.0.0/15"}}]}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
-{"name": "Inbound_web.dst", "included": [{"entry": {"ip": "203.0.113.10"}}]}
+{"name": "LAN_to_Internet.dst", "included": [{"entry": {"ip": "0.0.0.0/5"}}, {"entry": {"ip": "8.0.0.0/7"}}, {"entry": {"ip": "10.0.0.0/13"}}, {"entry": {"ip": "10.8.0.0/15"}}, {"entry": {"ip": "10.12.0.0/14"}}, {"entry": {"ip": "10.16.0.0/14"}}, {"entry": {"ip": "10.20.1.0/24"}}, {"entry": {"ip": "10.20.2.0/23"}}, {"entry": {"ip": "10.20.4.0/22"}}, {"entry": {"ip": "10.20.8.0/21"}}, {"entry": {"ip": "10.20.16.0/20"}}, {"entry": {"ip": "10.20.32.0/19"}}, {"entry": {"ip": "10.20.64.0/18"}}, {"entry": {"ip": "10.20.128.0/17"}}, {"entry": {"ip": "10.21.0.0/16"}}, {"entry": {"ip": "10.22.0.0/15"}}, {"entry": {"ip": "10.24.0.0/14"}}, {"entry": {"ip": "10.28.0.0/15"}}, {"entry": {"ip": "10.30.0.0/24"}}, {"entry": {"ip": "10.30.2.0/23"}}, {"entry": {"ip": "10.30.4.0/22"}}, {"entry": {"ip": "10.30.8.0/21"}}, {"entry": {"ip": "10.30.16.0/20"}}, {"entry": {"ip": "10.30.32.0/19"}}, {"entry": {"ip": "10.30.64.0/18"}}, {"entry": {"ip": "10.30.128.0/17"}}, {"entry": {"ip": "10.31.0.0/16"}}, {"entry": {"ip": "10.32.0.0/11"}}, {"entry": {"ip": "10.64.0.0/10"}}, {"entry": {"ip": "10.128.0.0/9"}}, {"entry": {"ip": "11.0.0.0/8"}}, {"entry": {"ip": "12.0.0.0/6"}}, {"entry": {"ip": "16.0.0.0/4"}}, {"entry": {"ip": "32.0.0.0/3"}}, {"entry": {"ip": "64.0.0.0/2"}}, {"entry": {"ip": "128.0.0.0/1"}}]}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
-{"name": "Inbound_mail.dst", "included": [{"entry": {"ip": "203.0.113.25"}}]}
+{"name": "LAN_basics.src", "included": [{"entry": {"ip": "10.10.0.0/15"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "LAN_basics.dst", "included": [{"entry": {"ip": "0.0.0.0/5"}}, {"entry": {"ip": "8.0.0.0/7"}}, {"entry": {"ip": "10.0.0.0/13"}}, {"entry": {"ip": "10.8.0.0/15"}}, {"entry": {"ip": "10.12.0.0/14"}}, {"entry": {"ip": "10.16.0.0/14"}}, {"entry": {"ip": "10.20.1.0/24"}}, {"entry": {"ip": "10.20.2.0/23"}}, {"entry": {"ip": "10.20.4.0/22"}}, {"entry": {"ip": "10.20.8.0/21"}}, {"entry": {"ip": "10.20.16.0/20"}}, {"entry": {"ip": "10.20.32.0/19"}}, {"entry": {"ip": "10.20.64.0/18"}}, {"entry": {"ip": "10.20.128.0/17"}}, {"entry": {"ip": "10.21.0.0/16"}}, {"entry": {"ip": "10.22.0.0/15"}}, {"entry": {"ip": "10.24.0.0/14"}}, {"entry": {"ip": "10.28.0.0/15"}}, {"entry": {"ip": "10.30.0.0/24"}}, {"entry": {"ip": "10.30.2.0/23"}}, {"entry": {"ip": "10.30.4.0/22"}}, {"entry": {"ip": "10.30.8.0/21"}}, {"entry": {"ip": "10.30.16.0/20"}}, {"entry": {"ip": "10.30.32.0/19"}}, {"entry": {"ip": "10.30.64.0/18"}}, {"entry": {"ip": "10.30.128.0/17"}}, {"entry": {"ip": "10.31.0.0/16"}}, {"entry": {"ip": "10.32.0.0/11"}}, {"entry": {"ip": "10.64.0.0/10"}}, {"entry": {"ip": "10.128.0.0/9"}}, {"entry": {"ip": "11.0.0.0/8"}}, {"entry": {"ip": "12.0.0.0/6"}}, {"entry": {"ip": "16.0.0.0/4"}}, {"entry": {"ip": "32.0.0.0/3"}}, {"entry": {"ip": "64.0.0.0/2"}}, {"entry": {"ip": "128.0.0.0/1"}}]}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "Admins_to_DMZ.src", "included": [{"entry": {"ip": "10.10.5.10/31"}}, {"entry": {"ip": "10.10.5.12/30"}}, {"entry": {"ip": "10.10.5.16/30"}}, {"entry": {"ip": "10.10.5.20"}}]}
@@ -137,6 +140,12 @@ FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "SCADA_to_PLCs.dst", "included": [{"entry": {"ip": "10.30.1.0/24"}}]}
 FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "OT_no_internet.src", "included": [{"entry": {"ip": "10.30.1.0/24"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "OT_no_internet.dst", "included": [{"entry": {"ip": "0.0.0.0/5"}}, {"entry": {"ip": "8.0.0.0/7"}}, {"entry": {"ip": "10.0.0.0/13"}}, {"entry": {"ip": "10.8.0.0/15"}}, {"entry": {"ip": "10.12.0.0/14"}}, {"entry": {"ip": "10.16.0.0/14"}}, {"entry": {"ip": "10.20.1.0/24"}}, {"entry": {"ip": "10.20.2.0/23"}}, {"entry": {"ip": "10.20.4.0/22"}}, {"entry": {"ip": "10.20.8.0/21"}}, {"entry": {"ip": "10.20.16.0/20"}}, {"entry": {"ip": "10.20.32.0/19"}}, {"entry": {"ip": "10.20.64.0/18"}}, {"entry": {"ip": "10.20.128.0/17"}}, {"entry": {"ip": "10.21.0.0/16"}}, {"entry": {"ip": "10.22.0.0/15"}}, {"entry": {"ip": "10.24.0.0/14"}}, {"entry": {"ip": "10.28.0.0/15"}}, {"entry": {"ip": "10.30.0.0/24"}}, {"entry": {"ip": "10.30.2.0/23"}}, {"entry": {"ip": "10.30.4.0/22"}}, {"entry": {"ip": "10.30.8.0/21"}}, {"entry": {"ip": "10.30.16.0/20"}}, {"entry": {"ip": "10.30.32.0/19"}}, {"entry": {"ip": "10.30.64.0/18"}}, {"entry": {"ip": "10.30.128.0/17"}}, {"entry": {"ip": "10.31.0.0/16"}}, {"entry": {"ip": "10.32.0.0/11"}}, {"entry": {"ip": "10.64.0.0/10"}}, {"entry": {"ip": "10.128.0.0/9"}}, {"entry": {"ip": "11.0.0.0/8"}}, {"entry": {"ip": "12.0.0.0/6"}}, {"entry": {"ip": "16.0.0.0/4"}}, {"entry": {"ip": "32.0.0.0/3"}}, {"entry": {"ip": "64.0.0.0/2"}}, {"entry": {"ip": "128.0.0.0/1"}}]}
+FWSHIFT_JSON
 call POST objects/services <<'FWSHIFT_JSON'
 {"name": "Partner_tunnel.svc", "entries": [{"entry": {"protocol": "47"}}, {"entry": {"protocol": "udp", "ports": ["514"], "clientPortUsed": {"from": 1024, "to": 65535}}}]}
 FWSHIFT_JSON
@@ -147,9 +156,6 @@ call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "Partner_tunnel.dst", "included": [{"entry": {"ip": "10.99.0.0/16"}}]}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
-{"name": "LAN_v6_out.src.v6", "included": [{"entry": {"ip": "2001:db8:10::/48"}}]}
-FWSHIFT_JSON
-call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "policy-12.src", "included": [{"entry": {"ip": "10.10.0.0/15"}}]}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
@@ -157,6 +163,9 @@ call POST objects/networks <<'FWSHIFT_JSON'
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "Not_web.src", "included": [{"entry": {"ip": "10.20.0.10"}}]}
+FWSHIFT_JSON
+call POST objects/networks <<'FWSHIFT_JSON'
+{"name": "Not_web.dst", "included": [{"entry": {"ip": "0.0.0.0/5"}}, {"entry": {"ip": "8.0.0.0/7"}}, {"entry": {"ip": "10.0.0.0/13"}}, {"entry": {"ip": "10.8.0.0/15"}}, {"entry": {"ip": "10.12.0.0/14"}}, {"entry": {"ip": "10.16.0.0/14"}}, {"entry": {"ip": "10.20.1.0/24"}}, {"entry": {"ip": "10.20.2.0/23"}}, {"entry": {"ip": "10.20.4.0/22"}}, {"entry": {"ip": "10.20.8.0/21"}}, {"entry": {"ip": "10.20.16.0/20"}}, {"entry": {"ip": "10.20.32.0/19"}}, {"entry": {"ip": "10.20.64.0/18"}}, {"entry": {"ip": "10.20.128.0/17"}}, {"entry": {"ip": "10.21.0.0/16"}}, {"entry": {"ip": "10.22.0.0/15"}}, {"entry": {"ip": "10.24.0.0/14"}}, {"entry": {"ip": "10.28.0.0/15"}}, {"entry": {"ip": "10.30.0.0/24"}}, {"entry": {"ip": "10.30.2.0/23"}}, {"entry": {"ip": "10.30.4.0/22"}}, {"entry": {"ip": "10.30.8.0/21"}}, {"entry": {"ip": "10.30.16.0/20"}}, {"entry": {"ip": "10.30.32.0/19"}}, {"entry": {"ip": "10.30.64.0/18"}}, {"entry": {"ip": "10.30.128.0/17"}}, {"entry": {"ip": "10.31.0.0/16"}}, {"entry": {"ip": "10.32.0.0/11"}}, {"entry": {"ip": "10.64.0.0/10"}}, {"entry": {"ip": "10.128.0.0/9"}}, {"entry": {"ip": "11.0.0.0/8"}}, {"entry": {"ip": "12.0.0.0/6"}}, {"entry": {"ip": "16.0.0.0/4"}}, {"entry": {"ip": "32.0.0.0/3"}}, {"entry": {"ip": "64.0.0.0/2"}}, {"entry": {"ip": "128.0.0.0/1"}}]}
 FWSHIFT_JSON
 call POST objects/networks <<'FWSHIFT_JSON'
 {"name": "Timestamp_probes.src", "included": [{"entry": {"ip": "10.10.5.10/31"}}, {"entry": {"ip": "10.10.5.12/30"}}, {"entry": {"ip": "10.10.5.16/30"}}, {"entry": {"ip": "10.10.5.20"}}]}
@@ -176,22 +185,19 @@ call POST rules <<'FWSHIFT_JSON'
 {"name": "Timestamp_probes", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Timestamp_probes.src"}, "destination": {"references": "Timestamp_probes.dst"}, "service": {"references": "Any"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "Not_web", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Not_web.src"}, "destination": {"references": "Any"}, "service": {"references": "Web_Access"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
+{"name": "Not_web", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Not_web.src"}, "destination": {"references": "Not_web.dst"}, "service": {"references": "Web_Access"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
 {"name": "policy-12", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "policy-12.src"}, "destination": {"references": "policy-12.dst"}, "service": {"references": "HTTP"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "LAN_v6_out", "ipVersion": "IPv6", "deactivated": true, "bidirectional": false, "source": {"references": "LAN_v6_out.src.v6"}, "destination": {"references": "Any"}, "service": {"references": "HTTPS"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
+{"name": "Partner_tunnel", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Partner_tunnel.src"}, "destination": {"references": "Partner_tunnel.dst"}, "service": {"references": "Partner_tunnel.svc"}, "action": {"type": "pass"}, "position": {"placement": "top"}}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "Partner_tunnel", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Partner_tunnel.src"}, "destination": {"references": "Partner_tunnel.dst"}, "service": {"references": "Partner_tunnel.svc"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
+{"name": "OT_no_internet", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "OT_no_internet.src"}, "destination": {"references": "OT_no_internet.dst"}, "service": {"references": "Any"}, "action": {"type": "block"}, "position": {"placement": "top"}}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "OT_no_internet", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Any"}, "destination": {"references": "Any"}, "service": {"references": "Any"}, "action": {"type": "block"}, "position": {"placement": "top"}}
-FWSHIFT_JSON
-call POST rules <<'FWSHIFT_JSON'
-{"name": "SCADA_to_PLCs", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "SCADA_to_PLCs.src"}, "destination": {"references": "SCADA_to_PLCs.dst"}, "service": {"references": "MODBUS"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report. Engineering access to the controllers"}
+{"name": "SCADA_to_PLCs", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "SCADA_to_PLCs.src"}, "destination": {"references": "SCADA_to_PLCs.dst"}, "service": {"references": "MODBUS"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "Engineering access to the controllers"}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
 {"name": "DMZ_out_via_pool", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "DMZ_out_via_pool.src"}, "destination": {"references": "DMZ_out_via_pool.dst"}, "service": {"references": "HTTPS"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
@@ -203,19 +209,22 @@ call POST rules <<'FWSHIFT_JSON'
 {"name": "Admins_to_DMZ", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Admins_to_DMZ.src"}, "destination": {"references": "Admins_to_DMZ.dst"}, "service": {"references": "SSH"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "Inbound_mail", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Any"}, "destination": {"references": "Inbound_mail.dst"}, "service": {"references": "SMTP"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
+{"name": "LAN_basics", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "LAN_basics.src"}, "destination": {"references": "LAN_basics.dst"}, "service": {"references": "Any"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
 FWSHIFT_JSON
 call POST rules <<'FWSHIFT_JSON'
-{"name": "Inbound_web", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Any"}, "destination": {"references": "Inbound_web.dst"}, "service": {"references": "app-ports"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
-FWSHIFT_JSON
-call POST rules <<'FWSHIFT_JSON'
-{"name": "LAN_basics", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "Any"}, "destination": {"references": "Any"}, "service": {"references": "Any"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
-FWSHIFT_JSON
-call POST rules <<'FWSHIFT_JSON'
-{"name": "LAN_to_Internet", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "LAN_to_Internet.src"}, "destination": {"references": "Any"}, "service": {"references": "LAN_to_Internet.svc"}, "action": {"type": "pass"}, "position": {"placement": "top"}, "comment": "FWSHIFT inactive, see the report."}
+{"name": "LAN_to_Internet", "ipVersion": "IPv4", "deactivated": true, "bidirectional": false, "source": {"references": "LAN_to_Internet.src"}, "destination": {"references": "LAN_to_Internet.dst"}, "service": {"references": "LAN_to_Internet.svc"}, "action": {"type": "pass"}, "position": {"placement": "top"}}
 FWSHIFT_JSON
 
 # The rules that are to be active, first rule first.
+call PATCH rules/LAN_to_Internet <<'FWSHIFT_JSON'
+{"deactivated": false}
+FWSHIFT_JSON
+call PATCH rules/SCADA_to_PLCs <<'FWSHIFT_JSON'
+{"deactivated": false}
+FWSHIFT_JSON
 call PATCH rules/OT_no_internet <<'FWSHIFT_JSON'
+{"deactivated": false}
+FWSHIFT_JSON
+call PATCH rules/Partner_tunnel <<'FWSHIFT_JSON'
 {"deactivated": false}
 FWSHIFT_JSON

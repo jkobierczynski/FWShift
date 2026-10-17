@@ -35,14 +35,14 @@ resource "google_compute_network_firewall_policy_rule" "r1000" {
   firewall_policy = google_compute_network_firewall_policy.policy.name
   priority        = 1000
   direction       = "INGRESS"
-  action          = "deny"
-  enable_logging  = true
-  description     = "outside_access_in-4"
+  action          = "allow"
+  description     = "outside_access_in-1"
   match {
-    src_ip_ranges  = ["0.0.0.0/0"]
-    dest_ip_ranges = ["0.0.0.0/0"]
+    src_ip_ranges  = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/13", "10.8.0.0/15", "10.11.0.0/16", "10.12.0.0/14", "10.16.0.0/14", "10.20.1.0/24", "10.20.2.0/23", "10.20.4.0/22", "10.20.8.0/21", "10.20.16.0/20", "10.20.32.0/19", "10.20.64.0/18", "10.20.128.0/17", "10.21.0.0/16", "10.22.0.0/15", "10.24.0.0/14", "10.28.0.0/15", "10.30.1.0/24", "10.30.2.0/23", "10.30.4.0/22", "10.30.8.0/21", "10.30.16.0/20", "10.30.32.0/19", "10.30.64.0/18", "10.30.128.0/17", "10.31.0.0/16", "10.32.0.0/13", "10.41.0.0/16", "10.42.0.0/15", "10.44.0.0/14", "10.48.0.0/12", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    dest_ip_ranges = ["10.20.0.10/32"]
     layer4_configs {
-      ip_protocol = "all"
+      ip_protocol = "tcp"
+      ports       = ["8080"]
     }
   }
 }
@@ -52,14 +52,14 @@ resource "google_compute_network_firewall_policy_rule" "r1010" {
   firewall_policy = google_compute_network_firewall_policy.policy.name
   priority        = 1010
   direction       = "EGRESS"
-  action          = "deny"
-  enable_logging  = true
-  description     = "outside_access_in-4"
+  action          = "allow"
+  description     = "outside_access_in-1"
   match {
-    src_ip_ranges  = ["0.0.0.0/0"]
-    dest_ip_ranges = ["0.0.0.0/0"]
+    src_ip_ranges  = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/13", "10.8.0.0/15", "10.11.0.0/16", "10.12.0.0/14", "10.16.0.0/14", "10.20.1.0/24", "10.20.2.0/23", "10.20.4.0/22", "10.20.8.0/21", "10.20.16.0/20", "10.20.32.0/19", "10.20.64.0/18", "10.20.128.0/17", "10.21.0.0/16", "10.22.0.0/15", "10.24.0.0/14", "10.28.0.0/15", "10.30.1.0/24", "10.30.2.0/23", "10.30.4.0/22", "10.30.8.0/21", "10.30.16.0/20", "10.30.32.0/19", "10.30.64.0/18", "10.30.128.0/17", "10.31.0.0/16", "10.32.0.0/13", "10.41.0.0/16", "10.42.0.0/15", "10.44.0.0/14", "10.48.0.0/12", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    dest_ip_ranges = ["10.20.0.10/32"]
     layer4_configs {
-      ip_protocol = "all"
+      ip_protocol = "tcp"
+      ports       = ["8080"]
     }
   }
 }
@@ -69,14 +69,15 @@ resource "google_compute_network_firewall_policy_rule" "r1020" {
   firewall_policy = google_compute_network_firewall_policy.policy.name
   priority        = 1020
   direction       = "INGRESS"
-  action          = "deny"
+  action          = "allow"
   enable_logging  = true
-  description     = "outside_access_in-4"
+  description     = "outside_access_in-2"
   match {
-    src_ip_ranges  = ["::/0"]
-    dest_ip_ranges = ["::/0"]
+    src_ip_ranges  = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/13", "10.8.0.0/15", "10.11.0.0/16", "10.12.0.0/14", "10.16.0.0/14", "10.20.1.0/24", "10.20.2.0/23", "10.20.4.0/22", "10.20.8.0/21", "10.20.16.0/20", "10.20.32.0/19", "10.20.64.0/18", "10.20.128.0/17", "10.21.0.0/16", "10.22.0.0/15", "10.24.0.0/14", "10.28.0.0/15", "10.30.1.0/24", "10.30.2.0/23", "10.30.4.0/22", "10.30.8.0/21", "10.30.16.0/20", "10.30.32.0/19", "10.30.64.0/18", "10.30.128.0/17", "10.31.0.0/16", "10.32.0.0/13", "10.41.0.0/16", "10.42.0.0/15", "10.44.0.0/14", "10.48.0.0/12", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    dest_ip_ranges = ["10.20.0.25/32"]
     layer4_configs {
-      ip_protocol = "all"
+      ip_protocol = "tcp"
+      ports       = ["25", "587", "8443"]
     }
   }
 }
@@ -86,14 +87,15 @@ resource "google_compute_network_firewall_policy_rule" "r1030" {
   firewall_policy = google_compute_network_firewall_policy.policy.name
   priority        = 1030
   direction       = "EGRESS"
-  action          = "deny"
+  action          = "allow"
   enable_logging  = true
-  description     = "outside_access_in-4"
+  description     = "outside_access_in-2"
   match {
-    src_ip_ranges  = ["::/0"]
-    dest_ip_ranges = ["::/0"]
+    src_ip_ranges  = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/13", "10.8.0.0/15", "10.11.0.0/16", "10.12.0.0/14", "10.16.0.0/14", "10.20.1.0/24", "10.20.2.0/23", "10.20.4.0/22", "10.20.8.0/21", "10.20.16.0/20", "10.20.32.0/19", "10.20.64.0/18", "10.20.128.0/17", "10.21.0.0/16", "10.22.0.0/15", "10.24.0.0/14", "10.28.0.0/15", "10.30.1.0/24", "10.30.2.0/23", "10.30.4.0/22", "10.30.8.0/21", "10.30.16.0/20", "10.30.32.0/19", "10.30.64.0/18", "10.30.128.0/17", "10.31.0.0/16", "10.32.0.0/13", "10.41.0.0/16", "10.42.0.0/15", "10.44.0.0/14", "10.48.0.0/12", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    dest_ip_ranges = ["10.20.0.25/32"]
     layer4_configs {
-      ip_protocol = "all"
+      ip_protocol = "tcp"
+      ports       = ["25", "587", "8443"]
     }
   }
 }
@@ -104,15 +106,13 @@ resource "google_compute_network_firewall_policy_rule" "r1040" {
   priority        = 1040
   direction       = "INGRESS"
   action          = "deny"
-  disabled        = true
   enable_logging  = true
-  description     = "inside_access_in-8"
+  description     = "outside_access_in-4"
   match {
-    src_ip_ranges  = ["0.0.0.0/0"]
+    src_ip_ranges  = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/13", "10.8.0.0/15", "10.11.0.0/16", "10.12.0.0/14", "10.16.0.0/14", "10.20.1.0/24", "10.20.2.0/23", "10.20.4.0/22", "10.20.8.0/21", "10.20.16.0/20", "10.20.32.0/19", "10.20.64.0/18", "10.20.128.0/17", "10.21.0.0/16", "10.22.0.0/15", "10.24.0.0/14", "10.28.0.0/15", "10.30.1.0/24", "10.30.2.0/23", "10.30.4.0/22", "10.30.8.0/21", "10.30.16.0/20", "10.30.32.0/19", "10.30.64.0/18", "10.30.128.0/17", "10.31.0.0/16", "10.32.0.0/13", "10.41.0.0/16", "10.42.0.0/15", "10.44.0.0/14", "10.48.0.0/12", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/1"]
     dest_ip_ranges = ["0.0.0.0/0"]
     layer4_configs {
-      ip_protocol = "tcp"
-      ports       = ["23"]
+      ip_protocol = "all"
     }
   }
 }
@@ -123,15 +123,13 @@ resource "google_compute_network_firewall_policy_rule" "r1050" {
   priority        = 1050
   direction       = "EGRESS"
   action          = "deny"
-  disabled        = true
   enable_logging  = true
-  description     = "inside_access_in-8"
+  description     = "outside_access_in-4"
   match {
-    src_ip_ranges  = ["0.0.0.0/0"]
+    src_ip_ranges  = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/13", "10.8.0.0/15", "10.11.0.0/16", "10.12.0.0/14", "10.16.0.0/14", "10.20.1.0/24", "10.20.2.0/23", "10.20.4.0/22", "10.20.8.0/21", "10.20.16.0/20", "10.20.32.0/19", "10.20.64.0/18", "10.20.128.0/17", "10.21.0.0/16", "10.22.0.0/15", "10.24.0.0/14", "10.28.0.0/15", "10.30.1.0/24", "10.30.2.0/23", "10.30.4.0/22", "10.30.8.0/21", "10.30.16.0/20", "10.30.32.0/19", "10.30.64.0/18", "10.30.128.0/17", "10.31.0.0/16", "10.32.0.0/13", "10.41.0.0/16", "10.42.0.0/15", "10.44.0.0/14", "10.48.0.0/12", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/1"]
     dest_ip_ranges = ["0.0.0.0/0"]
     layer4_configs {
-      ip_protocol = "tcp"
-      ports       = ["23"]
+      ip_protocol = "all"
     }
   }
 }
@@ -142,15 +140,13 @@ resource "google_compute_network_firewall_policy_rule" "r1060" {
   priority        = 1060
   direction       = "INGRESS"
   action          = "deny"
-  disabled        = true
   enable_logging  = true
-  description     = "inside_access_in-8"
+  description     = "outside_access_in-4"
   match {
-    src_ip_ranges  = ["::/0"]
+    src_ip_ranges  = ["::/3", "2000::/16", "2001::/21", "2001:800::/22", "2001:c00::/24", "2001:d00::/25", "2001:d80::/27", "2001:da0::/28", "2001:db0::/29", "2001:db8::/44", "2001:db8:10:1::/64", "2001:db8:10:2::/63", "2001:db8:10:4::/62", "2001:db8:10:8::/61", "2001:db8:10:10::/60", "2001:db8:10:20::/59", "2001:db8:10:40::/58", "2001:db8:10:80::/57", "2001:db8:10:100::/56", "2001:db8:10:200::/55", "2001:db8:10:400::/54", "2001:db8:10:800::/53", "2001:db8:10:1000::/52", "2001:db8:10:2000::/51", "2001:db8:10:4000::/50", "2001:db8:10:8000::/49", "2001:db8:11::/48", "2001:db8:12::/47", "2001:db8:14::/46", "2001:db8:18::/45", "2001:db8:20::/43", "2001:db8:40::/42", "2001:db8:80::/41", "2001:db8:100::/40", "2001:db8:200::/39", "2001:db8:400::/38", "2001:db8:800::/37", "2001:db8:1000::/36", "2001:db8:2000::/35", "2001:db8:4000::/34", "2001:db8:8000::/33", "2001:db9::/32", "2001:dba::/31", "2001:dbc::/30", "2001:dc0::/26", "2001:e00::/23", "2001:1000::/20", "2001:2000::/19", "2001:4000::/18", "2001:8000::/17", "2002::/15", "2004::/14", "2008::/13", "2010::/12", "2020::/11", "2040::/10", "2080::/9", "2100::/8", "2200::/7", "2400::/6", "2800::/5", "3000::/4", "4000::/2", "8000::/1"]
     dest_ip_ranges = ["::/0"]
     layer4_configs {
-      ip_protocol = "tcp"
-      ports       = ["23"]
+      ip_protocol = "all"
     }
   }
 }
@@ -161,6 +157,213 @@ resource "google_compute_network_firewall_policy_rule" "r1070" {
   priority        = 1070
   direction       = "EGRESS"
   action          = "deny"
+  enable_logging  = true
+  description     = "outside_access_in-4"
+  match {
+    src_ip_ranges  = ["::/3", "2000::/16", "2001::/21", "2001:800::/22", "2001:c00::/24", "2001:d00::/25", "2001:d80::/27", "2001:da0::/28", "2001:db0::/29", "2001:db8::/44", "2001:db8:10:1::/64", "2001:db8:10:2::/63", "2001:db8:10:4::/62", "2001:db8:10:8::/61", "2001:db8:10:10::/60", "2001:db8:10:20::/59", "2001:db8:10:40::/58", "2001:db8:10:80::/57", "2001:db8:10:100::/56", "2001:db8:10:200::/55", "2001:db8:10:400::/54", "2001:db8:10:800::/53", "2001:db8:10:1000::/52", "2001:db8:10:2000::/51", "2001:db8:10:4000::/50", "2001:db8:10:8000::/49", "2001:db8:11::/48", "2001:db8:12::/47", "2001:db8:14::/46", "2001:db8:18::/45", "2001:db8:20::/43", "2001:db8:40::/42", "2001:db8:80::/41", "2001:db8:100::/40", "2001:db8:200::/39", "2001:db8:400::/38", "2001:db8:800::/37", "2001:db8:1000::/36", "2001:db8:2000::/35", "2001:db8:4000::/34", "2001:db8:8000::/33", "2001:db9::/32", "2001:dba::/31", "2001:dbc::/30", "2001:dc0::/26", "2001:e00::/23", "2001:1000::/20", "2001:2000::/19", "2001:4000::/18", "2001:8000::/17", "2002::/15", "2004::/14", "2008::/13", "2010::/12", "2020::/11", "2040::/10", "2080::/9", "2100::/8", "2200::/7", "2400::/6", "2800::/5", "3000::/4", "4000::/2", "8000::/1"]
+    dest_ip_ranges = ["::/0"]
+    layer4_configs {
+      ip_protocol = "all"
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1080" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1080
+  direction       = "INGRESS"
+  action          = "allow"
+  description     = "inside_access_in-1"
+  match {
+    src_ip_ranges  = ["10.10.0.0/16"]
+    dest_ip_ranges = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/13", "10.8.0.0/15", "10.11.0.0/16", "10.12.0.0/14", "10.16.0.0/12", "10.32.0.0/13", "10.41.0.0/16", "10.42.0.0/15", "10.44.0.0/14", "10.48.0.0/12", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    layer4_configs {
+      ip_protocol = "tcp"
+      ports       = ["53"]
+    }
+    layer4_configs {
+      ip_protocol = "udp"
+      ports       = ["53", "123"]
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1090" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1090
+  direction       = "EGRESS"
+  action          = "allow"
+  description     = "inside_access_in-1"
+  match {
+    src_ip_ranges  = ["10.10.0.0/16"]
+    dest_ip_ranges = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/13", "10.8.0.0/15", "10.11.0.0/16", "10.12.0.0/14", "10.16.0.0/12", "10.32.0.0/13", "10.41.0.0/16", "10.42.0.0/15", "10.44.0.0/14", "10.48.0.0/12", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    layer4_configs {
+      ip_protocol = "tcp"
+      ports       = ["53"]
+    }
+    layer4_configs {
+      ip_protocol = "udp"
+      ports       = ["53", "123"]
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1100" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1100
+  direction       = "INGRESS"
+  action          = "allow"
+  description     = "inside_access_in-2"
+  match {
+    src_ip_ranges  = ["10.10.0.0/16", "10.40.0.0/16"]
+    dest_ip_ranges = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/13", "10.8.0.0/15", "10.11.0.0/16", "10.12.0.0/14", "10.16.0.0/12", "10.32.0.0/13", "10.41.0.0/16", "10.42.0.0/15", "10.44.0.0/14", "10.48.0.0/12", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    layer4_configs {
+      ip_protocol = "tcp"
+      ports       = ["80", "443", "8000-8010"]
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1110" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1110
+  direction       = "EGRESS"
+  action          = "allow"
+  description     = "inside_access_in-2"
+  match {
+    src_ip_ranges  = ["10.10.0.0/16", "10.40.0.0/16"]
+    dest_ip_ranges = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/13", "10.8.0.0/15", "10.11.0.0/16", "10.12.0.0/14", "10.16.0.0/12", "10.32.0.0/13", "10.41.0.0/16", "10.42.0.0/15", "10.44.0.0/14", "10.48.0.0/12", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    layer4_configs {
+      ip_protocol = "tcp"
+      ports       = ["80", "443", "8000-8010"]
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1120" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1120
+  direction       = "INGRESS"
+  action          = "allow"
+  description     = "inside_access_in-3"
+  match {
+    src_ip_ranges  = ["10.10.5.10/31", "10.10.5.12/30", "10.10.5.16/30", "10.10.5.20/32"]
+    dest_ip_ranges = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    layer4_configs {
+      ip_protocol = "tcp"
+      ports       = ["22"]
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1130" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1130
+  direction       = "EGRESS"
+  action          = "allow"
+  description     = "inside_access_in-3"
+  match {
+    src_ip_ranges  = ["10.10.5.10/31", "10.10.5.12/30", "10.10.5.16/30", "10.10.5.20/32"]
+    dest_ip_ranges = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    layer4_configs {
+      ip_protocol = "tcp"
+      ports       = ["22"]
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1140" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1140
+  direction       = "INGRESS"
+  action          = "allow"
+  description     = "inside_access_in-6"
+  match {
+    src_ip_ranges  = ["10.10.0.0/16"]
+    dest_ip_ranges = ["10.20.0.50/32"]
+    layer4_configs {
+      ip_protocol = "tcp"
+      ports       = ["5060"]
+    }
+    layer4_configs {
+      ip_protocol = "udp"
+      ports       = ["5060"]
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1150" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1150
+  direction       = "EGRESS"
+  action          = "allow"
+  description     = "inside_access_in-6"
+  match {
+    src_ip_ranges  = ["10.10.0.0/16"]
+    dest_ip_ranges = ["10.20.0.50/32"]
+    layer4_configs {
+      ip_protocol = "tcp"
+      ports       = ["5060"]
+    }
+    layer4_configs {
+      ip_protocol = "udp"
+      ports       = ["5060"]
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1160" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1160
+  direction       = "INGRESS"
+  action          = "deny"
+  disabled        = true
+  enable_logging  = true
+  description     = "inside_access_in-8"
+  match {
+    src_ip_ranges  = ["10.10.0.0/16", "10.40.0.0/16", "192.168.1.0/24"]
+    dest_ip_ranges = ["0.0.0.0/0"]
+    layer4_configs {
+      ip_protocol = "tcp"
+      ports       = ["23"]
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1170" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1170
+  direction       = "EGRESS"
+  action          = "deny"
+  disabled        = true
+  enable_logging  = true
+  description     = "inside_access_in-8"
+  match {
+    src_ip_ranges  = ["10.10.0.0/16", "10.40.0.0/16", "192.168.1.0/24"]
+    dest_ip_ranges = ["0.0.0.0/0"]
+    layer4_configs {
+      ip_protocol = "tcp"
+      ports       = ["23"]
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1180" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1180
+  direction       = "INGRESS"
+  action          = "deny"
   disabled        = true
   enable_logging  = true
   description     = "inside_access_in-8"
@@ -174,16 +377,69 @@ resource "google_compute_network_firewall_policy_rule" "r1070" {
   }
 }
 
-resource "google_compute_network_firewall_policy_rule" "r1080" {
+resource "google_compute_network_firewall_policy_rule" "r1190" {
   project         = var.project
   firewall_policy = google_compute_network_firewall_policy.policy.name
-  priority        = 1080
+  priority        = 1190
+  direction       = "EGRESS"
+  action          = "deny"
+  disabled        = true
+  enable_logging  = true
+  description     = "inside_access_in-8"
+  match {
+    src_ip_ranges  = ["::/0"]
+    dest_ip_ranges = ["::/0"]
+    layer4_configs {
+      ip_protocol = "tcp"
+      ports       = ["23"]
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1200" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1200
+  direction       = "INGRESS"
+  action          = "allow"
+  description     = "dmz_access_in-1"
+  match {
+    src_ip_ranges  = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    dest_ip_ranges = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/12", "10.16.0.0/14", "10.20.1.0/24", "10.20.2.0/23", "10.20.4.0/22", "10.20.8.0/21", "10.20.16.0/20", "10.20.32.0/19", "10.20.64.0/18", "10.20.128.0/17", "10.21.0.0/16", "10.22.0.0/15", "10.24.0.0/13", "10.32.0.0/11", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    layer4_configs {
+      ip_protocol = "udp"
+      ports       = ["53"]
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1210" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1210
+  direction       = "EGRESS"
+  action          = "allow"
+  description     = "dmz_access_in-1"
+  match {
+    src_ip_ranges  = ["10.20.0.10/32", "10.20.0.25/32", "10.20.0.50/32"]
+    dest_ip_ranges = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/12", "10.16.0.0/14", "10.20.1.0/24", "10.20.2.0/23", "10.20.4.0/22", "10.20.8.0/21", "10.20.16.0/20", "10.20.32.0/19", "10.20.64.0/18", "10.20.128.0/17", "10.21.0.0/16", "10.22.0.0/15", "10.24.0.0/13", "10.32.0.0/11", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    layer4_configs {
+      ip_protocol = "udp"
+      ports       = ["53"]
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1220" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1220
   direction       = "INGRESS"
   action          = "deny"
   enable_logging  = true
   description     = "dmz_access_in-3"
   match {
-    src_ip_ranges  = ["0.0.0.0/0"]
+    src_ip_ranges  = ["10.20.0.0/24", "192.168.1.0/24"]
     dest_ip_ranges = ["10.10.0.0/16"]
     layer4_configs {
       ip_protocol = "all"
@@ -191,16 +447,16 @@ resource "google_compute_network_firewall_policy_rule" "r1080" {
   }
 }
 
-resource "google_compute_network_firewall_policy_rule" "r1090" {
+resource "google_compute_network_firewall_policy_rule" "r1230" {
   project         = var.project
   firewall_policy = google_compute_network_firewall_policy.policy.name
-  priority        = 1090
+  priority        = 1230
   direction       = "EGRESS"
   action          = "deny"
   enable_logging  = true
   description     = "dmz_access_in-3"
   match {
-    src_ip_ranges  = ["0.0.0.0/0"]
+    src_ip_ranges  = ["10.20.0.0/24", "192.168.1.0/24"]
     dest_ip_ranges = ["10.10.0.0/16"]
     layer4_configs {
       ip_protocol = "all"
@@ -208,10 +464,76 @@ resource "google_compute_network_firewall_policy_rule" "r1090" {
   }
 }
 
-resource "google_compute_network_firewall_policy_rule" "r1100" {
+resource "google_compute_network_firewall_policy_rule" "r1240" {
   project         = var.project
   firewall_policy = google_compute_network_firewall_policy.policy.name
-  priority        = 1100
+  priority        = 1240
+  direction       = "INGRESS"
+  action          = "allow"
+  description     = "dmz_access_in-4"
+  match {
+    src_ip_ranges  = ["10.20.0.10/32"]
+    dest_ip_ranges = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/12", "10.16.0.0/14", "10.20.1.0/24", "10.20.2.0/23", "10.20.4.0/22", "10.20.8.0/21", "10.20.16.0/20", "10.20.32.0/19", "10.20.64.0/18", "10.20.128.0/17", "10.21.0.0/16", "10.22.0.0/15", "10.24.0.0/13", "10.32.0.0/11", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    layer4_configs {
+      ip_protocol = "tcp"
+      ports       = ["443"]
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1250" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1250
+  direction       = "EGRESS"
+  action          = "allow"
+  description     = "dmz_access_in-4"
+  match {
+    src_ip_ranges  = ["10.20.0.10/32"]
+    dest_ip_ranges = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/12", "10.16.0.0/14", "10.20.1.0/24", "10.20.2.0/23", "10.20.4.0/22", "10.20.8.0/21", "10.20.16.0/20", "10.20.32.0/19", "10.20.64.0/18", "10.20.128.0/17", "10.21.0.0/16", "10.22.0.0/15", "10.24.0.0/13", "10.32.0.0/11", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    layer4_configs {
+      ip_protocol = "tcp"
+      ports       = ["443"]
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1260" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1260
+  direction       = "INGRESS"
+  action          = "allow"
+  description     = "implicit-guest"
+  match {
+    src_ip_ranges  = ["10.30.0.0/24"]
+    dest_ip_ranges = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/13", "10.8.0.0/15", "10.11.0.0/16", "10.12.0.0/14", "10.16.0.0/14", "10.20.1.0/24", "10.20.2.0/23", "10.20.4.0/22", "10.20.8.0/21", "10.20.16.0/20", "10.20.32.0/19", "10.20.64.0/18", "10.20.128.0/17", "10.21.0.0/16", "10.22.0.0/15", "10.24.0.0/14", "10.28.0.0/15", "10.30.1.0/24", "10.30.2.0/23", "10.30.4.0/22", "10.30.8.0/21", "10.30.16.0/20", "10.30.32.0/19", "10.30.64.0/18", "10.30.128.0/17", "10.31.0.0/16", "10.32.0.0/13", "10.41.0.0/16", "10.42.0.0/15", "10.44.0.0/14", "10.48.0.0/12", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    layer4_configs {
+      ip_protocol = "all"
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1270" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1270
+  direction       = "EGRESS"
+  action          = "allow"
+  description     = "implicit-guest"
+  match {
+    src_ip_ranges  = ["10.30.0.0/24"]
+    dest_ip_ranges = ["0.0.0.0/5", "8.0.0.0/7", "10.0.0.0/13", "10.8.0.0/15", "10.11.0.0/16", "10.12.0.0/14", "10.16.0.0/14", "10.20.1.0/24", "10.20.2.0/23", "10.20.4.0/22", "10.20.8.0/21", "10.20.16.0/20", "10.20.32.0/19", "10.20.64.0/18", "10.20.128.0/17", "10.21.0.0/16", "10.22.0.0/15", "10.24.0.0/14", "10.28.0.0/15", "10.30.1.0/24", "10.30.2.0/23", "10.30.4.0/22", "10.30.8.0/21", "10.30.16.0/20", "10.30.32.0/19", "10.30.64.0/18", "10.30.128.0/17", "10.31.0.0/16", "10.32.0.0/13", "10.41.0.0/16", "10.42.0.0/15", "10.44.0.0/14", "10.48.0.0/12", "10.64.0.0/10", "10.128.0.0/9", "11.0.0.0/8", "12.0.0.0/6", "16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/2", "192.0.0.0/9", "192.128.0.0/11", "192.160.0.0/13", "192.168.0.0/24", "192.168.2.0/23", "192.168.4.0/22", "192.168.8.0/21", "192.168.16.0/20", "192.168.32.0/19", "192.168.64.0/18", "192.168.128.0/17", "192.169.0.0/16", "192.170.0.0/15", "192.172.0.0/14", "192.176.0.0/12", "192.192.0.0/10", "193.0.0.0/8", "194.0.0.0/7", "196.0.0.0/6", "200.0.0.0/5", "208.0.0.0/4", "224.0.0.0/3"]
+    layer4_configs {
+      ip_protocol = "all"
+    }
+  }
+}
+
+resource "google_compute_network_firewall_policy_rule" "r1280" {
+  project         = var.project
+  firewall_policy = google_compute_network_firewall_policy.policy.name
+  priority        = 1280
   direction       = "INGRESS"
   action          = "deny"
   description     = "fwshift-default-deny"
@@ -224,10 +546,10 @@ resource "google_compute_network_firewall_policy_rule" "r1100" {
   }
 }
 
-resource "google_compute_network_firewall_policy_rule" "r1110" {
+resource "google_compute_network_firewall_policy_rule" "r1290" {
   project         = var.project
   firewall_policy = google_compute_network_firewall_policy.policy.name
-  priority        = 1110
+  priority        = 1290
   direction       = "EGRESS"
   action          = "deny"
   description     = "fwshift-default-deny"
@@ -240,10 +562,10 @@ resource "google_compute_network_firewall_policy_rule" "r1110" {
   }
 }
 
-resource "google_compute_network_firewall_policy_rule" "r1120" {
+resource "google_compute_network_firewall_policy_rule" "r1300" {
   project         = var.project
   firewall_policy = google_compute_network_firewall_policy.policy.name
-  priority        = 1120
+  priority        = 1300
   direction       = "INGRESS"
   action          = "deny"
   description     = "fwshift-default-deny"
@@ -256,10 +578,10 @@ resource "google_compute_network_firewall_policy_rule" "r1120" {
   }
 }
 
-resource "google_compute_network_firewall_policy_rule" "r1130" {
+resource "google_compute_network_firewall_policy_rule" "r1310" {
   project         = var.project
   firewall_policy = google_compute_network_firewall_policy.policy.name
-  priority        = 1130
+  priority        = 1310
   direction       = "EGRESS"
   action          = "deny"
   description     = "fwshift-default-deny"
@@ -282,18 +604,8 @@ resource "google_compute_network_firewall_policy_rule" "r1130" {
 # }
 
 # Not written:
-#   outside_access_in-1: the source of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network; the destination of the rule is in zone dmz, and a rule of Google Cloud names no zone: give the networks behind dmz with --zone-network
-#   outside_access_in-2: the source of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network; the destination of the rule is in zone dmz, and a rule of Google Cloud names no zone: give the networks behind dmz with --zone-network
-#   outside_access_in-3: the source of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network; the destination of the rule is in zone inside, dmz, guest, and a rule of Google Cloud names no zone: give the networks behind inside, dmz, guest with --zone-netw
-#   inside_access_in-1: the source of the rule is in zone inside, and a rule of Google Cloud names no zone: give the networks behind inside with --zone-network; the destination of the rule is in zone outside, dmz, guest, and a rule of Google Cloud names no zone: give the networks behind outside, dmz, guest with --zone-netw
-#   inside_access_in-2: the source of the rule is in zone inside, and a rule of Google Cloud names no zone: give the networks behind inside with --zone-network; the destination of the rule is in zone outside, dmz, guest, and a rule of Google Cloud names no zone: give the networks behind outside, dmz, guest with --zone-netw
-#   inside_access_in-3: the source of the rule is in zone inside, and a rule of Google Cloud names no zone: give the networks behind inside with --zone-network; the destination of the rule is in zone dmz, and a rule of Google Cloud names no zone: give the networks behind dmz with --zone-network
-#   inside_access_in-4: schedule 'business-hours' is not converted; the rule would apply at all times; the source of the rule is in zone inside, and a rule of Google Cloud names no zone: give the networks behind inside with --zone-network; host name object updates: the rules are written with addresses
-#   inside_access_in-5: the source of the rule is in zone inside, and a rule of Google Cloud names no zone: give the networks behind inside with --zone-network; the destination of the rule is in zone outside, dmz, guest, and a rule of Google Cloud names no zone: give the networks behind outside, dmz, guest with --zone-netw
-#   inside_access_in-6: the source of the rule is in zone inside, and a rule of Google Cloud names no zone: give the networks behind inside with --zone-network; the destination of the rule is in zone dmz, and a rule of Google Cloud names no zone: give the networks behind dmz with --zone-network
-#   inside_access_in-7: source user match LOCAL\alice is not converted; the source of the rule is in zone inside, and a rule of Google Cloud names no zone: give the networks behind inside with --zone-network; the destination of the rule is in zone outside, dmz, guest, and a rule of Google Cloud names no zone: give the netw
-#   inside_access_in-9: the source of the rule is in zone inside, and a rule of Google Cloud names no zone: give the networks behind inside with --zone-network; the destination of the rule is in zone outside, dmz, guest, and a rule of Google Cloud names no zone: give the networks behind outside, dmz, guest with --zone-netw
-#   dmz_access_in-1: the source of the rule is in zone dmz, and a rule of Google Cloud names no zone: give the networks behind dmz with --zone-network; the destination of the rule is in zone outside, inside, guest, and a rule of Google Cloud names no zone: give the networks behind outside, inside, guest with --zone-netw
-#   dmz_access_in-2: the source of the rule is in zone dmz, and a rule of Google Cloud names no zone: give the networks behind dmz with --zone-network; the destination of the rule is in zone outside, inside, guest, and a rule of Google Cloud names no zone: give the networks behind outside, inside, guest with --zone-netw
-#   dmz_access_in-4: the source of the rule is in zone dmz, and a rule of Google Cloud names no zone: give the networks behind dmz with --zone-network; the destination of the rule is in zone outside, inside, guest, and a rule of Google Cloud names no zone: give the networks behind outside, inside, guest with --zone-netw
-#   implicit-guest: the source of the rule is in zone guest, and a rule of Google Cloud names no zone: give the networks behind guest with --zone-network; the destination of the rule is in zone outside, and a rule of Google Cloud names no zone: give the networks behind outside with --zone-network
+#   outside_access_in-3: what it allows cannot be said by a rule of Google Cloud
+#   inside_access_in-4: schedule 'business-hours' is not converted; the rule would apply at all times; host name object updates: the rules are written with addresses
+#   inside_access_in-7: source user match LOCAL\alice is not converted
+#   inside_access_in-9: what it allows cannot be said by a rule of Google Cloud
+#   dmz_access_in-2: what it allows cannot be said by a rule of Google Cloud
