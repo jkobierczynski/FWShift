@@ -78,7 +78,7 @@ def emit(policy: Policy, report: Report, options: Options) -> str:
     prefix = options.object_prefix
     if prefix and (FORCEPOINT.invalid.search(prefix) or len(prefix) > 40):
         raise FwshiftError("--target-prefix takes up to 40 letters, digits, spaces, periods, underscores, hyphens and parentheses")
-    zones = transform.dedupe([z for r in p.rules for z in r.src_zones + r.dst_zones if z != ANY] + list(p.zones))
+    zones = transform.target_zones(p, options.zone_map, [z for r in p.rules for z in r.src_zones + r.dst_zones if z != ANY], [])
     # One namespace for every element the script creates, zones among them: which names an SMC tells apart is not
     # published.
     reserved = set(zones)
@@ -561,20 +561,13 @@ class _Emitter:
     def _defaults(self) -> None:
         """The end of the policy: traffic inside a zone, and between zones, where the source allows it by default."""
         between = self.p.default_interzone == Action.ALLOW
-        merged = transform.merged_zones(self.p, self.options.zone_map, self.source_zones)
-        if self.p.default_intrazone == Action.ALLOW:
-            inside_open = [z for z in self.zones if z not in merged]
-            for zone in sorted(set(self.zones) & merged):
-                self.report.note(Severity.REVIEW, "INTRAZONE_ALLOW_MERGED",
-                                 f"the source allows traffic inside a zone, but --zone-map merges several zones into '{zone}'; "
-                                 "no rule allowing traffic inside it was written")  # fmt: skip
-            inside_open = [z for z in inside_open if self.p.zones.get(z) is None or self.p.zones[z].intrazone_allow is not False]
-        else:
-            inside_open = transform.intrazone_allow_zones(self.p, self.options.zone_map, self.source_zones, self.report)
+        # A zone's own setting under its name before --zone-map; a zone the map makes of several is open only where the
+        # source allows between them as well.
+        decided = transform.intrazone_decisions(self.p, self.options.zone_map, self.source_zones, self.zones, self.report)
         added: List[str] = []
         for zone in self.zones:
-            inside = zone in inside_open
-            if inside == between or (inside and zone in merged):
+            inside = decided[zone]
+            if inside == between:
                 continue
             for family in (4, 6):
                 self.lists[LISTS[family]].append({

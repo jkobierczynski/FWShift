@@ -47,7 +47,7 @@ change, or a source and its conversion read back (the **equivalence check**).
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.32).** The converter is tested against synthetic
+> **Status: alpha (0.33).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -180,8 +180,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.32.1.pyz --version
-python3 fwshift-0.32.1.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.33.0.pyz --version
+python3 fwshift-0.33.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start

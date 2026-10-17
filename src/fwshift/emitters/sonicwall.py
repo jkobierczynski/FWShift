@@ -28,7 +28,7 @@ import copy
 import ipaddress
 import re
 from dataclasses import dataclass
-from typing import Dict, FrozenSet, List, Optional, Set, Tuple
+from typing import AbstractSet, Dict, FrozenSet, List, Optional, Set, Tuple
 
 from .. import transform
 from ..errors import FwshiftError
@@ -137,6 +137,7 @@ def _rename(p: Policy, report: Report, names: _Names, prefix: str) -> None:
 def emit(policy: Policy, report: Report, options: Options) -> str:
     zone_spaces(options.zone_networks)
     p = copy.deepcopy(policy)
+    source_zones = transform.rule_zones(p)
     transform.apply_zone_map(p, options.zone_map)
     for zone in {z for r in list(p.rules) + list(p.nat_rules) for z in r.src_zones + r.dst_zones if z != ANY}:
         if zone.lower() in _WORDS or not clean(zone, SONICWALL_NATIVE) == zone:
@@ -150,7 +151,7 @@ def emit(policy: Policy, report: Report, options: Options) -> str:
     _rename(p, report, names, options.object_prefix)
     if options.written is not None:
         options.written.append(p)
-    return _Emitter(p, report, options, names).run()
+    return _Emitter(p, report, options, names, source_zones).run()
 
 
 @dataclass
@@ -160,8 +161,9 @@ class _Side:
 
 
 class _Emitter:
-    def __init__(self, p: Policy, report: Report, options: Options, names: _Names) -> None:
+    def __init__(self, p: Policy, report: Report, options: Options, names: _Names, source_zones: AbstractSet[str] = frozenset()) -> None:
         self.p, self.report, self.options, self.names = p, report, options, names
+        self.source_zones = source_zones  # zone names of the rules before --zone-map
         self.native = names.native
         self.builtin = {n for n, a in p.addresses.items() if a.builtin == "sonicwall" and self.native}
         self.builtin |= {n for n, g in p.address_groups.items() if g.builtin == "sonicwall" and self.native}
@@ -182,7 +184,15 @@ class _Emitter:
         self.app_services: Dict[str, Tuple[str, str]] = {}
         self.zone_of: Dict[str, str] = self._object_zones()
         used = {z for r in list(p.rules) + list(p.nat_rules) for z in r.src_zones + r.dst_zones if z != ANY}
-        self.universe = sorted(used | set(p.zones))
+        universe = sorted(set(transform.target_zones(p, options.zone_map, sorted(used), [])))
+        # A zone no rule names, whose name SonicOS does not take (emit() refuses that only for the zones rules name):
+        # left out, and said; the closing denies are not written for it.
+        unfit = [z for z in universe if z not in used and (z.lower() in _WORDS or clean(z, SONICWALL_NATIVE) != z)]
+        if unfit:
+            report.note(Severity.REVIEW, "ZONE_NAME_INVALID",
+                        "zones of the source that no rule names, whose names cannot be the names of SonicOS zones, were left "
+                        "out (no closing deny is written for them; rename them with --zone-map): " + ", ".join(unfit[:12]))  # fmt: skip
+        self.universe = [z for z in universe if z not in unfit]
         if len(self.universe) > _MAX_ZONES:
             raise FwshiftError(f"the policy has {len(self.universe)} zones; FWShift writes SonicOS rules for {_MAX_ZONES} at most "
                                "(a rule that denies for every pair of them would be a file nobody can load)")  # fmt: skip
@@ -693,11 +703,11 @@ class _Emitter:
         if not self.universe:
             return
         added = 0
+        inside = transform.intrazone_decisions(self.p, self.options.zone_map, self.source_zones, self.universe, self.report)
         for src in self.universe:
             for dst in self.universe:
                 if src == dst:
-                    zone = self.p.zones.get(src)
-                    if self.p.default_intrazone == Action.ALLOW or (zone is not None and zone.intrazone_allow):
+                    if inside[src]:
                         continue
                 elif self.p.default_interzone == Action.ALLOW:
                     continue

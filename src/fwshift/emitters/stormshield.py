@@ -25,7 +25,7 @@ from __future__ import annotations
 import copy
 import ipaddress
 import re
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import AbstractSet, Dict, List, Optional, Set, Tuple, Union
 
 from .. import transform
 from ..errors import FwshiftError
@@ -58,6 +58,7 @@ def _slot(options: Options) -> Tuple[int, str]:
 
 def emit(policy: Policy, report: Report, options: Options) -> str:
     p = copy.deepcopy(policy)
+    source_zones = transform.rule_zones(p)
     transform.apply_zone_map(p, options.zone_map)
     transform.ensure_references(p, report)
     prefix = options.object_prefix or "fws_"
@@ -66,18 +67,19 @@ def emit(policy: Policy, report: Report, options: Options) -> str:
                            "and not Firewall_ or Network_, which name the firewall's own objects")  # fmt: skip
     if options.written is not None:
         options.written.append(p)
-    return _Emitter(p, report, options, prefix).run()
+    return _Emitter(p, report, options, prefix, source_zones).run()
 
 
 class _Emitter:
-    def __init__(self, p: Policy, report: Report, options: Options, prefix: str) -> None:
+    def __init__(self, p: Policy, report: Report, options: Options, prefix: str, source_zones: AbstractSet[str] = frozenset()) -> None:
         self.p, self.report, self.options, self.prefix = p, report, options, prefix
+        self.source_zones = source_zones  # zone names of the rules before --zone-map
         self.slot, self.slot_name = _slot(options)
         self.taint_a = transform.tainted_addresses(p)
         self.taint_s = transform.tainted_services(p)
         used = [z for r in p.rules for z in r.src_zones + r.dst_zones if z != ANY]
         used += [z for n in p.nat_rules for z in n.src_zones + n.dst_zones if z != ANY]
-        self.zones = transform.dedupe(list(p.zones) + used)
+        self.zones = transform.target_zones(p, options.zone_map, used, [])
         self.names: Set[str] = set()
         self.objects: List[str] = []
         self.groups: List[str] = []
@@ -377,9 +379,9 @@ class _Emitter:
         inter = self.p.default_interzone == Action.ALLOW
         intra: List[str] = []
         blocked_inside: List[str] = []
+        decided = transform.intrazone_decisions(self.p, self.options.zone_map, self.source_zones, self.zones, self.report)
         for zone in self.zones:
-            found = self.p.zones.get(zone)
-            allowed = self.p.default_intrazone == Action.ALLOW if found is None or found.intrazone_allow is None else found.intrazone_allow
+            allowed = decided[zone]
             if allowed and not inter:
                 intra.append(zone)
             elif inter and not allowed:

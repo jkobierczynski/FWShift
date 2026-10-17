@@ -106,7 +106,8 @@ def model_expects(p: Policy, pkt: Packet) -> bool:
         return verdict
     if pkt.in_if != pkt.out_if or pkt.in_if not in p.zones:
         return False  # written with a final drop whatever the source default: see INTERZONE_DEFAULT
-    return p.default_intrazone == Action.ALLOW or bool(p.zones[pkt.in_if].intrazone_allow)
+    own = p.zones[pkt.in_if].intrazone_allow  # (a zone's own setting, either way, before the policy's default)
+    return bool(own) if own is not None else p.default_intrazone == Action.ALLOW
 
 
 def _packets(rng: random.Random, count: int, zones: List[str]) -> List[Packet]:
@@ -124,10 +125,13 @@ def test_emitted_layers_decide_like_the_model(seed: int) -> None:
     rng = random.Random(seed)
     model = random_model(rng)
     model.zones = {zone: Zone(zone) for zone in ZONES}
-    if seed % 3 == 0:
+    if seed % 4 == 0:
         model.default_intrazone = Action.ALLOW
-    elif seed % 3 == 1:
+    elif seed % 4 == 1:
         model.zones[ZONES[0]].intrazone_allow = True
+    elif seed % 4 == 2:  # (allowed inside a zone by default, and one zone that blocks it)
+        model.default_intrazone = Action.ALLOW
+        model.zones[ZONES[0]].intrazone_allow = False
     for rule in model.rules:
         if rng.random() < 0.2:
             rule.sources, rule.negate_source = [ANY], False  # a rule that can stand alone

@@ -601,6 +601,7 @@ class _Emitter:
                 "policy is ACCEPT and cannot tell the two apart: traffic that leaves by the interface it came in "
                 "on is accepted as well",
             )
+        transform.note_closed_zones(self.p, self.options.zone_map, self.report, list(self.options.zone_networks))
         open_zones = [zone.name for zone in self.p.zones.values() if zone.intrazone_allow]
         if open_zones and self.p.default_interzone != Action.ALLOW:
             self.report.note(

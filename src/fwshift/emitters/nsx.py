@@ -485,6 +485,7 @@ class _Emitter:
                 "the source treats traffic inside a zone and between zones differently when no rule matches; the "
                 "distributed firewall has no zones, and the default of traffic between zones was written",
             )
+        transform.note_closed_zones(self.p, self.options.zone_map, self.report, list(self.options.zone_networks))
         open_zones = [zone.name for zone in self.p.zones.values() if zone.intrazone_allow]
         if open_zones and self.p.default_interzone != Action.ALLOW:
             self.report.note(Severity.REVIEW, "INTRAZONE_ALLOW",

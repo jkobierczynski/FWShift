@@ -1352,7 +1352,8 @@ def test_defaults_of_the_source_are_said() -> None:
     added = [shape(node) for node in root.findall("filter/rule") if (node.findtext("descr") or "").startswith("FWSHIFT: the source accepts")]
     assert added == ["wan pass inet46 - any any", "lan pass inet46 - any any", "opt1 pass inet46 - any any"]
     assert shapes(root)[-1] == added[-1] and shapes(root)[1:3] == ["lan pass inet46 - any !net:(self) log", added[1]]  # at the end of every tab
-    assert [n.code for n in report.notes if n.severity == Severity.REVIEW] == ["PFSENSE_RESTORE", "INTERZONE_DEFAULT"]
+    # (The model's default inside a zone is deny: the pass at the end of each tab lets that through as well, and is said.)
+    assert [n.code for n in report.notes if n.severity == Severity.REVIEW] == ["PFSENSE_RESTORE", "INTERZONE_DEFAULT", "INTRAZONE_DENY_NOT_WRITTEN"]
     p = policy(allow("one"))
     p.default_intrazone = Action.ALLOW
     _, report, _ = emitted(p)

@@ -114,6 +114,7 @@ class _Emitter:
         self.l4: Dict[str, Optional[str]] = {}
         self.apps: Dict[str, List[str]] = {}
         self.approx: Dict[str, str] = {}
+        self.tail_zones: List[str] = []  # the zones the rules for traffic inside a zone name
 
     def cmd(self, text: str) -> None:
         self.lines.append(f"set {self.prefix}{text}")
@@ -136,7 +137,7 @@ class _Emitter:
         if self.p.vendor != "panos":
             zones = transform.dedupe(
                 [z for r in list(self.p.rules) + list(self.p.nat_rules) for z in r.src_zones + r.dst_zones if z != ANY]
-                + self._intrazone_allow_zones()
+                + self.tail_zones
             )
             if zones:
                 self.report.note(
@@ -405,15 +406,29 @@ class _Emitter:
         description = ("FWSHIFT: disabled by the converter, see the report. " if flagged else "") + rule.description
         self._describe(base, description.strip(), rule.tags)
 
-    def _intrazone_allow_zones(self) -> List[str]:
-        return transform.intrazone_allow_zones(self.p, self.options.zone_map, self.source_zones, self.report)
-
     def _intrazone_tail(self) -> None:
-        """Reproduce an implicit intrazone deny, which PAN-OS does not have by default."""
-        if self.p.default_intrazone == Action.ALLOW or not self.p.rules:
-            return
+        """What the source does with traffic inside a zone that no rule matches, where PAN-OS (which allows it) differs:
+        an intrazone deny at the end, after an allow for the zones that allow it; or, where the source allows it, a deny
+        for the zones that block it (a zone of its own setting, or zones --zone-map merges)."""
+        used = [z for r in list(self.p.rules) + list(self.p.nat_rules) for z in r.src_zones + r.dst_zones if z != ANY]
+        targets = transform.target_zones(self.p, self.options.zone_map, used, [])
+        decided = transform.intrazone_decisions(self.p, self.options.zone_map, self.source_zones, targets, self.report)
         names: List[str] = []
-        allow = self._intrazone_allow_zones()
+        if self.p.default_intrazone == Action.ALLOW:
+            closed = [zone for zone in targets if not decided[zone]]
+            if not closed:
+                return
+            tail = Rule(name="fwshift-intrazone-deny", action=Action.DENY, scope=RuleScope.INTRAZONE, src_zones=closed,
+                        dst_zones=closed, description="Added by FWShift: the source denies traffic inside these zones unless a rule allows it.")  # fmt: skip
+            names.append(unique(tail.name, self.rule_names, PANOS))
+            self._emit_rule(tail, names[-1], [ANY], [ANY], disabled=False, flagged=False)
+            self.tail_zones = closed
+            self.report.note(Severity.INFO, "INTRAZONE_DENY_ADDED",
+                             f"appended '{names[-1]}': PAN-OS allows traffic inside a zone by default, as the source does, but "
+                             "the source denies it in these zones: " + ", ".join(closed))  # fmt: skip
+            return
+        allow = [zone for zone in targets if decided[zone]]
+        self.tail_zones = allow
         if allow:
             permit = Rule(
                 name="fwshift-intrazone-allow",

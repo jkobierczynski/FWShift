@@ -333,14 +333,6 @@ back and compared with the source): items 1, 2, 5 and 10 of the list before.
     Firewall policies, which have zones and order of their own. The
     composition of two groups grows with the square of their rules: compose
     only the pairs whose networks are given.
-19. Other emitters read `Zone.intrazone_allow = False` as "the policy's
-    default" where the model means "denied inside the zone" (the Azure emitter
-    was corrected in review round 29): look at each.
-20. `transform.merged_zones`, used by the PAN-OS and Check Point emitters,
-    counts a `--zone-map` entry for a zone the source does not know (a typo)
-    as a merge, and leaves the allow inside the zone out; the cloud emitters
-    use `transform.intrazone_decisions`, which does not (0.32.1). Make the two
-    one.
 
 ## Validation
 

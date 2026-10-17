@@ -544,12 +544,27 @@ def note_fqdn_families(p: Policy, rule: Rule, report: Report, target: str) -> No
                 )
 
 
+def zone_members(p: Policy, zone_map: Mapping[str, str], source_zones: AbstractSet[str]) -> Dict[str, Set[str]]:
+    """Target zone name -> the source zones and interfaces --zone-map makes it of. Only names the source knows (its zones,
+    and those its rules name) count: a --zone-map entry for a name it does not know (a typo) merges nothing."""
+    members: Dict[str, Set[str]] = {}
+    for name in list(p.zones) + sorted(source_zones):
+        members.setdefault(zone_map.get(name, name), set()).add(name)
+    return members
+
+
+def target_interfaces(p: Policy, zone_map: Mapping[str, str], target: str) -> List[str]:
+    """The interfaces of the source zones --zone-map turns into the target zone (renamed or merged)."""
+    out: List[str] = []
+    for name, zone in p.zones.items():
+        if zone_map.get(name, name) == target:
+            out += zone.interfaces
+    return _dedupe(out)
+
+
 def merged_zones(p: Policy, zone_map: Mapping[str, str], source_zones: AbstractSet[str]) -> Set[str]:
     """Target zone names that --zone-map makes out of more than one source zone or interface."""
-    sources: Dict[str, Set[str]] = {}
-    for name in list(p.zones) + list(zone_map) + sorted(source_zones):
-        sources.setdefault(zone_map.get(name, name), set()).add(name)
-    return {target for target, names in sources.items() if len(names) > 1}
+    return {target for target, names in zone_members(p, zone_map, source_zones).items() if len(names) > 1}
 
 
 def rule_zones(p: Policy) -> Set[str]:
@@ -574,9 +589,7 @@ def intrazone_decisions(p: Policy, zone_map: Mapping[str, str], source_zones: Ab
     well (else the allow would open traffic between them: none is written, INTRAZONE_ALLOW_MERGED); a block inside one of
     them blocks inside the target, also between them (INTRAZONE_DENY_MERGED)."""
     inter = p.default_interzone == Action.ALLOW
-    members: Dict[str, Set[str]] = {}
-    for name in list(p.zones) + sorted(source_zones):  # (a --zone-map entry for a zone the source does not know merges nothing)
-        members.setdefault(zone_map.get(name, name), set()).add(name)
+    members = zone_members(p, zone_map, source_zones)
 
     def own(name: str) -> bool:
         zone = p.zones.get(name)
@@ -602,7 +615,8 @@ def intrazone_decisions(p: Policy, zone_map: Mapping[str, str], source_zones: Ab
     if opened:
         report.note(Severity.REVIEW, "INTRAZONE_ALLOW_MERGED",
                     "--zone-map merges zones that allow traffic inside them with other zones or interfaces; an allow inside the "
-                    "merged zone would open traffic between them, which the source blocks, so none was written: "
+                    "merged zone would open traffic between them, which the source blocks: the converted policy does not allow "
+                    "it, and blocks traffic inside the merged zone (also inside each zone merged into it): "
                     + ", ".join(opened))  # fmt: skip
     if closed:
         report.note(Severity.REVIEW, "INTRAZONE_DENY_MERGED",
@@ -610,6 +624,23 @@ def intrazone_decisions(p: Policy, zone_map: Mapping[str, str], source_zones: Ab
                     "blocks traffic inside it, also between the zones merged into it, which the source allows: "
                     + ", ".join(closed))  # fmt: skip
     return out
+
+
+def note_closed_zones(p: Policy, zone_map: Mapping[str, str], report: Report, given: Sequence[str] = ()) -> None:
+    """For a target whose default lets through, inside a zone, what it lets through between zones: the zones in which the
+    source blocks what no rule matches while it allows that between zones (a zone's own setting, or zones --zone-map
+    merges) are let through, and said so (INTRAZONE_DENY_NOT_WRITTEN)."""
+    if p.default_interzone != Action.ALLOW:
+        return
+    used = [z for r in list(p.rules) + list(p.nat_rules) for z in r.src_zones + r.dst_zones if z != ANY]
+    targets = target_zones(p, zone_map, used, given)
+    decided = intrazone_decisions(p, zone_map, frozenset(), targets, Report())  # (the merges' own notes are the emitter's)
+    closed = [zone for zone in targets if not decided[zone]]
+    if closed:
+        report.note(Severity.REVIEW, "INTRAZONE_DENY_NOT_WRITTEN",
+                    "the source blocks traffic inside these zones that no rule matches, and allows it between zones; the "
+                    "target's default, written for traffic between zones, ALLOWS it inside them as well: add a rule that "
+                    "blocks it: " + ", ".join(closed))  # fmt: skip
 
 
 def intrazone_allow_zones(
@@ -1777,6 +1808,9 @@ __all__ = [
     "harden",
     "intrazone_allow_zones",
     "intrazone_decisions",
+    "note_closed_zones",
+    "zone_members",
+    "target_interfaces",
     "rule_zones",
     "target_zones",
     "is_placeholder_group",

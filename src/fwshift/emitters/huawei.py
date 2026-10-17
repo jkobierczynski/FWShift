@@ -27,7 +27,7 @@ import copy
 import ipaddress
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import AbstractSet, Dict, List, Optional, Set, Tuple, Union
 
 from .. import transform
 from ..errors import FwshiftError
@@ -63,12 +63,13 @@ class _Out:
 
 def emit(policy: Policy, report: Report, options: Options) -> str:
     p = copy.deepcopy(policy)
+    source_zones = transform.rule_zones(p)
     transform.apply_zone_map(p, options.zone_map)
     transform.ensure_references(p, report)
     prefix = options.object_prefix or "FWS_"
     if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_.-]{0,15}", prefix):
         raise FwshiftError("--target-prefix for Huawei: up to 16 letters, digits, periods, underscores and hyphens, starting with a letter")
-    probe = _Emitter(p, Report(), options)
+    probe = _Emitter(p, Report(), options, source_zones)
     probe._zones()
     written = {nat.origin for nat in p.nat_rules if probe.nat_lines(nat)}
     written -= {nat.origin for nat in p.nat_rules if not probe.nat_lines(nat)}  # (all the rules of an origin, or none)
@@ -77,18 +78,19 @@ def emit(policy: Policy, report: Report, options: Options) -> str:
     transform.to_post_nat_lookup(p, report, translated)
     if options.written is not None:
         options.written.append(p)
-    return _Emitter(p, report, options).run()
+    return _Emitter(p, report, options, source_zones).run()
 
 
 class _Emitter:
-    def __init__(self, p: Policy, report: Report, options: Options) -> None:
+    def __init__(self, p: Policy, report: Report, options: Options, source_zones: AbstractSet[str] = frozenset()) -> None:
         self.p, self.report, self.options = p, report, options
+        self.source_zones = source_zones  # zone names of the rules before --zone-map
         self.prefix = options.object_prefix or "FWS_"
         self.taint_a = transform.tainted_addresses(p)
         self.taint_s = transform.tainted_services(p)
         used = [z for r in p.rules for z in r.src_zones + r.dst_zones if z != ANY]
         used += [z for n in p.nat_rules for z in n.src_zones + n.dst_zones if z != ANY]
-        self.zones = transform.dedupe(list(p.zones) + used)
+        self.zones = transform.target_zones(p, options.zone_map, used, [])
         self.zone_names: Dict[str, str] = {}
         self.out = _Out()
         self.names: Set[str] = set()
@@ -335,9 +337,9 @@ class _Emitter:
     def _defaults(self) -> None:
         inter = self.p.default_interzone == Action.ALLOW
         added = []
+        inside = transform.intrazone_decisions(self.p, self.options.zone_map, self.source_zones, self.zones, self.report)
         for zone in self.zones:
-            found = self.p.zones.get(zone)
-            intra = self.p.default_intrazone == Action.ALLOW if found is None or found.intrazone_allow is None else found.intrazone_allow
+            intra = inside[zone]
             if not intra and zone not in self.inside_decided:
                 name = self._name(f"intrazone_{zone}", 63)
                 self.out.rules += [f" rule name {name}", f"  source-zone {self.zone_names[zone]}", f"  destination-zone {self.zone_names[zone]}",
@@ -486,8 +488,7 @@ class _Emitter:
         out += self.out.servers
         tail = ["# Put the interfaces in their zones (this changes traffic at once):"]
         for zone in self.zones:
-            found = self.p.zones.get(zone)
-            interfaces = [self.options.interface_map.get(i, i) for i in (found.interfaces if found else [])]
+            interfaces = [self.options.interface_map.get(i, i) for i in transform.target_interfaces(self.p, self.options.zone_map, zone)]
             for interface in interfaces:
                 tail.append(f"#   firewall zone {'name ' if zone not in _PREDEFINED_ZONES else ''}{self.zone_names[zone]} / add interface {_printable(interface)}")
             if not interfaces:

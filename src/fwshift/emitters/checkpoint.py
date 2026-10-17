@@ -572,20 +572,10 @@ class _Emitter:
 
     def _rules(self) -> None:
         rows = [self._row(rule) for rule in self.p.rules]
-        if self.p.default_intrazone == Action.ALLOW:
-            merged = transform.merged_zones(self.p, self.options.zone_map, self.source_zones)
-            open_zones = set(self.zones) - merged
-            for zone in sorted(set(self.zones) & merged):
-                self.report.note(
-                    Severity.REVIEW,
-                    "INTRAZONE_ALLOW_MERGED",
-                    f"the source allows traffic inside a zone, but --zone-map merges several zones into '{zone}'; "
-                    "no rule allowing traffic inside it was written",
-                )
-        else:
-            open_zones = set(
-                transform.intrazone_allow_zones(self.p, self.options.zone_map, self.source_zones, self.report)
-            )
+        # What no rule matches inside a zone, as the source decides it: the zone's own setting, or the policy's default;
+        # a zone --zone-map makes of several is open only where the source also allows between them.
+        decided = transform.intrazone_decisions(self.p, self.options.zone_map, self.source_zones, self.zones, self.report)
+        open_zones = {zone for zone in self.zones if decided[zone]}
 
         def signature(src: Optional[str], dst: Optional[str]) -> Signature:
             """What decides whether traffic from ``src`` to ``dst`` needs a layer of its own."""

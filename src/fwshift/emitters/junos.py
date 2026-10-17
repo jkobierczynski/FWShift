@@ -185,6 +185,7 @@ class _Emitter:
                              "the policies and NAT rules name these security zones, which must exist on the SRX (or be "
                              "renamed with --zone-map): " + ", ".join(zones))  # fmt: skip
         if self.p.default_interzone == Action.ALLOW and self.p.default_intrazone == Action.ALLOW:
+            transform.note_closed_zones(self.p, self.options.zone_map, self.report)  # (permit-all: inside those zones too)
             self.report.note(Severity.REVIEW, "DEFAULT_PERMIT",
                              "the source allows what no rule matches: written as 'default-policy permit-all', which applies to "
                              "the whole SRX")  # fmt: skip

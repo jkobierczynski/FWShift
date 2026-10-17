@@ -28,7 +28,7 @@ from __future__ import annotations
 import copy
 import ipaddress
 import shlex
-from typing import Dict, List, Optional, Set, Tuple
+from typing import AbstractSet, Dict, List, Optional, Set, Tuple
 
 from .. import transform
 from ..model import ANY, L4_PROTOCOLS, Action, NatRule, Policy, Protocol, Rule, ServiceEntry
@@ -48,9 +48,11 @@ _GUARD = (':if ([:len [/{} firewall filter find where chain="fwshift-forward"]] 
 
 def emit(policy: Policy, report: Report, options: Options) -> str:
     p = copy.deepcopy(policy)
+    source_zones = transform.rule_zones(p)
     transform.apply_zone_map(p, options.zone_map)
     transform.ensure_references(p, report)
     emitter = _Emitter(p, report, options)
+    emitter.source_zones = source_zones
     # The forward chain sees the post-NAT destination. Rewrite only for translations that are really written.
     written = {
         nat.origin
@@ -134,6 +136,7 @@ def service_fragments(entries: List[ServiceEntry], family: int) -> List[List[str
 class _Emitter:
     def __init__(self, p: Policy, report: Report, options: Options) -> None:
         self.p, self.report, self.options = p, report, options
+        self.source_zones: AbstractSet[str] = frozenset()  # zone names of the rules before --zone-map (set by emit)
         self.prefix = options.object_prefix or "fws-"
         self.taint_a = transform.tainted_addresses(p)
         self.taint_s = transform.tainted_services(p)
@@ -183,8 +186,7 @@ class _Emitter:
             return self.zone_lists[zone]
         name = self._safe(self.prefix + zone, self.zone_names)
         self.zone_lists[zone] = name
-        known = self.p.zones.get(zone)
-        interfaces = list(known.interfaces) if known is not None and known.interfaces else []
+        interfaces = transform.target_interfaces(self.p, self.options.zone_map, zone)
         if not interfaces:
             interfaces = [zone]
             self.guessed.append(zone)
@@ -468,15 +470,13 @@ class _Emitter:
 
     def _defaults(self) -> None:
         """The end of the chain: what the policy does inside a zone and between zones when no rule decides."""
-        zones = transform.dedupe(list(self.p.zones) + [z for r in self.p.rules for z in r.src_zones + r.dst_zones if z != ANY])
+        zones = transform.target_zones(self.p, self.options.zone_map, [z for r in self.p.rules for z in r.src_zones + r.dst_zones if z != ANY], [])
         between = self.p.default_interzone == Action.ALLOW
+        decided = transform.intrazone_decisions(self.p, self.options.zone_map, self.source_zones, zones, self.report)
         for family in self.families:
             menu = f"/{'ip' if family == 4 else 'ipv6'} firewall filter add chain={CHAIN}"
             for zone in zones:
-                known = self.p.zones.get(zone)
-                inside = self.p.default_intrazone == Action.ALLOW
-                if known is not None and known.intrazone_allow is not None:
-                    inside = known.intrazone_allow
+                inside = decided[zone]
                 if inside != between:
                     name = self._zone(zone)
                     action = "accept" if inside else "drop"

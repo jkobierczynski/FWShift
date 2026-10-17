@@ -30,7 +30,7 @@ import copy
 import ipaddress
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Tuple
+from typing import AbstractSet, Dict, List, Optional, Set, Tuple
 
 from .. import regions, transform
 from ..errors import FwshiftError
@@ -98,17 +98,18 @@ class _Class:
 
 def emit(policy: Policy, report: Report, options: Options) -> str:
     p = copy.deepcopy(policy)
+    source_zones = transform.rule_zones(p)
     transform.apply_zone_map(p, options.zone_map)
     transform.ensure_references(p, report)
     prefix = options.object_prefix or ""
     if prefix and not re.fullmatch(r"[A-Za-z][A-Za-z0-9_.-]{0,15}", prefix):
         raise FwshiftError("--target-prefix for IOS: up to 16 letters, digits, periods, underscores and hyphens, starting with a letter")
-    planner = _Emitter(p, report, options)
+    planner = _Emitter(p, report, options, source_zones)
     written = {nat.origin for nat in p.nat_rules if planner.nat_lines(nat)}
     transform.to_post_nat_lookup(p, report, {o for o in written if _translates_destination(p, o)})
     if options.written is not None:
         options.written.append(p)
-    return _Emitter(p, report, options).run()
+    return _Emitter(p, report, options, source_zones).run()
 
 
 def _translates_destination(p: Policy, origin: str) -> bool:
@@ -119,7 +120,7 @@ def _translates_destination(p: Policy, origin: str) -> bool:
 
 
 class _Emitter:
-    def __init__(self, p: Policy, report: Report, options: Options) -> None:
+    def __init__(self, p: Policy, report: Report, options: Options, source_zones: AbstractSet[str] = frozenset()) -> None:
         self.p, self.report, self.options = p, report, options
         self.prefix = options.object_prefix or "FWS-"
         if not self.prefix.endswith(("-", "_", ".")):
@@ -127,7 +128,9 @@ class _Emitter:
         self.taint_a = transform.tainted_addresses(p)
         self.taint_s = transform.tainted_services(p)
         used = [z for r in p.rules for z in r.src_zones + r.dst_zones if z != ANY]
-        self.zones = transform.dedupe(list(p.zones) + used)
+        self.zones = transform.target_zones(p, options.zone_map, used, [])
+        # What no rule matches inside each zone, as the source decides it (a zone --zone-map makes of several included).
+        self.inside = transform.intrazone_decisions(p, options.zone_map, source_zones, self.zones, report)
         self.zone_names: Dict[str, str] = {}
         taken: Set[str] = set()
         for zone in self.zones:
@@ -346,8 +349,7 @@ class _Emitter:
         return out
 
     def _intra(self, zone: str, default: bool) -> bool:
-        found = self.p.zones.get(zone)
-        return default if found is None or found.intrazone_allow is None else found.intrazone_allow
+        return self.inside.get(zone, default)
 
     def _applies(self, rule: Rule, source: str, destination: str) -> bool:
         if rule.scope == RuleScope.INTRAZONE:  # (inside each of its source zones, whatever its destination zones say)
@@ -359,8 +361,7 @@ class _Emitter:
     # -- NAT ---------------------------------------------------------------------------------
 
     def _interface(self, zone: str) -> str:
-        found = self.p.zones.get(zone)
-        names = [self.options.interface_map.get(i, i) for i in (found.interfaces if found else [])]
+        names = [self.options.interface_map.get(i, i) for i in transform.target_interfaces(self.p, self.options.zone_map, zone)]
         return names[0] if len(names) == 1 and re.fullmatch(r"[A-Za-z][A-Za-z0-9./:_-]*", names[0]) else ""
 
     def nat_lines(self, nat: NatRule) -> List[str]:
@@ -524,8 +525,7 @@ class _Emitter:
         tail = ["! Put each interface in its zone; this changes traffic at once (between zones only what the policies let",
                 "! through passes; between an interface in a zone and one in none nothing does):"]  # fmt: skip
         for zone in self.zones:
-            found_zone = self.p.zones.get(zone)
-            interfaces = [self.options.interface_map.get(i, i) for i in (found_zone.interfaces if found_zone else [])]
+            interfaces = [self.options.interface_map.get(i, i) for i in transform.target_interfaces(self.p, self.options.zone_map, zone)]
             if not interfaces:
                 tail.append(f"! zone {self.zone_names[zone]}: no interface is known; put its interfaces in it")
             for interface in interfaces:
