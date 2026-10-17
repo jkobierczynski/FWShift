@@ -8,7 +8,7 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.35.0 (alpha) |
+| Version | 0.36.0 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Meraki MX (read the answers of the Dashboard API for one network: VLANs, objects, the outbound and layer 7 rules, port forwarding, 1:1 and 1:many NAT, the inbound table with NAT exceptions; write a curl script that puts the outbound and NAT tables); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
 | Tests | 6118, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables and nftables**: rulesets loaded into a Linux kernel and real packets forwarded through it (below; and the lab of 0.32.0, also on the author's machine). **AWS, Azure and Google Cloud**: the lab policy's conversion loaded into a real account by the lab, and real connections between instances checked (0.32.1, below). **FortiOS**: the lab policy's conversion loaded on a FortiGate-VM (FortiOS 8.0.1, AWS Marketplace) and real connections through it checked (0.32.1, below). **PAN-OS**: the same on a VM-Series (PAN-OS 11.2.15, AWS Marketplace). Nothing has been loaded on an ASA, an IOS router, a Huawei USG, a Stormshield firewall, a Meraki MX, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
@@ -2165,6 +2165,74 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-17: version 0.36.0
+
+**Results as SARIF, CSV and HTML.** Item 7 of the audit list: the findings of a conversion and of the audit, the zone
+matrix, the conduit check and the comparison, for code scanning in a pipeline, for a spreadsheet or a ticketing
+system, and as a page someone signs.
+
+**Built**
+
+* `export.py` renders the JSON every result already has: rows per kind (the report's notes and the findings of its
+  items, with `--audit` those of the audit before and after the conversion; the audit; the conduit check; the
+  differences of a comparison; the cells of the matrix), then SARIF 2.1.0, CSV or HTML.
+* SARIF: a rule per code with a link to the manual, levels from the weights, the place of each finding (the rule,
+  object, conduit or pair of zones; in the file it is about; the line where its name or uid first stands, from one
+  pass over the file), fingerprints of what a finding is about (also as `primaryLocationLineHash`), accepted findings
+  as suppressed, what was not checked as run properties, artifacts with their SHA-256, a category per file, a warning
+  above GitHub's 25,000 results.
+* CSV: a header per kind also without rows, the formula guard (also after spaces and for the full-width signs, now
+  shared with `matrix --csv`), line breaks as spaces.
+* HTML: one page, nothing fetched, everything escaped: what was read and its SHA-256, counts, findings coloured by
+  weight, the accepted apart, what was not checked, the conduits of the model, notes, and a table to sign.
+* `--format {text,json,sarif,csv,html}` on `audit`, `conduits` and `compare`, `--format {text,json,csv,html}` on
+  `matrix` (`--json` and `--csv` stay); `convert --report-sarif`, `--report-csv`, `--report-html`.
+
+**Review**
+
+*Round 45* by the independent reviewer, of the formats against the SARIF 2.1.0 schema (validated with the schema of
+schemastore.org) and GitHub's documentation of code scanning, with injection attempts and large inputs; then a second
+pass over the fixes (49 SARIF files valid, injection again, the churn of fingerprints with a line added).
+
+| | Finding | Fix |
+|---|---|---|
+| high | The audit after the conversion (`EXPOSED_BY_CONVERSION`, a deny no longer enforced) was in none of the three formats | rows for the new, revived and gone findings, with their phase |
+| medium | `convert --report-csv` left out the audit | its rows, with a column `section` |
+| medium | Paths were written as URIs as they were: spaces, `#`, `%`, drive letters, standard input as a file `-` | percent-encoded references, `file:` URIs for absolute paths, standard input as a description |
+| medium | The line of each finding searched the whole file again: hours at the size limit | an index of the file, built once |
+| medium | A finding whose name is not in the file was put on line 1 | no line then |
+| medium | Fingerprints hashed the message, which holds counts and dates; GitHub matches by `primaryLocationLineHash` | what a finding is about, written as both |
+| medium | One category for every file: two firewalls uploaded apart closed each other's alerts | `fwshift/KIND/FILE/` |
+| medium | What was not checked (inside zones not checked, rules not read, not followed, ...) reached no format | an HTML section and SARIF run properties; the compare's inside-the-zone flag as a column |
+| medium | The version was not bumped | 0.36.0 |
+| low-medium | No word above GitHub's 25,000 results per run | a warning on standard error |
+| low | The same file twice made two equal artifacts, which the schema forbids | one artifact per file |
+| low | An empty CSV had no header; whitespace in names was collapsed | the header always; values as they are |
+| low | `matrix --csv` did not guard a formula after spaces; full-width signs were not guarded | one guard for both |
+| low | A model from standard input lost its SHA-256 (read twice) | read once |
+| low | A closed conduit was reported as a rule, in the policy | a conduit, in the model |
+| low | Names escaped in XML or JSON were not found for their line; a uid was not used | unescaped forms, ids first |
+| low | Accepted findings stood among the open ones in the HTML; source ids were left out | a table of their own; a column |
+| low | Docs: synopses without `--format`, the fingerprint promise | rewritten |
+| medium (second pass) | A number among the source ids (a FortiOS policy id) was looked up as a word, and found anywhere in the file | only uids and paths; the line IOS, Huawei and Stormshield keep, as it is |
+| medium (second pass) | Ids that say where a rule stands (a line, a priority, a position) were in the fingerprint: a line added above changed it | left out |
+| low (second pass) | An audit alone and in a conversion had other fingerprints in one category | the same |
+| low (second pass) | The category depended on the slashes and lost characters; absolute URIs were not normalised | relative to the working directory, percent-encoded; normalised |
+| low (second pass) | CSV columns came and went with the findings; `matrix --csv` ended lines with LF | the same columns; CR LF |
+| low (second pass) | A comparison's renamed second zones, an audit's proposals and summaries, the SL-T and direction of a conduit were left out | columns and counts |
+
+Not done: no byte order mark in CSV (documented: open it as UTF-8); no `--sarif-category` (the category is the file);
+the cells of the matrix in HTML list their rules by name (their sources, destinations and services are in `--csv`).
+
+**Verified, and not**
+
+* The suite (6,623 tests, on Python 3.13 and 3.9; mypy and pyflakes clean). `tests/test_export.py` checks the SARIF files of the samples against the parts of SARIF 2.1.0 FWShift
+  writes (versions, rules and their indexes, levels, locations and artifacts, fingerprints, suppressions, unique
+  artifacts, the category), the CSV against its header and the formula guard, the HTML against injection through every
+  field, and each review finding above.
+* **Not verified**: an upload to GitHub code scanning, GitLab or Azure DevOps; the page printed on paper; Excel's
+  handling of the guarded cells beyond what is documented of it.
 
 ### 2026-10-17: version 0.35.0
 

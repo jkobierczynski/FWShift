@@ -226,12 +226,10 @@ back and compared with the source): items 1, 2, 5 and 10 of the list before.
    ports of the application map next to the name.
 6. **Zone ranks** from a configuration file, so that "any source" from the
    Internet weighs more than from the server network.
-7. **Findings, matrix, conduit check and comparison as SARIF, CSV or HTML**,
-   for ticketing and code-scanning tools and for a report someone signs.
-8. **NAT audit beyond shadowing**: overlapping translations, a published
+7. **NAT audit beyond shadowing**: overlapping translations, a published
    service without a rule that allows it, a rule for a published address
    whose NAT rule is gone.
-9. **The conduit model, further**: security levels weighed against what a
+8. **The conduit model, further**: security levels weighed against what a
    conduit carries (cleartext and remote administration into a zone of a high
    level), conduits of a site spread over several firewalls (one model, the
    policies of each), and a check of the replies a stateless target needs.
