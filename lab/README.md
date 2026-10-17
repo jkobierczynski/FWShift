@@ -164,7 +164,9 @@ The run looks for the newest x86_64 image (and prints its name and product code)
 firewall is ready (`--boot-minutes`, 30), types the base configuration (interface addresses and zones, which FWShift
 does not write; the images' default zones and rules are deleted first) and the converted policy over SSH, and fails on
 any line the CLI refuses, or when the commit's success line does not come (`load.txt`, the lines sent in
-`load.commands.txt`). A session gives up after 20 minutes. Each image bills for every hour it runs: a run takes 30 to 60 minutes, most of it the firewall
+`load.commands.txt`), or when a session answers almost nothing. A session gives up after 20 minutes. The ASAv's lines
+are typed one at a time, each once its prompt is back (given them all at once, it closes the session), and after the
+probes its own view is kept in `diagnose.txt` (interfaces, routes, rule hits, drops, two flows through `packet-tracer`). Each image bills for every hour it runs: a run takes 30 to 60 minutes, most of it the firewall
 booting.
 
 | Image | Target | Interfaces | Login |
@@ -173,7 +175,7 @@ booting.
 | Palo Alto VM-Series (PAYG Bundle 1, chosen by its product code: BYOL and the bundles share their name; Bundle 2 by `--ami`) | `panos` | ethernet1/1-1/3 (the example of older images deleted first, in a session whose answers do not count) | `admin` |
 | Juniper vSRX (PAYG) | `junos` | ge-0/0/0-2 (the default zones are deleted first) | `ec2-user` |
 | Cisco Catalyst 8000V (IOS XE) | `ios`, interfaces mapped to Gi2-4 | GigabitEthernet2-4, zone members from the output's comments | `ec2-user` |
-| Cisco ASAv | `asa` | GigabitEthernet0/0-0/2, `inspect icmp` added | `admin` (its privilege after a key login is assumed) |
+| Cisco ASAv | `asa` | the three data interfaces, by the names the ASAv gives them (read with `show interface ip brief`; on c5 not GigabitEthernet0/0-0/2), `inspect icmp` added; a Day 0 configuration turns on SSH on Management0/0 with the run's key (RSA 2048: the ASA's lines hold 511 characters); ssh allows its `ssh-rsa` host key | `admin` (privileged at login, by the Day 0 configuration, which also sets an enable password made for the run: `enable_password.txt` in the work folder) |
 
 Not scripted, with the reason, in `python3 lab/lab.py list`: Check Point, SonicWall, Stormshield, Sophos, Barracuda,
 WatchGuard, Forcepoint, Meraki.

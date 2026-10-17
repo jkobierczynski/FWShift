@@ -238,7 +238,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
 
 <main id="top">
 <header class="mast">
-  <div class="eyebrow">Field guide · version 0.35</div>
+  <div class="eyebrow">Field guide · version 0.36</div>
   <h1>FWShift, feature by feature</h1>
   <p class="lead">FWShift converts firewall policies between nineteen platforms, audits them, maps what each zone can reach, and proves from logs which rules are used. This guide walks through every feature, shows real commands and output, and lists, brand by brand, the cases where a conversion needs a human eye.</p>
   <div class="facts">
@@ -295,7 +295,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
     <li>Nothing that is missing is ever read as "any".</li>
   </ul>
   <p>FWShift converts the <strong>policy</strong>. It does not convert interfaces, routing, VPN, users, security profiles or system settings, and it is not a substitute for testing.</p>
-  <div class="callout"><b>Status.</b> Tested against synthetic configurations. Only iptables and nftables output has been loaded on a real system (a Linux kernel, IPv4 filter rules, iptables 1.8.10 with the nf_tables backend, nft 1.0.9). Treat every other output as a draft for a lab device.</div>
+  <div class="callout"><b>Status.</b> Tested against synthetic configurations. iptables and nftables output has been loaded on a real system (a Linux kernel, IPv4 filter rules, iptables 1.8.10 with the nf_tables backend, nft 1.0.9); FortiOS, PAN-OS and Cisco ASA output on a FortiGate-VM, a VM-Series and an ASAv, and AWS, Azure and Google Cloud output into real accounts, by the lab, for one synthetic policy with no NAT. Treat every other output, and NAT everywhere, as a draft for a lab device.</div>
 
   <h3>Platforms</h3>
   <div class="tablewrap"><table>
@@ -337,8 +337,8 @@ footer { color: var(--muted); font-size: 13px; padding-block: 30px 0; max-width:
   <h2><span class="num">2</span>Install and run</h2>
   <p>FWShift is on PyPI: <code>pip install fwshift</code>. Each release also has the project as a zip and a single file that runs with any Python 3.9 or newer. Nothing else needs installing.</p>
   <div class="codebox"><span class="label">shell</span><button class="copy" type="button">Copy</button><pre><span class="c"># one file, nothing to install</span>
-python3 fwshift-0.35.0.pyz --version
-python3 fwshift-0.35.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.36.0.pyz --version
+python3 fwshift-0.36.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 
 <span class="c"># or with pip, from PyPI</span>
 pip install fwshift
@@ -422,6 +422,7 @@ findings while reading:
       <tr><td><code>--target-template NAME</code></td><td>Forcepoint: the template the new policy is based on (default <code>Firewall Template</code>).</td></tr>
       <tr><td><code>--prune-unused</code></td><td>Leave out objects no rule uses.</td></tr>
       <tr><td><code>-o FILE</code>, <code>--report FILE</code>, <code>--report-json FILE</code></td><td>Output, text report (default: standard error), JSON report.</td></tr>
+      <tr><td><code>--report-sarif FILE</code>, <code>--report-csv FILE</code>, <code>--report-html FILE</code></td><td>The report also as SARIF 2.1.0 (code scanning; the audit as a second run), CSV (a line per finding) or one HTML page to read and sign.</td></tr>
       <tr><td><code>--strict</code>, <code>-q</code></td><td>Exit 2 when anything needs review; quiet.</td></tr>
       <tr><td><code>--audit</code> and the audit options</td><td>Audit before and after the conversion (section <a href="#audit">Audit</a>).</td></tr>
       <tr><td><code>--usage-store FILE</code>, <code>--usage-gateway</code></td><td>Use a store of logs for the use checks (and <code>UNUSED_RULE=disable</code>).</td></tr>
@@ -1454,7 +1455,7 @@ trust -> ot
   <ul class="prose">
     <li><code>-</code> nothing, <code>any</code> every service, <code>+N</code> and N more, <code>~</code> at most this (see the notes).</li>
     <li><code>--network-zone NAME[@ZONE]=NETWORK[,...]</code> defines zones of your own from networks; the matrix is then between those. <code>0.0.0.0/0,::/0</code> means "the rest".</li>
-    <li><code>--json</code> or <code>--csv</code> (a line per rule and conduit), <code>--summary</code> for the grid without rules.</li>
+    <li><code>--json</code> or <code>--csv</code> (a line per rule and conduit), <code>--format html</code> for a page to read and sign, <code>--summary</code> for the grid without rules. <code>audit</code>, <code>conduits</code> and <code>compare</code> take <code>--format sarif|csv|html</code> as well.</li>
     <li>The matrix shows what is allowed, not what is used. Source NAT is not applied.</li>
   </ul>
 </section>

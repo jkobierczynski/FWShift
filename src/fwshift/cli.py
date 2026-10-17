@@ -16,7 +16,7 @@ import pkgutil
 import sys
 from typing import Callable, Dict, List, Optional, Sequence, Set, TextIO, Tuple
 
-from . import __version__, audit, compare, conduits, hits, matrix, narrow, transform, usage, zonenets
+from . import __version__, audit, compare, conduits, export, hits, matrix, narrow, transform, usage, zonenets
 from .appmap import load_app_map
 from .emitters import asa as emit_asa
 from .emitters import aws as emit_aws
@@ -287,6 +287,25 @@ def convert(policy: Policy, target: str, report: Report, options: Optional[Optio
         policy = copy.deepcopy(policy)
         transform.keep_from_unzoned(policy, options.zone_excluded, report)
     return EMITTERS[target](policy, report, options)
+
+
+def _render(kind: str, data: Dict[str, object], fmt: str, sources: List[export.Source]) -> str:
+    """A result as a format of export; what the reader should know (a SARIF file GitHub refuses) to standard error."""
+    warnings: List[str] = []
+    text = export.render(kind, data, fmt, sources, warnings)
+    for warning in warnings:
+        print(f"fwshift: warning: {warning}", file=sys.stderr)
+    return text
+
+
+def _format(args: argparse.Namespace) -> str:
+    """The output format of a command: --format, or --json (or --csv) as before."""
+    old = [name for name in ("json", "csv") if getattr(args, name, False)]
+    if len(old) > 1:
+        raise FwshiftError(f"{args.command}: --json or --csv, not both")
+    if args.format and old and args.format != old[0]:
+        raise FwshiftError(f"{args.command}: --format {args.format} and --{old[0]} say different things")
+    return str(args.format or (old[0] if old else "text"))
 
 
 def _versions(policy: Policy) -> Set[int]:
@@ -562,6 +581,9 @@ def build_parser() -> argparse.ArgumentParser:
                       "a name that ends in .tar gives the archive an import takes")
     conv.add_argument("--report", help="write the text report here (default: standard error)")
     conv.add_argument("--report-json", help="also write the report as JSON")
+    conv.add_argument("--report-sarif", metavar="FILE", help="also write the report (and the audit, with --audit) as SARIF 2.1.0, for code scanning")
+    conv.add_argument("--report-csv", metavar="FILE", help="also write the findings of the report as CSV, a line per finding")
+    conv.add_argument("--report-html", metavar="FILE", help="also write the report as one HTML page, to read and sign")
     conv.add_argument("--zone-map", action="append", default=[], metavar="SRC=DST", help="rename a zone or interface")
     conv.add_argument(
         "--interface-map", action="append", default=[], metavar="SRC=DST", help="map a source interface to a target one"
@@ -644,7 +666,8 @@ def build_parser() -> argparse.ArgumentParser:
     aud = commands.add_parser("audit", help="audit a configuration: rules that allow too much, rules that never match, loose ends")
     _source_options(aud, optional=True)
     aud.add_argument("-o", "--output", help="write the audit here (default: standard output)")
-    aud.add_argument("--json", action="store_true", help="write the audit as JSON")
+    aud.add_argument("--json", action="store_true", help="write the audit as JSON (--format json)")
+    aud.add_argument("--format", choices=export.FORMATS, help="how to write it: text (the default), json, sarif (SARIF 2.1.0, for code scanning), csv, html (a page to read and sign)")
     aud.add_argument("--list-checks", action="store_true", help="show the checks, their levels and what can be done with them")
     _audit_options(aud)
     _usage_store_option(aud)
@@ -652,8 +675,10 @@ def build_parser() -> argparse.ArgumentParser:
     mat = commands.add_parser("matrix", help="show what each zone may reach in each other zone, on which services, through which rules")
     _source_options(mat)
     mat.add_argument("-o", "--output", help="write the matrix here (default: standard output)")
-    mat.add_argument("--json", action="store_true", help="write the matrix as JSON")
-    mat.add_argument("--csv", action="store_true", help="write a line per rule and conduit, for a spreadsheet")
+    mat.add_argument("--json", action="store_true", help="write the matrix as JSON (--format json)")
+    mat.add_argument("--csv", action="store_true", help="write a line per rule and conduit, for a spreadsheet (--format csv)")
+    mat.add_argument("--format", choices=[f for f in export.FORMATS if f != "sarif"],
+                     help="how to write it: text (the default), json, csv, html (a page to read and sign)")
     mat.add_argument("--summary", action="store_true", help="text output: leave out the rules of each conduit")
     mat.add_argument("--network-zone", action="append", default=[], metavar="NAME[@ZONE]=NETWORK[,NETWORK...]",
                      help="a zone of your own, as networks; repeatable. With it the matrix is between these zones (and "
@@ -668,7 +693,8 @@ def build_parser() -> argparse.ArgumentParser:
     cond.add_argument("--network-zone", action="append", default=[], metavar="NAME[@ZONE]=NETWORK[,NETWORK...]",
                       help="--draft: a zone of the model as networks, as for fwshift matrix; repeatable")
     cond.add_argument("-o", "--output", help="write the result here (default: standard output)")
-    cond.add_argument("--json", action="store_true", help="write the result as JSON")
+    cond.add_argument("--json", action="store_true", help="write the result as JSON (--format json)")
+    cond.add_argument("--format", choices=export.FORMATS, help="how to write it: text (the default), json, sarif (SARIF 2.1.0, for code scanning), csv, html (a page to read and sign)")
     cond.add_argument("--fail-on", default="medium", metavar="LEVEL",
                       help="exit with status 3 when a finding of this level or higher is found: info, low, medium (default), high")
     cond.add_argument("--audit-config", metavar="FILE", help="JSON file of the audit: its lists of risky and industrial services are used")
@@ -694,7 +720,8 @@ def build_parser() -> argparse.ArgumentParser:
                      "where --zone-network does not give them")  # fmt: skip
     cmp.add_argument("--app-map", metavar="FILE", help="JSON file: application name -> list of port specs (the default ports of applications)")
     cmp.add_argument("-o", "--output", help="write the result here (default: standard output)")
-    cmp.add_argument("--json", action="store_true", help="write the result as JSON")
+    cmp.add_argument("--json", action="store_true", help="write the result as JSON (--format json)")
+    cmp.add_argument("--format", choices=export.FORMATS, help="how to write it: text (the default), json, sarif (SARIF 2.1.0, for code scanning), csv, html (a page to read and sign)")
     cmp.add_argument("--fail-on", default="low", metavar="LEVEL",
                      help="exit with status 3 when a difference of this weight or more is found: low (any difference, the default), "
                      "medium (opened possibly, or closed for certain), high (opened for certain), none")  # fmt: skip
@@ -819,6 +846,9 @@ def _run_convert(args: argparse.Namespace) -> int:
         _print(sys.stderr, report.to_text())
     if args.report_json:
         _write(args.report_json, report.to_json())
+    for path, fmt in ((args.report_sarif, "sarif"), (args.report_csv, "csv"), (args.report_html, "html")):
+        if path:
+            _write(path, _render("report", report.to_dict(), fmt, [export.Source(args.input, data)]))
     if args.report and not args.quiet:
         rules = report.counts("rule")
         _print(
@@ -852,11 +882,12 @@ def _run_audit(args: argparse.Namespace) -> int:
     stored = _from_store(args, policy, config, audit.Reading.of(report))
     result = audit.run(policy, config, report)
     disabled = sum(1 for rule in policy.rules if not rule.enabled)
-    if args.json:
+    fmt = _format(args)
+    if fmt != "text":
         extra: Dict[str, object] = {"hit_counters": counters} if counters else {}
         if stored:
             extra["usage_store"] = stored
-        text = json.dumps({"source": source, "scope": policy.scope, **extra, **result.to_dict()}, indent=2, ensure_ascii=False) + "\n"
+        text = _render("audit", {"source": source, "scope": policy.scope, **extra, **result.to_dict()}, fmt, [export.Source(args.input, data)])
     else:
         head = (f"FWShift audit\n  source: {source}{f' ({policy.scope})' if policy.scope else ''}\n"
                 f"  security rules: {len(policy.rules)} ({disabled} disabled), NAT rules: {len(policy.nat_rules)}\n"
@@ -871,8 +902,7 @@ def _run_audit(args: argparse.Namespace) -> int:
 
 
 def _run_matrix(args: argparse.Namespace) -> int:
-    if args.json and args.csv:
-        raise FwshiftError("matrix: --json or --csv, not both")
+    fmt = _format(args)
     config = audit.AuditConfig()
     if args.audit_config:
         config = audit.load_config(_read(args.audit_config).decode("utf-8", errors="replace"), args.audit_config)
@@ -884,10 +914,10 @@ def _run_matrix(args: argparse.Namespace) -> int:
                   args.interface_address)  # fmt: skip
     transform.harden(policy, report)
     result = matrix.build(policy, config, report, networks)
-    if args.json:
-        text = json.dumps({"source": source, "scope": policy.scope, **result.to_dict()}, indent=2, ensure_ascii=False) + "\n"
-    elif args.csv:
+    if fmt == "csv":
         text = result.to_csv()
+    elif fmt != "text":
+        text = _render("matrix", {"source": source, "scope": policy.scope, **result.to_dict()}, fmt, [export.Source(args.input, data)])
     else:
         head = (f"FWShift zone matrix\n  source: {source}{f' ({policy.scope})' if policy.scope else ''}\n"
                 f"  security rules: {result.rules} ({result.disabled} disabled, {result.dead} never match)\n\n")  # fmt: skip
@@ -908,7 +938,8 @@ def _run_conduits(args: argparse.Namespace) -> int:
     config = audit.AuditConfig()
     if args.audit_config:
         config = audit.load_config(_read(args.audit_config).decode("utf-8", errors="replace"), args.audit_config)
-    model = conduits.load_model(_read(args.model).decode("utf-8-sig", errors="replace"), args.model) if args.model else None
+    model_data = _read(args.model) if args.model else b""
+    model = conduits.load_model(model_data.decode("utf-8-sig", errors="replace"), args.model) if args.model else None
     data = _read(args.input)
     source = args.source or detect_format(data)
     report = Report()
@@ -927,8 +958,10 @@ def _run_conduits(args: argparse.Namespace) -> int:
             _print(sys.stdout, text)
         return 0
     result = conduits.check(policy, model, config, report, app_ports=load_app_map(args.app_map) if args.app_map else None)
-    if args.json:
-        text = json.dumps({"source": source, "model_file": args.model, **result.to_dict()}, indent=2, ensure_ascii=False) + "\n"
+    fmt = _format(args)
+    if fmt != "text":
+        text = _render("conduits", {"source": source, "model_file": args.model, **result.to_dict()}, fmt,
+                       [export.Source(args.input, data), export.Source(args.model, model_data)])  # fmt: skip
     else:
         head = (f"FWShift zone and conduit check\n  model: {args.model}" + (f" ({model.name})" if model.name else "")
                 + f", {len(model.zones)} zones, {len(model.conduits)} conduits\n  policy: {args.input} ({source}"
@@ -949,8 +982,10 @@ def _run_compare(args: argparse.Namespace) -> int:
     if weight is None:
         raise FwshiftError(f"--fail-on expects low, medium, high or none, got '{args.fail_on[:20]}'")
     loaded = []
+    read: List[export.Source] = []
     for path, given in ((args.first, args.source), (args.second, args.from_second)):
         data = _read(path)
+        read.append(export.Source(path, data))
         source = given or detect_format(data)
         report = Report()
         policy = load(data, source, report, args.vsys, args.device_group, args.vdom, args.layer, args.policy, args.nat_policy)
@@ -966,7 +1001,8 @@ def _run_compare(args: argparse.Namespace) -> int:
                              compare.parse_zone_map(args.zone_map), networks,
                              app_ports=load_app_map(args.app_map) if args.app_map else None, excluded=excluded)  # fmt: skip
     result.notes[:0] = [note.message[0].upper() + note.message[1:] + "." for note in taken.notes]
-    text = (json.dumps(result.to_dict(), indent=2, ensure_ascii=False) + "\n") if args.json else "FWShift comparison\n" + result.to_text()
+    fmt = _format(args)
+    text = _render("compare", result.to_dict(), fmt, read) if fmt != "text" else "FWShift comparison\n" + result.to_text()
     if args.output:
         _write(args.output, text)
     else:

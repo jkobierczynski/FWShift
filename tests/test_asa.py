@@ -2290,3 +2290,23 @@ def test_service_that_holds_both_ports_of_a_port_translation_needs_no_adjusting(
     wide = PUBLISHED.replace("permit tcp any any eq 22", "permit tcp any any range 1 65535")
     p, report = parse(HEAD + wide + "access-list O extended permit tcp any any\n")
     assert not codes(report, "rule", "O-4") and not codes(report, "rule", "O-6")
+
+
+def test_objects_keep_clear_of_the_asas_own_service_objects() -> None:
+    """The lab's ASAv 9.24: "ERROR: cannot modify system-defined object (tcp-ssh)", and the same for tcp-http; the rules
+    that named them lost their service. Such names are renamed; one the ASA does not have (udp-dns) stays."""
+    p = _policy(Rule("ssh", src_zones=["inside"], dst_zones=["dmz"], sources=["lan"], destinations=["web"], services=["tcp-ssh"]),
+                Rule("dns", src_zones=["inside"], dst_zones=["dmz"], sources=["lan"], destinations=["web"], services=["udp-dns"]),
+                Rule("ping", src_zones=["inside"], dst_zones=["dmz"], sources=["lan"], destinations=["web"], services=["icmp-echo"]))
+    p.services["tcp-ssh"] = Service("tcp-ssh", [ServiceEntry(Protocol.TCP, "22")])
+    p.services["udp-dns"] = Service("udp-dns", [ServiceEntry(Protocol.UDP, "53")])
+    p.services["icmp-echo"] = Service("icmp-echo", [ServiceEntry(Protocol.ICMP, icmp_type=8)])
+    p.addresses["tcp-http"] = Address("tcp-http", AddressKind.NETWORK, "10.20.0.11/32")  # (one namespace)
+    p.rules[0].destinations.append("tcp-http")
+    config, report, text = _convert(p)
+    lines = text.splitlines()
+    assert "object service tcp-ssh" not in lines and "object service tcp-ssh_2" in lines
+    assert "object network tcp-http" not in lines and "object service icmp-echo" not in lines
+    assert "object service udp-dns" in lines
+    assert "RENAMED" in codes(report, "service", "tcp-ssh")
+    assert any(line.startswith("access-list inside_access_in extended permit object tcp-ssh_2 object lan") for line in lines)

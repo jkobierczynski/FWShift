@@ -48,10 +48,14 @@ Where a FortiOS, PAN-OS or ASA configuration holds its interfaces and static
 routes, FWShift reads the **networks behind each zone** from them, for the
 targets that have no zones (cloud security groups, NSX, Meraki) or keep a rule
 to its zones by its addresses (ASA, pfSense), and for the equivalence check.
+Findings, the matrix, the conduit check and comparisons can be written as
+**SARIF** (for code scanning in a pipeline), **CSV** (for a spreadsheet or a
+ticketing system) or one **HTML** page to read and sign (`--format`, and
+`--report-sarif`, `--report-csv`, `--report-html` for a conversion).
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.35).** The converter is tested against synthetic
+> **Status: alpha (0.36).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -65,12 +69,13 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   for one synthetic policy: AWS security groups and Azure NSGs decided all 160 test connections between real
 >   instances as the source does (or as the report announced); on Google Cloud the 32 connections inside a zone
 >   differed, as announced, until 0.32.1 wrote them: then all 160 passed.
-> * **FortiOS** and **PAN-OS** output was loaded on a real FortiGate-VM (FortiOS 8.0.1) and VM-Series (PAN-OS 11.2.15),
->   the AWS Marketplace images, by the lab, for the same policy: all 128 connections through each as the source decides.
-> * **Check Point, Cisco ASA, Cisco IOS, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall,
+> * **FortiOS**, **PAN-OS** and **Cisco ASA** output was loaded on a real FortiGate-VM (FortiOS 8.0.1), VM-Series
+>   (PAN-OS 11.2.15) and ASAv (9.24.10), the AWS Marketplace images, by the lab, for the same policy: all 128 connections
+>   through each as the source decides. The policy has security rules and no NAT: NAT is not checked on a device.
+> * **Check Point, Cisco IOS, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall,
 >   Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, VMware NSX, RouterOS and Forcepoint** output has **not been loaded on a
 >   device or management server**, and the **Terraform** output has not been applied with Terraform. The Check Point input format is taken from the API
->   documentation, not from a real export, the ASA and FTD syntax from Cisco's
+>   documentation, not from a real export, the FTD syntax from Cisco's
 >   command references, and the Sophos format from the documentation of its
 >   XML API and the templates of Sophos's own SDK; a few element names of a
 >   Sophos NAT rule are in neither. The JSON of a Management Center and of a
@@ -184,8 +189,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.35.0.pyz --version
-python3 fwshift-0.35.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.36.0.pyz --version
+python3 fwshift-0.36.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
@@ -826,8 +831,8 @@ and everything else outside the policy.
   Point.
 * Audit and matrix: the zone and conduit model as a file to check a policy
   against, the equivalence check as a command and of a conversion (0.22,
-  done), the networks behind a zone from the source (0.35, done); next NAT in
-  the comparison, findings as SARIF, zone ranks.
+  done), the networks behind a zone from the source (0.35, done), results as
+  SARIF, CSV and HTML (0.36, done); next NAT in the comparison, zone ranks.
 * Validation of the output on lab devices of every platform: [the lab](https://github.com/jkobierczynski/FWShift/blob/HEAD/lab/README.md)
   (0.32) scripts it for the cloud targets, five free images and five Marketplace images; nftables and iptables run
   in the test suite, AWS, Azure and Google Cloud have had their first runs (0.32.1), the others wait for theirs.

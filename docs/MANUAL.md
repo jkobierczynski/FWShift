@@ -8,7 +8,7 @@ rule by rule, how faithful the result is. It can also audit a policy: rules that
 rules that never match, loose ends; show what each zone may reach in each
 other zone; check a policy against a zone and conduit model kept as a file;
 and say which connections two policies decide differently.
-This manual covers version 0.35.
+This manual covers version 0.36.
 
 **Contents**
 
@@ -62,13 +62,13 @@ may reach (section 14), check a policy against a zone and conduit model kept
 as a file (section 16), and name every connection two policies decide
 differently, including a source and its conversion read back (section 17).
 
-> **Status.** Version 0.35 is tested against synthetic configurations. iptables
+> **Status.** Version 0.36 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). AWS, Azure and Google Cloud output was loaded into a real account
-> by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1) and PAN-OS output on a VM-Series (PAN-OS 11.2.15). Output for Check Point,
-> Cisco ASA, Cisco IOS, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, RouterOS and Forcepoint has
+> by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1), PAN-OS output on a VM-Series (PAN-OS 11.2.15) and ASA output on an ASAv (9.24.10); the policy has no NAT. Output for Check Point,
+> Cisco IOS, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, RouterOS and Forcepoint has
 > not been loaded on a device or management server yet, and the Terraform output has not been applied with Terraform; the Check Point input format follows the
-> API documentation, the ASA and FTD syntax Cisco's command references, the
+> API documentation, the FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
 > Sophos's own SDK, and the JSON of a Management Center and of a Device
 > Manager their API documentation and the tooling Cisco publishes for them.
@@ -114,8 +114,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.35.0.pyz --version
-python3 fwshift-0.35.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.36.0.pyz --version
+python3 fwshift-0.36.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -1108,7 +1108,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--to panos` | PAN-OS `set` commands. |
 | `--to fortios` | FortiOS CLI configuration. |
 | `--to checkpoint` | A shell script of `mgmt_cli` calls for a Check Point management server. |
-| `--to asa` | Cisco ASA commands (9.x): objects, access lists, twice NAT. |
+| `--to asa` | Cisco ASA commands (9.x): objects, access lists, twice NAT. An object is not given a name the ASA keeps for its own service objects (a protocol and one of its port names: `tcp-ssh`, `tcp-http`, which 9.24 refuses to change); it is renamed (`tcp-ssh_2`, `RENAMED`). |
 | `--to fmc` | A Python script that creates the policy on a Cisco Secure Firewall Management Center through its REST API: objects, a new access control policy, a new NAT policy (section 10). |
 | `--to fdm` | A file for the configuration import of a Cisco Secure Firewall Device Manager: objects, access rules, manual NAT rules (section 10). |
 | `--to sophos` | An `Entities.xml` for *Import export* of a Sophos Firewall (SFOS 18 and later). With `-o NAME.tar`, the archive an import takes. |
@@ -1169,6 +1169,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `-o FILE`, `--output FILE` | Where the configuration goes. Default: standard output. With `--to sophos`, a name that ends in `.tar` gives the archive an import takes, with the XML inside. |
 | `--report FILE` | Where the text report goes. Default: standard error. |
 | `--report-json FILE` | Also write the report as JSON. |
+| `--report-sarif FILE`, `--report-csv FILE`, `--report-html FILE` | Also write the report as SARIF 2.1.0 (with `--audit`, the audit as a second run), as CSV (a line per finding) or as one HTML page to read and sign (section 6). |
 | `--strict` | Exit with status 2 when anything needs review. |
 | `-q`, `--quiet` | Do not print the report or the one-line summary. |
 | `--audit` | Audit the policy before and after the conversion, and carry out the actions set for the checks (section 13). The audit options below switch it on as well. |
@@ -1184,7 +1185,7 @@ All output is UTF-8.
 ### `fwshift audit`
 
 ```
-fwshift audit INPUT [--from ...] [-o FILE] [--json] [--audit-config FILE]
+fwshift audit INPUT [--from ...] [-o FILE] [--json | --format FORMAT] [--audit-config FILE]
                     [--audit-action CHECK=ACTION] [--audit-accept RULE[=CHECK,...]] [--audit-fail-on LEVEL]
                     [--hits FILE] [--hits-since YYYY-MM-DD]
 fwshift audit --list-checks
@@ -1194,14 +1195,15 @@ Audits a configuration of any format that can be read and prints what it
 found (section 13). It takes the source options of `fwshift convert`
 (`--vsys`, `--interface-address` and the others). Nothing is converted and nothing is changed: an action
 such as `disable` is shown as what a conversion would do. `--json` writes the
-findings as JSON; `--list-checks` shows the checks, their levels and the
-actions each can take.
+findings as JSON; `--format` as `text`, `json`, `sarif`, `csv` or `html`
+(section 6); `--list-checks` shows the checks, their levels and the actions
+each can take.
 
 ### `fwshift matrix`
 
 ```
 fwshift matrix INPUT [--from ...] [--vsys ...] [--device-group ...] [--vdom ...] [--layer ...]
-                     [--policy ...] [--nat-policy ...] [--interface-address ...] [-o FILE] [--json | --csv] [--summary]
+                     [--policy ...] [--nat-policy ...] [--interface-address ...] [-o FILE] [--json | --csv | --format FORMAT] [--summary]
                      [--network-zone NAME[@ZONE]=NETWORK[,NETWORK...]] [--audit-config FILE]
 ```
 
@@ -1212,6 +1214,7 @@ through which rules (section 14). Nothing is converted.
 |---|---|
 | `-o FILE` | Where the matrix goes. Default, and `-`: standard output. |
 | `--json`, `--csv` | The matrix as JSON, or as CSV with a line per rule and conduit. |
+| `--format FORMAT` | `text` (the default), `json`, `csv` (as `--csv`) or `html`, a page to read and sign (section 6). The matrix holds no findings, so no SARIF. |
 | `--summary` | Text output: the grid and what each conduit allows, without the rules. |
 | `--network-zone NAME[@ZONE]=NETWORK[,NETWORK...]` | A zone of your own, given as networks. Repeatable. The matrix is then between these zones. `@ZONE` names the zone (or zones, separated by commas) of the policy the networks lie behind. |
 | `--audit-config FILE` | The configuration file of the audit: its lists of risky and industrial services and applications are used. |
@@ -1222,7 +1225,7 @@ through which rules (section 14). Nothing is converted.
 fwshift conduits INPUT [--from ...] [--vsys ...] [--device-group ...] [--vdom ...] [--layer ...]
                        [--policy ...] [--nat-policy ...] [--interface-address ...]
                        (--model FILE | --draft FILE [--network-zone NAME[@ZONE]=NETWORK[,NETWORK...]])
-                       [-o FILE] [--json] [--fail-on LEVEL] [--audit-config FILE] [--app-map FILE]
+                       [-o FILE] [--json | --format FORMAT] [--fail-on LEVEL] [--audit-config FILE] [--app-map FILE]
 ```
 
 Checks a policy against a zone and conduit model (section 16), or writes a
@@ -1235,6 +1238,7 @@ model of what the policy allows today, as a start for one. Nothing is converted.
 | `--network-zone NAME[@ZONE]=NETWORK[,NETWORK...]` | With `--draft`: a zone of the model as networks, as for `fwshift matrix`. Repeatable. |
 | `-o FILE` | Where the result goes. Default: standard output. |
 | `--json` | The result as JSON. |
+| `--format FORMAT` | `text` (the default), `json`, `sarif`, `csv` or `html` (section 6). |
 | `--fail-on LEVEL` | Exit with status 3 when a finding of this level or higher is found: `info`, `low`, `medium` (default), `high`, or `none`. |
 | `--audit-config FILE` | The configuration file of the audit: its lists of risky and industrial services are used by the matrix. |
 | `--app-map FILE` | The application map (section 9): the default ports of applications. |
@@ -1244,8 +1248,8 @@ model of what the policy allows today, as a start for one. Nothing is converted.
 ```
 fwshift compare FIRST SECOND [--from FORMAT] [--from-second FORMAT] [--vsys ...] [--device-group ...] [--vdom ...]
                              [--layer ...] [--policy ...] [--nat-policy ...]
-                             [--zone-map FIRST=SECOND] [--zone-network ZONE=NET[,NET]] [--app-map FILE]
-                             [-o FILE] [--json] [--fail-on LEVEL]
+                             [--zone-map FIRST=SECOND] [--zone-network ZONE=NET[,NET]] [--no-source-networks]
+                             [--app-map FILE] [-o FILE] [--json | --format FORMAT] [--fail-on LEVEL]
 ```
 
 Every connection whose verdict differs between two configurations, of any
@@ -1260,6 +1264,7 @@ conversion read back.
 | `--no-source-networks` | Take no networks of the zones from the first configuration. |
 | `--app-map FILE` | The application map (section 9): the default ports of applications. |
 | `-o FILE`, `--json` | Where the result goes, and as JSON. |
+| `--format FORMAT` | `text` (the default), `json`, `sarif` (a result per difference), `csv` or `html` (section 6). |
 | `--fail-on LEVEL` | Exit with status 3 when a difference of this weight or more is found: `low` (any difference, the default), `medium` (opened possibly, or closed for certain), `high` (opened for certain), or `none`. |
 
 ### `fwshift inspect`
@@ -1382,6 +1387,55 @@ When a **deny** rule is emitted disabled, the message ends with *"This deny
 rule is NOT enforced until fixed; allow rules below it may match more
 traffic."* Fix these first: until then the converted policy is wider than the
 source below that rule.
+
+### SARIF, CSV and HTML
+
+The results of `convert` (its report, with `--report-sarif`, `--report-csv`
+and `--report-html`), `audit`, `matrix`, `conduits` and `compare` (with
+`--format`) can also be written for the tools that take them (0.36.0):
+
+* **SARIF 2.1.0**, for code scanning (GitHub, GitLab, Azure DevOps): a result
+  per finding, its rule the finding's code (with a link to its section of this
+  manual), its level from its weight (needs review, high: `error`;
+  approximated, medium: `warning`; the rest: `note`; a comparison: opened for
+  certain `error`, opened possibly and closed for certain `warning`, closed
+  possibly `note`), its place the rule, object, conduit or pair of zones it is
+  about, in the file it is about (the model for a conduit, the second
+  configuration for what the second opens) and, where it can be told, its line:
+  the one the parser kept (IOS, Huawei, Stormshield), else where the rule's uid
+  or its name first stands; no line where it cannot. The configurations are
+  artifacts with their SHA-256; paths are URI references, relative as given or
+  `file:` URIs for absolute ones. Standard input has no file to point to, which
+  GitHub needs to show a result: give the file.
+* Its **fingerprint** is made of the finding's code and what it is about (its
+  rule or object, the ids of the source that name it, the pair of zones), not
+  of its wording, which holds counts and dates, nor of ids that only say where
+  a rule stands (a line, a priority, a position): it stays the same while the
+  finding does, also when lines are added above it, and an audit's are the same
+  alone and in a conversion. It is written as `primaryLocationLineHash` as
+  well, which is what GitHub matches alerts by. The run's `automationDetails.id`
+  is `fwshift/KIND/FILE/` (the file relative to the working directory), so that
+  GitHub keeps the alerts of each configuration apart (its category); findings accepted with `--audit-accept` are suppressed,
+  with their reason; what was not checked is in the run's properties. With
+  `convert --audit` the audit (also the findings after the conversion) is a
+  second run. GitHub refuses a run of more than 25,000 results, and FWShift
+  says so on standard error when one has more. The matrix holds no findings and
+  is not written as SARIF.
+* **CSV**: a line per finding (a comparison: per difference; the matrix: a
+  line per rule and conduit, as `--csv`; a conversion: its findings and, with
+  `--audit`, those of the audit, told apart by the column `section`), with the
+  same header whatever there is to list, and lines ended by CR LF (RFC 4180;
+  `matrix --csv` too, since 0.36.0). A cell that a spreadsheet would
+  take for a formula (it starts with `=`, `+`, `-` or `@`, also after spaces or
+  as the full-width signs) is written with a `'` before it: names in a
+  configuration are text, not formulas. Line breaks in a value become spaces.
+  The file is UTF-8 without a byte order mark: open it in Excel through
+  *Data > From Text/CSV* with UTF-8.
+* **HTML**: one page with nothing to fetch, to read, print and sign: what was
+  read (each file with its SHA-256), the counts, the findings coloured by
+  weight, the accepted ones apart, what was not checked or read in part, the
+  notes, and a table for the name, role, date and signature of the person who
+  reviewed it. It has no time of its own: the same input gives the same page.
 
 ### JSON report
 
@@ -5426,13 +5480,15 @@ deliberate: see *IPv4 and IPv6* in section 8.
 
 ## 12. Limits
 
-* The emitted syntax follows the vendors' documented formats. Only iptables
-  and nftables output has been loaded into the real thing (a Linux kernel
-  with iptables 1.8.10, nf_tables backend, and nft 1.0.9; filter rules, not
-  NAT); nothing has been
-  validated on PAN-OS, FortiOS, ASA, Sophos, pfSense, OPNsense or MikroTik devices, a Check Point
-  management server, a Cisco Secure Firewall Management Center or Device
-  Manager, or across versions.
+* The emitted syntax follows the vendors' documented formats. iptables and
+  nftables output has been loaded into the real thing (a Linux kernel with
+  iptables 1.8.10, nf_tables backend, and nft 1.0.9; filter rules, not NAT);
+  FortiOS, PAN-OS and ASA output on a FortiGate-VM (FortiOS 8.0.1), a VM-Series
+  (PAN-OS 11.2.15) and an ASAv (9.24.10), and AWS, Azure and Google Cloud
+  output into real accounts, by the lab, for one synthetic policy with no NAT
+  (section 10). Nothing has been validated on Sophos, pfSense, OPNsense or
+  MikroTik devices, a Check Point management server, a Cisco Secure Firewall
+  Management Center or Device Manager, NAT on any device, or across versions.
 * Statements about vendor behaviour that the conversion relies on (FortiOS
   policy lookup after destination NAT, `match-vip`, PAN-OS FQDN resolution, the
   commands each CLI accepts, the fields of the Check Point Management API, what

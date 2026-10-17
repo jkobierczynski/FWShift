@@ -273,7 +273,7 @@ class Matrix:
     def to_csv(self) -> str:
         """A line per rule and conduit, for a spreadsheet."""
         handle = io.StringIO()
-        writer = csv.writer(handle, lineterminator="\n")
+        writer = csv.writer(handle, lineterminator="\r\n")  # (RFC 4180, as the other CSV files: 0.36.0)
         writer.writerow(["from", "to", "rule", "sources", "destinations", "allows", "any_service", "conditions", "through_nat",
                          "risky", "industrial", "approximate", "by_default"])  # fmt: skip
         for cell in self._ordered():
@@ -360,8 +360,10 @@ class Matrix:
 
 
 def _plain(text: str) -> str:
-    """A field of the CSV that no spreadsheet takes for a formula."""
-    return "'" + text if text[:1] in ("=", "+", "-", "@", "\t", "\r") else text
+    """A field of the CSV that no spreadsheet takes for a formula (also after spaces, or in full-width forms)."""
+    from .export import formula_safe
+
+    return formula_safe(text)
 
 
 def _fit(text: str, width: int) -> str:

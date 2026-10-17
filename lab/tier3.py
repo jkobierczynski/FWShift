@@ -8,12 +8,15 @@ addresses, the zones) that FWShift does not write."""
 
 from __future__ import annotations
 
+import base64
+import os
 import re
+import secrets
 import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Sequence, Tuple
 
 import labplan
 import labrun
@@ -55,6 +58,19 @@ class Vendor:
     # Lines typed before the session, whose answers do not count: the clean-up of what an image may or may not ship with
     # (PAN-OS answers a delete of what is not there with an error, also "Invalid syntax").
     prepare: Callable[[], List[str]] = lambda: []
+    # The size of the run's RSA key, where the firewall cannot take 4096 bits, and the ssh settings the firewall needs
+    # (the ASAv: its key on one line of at most 511 characters; its host key and logins only ssh-rsa, which OpenSSH
+    # turns down unless it is asked for).
+    key_bits: int = 4096
+    ssh_options: Tuple[str, ...] = ()
+    # Show commands typed after the probes, whose answers do not count (diagnose.txt): what the firewall's own counters
+    # say, for a run that went wrong after the firewall was torn down (the sixth ASAv run forwarded nothing).
+    diagnose: Callable[[], List[str]] = lambda: []
+    # A command whose answer names the data interfaces, for a firewall whose names are read from it ({port1}, ...).
+    ports_command: str = ""
+    # The CLI's prompt, for a firewall whose lines are typed one at a time, each after its prompt (the ASAv: given them
+    # all ahead, it closed the session after one letter of its greeting, and nothing was configured).
+    prompt: str = ""
 
 
 # -- FortiGate ---------------------------------------------------------------------------------------------------
@@ -142,7 +158,47 @@ def _c8000v_session(out: Path) -> List[str]:
 
 # -- Cisco ASAv --------------------------------------------------------------------------------------------------
 
-_ASA_PORTS = {"inside": ("GigabitEthernet0/0", 100), "dmz": ("GigabitEthernet0/1", 50), "outside": ("GigabitEthernet0/2", 0)}
+# The data interfaces by their order (the second, third and fourth network card of the instance): their names are read
+# from the ASA (`show interface ip brief`) before the session, and put in for {port1} to {port3}. The seventh run found
+# no GigabitEthernet0/0 on a c5 instance; the dry run, which reads nothing, uses these.
+_ASA_PORTS = {"inside": ("{port1}", 100), "dmz": ("{port2}", 50), "outside": ("{port3}", 0)}
+_ASA_DRY_PORTS = ["GigabitEthernet0/0", "GigabitEthernet0/1", "GigabitEthernet0/2"]
+
+
+def asa_data_ports(text: str) -> List[str]:
+    """The data interfaces in the answer to `show interface ip brief`, in the order the ASA lists them (not Management)."""
+    found = re.findall(r"^\s*((?:\w*Ethernet)\d+/\d+)\s", text, re.M)
+    return list(dict.fromkeys(name for name in found if not name.lower().startswith("management")))
+
+
+def fill_ports(lines: List[str], ports: Sequence[str]) -> List[str]:
+    """The session's lines with the interface names read from the firewall in place of {port1}, {port2}, ..."""
+    out = []
+    for line in lines:
+        for number, name in enumerate(ports, 1):
+            line = line.replace("{port%d}" % number, name)
+        out.append(line)
+    left = [line for line in out if re.search(r"\{port\d+\}", line)]
+    if left:
+        raise LabError(f"the firewall has {len(ports)} data interfaces ({', '.join(ports) or 'none'}), the session needs more: {left[0].strip()}")
+    return out
+
+
+def _asav_user_data() -> str:
+    """The Day 0 configuration of the ASAv: without one it boots with SSH off (its first run, 0.36.0: "Connection
+    refused" for 30 minutes, the console at the ciscoasa> prompt; its own configuration had "ssh 0 0 management", while
+    the management interface had no address yet, and showed no host key made). The management interface by DHCP, a host
+    key, SSH on it, and the run's key for admin, who lands in privileged mode. {ssh_key} is the base64 part of the key,
+    filled in by the run."""
+    return "\n".join([
+        "interface Management0/0", " management-only", " nameif management", " security-level 100", " ip address dhcp setroute",
+        " no shutdown", "!", "crypto key generate rsa general-keys modulus 2048 noconfirm", "ssh 0.0.0.0 0.0.0.0 management", "ssh timeout 30",
+        "aaa authentication ssh console LOCAL", "aaa authorization exec LOCAL auto-enable",
+        # Without an enable password the ASA asks for one at the first login, and takes the lines typed as the answers
+        # (the fourth run: "The enable password is not set. Please set it now."): one made for the run.
+        "enable password {enable_password}",
+        "username admin nopassword privilege 15", "username admin attributes", " service-type admin",
+        " ssh authentication publickey {ssh_key}", "!", ""])  # fmt: skip
 
 
 def _asav_session(out: Path) -> List[str]:
@@ -152,6 +208,15 @@ def _asav_session(out: Path) -> List[str]:
                  " exit"]  # fmt: skip
     base += ["policy-map global_policy", " class inspection_default", "  inspect icmp", "  exit", " exit"]  # (replies to ping)
     return ["terminal pager 0", "configure terminal", *base, *_lines(out, "!", drop_end=True), "end", "exit"]
+
+
+def _asav_diagnose() -> List[str]:
+    """The ASA's interfaces, routes, rule hits and drops, and two flows the policy passes as the ASA traces them."""
+    host = {zone: labplan.ZONES[zone].replace(".0/24", ".10") for zone in ("inside", "dmz", "outside")}
+    return ["terminal pager 0", "show version", "show interface ip brief", "show nameif", "show interface", "show running-config interface",
+            "show running-config access-group", "show route", "show arp", "show access-list", "show conn count", "show asp drop",
+            f"packet-tracer input inside tcp {host['inside']} 40000 {host['dmz']} 22 detailed",
+            f"packet-tracer input inside icmp {host['inside']} 8 0 {host['outside']} detailed", "exit"]  # fmt: skip
 
 
 _ZONE_NETWORKS = labplan.zone_options()
@@ -173,8 +238,10 @@ VENDORS: Dict[str, Vendor] = {
                      [x for p, i in (("ethernet1/2", "GigabitEthernet2"), ("ethernet1/3", "GigabitEthernet3"), ("ethernet1/1", "GigabitEthernet4"))
                       for x in ("--interface-map", f"{p}={i}")], "", _c8000v_session, ready_answer=r"uptime"),  # fmt: skip
     "asav": Vendor("asav", "Cisco ASAv (pay as you go)", "asa", "asav*", "c5.xlarge", "admin", "show version | include up",
-                   r"ERROR:|% Invalid input|% Incomplete command", list(_ZONE_NETWORKS), "", _asav_session,
-                   "scripted, never run; the privilege of the admin user after an SSH login with a key is assumed", ready_answer=r" up "),
+                   r"ERROR:|% Invalid input|% Incomplete command", list(_ZONE_NETWORKS), _asav_user_data(), _asav_session,
+                   "run: passed (ASAv 9.24.10, 0.36.0 with the fixes after it)",
+                   ready_answer=r" up ", key_bits=2048, ssh_options=("HostKeyAlgorithms=+ssh-rsa", "PubkeyAcceptedAlgorithms=+ssh-rsa"),
+                   diagnose=_asav_diagnose, prompt=r"[>#] ?$", ports_command="show interface ip brief"),
 }
 
 NOT_SCRIPTED = {
@@ -214,37 +281,106 @@ def describe_ami(runner: Runner, region: str, ami: str) -> None:
     labrun.save_state(runner.work, image=ami, image_name=fields[0] if fields else "", product_code=fields[1] if len(fields) > 1 else "")
 
 
-def session(runner: Runner, key: Path, user: str, host: str, lines: List[str], errors: str, name: str, success: str = "") -> str:
+def session(runner: Runner, key: Path, user: str, host: str, lines: List[str], errors: str, name: str, success: str = "",
+            options: Sequence[str] = (), prompt: str = "") -> str:  # fmt: skip
     """Types the lines into the CLI over SSH (with a terminal: the CLIs want one) and checks what it answered: no line
     refused, and the success line where the CLI writes one. A session that hangs (a failed commit asks before it lets
     the CLI exit) ends after 20 minutes."""
-    prefix = labrun.ssh_prefix(key, user, host, runner.work / "known_hosts")
+    prefix = labrun.ssh_prefix(key, user, host, runner.work / "known_hosts", options=options)
     (runner.work / f"{name}.commands.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    out = runner.run(prefix[:1] + ["-tt"] + prefix[1:], stdin="\n".join(lines) + "\n", timeout=1200, fake=f"(dry run) {success}")
+    args = prefix[:1] + ["-tt"] + prefix[1:]
+    ended = None
+    if prompt:
+        try:
+            out = runner.run_paced(args, lines, prompt, timeout=1200, fake=f"(dry run) {success}")
+        except labrun.SessionEnded as error:  # (what it wrote till then: the refused lines are the likelier reason)
+            out, ended = error.output, error
+    else:
+        out = runner.run(args, stdin="\n".join(lines) + "\n", timeout=1200, fake=f"(dry run) {success}")
     (runner.work / f"{name}.txt").write_text(out, encoding="utf-8")
+    if not runner.dry_run and len(out.strip()) < 40:  # (the sixth ASAv run: "U", and nothing configured, and no line refused)
+        raise LabError(f"the firewall answered almost nothing ({name}.txt: {out.strip()!r}): the lines were not run")
     refused = [line.strip() for line in out.splitlines() if errors and re.search(errors, line)]
     if refused:
-        raise LabError(f"the firewall refused {len(refused)} lines (all in {name}.txt), the first: {refused[0][:200]}")
+        raise LabError(f"the firewall refused {len(refused)} lines (all in {name}.txt), the first: {refused[0][:200]}"
+                       + (" (and the session ended early)" if ended else ""))
+    if ended:
+        raise ended
     if success and not re.search(success, out):
         raise LabError(f"the firewall did not say the configuration was committed ({name}.txt)")
     return out
 
 
-def wait_cli(runner: Runner, key: Path, user: str, host: str, command: str, answer: str, minutes: float) -> None:
-    """Until the CLI answers the ready command as it should (PAN-OS: chassis ready, after its first commit)."""
+# What ssh says when it and the firewall have no algorithm in common: that does not change while the firewall boots.
+_NO_COMMON = "Unable to negotiate"
+
+
+def wait_cli(runner: Runner, key: Path, user: str, host: str, command: str, answer: str, minutes: float,
+             options: Sequence[str] = ()) -> None:  # fmt: skip
+    """Until the CLI answers the ready command as it should (PAN-OS: chassis ready, after its first commit). Every try is
+    kept in boot.txt: when the CLI never answers, it says whether SSH was refused, the key not taken, or what came back.
+    A try that finds no algorithm in common with the firewall ends the wait at once."""
     deadline = time.time() + minutes * 60
-    prefix = labrun.ssh_prefix(key, user, host, runner.work / "known_hosts")
+    prefix = labrun.ssh_prefix(key, user, host, runner.work / "known_hosts", options=options)
+    tries = runner.work / "boot.txt"
+    last = ""
     while True:
         try:
             out = runner.run(prefix[:1] + ["-tt"] + prefix[1:], stdin=command + "\nexit\n", quiet=True, timeout=120)
             if re.search(answer, out):
                 (runner.work / "ready.txt").write_text(out, encoding="utf-8")  # (the version the firewall runs, for the record)
                 return
-        except LabError:  # (not up yet: SSH refused or timed out)
-            pass
+            last = "answered, but not as expected:\n" + out[-2000:] + ("\n" + runner.last_stderr[-1000:] if runner.last_stderr else "")
+        except LabError as error:  # (not up yet: SSH refused or timed out; or the key not taken)
+            last = str(error)
+        with tries.open("a", encoding="utf-8") as handle:
+            handle.write(f"--- {time.strftime('%H:%M:%S')}\n{last.strip()}\n")
+        if _NO_COMMON in last:
+            raise LabError(f"ssh and the firewall have no algorithm in common (waiting longer will not change it): {last.strip()[-300:]} "
+                           "(every try in boot.txt, the firewall's console in console.txt)")  # fmt: skip
         if time.time() > deadline:
-            raise LabError(f"the firewall's CLI did not answer within {minutes:.0f} minutes")
+            raise LabError(f"the firewall's CLI did not answer within {minutes:.0f} minutes; the last try: {last.strip()[-300:]} "
+                           "(every try in boot.txt, the firewall's console in console.txt)")  # fmt: skip
         time.sleep(30)
+
+
+def save_console(runner: Runner, region: str, instance: str) -> None:
+    """The firewall's serial console (its boot messages) and a screenshot of it, before it is torn down."""
+    with labrun.shielded():
+        text = runner.run(["aws", "ec2", "get-console-output", "--region", region, "--instance-id", instance, "--latest", "--output", "text"],
+                          check=False, quiet=True, fake="(dry run)")  # fmt: skip
+        (runner.work / "console.txt").write_text(text or "(the console gave nothing)\n", encoding="utf-8")
+        shot = runner.run(["aws", "ec2", "get-console-screenshot", "--region", region, "--instance-id", instance, "--query", "ImageData",
+                           "--output", "text"], check=False, quiet=True, fake="")  # fmt: skip
+        if shot.strip() and shot.strip() != "None":
+            try:
+                (runner.work / "console.jpg").write_bytes(base64.b64decode(shot.strip()))
+            except ValueError:
+                pass
+
+
+def user_data(vendor: Vendor, key: Path, password: str = "") -> str:
+    """The firewall's first-boot data, with the run's public key where it asks for one ({ssh_key}: its base64 part) and
+    the run's password where it asks for one ({enable_password})."""
+    data = vendor.user_data
+    if "{ssh_key}" in data:
+        parts = key.with_suffix(".pub").read_text(encoding="utf-8").split()
+        data = data.replace("{ssh_key}", parts[1] if len(parts) > 1 else parts[0])
+    if "{enable_password}" in data:
+        if not password:
+            raise LabError(f"the first-boot data of {vendor.name} needs a password, and none was given")
+        data = data.replace("{enable_password}", password)
+    return data
+
+
+def run_password(work: Path) -> str:
+    """A password made for the run (the ASAv's enable password), kept in the work folder for a run left up with --keep:
+    letters, digits and a dash, which no CLI reads as anything else."""
+    password = "Lab-" + secrets.token_hex(10)
+    path = work / "enable_password.txt"
+    path.write_text(password + "\n", encoding="utf-8")
+    os.chmod(path, 0o600)
+    return password
 
 
 def conversion(name: str) -> Tuple[str, List[str]]:
@@ -258,7 +394,7 @@ def run_vendor(runner: Runner, args: Any) -> bool:
     labrun.save_state(runner.work, tier="tier3", firewall=vendor.name, region=region)
     if not runner.dry_run:
         labrun.need("ssh", "ssh-keygen", "scp", "aws")
-    key = labrun.ssh_key(runner, "rsa")  # (the key pair of AWS reaches the firewall images, and not all take Ed25519)
+    key = labrun.ssh_key(runner, "rsa", vendor.key_bits)  # (the key pair of AWS reaches the firewall images, and not all take Ed25519)
     out = runner.work / f"policy.{vendor.target}"
     report = labrun.fwshift(runner, vendor.target, out, vendor.options)
     # Two hosts of one zone talk over their subnet, not through the firewall; a reset can be the firewall's own.
@@ -270,19 +406,47 @@ def run_vendor(runner: Runner, args: Any) -> bool:
         if args.ami:
             describe_ami(runner, region, args.ami)
         tf.apply({"region": region, "run_id": runner.work.name, "zone_order": ORDER, "firewall_ami": ami,
-                  "firewall_instance_type": args.instance_type or vendor.instance_type, "firewall_user_data": vendor.user_data,
+                  "firewall_instance_type": args.instance_type or vendor.instance_type, "firewall_user_data": user_data(vendor, key, run_password(runner.work) if "{enable_password}" in vendor.user_data else ""),
                   **tier1.common_variables(runner, args, key), "hosts": tier1.host_variables(gateway="firewall")})  # fmt: skip
         outputs = tf.output({"firewall_ip": "192.0.2.4", "firewall_instance": "i-0dryrun", "user": "ec2-user", "hosts": tier1.fake_hosts()})
         if not runner.dry_run:
-            wait_cli(runner, key, vendor.user, outputs["firewall_ip"], vendor.ready, vendor.ready_answer, args.boot_minutes)
+            try:
+                wait_cli(runner, key, vendor.user, outputs["firewall_ip"], vendor.ready, vendor.ready_answer, args.boot_minutes,
+                         vendor.ssh_options)
+            except LabError:
+                save_console(runner, region, outputs["firewall_instance"])
+                raise
         if vendor.prepare():  # (answers that do not count, kept in prepare.txt)
-            session(runner, key, vendor.user, outputs["firewall_ip"], vendor.prepare(), "", "prepare")
-        session(runner, key, vendor.user, outputs["firewall_ip"], vendor.session(out), vendor.errors, "load", vendor.success)
-        return tier1.probe_hosts(runner, key, outputs, data)
+            session(runner, key, vendor.user, outputs["firewall_ip"], vendor.prepare(), "", "prepare", options=vendor.ssh_options,
+                    prompt=vendor.prompt)
+        lines = vendor.session(out)
+        if vendor.ports_command:
+            ports = _ASA_DRY_PORTS if runner.dry_run else asa_data_ports(
+                session(runner, key, vendor.user, outputs["firewall_ip"], ["terminal pager 0", vendor.ports_command, "exit"], "", "ports",
+                        options=vendor.ssh_options, prompt=vendor.prompt))  # fmt: skip
+            lines = fill_ports(lines, ports)
+        session(runner, key, vendor.user, outputs["firewall_ip"], lines, vendor.errors, "load", vendor.success, vendor.ssh_options,
+                vendor.prompt)
+        try:
+            return tier1.probe_hosts(runner, key, outputs, data)
+        finally:
+            diagnose(runner, vendor, key, outputs["firewall_ip"])
     finally:
         if not args.keep:
             with labrun.shielded():
                 teardown(runner, tf)
+
+
+def diagnose(runner: Runner, vendor: Vendor, key: Path, host: str) -> None:
+    """The firewall's own view after the probes (diagnose.txt), where the vendor has show commands for it; a failure here
+    is noted and does not change the result."""
+    lines = vendor.diagnose()
+    if not lines:
+        return
+    try:
+        session(runner, key, vendor.user, host, lines, "", "diagnose", options=vendor.ssh_options, prompt=vendor.prompt)
+    except LabError as error:
+        (runner.work / "diagnose.txt").write_text(f"(the diagnosis did not finish: {error})\n", encoding="utf-8")
 
 
 def teardown(runner: Runner, tf: "tier1.Terraform") -> None:

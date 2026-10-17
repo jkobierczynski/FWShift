@@ -335,7 +335,8 @@ def test_every_run_dry(tmp_path: Path, run: List[str], capsys: pytest.CaptureFix
         kind, blob = variables["ssh_public_key"].split()[:2]
         decoded = base64.b64decode(blob, validate=True)
         assert decoded[4:4 + int.from_bytes(decoded[:4], "big")].decode() == kind and b"not a key" in decoded
-        assert any(line.startswith("ssh-keygen") and ("-t rsa -b 4096" in line) == rsa for line in log)
+        bits = tier3.VENDORS[run[1]].key_bits if run[0] == "tier3" else 4096  # (the ASAv: 2048, its key line fits)
+        assert any(line.startswith("ssh-keygen") and (f"-t rsa -b {bits}" in line) == rsa for line in log)
     if run[0] == "tier2":
         assert any("ip netns add" in line for line in log) and any("ip netns del" in line for line in log)
         assert not any("bridge-nf" in line for line in log)  # (nothing of the host's own networking changes)
@@ -467,3 +468,178 @@ def test_a_run_ends_through_its_teardown_on_sigterm(tmp_path: Path) -> None:
     assert "fwl-" not in subprocess.run(["ip", "netns", "list"], capture_output=True, text=True).stdout
     work = next(tmp_path.iterdir())
     assert json.loads((work / "run.json").read_text())["torn_down"]
+
+
+def test_a_firewall_whose_cli_never_answers_leaves_why(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The ASAv's first run (0.36.0) timed out with nothing to go on: every SSH try is kept in boot.txt, the last one in
+    the error, and the firewall's console is saved before the teardown."""
+    runner = labrun.Runner(tmp_path, echo=False)
+    calls: List[List[str]] = []
+
+    def fake_run(args: List[str], **kwargs: object) -> str:
+        calls.append(list(args))
+        if args[0] == "ssh":
+            raise labrun.LabError("ssh failed (255): admin@192.0.2.4: Permission denied (publickey).")
+        return "console text" if "get-console-output" in args else ""
+
+    monkeypatch.setattr(runner, "run", fake_run)
+    monkeypatch.setattr(tier3.time, "sleep", lambda seconds: None)
+    with pytest.raises(labrun.LabError, match="Permission denied"):
+        tier3.wait_cli(runner, tmp_path / "id_lab", "admin", "192.0.2.4", "show version", " up ", 0)
+    assert "Permission denied (publickey)" in (tmp_path / "boot.txt").read_text()
+    tier3.save_console(runner, "eu-west-1", "i-0abc")
+    assert (tmp_path / "console.txt").read_text() == "console text"
+    assert any("get-console-screenshot" in call for call in calls)
+
+
+def test_the_asav_is_given_a_day0_configuration_with_ssh_and_the_runs_key(tmp_path: Path) -> None:
+    """Without one, the ASAv boots with SSH off (its first run: Connection refused for 30 minutes)."""
+    key = tmp_path / "id_lab"
+    key.with_suffix(".pub").write_text("ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7 fwlab-test\n")
+    data = tier3.user_data(tier3.VENDORS["asav"], key, "Lab-0123abcd")
+    lines = data.splitlines()
+    assert "enable password Lab-0123abcd" in lines  # (else the ASA asks for one at the first login)
+    with pytest.raises(labrun.LabError, match="needs a password"):
+        tier3.user_data(tier3.VENDORS["asav"], key)
+    password = tier3.run_password(tmp_path)
+    assert re.fullmatch(r"Lab-[0-9a-f]{20}", password) and (tmp_path / "enable_password.txt").read_text() == password + "\n"
+    assert (tmp_path / "enable_password.txt").stat().st_mode & 0o077 == 0
+    assert "ssh 0.0.0.0 0.0.0.0 management" in lines and " ip address dhcp setroute" in lines
+    assert " ssh authentication publickey AAAAB3NzaC1yc2EAAAADAQABAAABAQC7" in lines and "{ssh_key}" not in data
+    assert "aaa authorization exec LOCAL auto-enable" in lines  # (the session starts with configure terminal)
+    assert tier3.user_data(tier3.VENDORS["fortigate"], key) == tier3.VENDORS["fortigate"].user_data
+
+
+
+def _asav_longest_line(tmp_path: Path, bits: int) -> str:
+    key = tmp_path / "id_lab"
+    key.with_suffix(".pub").write_text(labrun._dry_key("rsa", bits) + "\n")
+    return max(tier3.user_data(tier3.VENDORS["asav"], key, "Lab-" + "0" * 20).splitlines(), key=len)
+
+
+def test_every_asav_day0_line_fits_the_asa_with_the_runs_key(tmp_path: Path) -> None:
+    """The ASAv's third run: the key line of a 4096-bit key ran over the ASA's 511 characters and was cut off."""
+    longest = _asav_longest_line(tmp_path, tier3.VENDORS["asav"].key_bits)
+    assert "publickey" in longest and len(longest) <= 511
+    assert len(_asav_longest_line(tmp_path, 4096)) > 511
+
+
+def test_ssh_to_the_asav_allows_ssh_rsa_and_only_there() -> None:
+    """The ASAv offers only an ssh-rsa host key, which OpenSSH turns down unless it is asked for."""
+    prefix = labrun.ssh_prefix(Path("k"), "admin", "192.0.2.4", Path("kh"), options=tier3.VENDORS["asav"].ssh_options)
+    assert "HostKeyAlgorithms=+ssh-rsa" in prefix and "PubkeyAcceptedAlgorithms=+ssh-rsa" in prefix
+    assert prefix[-1] == "admin@192.0.2.4"
+    others = {name: (v.ssh_options, v.key_bits) for name, v in tier3.VENDORS.items() if name != "asav"}
+    assert all(value == ((), 4096) for value in others.values()), others
+
+
+def test_no_algorithm_in_common_ends_the_wait_at_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """It does not change while the firewall boots: the third ASAv run tried it for 30 minutes."""
+    runner = labrun.Runner(tmp_path, echo=False)
+    calls: List[List[str]] = []
+
+    def fake_run(args: List[str], **kwargs: object) -> str:
+        calls.append(list(args))
+        raise labrun.LabError("ssh failed (255): Unable to negotiate with 192.0.2.4 port 22: no matching host key type found. Their offer: ssh-rsa")
+
+    monkeypatch.setattr(runner, "run", fake_run)
+    monkeypatch.setattr(tier3.time, "sleep", lambda seconds: None)
+    with pytest.raises(labrun.LabError, match="no algorithm in common"):
+        tier3.wait_cli(runner, tmp_path / "id_lab", "admin", "192.0.2.4", "show version", " up ", 30)
+    assert len(calls) == 1
+    assert "Unable to negotiate" in (tmp_path / "boot.txt").read_text()
+
+
+def test_a_command_that_hangs_keeps_what_it_wrote(tmp_path: Path) -> None:
+    """The fourth ASAv run: SSH got in, then hung; the error said only that it did not finish."""
+    runner = labrun.Runner(tmp_path, echo=False)
+    script = "import sys, time; print('ciscoasa# '); sys.stdout.flush(); print('Enter Password:', file=sys.stderr); sys.stderr.flush(); time.sleep(30)"
+    with pytest.raises(labrun.LabError) as caught:
+        runner.run([sys.executable, "-c", script], stdin="show version\n", timeout=2)
+    assert "did not finish within 2 s" in str(caught.value)
+    assert "ciscoasa#" in str(caught.value) and "Enter Password:" in str(caught.value)
+
+
+def test_the_asav_run_keeps_the_firewalls_own_view_after_the_probes(tmp_path: Path) -> None:
+    """The sixth ASAv run forwarded nothing, and was torn down before anyone could look: its counters are kept."""
+    lines = tier3.VENDORS["asav"].diagnose()
+    assert lines[0] == "terminal pager 0" and lines[-1] == "exit"
+    assert "show interface ip brief" in lines and "show asp drop" in lines and "show access-list" in lines
+    assert "packet-tracer input inside tcp 10.20.1.10 40000 10.20.2.10 22 detailed" in lines  # (admin-ssh passes it)
+    assert all(not v.diagnose() for name, v in tier3.VENDORS.items() if name != "asav")
+    runner = labrun.Runner(tmp_path, echo=False)
+    runner.dry_run = True
+    tier3.diagnose(runner, tier3.VENDORS["asav"], tmp_path / "id_lab", "192.0.2.4")
+    assert (tmp_path / "diagnose.commands.txt").read_text().splitlines() == lines and (tmp_path / "diagnose.txt").exists()
+
+
+_FAKE_CLI = r"""
+import sys
+sys.stdout.write("User admin logged in\r\nciscoasa# "); sys.stdout.flush()
+for line in sys.stdin:
+    line = line.strip()
+    if line == "exit":
+        sys.stdout.write("exit\r\nLogoff\r\n"); sys.stdout.flush(); break
+    if line == "hang":
+        sys.stdout.write(line + "\r\n"); sys.stdout.flush(); continue  # (no prompt after it)
+    sys.stdout.write(line + "\r\nok\r\nciscoasa(config)# "); sys.stdout.flush()
+"""
+
+
+def test_a_paced_session_types_each_line_after_its_prompt(tmp_path: Path) -> None:
+    """The sixth ASAv run: given all its lines ahead, the ASA closed the session after one letter; typed one at a time,
+    each after the prompt, every line is answered."""
+    runner = labrun.Runner(tmp_path, echo=False)
+    out = runner.run_paced([sys.executable, "-c", _FAKE_CLI], ["configure terminal", "interface Gi0/0", "exit"], r"[>#] ?$", step=10)
+    assert out.count("ok") == 2 and "Logoff" in out and "interface Gi0/0" in out
+    with pytest.raises(labrun.LabError, match="prompt did not come back.*'exit'"):
+        runner.run_paced([sys.executable, "-c", _FAKE_CLI], ["hang", "exit"], r"[>#] ?$", step=1)
+    with pytest.raises(labrun.LabError, match="ended before the prompt"):
+        runner.run_paced([sys.executable, "-c", "print('U')"], ["terminal pager 0"], r"[>#] ?$", step=5)
+
+
+def test_a_session_that_answers_almost_nothing_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The sixth ASAv run: the load session wrote "U", refused no line, and the run went on with nothing configured."""
+    runner = labrun.Runner(tmp_path, echo=False)
+    monkeypatch.setattr(runner, "run_paced", lambda *args, **kwargs: "U")
+    with pytest.raises(labrun.LabError, match="answered almost nothing"):
+        tier3.session(runner, tmp_path / "id_lab", "admin", "192.0.2.4", ["terminal pager 0"], "ERROR:", "load", prompt=r"[>#] ?$")
+    assert tier3.VENDORS["asav"].prompt and all(not v.prompt for name, v in tier3.VENDORS.items() if name != "asav")
+
+
+def test_the_asav_interface_names_are_read_from_the_firewall() -> None:
+    """The seventh ASAv run: on a c5 instance there was no GigabitEthernet0/0 ("Invalid input" for every interface line)."""
+    answer = """ciscoasa# show interface ip brief
+Interface                  IP-Address      OK? Method Status                Protocol
+Management0/0              10.20.0.20      YES DHCP   up                    up
+TenGigabitEthernet0/0      unassigned      YES unset  administratively down up
+TenGigabitEthernet0/1      unassigned      YES unset  administratively down up
+TenGigabitEthernet0/2      unassigned      YES unset  administratively down up
+ciscoasa# exit"""
+    ports = tier3.asa_data_ports(answer)
+    assert ports == ["TenGigabitEthernet0/0", "TenGigabitEthernet0/1", "TenGigabitEthernet0/2"]
+    lines = tier3.fill_ports(tier3.VENDORS["asav"].session(_asa_policy()), ports)
+    assert "interface TenGigabitEthernet0/0" in lines and " nameif inside" in lines and not any("{port" in line for line in lines)
+    with pytest.raises(labrun.LabError, match="data interfaces"):
+        tier3.fill_ports(["interface {port3}"], ports[:2])
+
+
+def _asa_policy() -> Path:
+    import tempfile
+    path = Path(tempfile.mkdtemp()) / "policy.asa"
+    path.write_text("! a comment\naccess-list a extended permit ip any any\naccess-group a global\nend\n", encoding="utf-8")
+    return path
+
+
+def test_a_session_that_ends_early_names_the_refused_lines(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The seventh ASAv run ended at an `exit` that left config mode; the reason was the refused lines before it."""
+    runner = labrun.Runner(tmp_path, echo=False)
+    said = "ciscoasa(config)# interface GigabitEthernet0/0\n ^\nERROR: % Invalid input detected at '^' marker.\nciscoasa# exit\nLogoff\n"
+
+    def ended(*args: object, **kwargs: object) -> str:
+        raise labrun.SessionEnded("ssh ended before the prompt came back", said)
+
+    monkeypatch.setattr(runner, "run_paced", ended)
+    with pytest.raises(labrun.LabError, match=r"refused 1 lines.*Invalid input.*ended early"):
+        tier3.session(runner, tmp_path / "id_lab", "admin", "192.0.2.4", ["interface x"], r"ERROR:", "load", prompt=r"[>#] ?$")
+    assert "Invalid input" in (tmp_path / "load.txt").read_text()

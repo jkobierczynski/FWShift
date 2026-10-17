@@ -58,6 +58,7 @@ from ..errors import FwshiftError
 from ..netutil import FULL_V4, FULL_V6, Interval, int_to_ip, interval_text, normalize, overlaps
 from ..netutil import parse_literal, size, subtract, within
 from ..options import Options
+from ..parsers.asa import ICMP6_TYPES, ICMP_TYPES, PORTS
 from ..report import Report, Severity
 
 _PLACEHOLDER = "FWSHIFT PLACEHOLDER, matches nothing: "
@@ -68,6 +69,13 @@ _RESERVED: FrozenSet[str] = frozenset(
     {"any", "any4", "any6", "interface", "host", "object", "object-group", "pat-pool", "source", "destination",
      "service", "static", "dynamic", "inactive", "description", "unidirectional"}
 )  # fmt: skip
+# The ASA's own service objects (system-defined: "cannot modify system-defined object"): 9.24 refused `object service
+# tcp-ssh` and `tcp-http`, and took `udp-dns` and `tcp-high`. They are named by protocol and the ASA's port name (DNS is
+# "domain" to it); no list of them is published, so every such name is kept clear, also ones the ASA may not have.
+_SYSTEM_SERVICES: FrozenSet[str] = frozenset(
+    [f"{protocol}-{port}" for protocol in ("tcp", "udp", "tcp-udp", "sctp") for port in PORTS]
+    + [f"icmp-{name}" for name in ICMP_TYPES] + [f"icmp6-{name}" for name in ICMP6_TYPES]
+)
 _PROTOCOL_NAMES = {1: "icmp", 2: "igmp", 4: "ipinip", 6: "tcp", 17: "udp", 47: "gre", 50: "esp", 51: "ah", 58: "icmp6",
                    88: "eigrp", 89: "ospf", 103: "pim", 132: "sctp"}  # fmt: skip
 _NAMEIF = re.compile(r"[!-~]{1,48}")
@@ -168,8 +176,8 @@ def emit(policy: Policy, report: Report, options: Options) -> str:
         ASA_NATIVE if native else ASA,
         ASA_TEXT,
         report,
-        reserved_addresses=_RESERVED,
-        reserved_services=_RESERVED,
+        reserved_addresses=_RESERVED | _SYSTEM_SERVICES,  # (one namespace: no object of any kind may take them)
+        reserved_services=_RESERVED | _SYSTEM_SERVICES,
         one_namespace=True,
         prefix=options.object_prefix,
     )
@@ -239,7 +247,7 @@ class _Emitter:
         self.native = p.vendor == "asa"
         self.taint_a = transform.tainted_addresses(p)
         self.taint_s = transform.tainted_services(p)
-        self.names: Set[str] = set(p.addresses) | set(p.address_groups) | set(p.services) | set(p.service_groups) | _RESERVED
+        self.names: Set[str] = set(p.addresses) | set(p.address_groups) | set(p.services) | set(p.service_groups) | _RESERVED | _SYSTEM_SERVICES
         self.objects: List[str] = []  # object and object-group definitions, in the order they are needed
         self.net_kind: Dict[str, str] = {}  # name -> "object" or "object-group"
         self.svc_kind: Dict[str, str] = {}

@@ -15,12 +15,14 @@ import base64
 import ipaddress
 import json
 import os
+import re
 import secrets
 import shlex
 import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -37,6 +39,14 @@ REPO = ROOT.parent
 
 class LabError(Exception):
     pass
+
+
+class SessionEnded(LabError):
+    """A session typed line by line that stopped before its last line: with what the command line wrote till then."""
+
+    def __init__(self, message: str, output: str) -> None:
+        super().__init__(message)
+        self.output = output
 
 
 @dataclass
@@ -75,14 +85,73 @@ class Runner:
             raise
         except subprocess.TimeoutExpired:
             proc.kill()
-            proc.communicate()
-            raise LabError(f"{args[0]} did not finish within {timeout:.0f} s") from None
+            out, err = proc.communicate()  # (what it wrote before it hung: where an SSH session stopped, and at what)
+            wrote = "\n".join(part.strip()[-1500:] for part in (out or "", err or "") if part and part.strip())
+            raise LabError(f"{args[0]} did not finish within {timeout:.0f} s" + (f"; what it wrote:\n{wrote}" if wrote else "")) from None
         if err and not quiet:
             sys.stderr.write(err[-4000:])
         if check and proc.returncode != 0:
             raise LabError(f"{args[0]} failed ({proc.returncode}): {(err or out).strip()[-800:]}")
         self.last_stderr = err
         return out
+
+    def run_paced(self, args: Sequence[str], lines: Sequence[str], prompt: str, *, fake: str = "", timeout: float = 1200,
+                  step: float = 120) -> str:  # fmt: skip
+        """Types the lines one at a time, each once the command line shows its prompt again, and keeps the input open
+        until the command ends: for a CLI that drops a session given its lines ahead of its prompt (the ASA: a single
+        "U" of its greeting, and the session closed). Returns all it wrote; fails when a prompt does not come within
+        `step` seconds, or the whole within `timeout`."""
+        shown = " ".join(shlex.quote(a) for a in args) + "  (typed line by line)"
+        self.log.append(shown)
+        if self.echo:
+            sys.stderr.write("$ " + shown + "\n")
+        if self.dry_run:
+            return fake
+        proc = subprocess.Popen(list(args), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
+        chunks: List[bytes] = []
+        lock = threading.Lock()
+
+        def read() -> None:
+            assert proc.stdout is not None
+            while True:
+                data = os.read(proc.stdout.fileno(), 4096)
+                if not data:
+                    return
+                with lock:
+                    chunks.append(data)
+
+        def text() -> str:
+            with lock:
+                return b"".join(chunks).decode("utf-8", "replace")
+
+        reader = threading.Thread(target=read, daemon=True)
+        reader.start()
+        pattern, deadline, mark = re.compile(prompt), time.time() + timeout, 0
+        try:
+            assert proc.stdin is not None
+            for line in lines:
+                limit = min(deadline, time.time() + step)
+                while not pattern.search(text()[mark:]):
+                    if proc.poll() is not None:
+                        raise SessionEnded(f"{args[0]} ended before the prompt came back, before: {line!r}; what it wrote:\n{text().strip()[-1500:]}",
+                                           text())  # fmt: skip
+                    if time.time() > limit:
+                        raise SessionEnded(f"the prompt did not come back within {step:.0f} s, before: {line!r}; what it wrote:\n{text().strip()[-1500:]}",
+                                           text())  # fmt: skip
+                    time.sleep(0.1)
+                mark = len(text())
+                proc.stdin.write((line + "\n").encode("utf-8"))
+                proc.stdin.flush()
+            try:
+                proc.wait(timeout=max(1.0, min(step, deadline - time.time())))
+            except subprocess.TimeoutExpired:
+                raise LabError(f"{args[0]} did not end after the last line; what it wrote:\n{text().strip()[-1500:]}") from None
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait()
+            reader.join(timeout=5)
+        return text()
 
     def save_log(self) -> None:
         (self.work / "commands.log").write_text("\n".join(self.log) + "\n", encoding="utf-8")
@@ -159,7 +228,7 @@ def admin_cidr(given: Optional[str], runner: Runner, wide: bool = False) -> str:
     return f"{address}/32"
 
 
-def _dry_key(kind: str) -> str:
+def _dry_key(kind: str, bits: int = 4096) -> str:
     """A public key line for a dry run, where ssh-keygen does not run: in the format of a real one (so what reads it
     reads it), and plainly no key: its numbers spell out what it is. There is no private key to it."""
 
@@ -167,21 +236,22 @@ def _dry_key(kind: str) -> str:
         return len(data).to_bytes(4, "big") + data
 
     filler = b"FWShift lab dry run: not a key. "
-    if kind == "rsa":  # (type, exponent 65537, a 4096-bit modulus)
-        blob = field(b"ssh-rsa") + field(b"\x01\x00\x01") + field(b"\x00" + (filler * 16)[:512])
+    if kind == "rsa":  # (type, exponent 65537, a modulus of the size asked)
+        blob = field(b"ssh-rsa") + field(b"\x01\x00\x01") + field(b"\x00" + (filler * 32)[: bits // 8])
     else:  # (type, 32 bytes)
         blob = field(b"ssh-ed25519") + field(filler[:32])
     return f"ssh-{'rsa' if kind == 'rsa' else 'ed25519'} {base64.b64encode(blob).decode()} dry-run"
 
 
-def ssh_key(runner: Runner, kind: str = "ed25519") -> Path:
+def ssh_key(runner: Runner, kind: str = "ed25519", bits: int = 4096) -> Path:
     """A key made for the run. Azure takes only RSA keys for its VMs, and so do some firewall images: those runs ask
-    for "rsa" (4096 bits)."""
+    for "rsa" (4096 bits, unless a firewall cannot take a key that long: the ASAv reads its key from one configuration
+    line of at most 511 characters)."""
     key = runner.work / "id_lab"
-    size = ["-b", "4096"] if kind == "rsa" else []
+    size = ["-b", str(bits)] if kind == "rsa" else []
     runner.run(["ssh-keygen", "-q", "-t", kind, *size, "-N", "", "-C", runner.work.name, "-f", str(key)])
     if runner.dry_run:
-        key.with_suffix(".pub").write_text(_dry_key(kind) + "\n")
+        key.with_suffix(".pub").write_text(_dry_key(kind, bits) + "\n")
     return key
 
 
@@ -223,9 +293,11 @@ class Target:
     via: List[str]  # the command prefix that runs a command there: ssh ..., or ip netns exec NAME
 
 
-def ssh_prefix(key: Path, user: str, host: str, known: Path, port: int = 22) -> List[str]:
+def ssh_prefix(key: Path, user: str, host: str, known: Path, port: int = 22, options: Sequence[str] = ()) -> List[str]:
+    """The ssh command that reaches a host; options: more -o settings, for a host that needs them (an old host key type)."""
+    extra = [word for option in options for word in ("-o", option)]
     return ["ssh", "-i", str(key), "-p", str(port), "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o",
-            f"UserKnownHostsFile={known}", "-o", "ConnectTimeout=10", "-o", "ServerAliveInterval=15", f"{user}@{host}"]  # fmt: skip
+            f"UserKnownHostsFile={known}", "-o", "ConnectTimeout=10", "-o", "ServerAliveInterval=15", *extra, f"{user}@{host}"]  # fmt: skip
 
 
 def wait_ready(runner: Runner, targets: Sequence[Target], minutes: float = 15, probe_path: str = "/opt/fwlab/probe.py",
