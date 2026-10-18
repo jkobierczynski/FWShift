@@ -65,8 +65,8 @@ differently, including a source and its conversion read back (section 17).
 > **Status.** Version 0.36 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). AWS, Azure and Google Cloud output was loaded into a real account
-> by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1), PAN-OS output on a VM-Series (PAN-OS 11.2.15) and ASA output on an ASAv (9.24.10); the policy has no NAT. Output for Check Point,
-> Cisco IOS, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, NSX, RouterOS and Forcepoint has
+> by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1), PAN-OS output on a VM-Series (PAN-OS 11.2.15), ASA output on an ASAv (9.24.10) and Junos output on a vSRX (23.4R2-S8.9); the policy has no NAT. Output for Check Point,
+> Cisco IOS, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, NSX, RouterOS and Forcepoint has
 > not been loaded on a device or management server yet, and the Terraform output has not been applied with Terraform; the Check Point input format follows the
 > API documentation, the FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
@@ -114,8 +114,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.36.0.pyz --version
-python3 fwshift-0.36.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.36.1.pyz --version
+python3 fwshift-0.36.1.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -5251,7 +5251,8 @@ settings.
 
 ### Juniper SRX
 
-> **The commands have never been loaded on an SRX.** Their form follows
+> **The commands have been loaded on one vSRX** (Junos 23.4R2-S8.9, by the lab,
+> for its one synthetic policy, without NAT: section 10). Their form follows
 > Juniper's documentation and a published reader of Junos; the report lists
 > under `JUNOS_LOAD` what is assumed (names of up to 63 characters, `match
 > from-zone`/`to-zone` in global policies, the predefined applications).
@@ -5483,8 +5484,9 @@ deliberate: see *IPv4 and IPv6* in section 8.
 * The emitted syntax follows the vendors' documented formats. iptables and
   nftables output has been loaded into the real thing (a Linux kernel with
   iptables 1.8.10, nf_tables backend, and nft 1.0.9; filter rules, not NAT);
-  FortiOS, PAN-OS and ASA output on a FortiGate-VM (FortiOS 8.0.1), a VM-Series
-  (PAN-OS 11.2.15) and an ASAv (9.24.10), and AWS, Azure and Google Cloud
+  FortiOS, PAN-OS, ASA and Junos output on a FortiGate-VM (FortiOS 8.0.1), a
+  VM-Series (PAN-OS 11.2.15), an ASAv (9.24.10) and a vSRX (Junos 23.4R2-S8.9),
+  and AWS, Azure and Google Cloud
   output into real accounts, by the lab, for one synthetic policy with no NAT
   (section 10). Nothing has been validated on Sophos, pfSense, OPNsense or
   MikroTik devices, a Check Point management server, a Cisco Secure Firewall
@@ -5665,7 +5667,7 @@ deliberate: see *IPv4 and IPv6* in section 8.
   categories, schedulers, policy-based VPN, the zone `junos-host`, routing
   instances in NAT, wildcard addresses, predefined applications FWShift does
   not know. Written: set commands for the global address book, applications,
-  policies and NAT. Nothing has been loaded on an SRX.
+  policies and NAT. Loaded on one vSRX (23.4R2-S8.9) by the lab, without NAT.
 * pfSense: 2.6 and later. Schedules, URL table
   aliases, policy routing, tags, limiters and shaping, match rules, IPv6 NAT,
   NPt, bogon networks, the captive portal, bridges and the rules of packages

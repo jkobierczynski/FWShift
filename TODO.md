@@ -336,8 +336,8 @@ back and compared with the source): items 1, 2, 5 and 10 of the list before.
 The lab (`lab/`, 0.32.0; the clouds first run in 0.32.1) scripts much of what follows: AWS, Azure and Google Cloud networks (tier 1), nftables,
 iptables, RouterOS, OPNsense and pfSense on a local host (tier 2), and FortiGate, VM-Series, vSRX, Catalyst 8000V and
 ASAv from the AWS Marketplace (tier 3), each loaded with the converted lab policy and checked with real connections.
-nftables and iptables run in the test suite; AWS, Azure and Google Cloud have run in real accounts, and the FortiGate of
-tier 3 and the VM-Series (0.32.1). Still open there:
+nftables and iptables run in the test suite; AWS, Azure and Google Cloud have run in real accounts, and of tier 3 the
+FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1). Still open there:
 
 * the first real run of each of the others, and correcting what it finds (the Marketplace image names, the logins,
   the reload commands of OPNsense and pfSense);
@@ -349,7 +349,9 @@ tier 3 and the VM-Series (0.32.1). Still open there:
 
 1. Load `tests/data/expected/fortios_to_panos.set` on a PAN-OS VM,
    `panos_to_fortios.conf` on a FortiGate VM and `panos_to_asa.cfg` on an
-   ASAv; record what each CLI rejects and correct the emitters. Work through
+   ASAv; record what each CLI rejects and correct the emitters (0.36.1: the
+   lab policy passed on an ASAv 9.24.10, and found the names of its own service
+   objects; `panos_to_asa.cfg`, with NAT, not loaded yet). Work through
    the assumptions table of DEVELOPMENT.md. Compare `asa_sample.cfg` and the
    FTD text in `test_asa.py` with what real devices print.
 2. Import `tests/data/expected/panos_to_sophos.xml` (as a `.tar`) on a Sophos
@@ -392,7 +394,8 @@ tier 3 and the VM-Series (0.32.1). Still open there:
    `panos_to_junos.set.conf` and `junos_to_junos.set.conf` with `load set`,
    `commit check`, and compare `show security policies` and `show security
    nat` with the model; check names of 63 characters, `match from-zone` in
-   global policies, and the order of NAT rule sets of one context.
+   global policies, and the order of NAT rule sets of one context. (0.36.1:
+   the lab policy passed on a vSRX 23.4R2-S8.9; the rest is still open.)
 9. Cisco Secure Firewall, on a Management Center and an FTD device in a lab:
    fetch a policy with the calls of the manual and compare the answers with
    `fmc_sample.json` (above all: how a policy says that it inherits, whether

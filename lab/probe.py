@@ -152,21 +152,28 @@ def try_udp(source, destination, port, timeout, tries=2):
         sock.close()
 
 
+# Echo requests per ICMP flow: one reply is enough. One request lost on the way (the vSRX's first run that forwarded:
+# one of 128 flows, a ping, blocked, while the TCP and UDP flows of the host passed) is not a block; a firewall that
+# blocks drops both. UDP has two tries as well, TCP the kernel's own.
+ECHOES = 2
+
+
 def ping_command(source, destination, timeout, platform=None):
-    """One echo request from source, as the ping of this system takes it."""
+    """Echo requests from source, as the ping of this system takes them; it exits 0 when one is answered."""
     platform = platform or sys.platform
+    count = str(ECHOES)
     if platform.startswith("win"):
-        return ["ping", "-n", "1", "-w", str(max(1, int(timeout * 1000))), "-S", source, destination]
+        return ["ping", "-n", count, "-w", str(max(1, int(timeout * 1000))), "-S", source, destination]
     if platform.startswith(("darwin", "freebsd", "openbsd", "netbsd")):  # (-W in milliseconds there, -S the source)
-        return ["ping", "-n", "-c", "1", "-W", str(max(1, int(timeout * 1000))), "-S", source, destination]
-    return ["ping", "-n", "-c", "1", "-W", str(max(1, int(timeout))), "-I", source, destination]
+        return ["ping", "-n", "-c", count, "-W", str(max(1, int(timeout * 1000))), "-S", source, destination]
+    return ["ping", "-n", "-c", count, "-W", str(max(1, int(timeout))), "-I", source, destination]
 
 
 def try_icmp(source, destination, timeout):
     windows = sys.platform.startswith("win")
     try:
         done = subprocess.run(ping_command(source, destination, timeout), stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                              timeout=timeout + 5)  # fmt: skip
+                              timeout=timeout + ECHOES + 5)  # fmt: skip  (a second apart)
     except (OSError, subprocess.TimeoutExpired):
         return "error"
     if windows:

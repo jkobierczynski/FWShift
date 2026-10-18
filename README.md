@@ -69,11 +69,11 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   for one synthetic policy: AWS security groups and Azure NSGs decided all 160 test connections between real
 >   instances as the source does (or as the report announced); on Google Cloud the 32 connections inside a zone
 >   differed, as announced, until 0.32.1 wrote them: then all 160 passed.
-> * **FortiOS**, **PAN-OS** and **Cisco ASA** output was loaded on a real FortiGate-VM (FortiOS 8.0.1), VM-Series
->   (PAN-OS 11.2.15) and ASAv (9.24.10), the AWS Marketplace images, by the lab, for the same policy: all 128 connections
->   through each as the source decides. The policy has security rules and no NAT: NAT is not checked on a device.
+> * **FortiOS**, **PAN-OS**, **Cisco ASA** and **Juniper SRX** output was loaded on a real FortiGate-VM (FortiOS 8.0.1),
+>   VM-Series (PAN-OS 11.2.15), ASAv (9.24.10) and vSRX (Junos 23.4R2-S8.9), the AWS Marketplace images, by the lab,
+>   for the same policy: all 128 connections through each as the source decides. The policy has security rules and no NAT: NAT is not checked on a device.
 > * **Check Point, Cisco IOS, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall,
->   Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper SRX, VMware NSX, RouterOS and Forcepoint** output has **not been loaded on a
+>   Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, VMware NSX, RouterOS and Forcepoint** output has **not been loaded on a
 >   device or management server**, and the **Terraform** output has not been applied with Terraform. The Check Point input format is taken from the API
 >   documentation, not from a real export, the FTD syntax from Cisco's
 >   command references, and the Sophos format from the documentation of its
@@ -93,7 +93,7 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   published readers of the format agree on. The REST API of a Barracuda
 >   CloudGen Firewall is documented by examples only, and so is what FWShift
 >   reads and writes of it. Junos is taken from Juniper's documentation and the
->   grammar of a published reader of it. The NSX Policy API is taken from
+>   grammar of a published reader of it (its output now also loaded on a vSRX). The NSX Policy API is taken from
 >   VMware's API reference and the schema of its Python SDK and Terraform
 >   provider; AWS from the service model of the AWS CLI (botocore) and the EC2
 >   documentation; Azure from Microsoft's REST API specifications, the Azure
@@ -189,8 +189,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.36.0.pyz --version
-python3 fwshift-0.36.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.36.1.pyz --version
+python3 fwshift-0.36.1.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start

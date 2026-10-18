@@ -210,6 +210,16 @@ def _asav_session(out: Path) -> List[str]:
     return ["terminal pager 0", "configure terminal", *base, *_lines(out, "!", drop_end=True), "end", "exit"]
 
 
+# All three data interfaces listed (an interface line, not the command typed: a digit after ge-0/0/).
+_VSRX_READY = r"(?sm)(?=.*^ge-0/0/0\s)(?=.*^ge-0/0/1\s)(?=.*^ge-0/0/2\s)"
+
+
+def _vsrx_diagnose() -> List[str]:
+    """The vSRX's interfaces, zones, routes, policy hits and sessions, and the configuration as it stands."""
+    return ["set cli screen-length 0", "show interfaces terse", "show security zones", "show route", "show security policies", "show security policies hit-count",
+            "show security flow session summary", "show configuration | display set", "exit"]  # fmt: skip
+
+
 def _asav_diagnose() -> List[str]:
     """The ASA's interfaces, routes, rule hits and drops, and two flows the policy passes as the ASA traces them."""
     host = {zone: labplan.ZONES[zone].replace(".0/24", ".10") for zone in ("inside", "dmz", "outside")}
@@ -230,16 +240,21 @@ VENDORS: Dict[str, Vendor] = {
                     r"Invalid syntax|Server error|Commit failed|Validation Error|is not a valid reference|Unknown command", [], "", _panos_session,
                     ready_answer=r"\byes\b", success=r"Configuration committed successfully",
                     product_codes=("e9yfvyj3uag5uo5j2hjikv74n",), prepare=_panos_prepare, status="run: passed (PAN-OS 11.2.15, 0.32.1)"),  # fmt: skip  (PAYG Bundle 1; Bundle 2 is hd44w1chf26uv4p52cdynb2o, by --ami)
-    "vsrx": Vendor("vsrx", "Juniper vSRX (pay as you go)", "junos", "junos-vsrx3-x86-64-*", "c5.xlarge", "ec2-user", "show version",
-                   r"syntax error|^error:|\nerror:|missing mandatory|unknown command", [], "", _vsrx_session, ready_answer=r"Junos:",
-                   success=r"commit complete"),
+    # Ready once the data interfaces exist: the CLI answers minutes before the forwarding engine makes them (the second
+    # vSRX run loaded and probed 10 seconds after `show version` answered, and found no ge-0/0/x). (`| no-more`: the
+    # first run stopped at the pager's ---(more)---, which took the `exit` after it for a filter, and every try hung.)
+    "vsrx": Vendor("vsrx", "Juniper vSRX (pay as you go)", "junos", "junos-vsrx3-x86-64-*", "c5.xlarge", "ec2-user",
+                   "show interfaces terse | match ge-0/0 | no-more", r"syntax error|^error:|\nerror:|missing mandatory|unknown command", [], "",
+                   _vsrx_session, ready_answer=_VSRX_READY,
+                   success=r"commit complete", diagnose=_vsrx_diagnose,
+                   status="run: passed (vSRX 23.4R2-S8.9, appsec PAYG, 0.36.1)"),
     "c8000v": Vendor("c8000v", "Cisco Catalyst 8000V, IOS XE (pay as you go)", "ios", "Cisco-C8K-*", "c5.xlarge", "ec2-user",
                      "show version | include uptime", r"% Invalid input|% Incomplete command|% Ambiguous command|% Unknown command",
                      [x for p, i in (("ethernet1/2", "GigabitEthernet2"), ("ethernet1/3", "GigabitEthernet3"), ("ethernet1/1", "GigabitEthernet4"))
                       for x in ("--interface-map", f"{p}={i}")], "", _c8000v_session, ready_answer=r"uptime"),  # fmt: skip
     "asav": Vendor("asav", "Cisco ASAv (pay as you go)", "asa", "asav*", "c5.xlarge", "admin", "show version | include up",
                    r"ERROR:|% Invalid input|% Incomplete command", list(_ZONE_NETWORKS), _asav_user_data(), _asav_session,
-                   "run: passed (ASAv 9.24.10, 0.36.0 with the fixes after it)",
+                   "run: passed (ASAv 9.24.10, 0.36.1)",
                    ready_answer=r" up ", key_bits=2048, ssh_options=("HostKeyAlgorithms=+ssh-rsa", "PubkeyAcceptedAlgorithms=+ssh-rsa"),
                    diagnose=_asav_diagnose, prompt=r"[>#] ?$", ports_command="show interface ip brief"),
 }
