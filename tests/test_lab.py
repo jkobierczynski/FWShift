@@ -152,9 +152,9 @@ def test_the_probe_pings() -> None:
 
 
 def test_the_probe_speaks_each_systems_ping_and_errors() -> None:
-    assert labprobe.ping_command("10.20.1.10", "10.20.2.10", 3, "linux") == ["ping", "-n", "-c", "1", "-W", "3", "-I", "10.20.1.10", "10.20.2.10"]
-    assert labprobe.ping_command("10.20.1.10", "10.20.2.10", 3, "darwin") == ["ping", "-n", "-c", "1", "-W", "3000", "-S", "10.20.1.10", "10.20.2.10"]
-    assert labprobe.ping_command("10.20.1.10", "10.20.2.10", 3, "win32") == ["ping", "-n", "1", "-w", "3000", "-S", "10.20.1.10", "10.20.2.10"]
+    assert labprobe.ping_command("10.20.1.10", "10.20.2.10", 3, "linux") == ["ping", "-n", "-c", "2", "-W", "3", "-I", "10.20.1.10", "10.20.2.10"]
+    assert labprobe.ping_command("10.20.1.10", "10.20.2.10", 3, "darwin") == ["ping", "-n", "-c", "2", "-W", "3000", "-S", "10.20.1.10", "10.20.2.10"]
+    assert labprobe.ping_command("10.20.1.10", "10.20.2.10", 3, "win32") == ["ping", "-n", "2", "-w", "3000", "-S", "10.20.1.10", "10.20.2.10"]
     # A port unreachable answering UDP: ECONNREFUSED on Linux, WSAECONNRESET on Windows; host unreachable on any system.
     assert labprobe._udp_rejected(ConnectionRefusedError(errno.ECONNREFUSED, "refused"))
     assert labprobe._udp_rejected(ConnectionResetError(10054, "reset"))
@@ -566,7 +566,8 @@ def test_the_asav_run_keeps_the_firewalls_own_view_after_the_probes(tmp_path: Pa
     assert lines[0] == "terminal pager 0" and lines[-1] == "exit"
     assert "show interface ip brief" in lines and "show asp drop" in lines and "show access-list" in lines
     assert "packet-tracer input inside tcp 10.20.1.10 40000 10.20.2.10 22 detailed" in lines  # (admin-ssh passes it)
-    assert all(not v.diagnose() for name, v in tier3.VENDORS.items() if name != "asav")
+    assert all(not v.diagnose() for name, v in tier3.VENDORS.items() if name not in ("asav", "vsrx"))
+    assert "show security policies hit-count" in tier3.VENDORS["vsrx"].diagnose()
     runner = labrun.Runner(tmp_path, echo=False)
     runner.dry_run = True
     tier3.diagnose(runner, tier3.VENDORS["asav"], tmp_path / "id_lab", "192.0.2.4")
@@ -643,3 +644,23 @@ def test_a_session_that_ends_early_names_the_refused_lines(tmp_path: Path, monke
     with pytest.raises(labrun.LabError, match=r"refused 1 lines.*Invalid input.*ended early"):
         tier3.session(runner, tmp_path / "id_lab", "admin", "192.0.2.4", ["interface x"], r"ERROR:", "load", prompt=r"[>#] ?$")
     assert "Invalid input" in (tmp_path / "load.txt").read_text()
+
+
+def test_no_ready_check_stops_at_a_pager() -> None:
+    """The first vSRX run: `show version` stopped at ---(more)---, which took the `exit` after it for a filter; every
+    try hung until the boot time ran out. A ready check whose answer is long turns the pager off."""
+    assert tier3.VENDORS["vsrx"].ready.endswith("| no-more")
+    for name, vendor in tier3.VENDORS.items():
+        assert "|" in vendor.ready or name in ("fortigate", "panos"), (name, vendor.ready)
+
+
+def test_the_vsrx_is_ready_once_its_data_interfaces_exist() -> None:
+    """The second vSRX run: `show version` answered, the policy was committed and the probes ran within 30 seconds, and
+    the forwarding engine had made no ge-0/0/x yet; nothing passed. Ready means all three data interfaces listed."""
+    vendor = tier3.VENDORS["vsrx"]
+    typed = "ec2-user> show interfaces terse | match ge-0/0 | no-more \r\n"
+    two = typed + "ge-0/0/0                up    up\r\nge-0/0/0.0              up    up   inet\r\nge-0/0/1                up    up\r\n"
+    three = two + "ge-0/0/2                up    up\r\nec2-user> exit\r\n"
+    assert not re.search(vendor.ready_answer, typed + "\r\nec2-user> exit\r\n")
+    assert not re.search(vendor.ready_answer, two) and re.search(vendor.ready_answer, three)
+    assert vendor.ready.endswith("| no-more")

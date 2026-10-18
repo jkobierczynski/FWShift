@@ -173,7 +173,7 @@ booting.
 |---|---|---|---|
 | FortiGate-VM (PAYG) | `fortios`, zones mapped to port2-4 | port2, port3, port4 | `admin`, the run's key; addresses from the user data |
 | Palo Alto VM-Series (PAYG Bundle 1, chosen by its product code: BYOL and the bundles share their name; Bundle 2 by `--ami`) | `panos` | ethernet1/1-1/3 (the example of older images deleted first, in a session whose answers do not count) | `admin` |
-| Juniper vSRX (PAYG) | `junos` | ge-0/0/0-2 (the default zones are deleted first) | `ec2-user` |
+| Juniper vSRX (PAYG) | `junos` | ge-0/0/0-2 (the default zones are deleted first); ready once the forwarding engine has made them | `ec2-user` |
 | Cisco Catalyst 8000V (IOS XE) | `ios`, interfaces mapped to Gi2-4 | GigabitEthernet2-4, zone members from the output's comments | `ec2-user` |
 | Cisco ASAv | `asa` | the three data interfaces, by the names the ASAv gives them (read with `show interface ip brief`; on c5 not GigabitEthernet0/0-0/2), `inspect icmp` added; a Day 0 configuration turns on SSH on Management0/0 with the run's key (RSA 2048: the ASA's lines hold 511 characters); ssh allows its `ssh-rsa` host key | `admin` (privileged at login, by the Day 0 configuration, which also sets an enable password made for the run: `enable_password.txt` in the work folder) |
 
@@ -208,7 +208,9 @@ Terraform state (to destroy by hand if even that failed) and without the run's p
   the own subnet (on the link, where Google Cloud only delivers through the gateway). With that routed through the
   gateway, Google Cloud passed with all 160 flows as the source decides. Tier 3: the FortiGate-VM (PAYG, FortiOS
   8.0.1) and the VM-Series (PAYG Bundle 1, PAN-OS 11.2.15) took every line of the converted policy and passed with 128
-  flows through each as the source decides. `nftables` and `iptables` of
+  flows through each as the source decides; so did the ASAv (PAYG, 9.24.10, 0.36.1), on its ninth run, and the
+  vSRX (PAYG, the appsec bundle, Junos 23.4R2-S8.9, 0.36.1), on its fourth: the runs before them found what each
+  needs of the lab (DEVELOPMENT.md, 0.36.1). `nftables` and `iptables` of
   tier 2 also passed on the author's own Debian.
 * **Verified**: `nftables` and `iptables` of tier 2, for real: the converted policy in a network namespace, 128 flows
   through the kernel all as the source decides and 32 local ones; a ruleset that lets everything through fails the run;
@@ -216,6 +218,6 @@ Terraform state (to destroy by hand if even that failed) and without the run's p
   host allows). Every other run is made dry in the tests and in the
   workflow: the conversion, the plan, the order of the commands, the variables against the Terraform modules, the
   first-boot script (`sh -n`), the merging of pfSense and OPNsense areas, the CLI sessions of tier 3.
-* **Not verified**: no run of the VMs of tier 2 or of the other images of tier 3 (vSRX, Catalyst 8000V, ASAv) has been
+* **Not verified**: no run of the VMs of tier 2 or of the other image of tier 3 (Catalyst 8000V) has been
   made, nor a run of the workflow in GitHub. Their image names, logins and first boot, and the reload
   commands of OPNsense and pfSense, are taken from documentation. The first real run of each will find what is wrong.
