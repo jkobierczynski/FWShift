@@ -16,7 +16,7 @@ Everything a run makes is destroyed at the end, also when a step fails.
 |---|---|---|---|---|
 | 1 | the cloud's own firewall, no image | `aws` (security groups), `azure` (NSGs), `gcp` (network firewall policy) | an account, Terraform or OpenTofu, the cloud's CLI | five small test hosts for the length of a run |
 | 2 | images that are free, on your own Linux host | `nftables`, `iptables` (the kernel, no image), `routeros`, `opnsense`, `pfsense` (KVM) | root; QEMU/KVM and a base image for the last three | nothing |
-| 3 | AWS Marketplace images, pay per hour | `fortigate`, `panos`, `vsrx`, `c8000v`, `asav` | an AWS account subscribed to the image | the image's hourly price and five small test hosts |
+| 3 | AWS Marketplace images, pay per hour | `fortigate`, `panos`, `vsrx`, `c8000v`, `asav`, `checkpoint` | an AWS account subscribed to the image | the image's hourly price and five small test hosts |
 
 `python3 lab/lab.py list` shows the same, with the images of tier 3 that are not scripted and why.
 
@@ -176,8 +176,9 @@ booting.
 | Juniper vSRX (PAYG) | `junos` | ge-0/0/0-2 (the default zones are deleted first); ready once the forwarding engine has made them | `ec2-user` |
 | Cisco Catalyst 8000V (IOS XE) | `ios`, interfaces mapped to Gi2-4 | GigabitEthernet2-4, zone members from the output's comments | `ec2-user` |
 | Cisco ASAv | `asa` | the three data interfaces, by the names the ASAv gives them (read with `show interface ip brief`; on c5 not GigabitEthernet0/0-0/2), `inspect icmp` added; a Day 0 configuration turns on SSH on Management0/0 with the run's key (RSA 2048: the ASA's lines hold 511 characters); ssh allows its `ssh-rsa` host key | `admin` (privileged at login, by the Day 0 configuration, which also sets an enable password made for the run: `enable_password.txt` in the work folder) |
+| Check Point All-In-One (PAYG: gateway and management on one instance; `--ami`, which Check Point's templates find by no name; m5.xlarge, 16 GB for the management API) | `checkpoint` | eth1-eth3, addresses set with `clish`; one `set simple-gateway` names every interface (eth0 too: it replaces the list), each data interface in its security zone, anti-spoofing off | `admin`, the run's key; bash, by the first-time setup (the image's `/etc/cloud_config.py`, as Check Point's Terraform module for a standalone calls it); ready when `api status` says the API is; FWShift's `mgmt_cli` script and the lab's `fwlab_load.sh` are copied over and run, then publish and install of `Standard`; boot allowed 60 minutes |
 
-Not scripted, with the reason, in `python3 lab/lab.py list`: Check Point, SonicWall, Stormshield, Sophos, Barracuda,
+Not scripted, with the reason, in `python3 lab/lab.py list`: SonicWall, Stormshield, Sophos, Barracuda,
 WatchGuard, Forcepoint, Meraki.
 
 ## In GitHub Actions
@@ -218,6 +219,8 @@ Terraform state (to destroy by hand if even that failed) and without the run's p
   host allows). Every other run is made dry in the tests and in the
   workflow: the conversion, the plan, the order of the commands, the variables against the Terraform modules, the
   first-boot script (`sh -n`), the merging of pfSense and OPNsense areas, the CLI sessions of tier 3.
-* **Not verified**: no run of the VMs of tier 2 or of the other image of tier 3 (Catalyst 8000V) has been
+* **Not verified**: no run of the VMs of tier 2 or of the other images of tier 3 (Catalyst 8000V, Check Point) has been
   made, nor a run of the workflow in GitHub. Their image names, logins and first boot, and the reload
   commands of OPNsense and pfSense, are taken from documentation. The first real run of each will find what is wrong.
+  The Check Point script itself (FWShift's output for the lab policy) was loaded by hand on an R82.20 management
+  server, published and verified; `fwlab_load.sh`, the interfaces and the install are what the first run will test.

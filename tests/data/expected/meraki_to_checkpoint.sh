@@ -30,60 +30,60 @@ m() {
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }
 
 # Network objects
-m add host name eng-ws ip-address 10.10.10.50
-m add host name plc-1 ip-address 172.16.40.11
-m add host name plc-2 ip-address 172.16.40.12
-m add dns-domain name .updates.example.com is-sub-domain false
-m add network name n-10.10.10.0_24 subnet 10.10.10.0 mask-length 24
-m add network name n-2001_db8_10___64 subnet 2001:db8:10:: mask-length 64
-m add group name zone_vlan10-office members.1 n-10.10.10.0_24 members.2 n-2001_db8_10___64 comments 'the networks of VLAN 10'
-m add network name n-10.10.20.0_24 subnet 10.10.20.0 mask-length 24
-m add group name zone_vlan20-servers members.1 n-10.10.20.0_24 comments 'the networks of VLAN 20'
-m add network name n-10.10.30.0_24 subnet 10.10.30.0 mask-length 24
-m add network name n-172.16.40.0_24 subnet 172.16.40.0 mask-length 24
-m add group name zone_vlan30-ot-cell members.1 n-10.10.30.0_24 members.2 n-172.16.40.0_24 comments 'the networks of VLAN 30'
-m add address-range name r-0.0.0.0-10.10.9.255 ip-address-first 0.0.0.0 ip-address-last 10.10.9.255
-m add address-range name r-10.10.11.0-10.10.19.255 ip-address-first 10.10.11.0 ip-address-last 10.10.19.255
-m add address-range name r-10.10.21.0-10.10.29.255 ip-address-first 10.10.21.0 ip-address-last 10.10.29.255
-m add address-range name r-10.10.31.0-172.16.39.255 ip-address-first 10.10.31.0 ip-address-last 172.16.39.255
-m add address-range name r-172.16.41.0-255.255.255.255 ip-address-first 172.16.41.0 ip-address-last 255.255.255.255
-m add address-range name r-__-2001_db8_f_ffff_ffff_ffff_ffff_ffff ip-address-first :: ip-address-last 2001:db8:f:ffff:ffff:ffff:ffff:ffff
-m add address-range name r-2001_db8_10_1__-ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff ip-address-first 2001:db8:10:1:: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
-m add group name zone_internet members.1 r-0.0.0.0-10.10.9.255 members.2 r-10.10.11.0-10.10.19.255 members.3 r-10.10.21.0-10.10.29.255 members.4 r-10.10.31.0-172.16.39.255 members.5 r-172.16.41.0-255.255.255.255 members.6 r-__-2001_db8_f_ffff_ffff_ffff_ffff_ffff members.7 r-2001_db8_10_1__-ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff comments 'the addresses of no VLAN'
-m add group name plcs members.1 plc-1 members.2 plc-2
-m add group name VLAN_10_ members.1 n-10.10.10.0_24 members.2 n-2001_db8_10___64
-m add group name VLAN_30_ members.1 n-10.10.30.0_24
-m add group name VLAN_20_ members.1 n-10.10.20.0_24
+m add host name eng-ws ip-address 10.10.10.50 ignore-warnings true
+m add host name plc-1 ip-address 172.16.40.11 ignore-warnings true
+m add host name plc-2 ip-address 172.16.40.12 ignore-warnings true
+m add dns-domain name .updates.example.com is-sub-domain false ignore-warnings true
+m add network name n-10.10.10.0_24 subnet 10.10.10.0 mask-length 24 ignore-warnings true
+m add network name n-2001_db8_10___64 subnet 2001:db8:10:: mask-length 64 ignore-warnings true
+m add group name zone_vlan10-office members.1 n-10.10.10.0_24 members.2 n-2001_db8_10___64 comments 'the networks of VLAN 10' ignore-warnings true
+m add network name n-10.10.20.0_24 subnet 10.10.20.0 mask-length 24 ignore-warnings true
+m add group name zone_vlan20-servers members.1 n-10.10.20.0_24 comments 'the networks of VLAN 20' ignore-warnings true
+m add network name n-10.10.30.0_24 subnet 10.10.30.0 mask-length 24 ignore-warnings true
+m add network name n-172.16.40.0_24 subnet 172.16.40.0 mask-length 24 ignore-warnings true
+m add group name zone_vlan30-ot-cell members.1 n-10.10.30.0_24 members.2 n-172.16.40.0_24 comments 'the networks of VLAN 30' ignore-warnings true
+m add address-range name r-0.0.0.0-10.10.9.255 ip-address-first 0.0.0.0 ip-address-last 10.10.9.255 ignore-warnings true
+m add address-range name r-10.10.11.0-10.10.19.255 ip-address-first 10.10.11.0 ip-address-last 10.10.19.255 ignore-warnings true
+m add address-range name r-10.10.21.0-10.10.29.255 ip-address-first 10.10.21.0 ip-address-last 10.10.29.255 ignore-warnings true
+m add address-range name r-10.10.31.0-172.16.39.255 ip-address-first 10.10.31.0 ip-address-last 172.16.39.255 ignore-warnings true
+m add address-range name r-172.16.41.0-255.255.255.255 ip-address-first 172.16.41.0 ip-address-last 255.255.255.255 ignore-warnings true
+m add address-range name r-__-2001_db8_f_ffff_ffff_ffff_ffff_ffff ip-address-first :: ip-address-last 2001:db8:f:ffff:ffff:ffff:ffff:ffff ignore-warnings true
+m add address-range name r-2001_db8_10_1__-ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff ip-address-first 2001:db8:10:1:: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ignore-warnings true
+m add group name zone_internet members.1 r-0.0.0.0-10.10.9.255 members.2 r-10.10.11.0-10.10.19.255 members.3 r-10.10.21.0-10.10.29.255 members.4 r-10.10.31.0-172.16.39.255 members.5 r-172.16.41.0-255.255.255.255 members.6 r-__-2001_db8_f_ffff_ffff_ffff_ffff_ffff members.7 r-2001_db8_10_1__-ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff comments 'the addresses of no VLAN' ignore-warnings true
+m add group name plcs members.1 plc-1 members.2 plc-2 ignore-warnings true
+m add group name VLAN_10_ members.1 n-10.10.10.0_24 members.2 n-2001_db8_10___64 ignore-warnings true
+m add group name VLAN_30_ members.1 n-10.10.30.0_24 ignore-warnings true
+m add group name VLAN_20_ members.1 n-10.10.20.0_24 ignore-warnings true
 
 # Services
-m add service-tcp name tcp_23 port 23 match-for-any false
-m add service-udp name udp_23 port 23 match-for-any false
-m add service-tcp name tcp_80_443-tcp80 port 80 match-for-any false
-m add service-tcp name tcp_80_443-tcp443 port 443 match-for-any false
-m add service-group name tcp_80_443 members.1 tcp_80_443-tcp80 members.2 tcp_80_443-tcp443
-m add service-tcp name tcp_4840 port 4840 match-for-any false
-m add service-tcp name tcp_102 port 102 match-for-any false
-m add service-tcp name tcp_443 port 443 match-for-any false
-m add service-udp name udp_53 port 53 match-for-any false
-m add service-other name icmp ip-protocol 1 match-for-any false
-m add service-tcp name tcp_50000-50100 port 50000-50100 match-for-any false
-m add service-tcp name tcp_8443 port 8443 match-for-any false
-m add service-tcp name tcp_25 port 25 match-for-any false
-m add service-icmp name icmp_type_8 icmp-type 8
-m add service-tcp name tcp_9443 port 9443 match-for-any false
-m add network name n-198.51.100.0_24 subnet 198.51.100.0 mask-length 24
-m add host name h-10.10.20.15 ip-address 10.10.20.15
-m add host name h-10.10.20.53 ip-address 10.10.20.53
-m add host name h-10.10.20.21 ip-address 10.10.20.21
-m add host name h-203.0.113.2 ip-address 203.0.113.2
-m add host name h-203.0.113.25 ip-address 203.0.113.25
-m add network name n-192.0.2.0_24 subnet 192.0.2.0 mask-length 24
-m add host name h-192.0.2.10 ip-address 192.0.2.10
-m add host name h-203.0.113.30 ip-address 203.0.113.30
+m add service-tcp name tcp_23 port 23 match-for-any false ignore-warnings true
+m add service-udp name udp_23 port 23 match-for-any false ignore-warnings true
+m add service-tcp name tcp_80_443-tcp80 port 80 match-for-any false ignore-warnings true
+m add service-tcp name tcp_80_443-tcp443 port 443 match-for-any false ignore-warnings true
+m add service-group name tcp_80_443 members.1 tcp_80_443-tcp80 members.2 tcp_80_443-tcp443 ignore-warnings true
+m add service-tcp name tcp_4840 port 4840 match-for-any false ignore-warnings true
+m add service-tcp name tcp_102 port 102 match-for-any false ignore-warnings true
+m add service-tcp name tcp_443 port 443 match-for-any false ignore-warnings true
+m add service-udp name udp_53 port 53 match-for-any false ignore-warnings true
+m add service-other name icmp ip-protocol 1 match-for-any false ignore-warnings true
+m add service-tcp name tcp_50000-50100 port 50000-50100 match-for-any false ignore-warnings true
+m add service-tcp name tcp_8443 port 8443 match-for-any false ignore-warnings true
+m add service-tcp name tcp_25 port 25 match-for-any false ignore-warnings true
+m add service-icmp name icmp_type_8 icmp-type 8 ignore-warnings true
+m add service-tcp name tcp_9443 port 9443 match-for-any false ignore-warnings true
+m add network name n-198.51.100.0_24 subnet 198.51.100.0 mask-length 24 ignore-warnings true
+m add host name h-10.10.20.15 ip-address 10.10.20.15 ignore-warnings true
+m add host name h-10.10.20.53 ip-address 10.10.20.53 ignore-warnings true
+m add host name h-10.10.20.21 ip-address 10.10.20.21 ignore-warnings true
+m add host name h-203.0.113.2 ip-address 203.0.113.2 ignore-warnings true
+m add host name h-203.0.113.25 ip-address 203.0.113.25 ignore-warnings true
+m add network name n-192.0.2.0_24 subnet 192.0.2.0 mask-length 24 ignore-warnings true
+m add host name h-192.0.2.10 ip-address 192.0.2.10 ignore-warnings true
+m add host name h-203.0.113.30 ip-address 203.0.113.30 ignore-warnings true
 
 # Security zones
 zone vlan10-office
@@ -92,152 +92,152 @@ zone vlan30-ot-cell
 zone internet
 
 # Traffic from zone vlan10-office to zone vlan10-office
-m add access-layer name Network_vlan10-office_to_vlan10-office add-default-rule false
-m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'inside a VLAN' action Accept track.type None comments 'traffic inside one VLAN does not pass the MX'
-m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'layer 7 rule 2' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell service.1 tcp_23 service.2 udp_23 action Drop track.type None comments 'layer 7: port 23'
-m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'layer 7 rule 3' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 n-198.51.100.0_24 action Drop track.type None comments 'layer 7: ipRange 198.51.100.0/24'
-m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'office to servers web' source.1 VLAN_10_ destination.1 n-10.10.20.0_24 service.1 tcp_80_443 action Accept track.type None comments 'office to servers web'
-m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name historian source.1 h-10.10.20.15 destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 tcp_4840 action Accept track.type Log comments historian
-m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'eng ws to plc' source.1 eng-ws destination.1 plcs service.1 tcp_102 action Accept track.type Log comments 'eng ws to plc'
-m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'ot cell isolated' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 action Drop track.type Log comments 'ot cell isolated'
-m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'ot no internet' source.1 n-10.10.30.0_24 source.2 n-172.16.40.0_24 action Drop track.type Log comments 'ot no internet'
-m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'block update site' source.1 n-10.10.10.0_24 destination.1 .updates.example.com service.1 tcp_443 action Drop track.type None comments 'block update site'
-m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'dns to servers' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 h-10.10.20.53 service.1 udp_53 action Accept track.type None comments 'dns to servers'
-m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'ping servers' source.1 VLAN_10_ destination.1 VLAN_20_ service.1 icmp action Accept track.type None comments 'ping servers'
-m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'office ipv6 out' source.1 n-2001_db8_10___64 action Accept track.type None comments 'office ipv6 out'
-m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'passive ftp' source.1 n-10.10.10.0_24 destination.1 h-10.10.20.21 service.1 tcp_50000-50100 action Accept track.type None comments 'passive ftp'
-m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'bad ports' source.1 n-10.10.10.0_24 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. bad ports'
-m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'Default rule' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell action Accept track.type None comments 'the fixed default rule of the outbound table'
-m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'FWShift cleanup' action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.'
-m add access-rule layer Network position 1 name 'vlan10-office to vlan10-office' source.1 vlan10-office destination.1 vlan10-office action 'Apply Layer' inline-layer Network_vlan10-office_to_vlan10-office
+m add access-layer name Network_vlan10-office_to_vlan10-office add-default-rule false ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'inside a VLAN' source.1 Any destination.1 Any service.1 Any action Accept track.type None comments 'traffic inside one VLAN does not pass the MX' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'layer 7 rule 2' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 Any service.1 tcp_23 service.2 udp_23 action Drop track.type None comments 'layer 7: port 23' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'layer 7 rule 3' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 n-198.51.100.0_24 service.1 Any action Drop track.type None comments 'layer 7: ipRange 198.51.100.0/24' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'office to servers web' source.1 VLAN_10_ destination.1 n-10.10.20.0_24 service.1 tcp_80_443 action Accept track.type None comments 'office to servers web' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name historian source.1 h-10.10.20.15 destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 tcp_4840 action Accept track.type Log comments historian ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'eng ws to plc' source.1 eng-ws destination.1 plcs service.1 tcp_102 action Accept track.type Log comments 'eng ws to plc' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'ot cell isolated' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 Any action Drop track.type Log comments 'ot cell isolated' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'ot no internet' source.1 n-10.10.30.0_24 source.2 n-172.16.40.0_24 destination.1 Any service.1 Any action Drop track.type Log comments 'ot no internet' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'block update site' source.1 n-10.10.10.0_24 destination.1 .updates.example.com service.1 tcp_443 action Drop track.type None comments 'block update site' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'dns to servers' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 h-10.10.20.53 service.1 udp_53 action Accept track.type None comments 'dns to servers' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'ping servers' source.1 VLAN_10_ destination.1 VLAN_20_ service.1 icmp action Accept track.type None comments 'ping servers' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'office ipv6 out' source.1 n-2001_db8_10___64 destination.1 Any service.1 Any action Accept track.type None comments 'office ipv6 out' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'passive ftp' source.1 n-10.10.10.0_24 destination.1 h-10.10.20.21 service.1 tcp_50000-50100 action Accept track.type None comments 'passive ftp' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'bad ports' source.1 n-10.10.10.0_24 destination.1 Any service.1 Any action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. bad ports' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'Default rule' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 Any service.1 Any action Accept track.type None comments 'the fixed default rule of the outbound table' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_vlan10-office position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.' ignore-warnings true
+m add access-rule layer Network position 1 name 'vlan10-office to vlan10-office' source.1 vlan10-office destination.1 vlan10-office service.1 Any action 'Apply Layer' inline-layer Network_vlan10-office_to_vlan10-office ignore-warnings true
 
 # Traffic from zone vlan20-servers to zone vlan20-servers
-m add access-layer name Network_vlan20-servers_to_vlan20-servers add-default-rule false
-m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'inside a VLAN' action Accept track.type None comments 'traffic inside one VLAN does not pass the MX'
-m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'layer 7 rule 2' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell service.1 tcp_23 service.2 udp_23 action Drop track.type None comments 'layer 7: port 23'
-m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'layer 7 rule 3' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 n-198.51.100.0_24 action Drop track.type None comments 'layer 7: ipRange 198.51.100.0/24'
-m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'office to servers web' source.1 VLAN_10_ destination.1 n-10.10.20.0_24 service.1 tcp_80_443 action Accept track.type None comments 'office to servers web'
-m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name historian source.1 h-10.10.20.15 destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 tcp_4840 action Accept track.type Log comments historian
-m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'eng ws to plc' source.1 eng-ws destination.1 plcs service.1 tcp_102 action Accept track.type Log comments 'eng ws to plc'
-m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'ot cell isolated' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 action Drop track.type Log comments 'ot cell isolated'
-m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'ot no internet' source.1 n-10.10.30.0_24 source.2 n-172.16.40.0_24 action Drop track.type Log comments 'ot no internet'
-m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'block update site' source.1 n-10.10.10.0_24 destination.1 .updates.example.com service.1 tcp_443 action Drop track.type None comments 'block update site'
-m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'dns to servers' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 h-10.10.20.53 service.1 udp_53 action Accept track.type None comments 'dns to servers'
-m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'ping servers' source.1 VLAN_10_ destination.1 VLAN_20_ service.1 icmp action Accept track.type None comments 'ping servers'
-m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'office ipv6 out' source.1 n-2001_db8_10___64 action Accept track.type None comments 'office ipv6 out'
-m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'passive ftp' source.1 n-10.10.10.0_24 destination.1 h-10.10.20.21 service.1 tcp_50000-50100 action Accept track.type None comments 'passive ftp'
-m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'bad ports' source.1 n-10.10.10.0_24 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. bad ports'
-m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'Default rule' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell action Accept track.type None comments 'the fixed default rule of the outbound table'
-m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'FWShift cleanup' action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.'
-m add access-rule layer Network position 2 name 'vlan20-servers to vlan20-servers' source.1 vlan20-servers destination.1 vlan20-servers action 'Apply Layer' inline-layer Network_vlan20-servers_to_vlan20-servers
+m add access-layer name Network_vlan20-servers_to_vlan20-servers add-default-rule false ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'inside a VLAN' source.1 Any destination.1 Any service.1 Any action Accept track.type None comments 'traffic inside one VLAN does not pass the MX' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'layer 7 rule 2' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 Any service.1 tcp_23 service.2 udp_23 action Drop track.type None comments 'layer 7: port 23' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'layer 7 rule 3' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 n-198.51.100.0_24 service.1 Any action Drop track.type None comments 'layer 7: ipRange 198.51.100.0/24' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'office to servers web' source.1 VLAN_10_ destination.1 n-10.10.20.0_24 service.1 tcp_80_443 action Accept track.type None comments 'office to servers web' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name historian source.1 h-10.10.20.15 destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 tcp_4840 action Accept track.type Log comments historian ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'eng ws to plc' source.1 eng-ws destination.1 plcs service.1 tcp_102 action Accept track.type Log comments 'eng ws to plc' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'ot cell isolated' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 Any action Drop track.type Log comments 'ot cell isolated' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'ot no internet' source.1 n-10.10.30.0_24 source.2 n-172.16.40.0_24 destination.1 Any service.1 Any action Drop track.type Log comments 'ot no internet' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'block update site' source.1 n-10.10.10.0_24 destination.1 .updates.example.com service.1 tcp_443 action Drop track.type None comments 'block update site' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'dns to servers' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 h-10.10.20.53 service.1 udp_53 action Accept track.type None comments 'dns to servers' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'ping servers' source.1 VLAN_10_ destination.1 VLAN_20_ service.1 icmp action Accept track.type None comments 'ping servers' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'office ipv6 out' source.1 n-2001_db8_10___64 destination.1 Any service.1 Any action Accept track.type None comments 'office ipv6 out' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'passive ftp' source.1 n-10.10.10.0_24 destination.1 h-10.10.20.21 service.1 tcp_50000-50100 action Accept track.type None comments 'passive ftp' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'bad ports' source.1 n-10.10.10.0_24 destination.1 Any service.1 Any action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. bad ports' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'Default rule' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 Any service.1 Any action Accept track.type None comments 'the fixed default rule of the outbound table' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_vlan20-servers position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.' ignore-warnings true
+m add access-rule layer Network position 2 name 'vlan20-servers to vlan20-servers' source.1 vlan20-servers destination.1 vlan20-servers service.1 Any action 'Apply Layer' inline-layer Network_vlan20-servers_to_vlan20-servers ignore-warnings true
 
 # Traffic from zone vlan30-ot-cell to zone vlan30-ot-cell
-m add access-layer name Network_vlan30-ot-cell_to_vlan30-ot-cell add-default-rule false
-m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'inside a VLAN' action Accept track.type None comments 'traffic inside one VLAN does not pass the MX'
-m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'layer 7 rule 2' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell service.1 tcp_23 service.2 udp_23 action Drop track.type None comments 'layer 7: port 23'
-m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'layer 7 rule 3' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 n-198.51.100.0_24 action Drop track.type None comments 'layer 7: ipRange 198.51.100.0/24'
-m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'office to servers web' source.1 VLAN_10_ destination.1 n-10.10.20.0_24 service.1 tcp_80_443 action Accept track.type None comments 'office to servers web'
-m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name historian source.1 h-10.10.20.15 destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 tcp_4840 action Accept track.type Log comments historian
-m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'eng ws to plc' source.1 eng-ws destination.1 plcs service.1 tcp_102 action Accept track.type Log comments 'eng ws to plc'
-m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'ot cell isolated' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 action Drop track.type Log comments 'ot cell isolated'
-m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'ot no internet' source.1 n-10.10.30.0_24 source.2 n-172.16.40.0_24 action Drop track.type Log comments 'ot no internet'
-m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'block update site' source.1 n-10.10.10.0_24 destination.1 .updates.example.com service.1 tcp_443 action Drop track.type None comments 'block update site'
-m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'dns to servers' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 h-10.10.20.53 service.1 udp_53 action Accept track.type None comments 'dns to servers'
-m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'ping servers' source.1 VLAN_10_ destination.1 VLAN_20_ service.1 icmp action Accept track.type None comments 'ping servers'
-m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'office ipv6 out' source.1 n-2001_db8_10___64 action Accept track.type None comments 'office ipv6 out'
-m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'passive ftp' source.1 n-10.10.10.0_24 destination.1 h-10.10.20.21 service.1 tcp_50000-50100 action Accept track.type None comments 'passive ftp'
-m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'bad ports' source.1 n-10.10.10.0_24 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. bad ports'
-m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'Default rule' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell action Accept track.type None comments 'the fixed default rule of the outbound table'
-m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'FWShift cleanup' action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.'
-m add access-rule layer Network position 3 name 'vlan30-ot-cell to vlan30-ot-cell' source.1 vlan30-ot-cell destination.1 vlan30-ot-cell action 'Apply Layer' inline-layer Network_vlan30-ot-cell_to_vlan30-ot-cell
+m add access-layer name Network_vlan30-ot-cell_to_vlan30-ot-cell add-default-rule false ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'inside a VLAN' source.1 Any destination.1 Any service.1 Any action Accept track.type None comments 'traffic inside one VLAN does not pass the MX' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'layer 7 rule 2' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 Any service.1 tcp_23 service.2 udp_23 action Drop track.type None comments 'layer 7: port 23' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'layer 7 rule 3' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 n-198.51.100.0_24 service.1 Any action Drop track.type None comments 'layer 7: ipRange 198.51.100.0/24' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'office to servers web' source.1 VLAN_10_ destination.1 n-10.10.20.0_24 service.1 tcp_80_443 action Accept track.type None comments 'office to servers web' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name historian source.1 h-10.10.20.15 destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 tcp_4840 action Accept track.type Log comments historian ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'eng ws to plc' source.1 eng-ws destination.1 plcs service.1 tcp_102 action Accept track.type Log comments 'eng ws to plc' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'ot cell isolated' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 Any action Drop track.type Log comments 'ot cell isolated' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'ot no internet' source.1 n-10.10.30.0_24 source.2 n-172.16.40.0_24 destination.1 Any service.1 Any action Drop track.type Log comments 'ot no internet' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'block update site' source.1 n-10.10.10.0_24 destination.1 .updates.example.com service.1 tcp_443 action Drop track.type None comments 'block update site' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'dns to servers' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 h-10.10.20.53 service.1 udp_53 action Accept track.type None comments 'dns to servers' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'ping servers' source.1 VLAN_10_ destination.1 VLAN_20_ service.1 icmp action Accept track.type None comments 'ping servers' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'office ipv6 out' source.1 n-2001_db8_10___64 destination.1 Any service.1 Any action Accept track.type None comments 'office ipv6 out' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'passive ftp' source.1 n-10.10.10.0_24 destination.1 h-10.10.20.21 service.1 tcp_50000-50100 action Accept track.type None comments 'passive ftp' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'bad ports' source.1 n-10.10.10.0_24 destination.1 Any service.1 Any action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. bad ports' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'Default rule' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 Any service.1 Any action Accept track.type None comments 'the fixed default rule of the outbound table' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_vlan30-ot-cell position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.' ignore-warnings true
+m add access-rule layer Network position 3 name 'vlan30-ot-cell to vlan30-ot-cell' source.1 vlan30-ot-cell destination.1 vlan30-ot-cell service.1 Any action 'Apply Layer' inline-layer Network_vlan30-ot-cell_to_vlan30-ot-cell ignore-warnings true
 
 # Traffic from zone internet to zone vlan20-servers
-m add access-layer name Network_internet_to_vlan20-servers add-default-rule false
-m add access-rule layer Network_internet_to_vlan20-servers position bottom name vpn-portal source.1 n-198.51.100.0_24 destination.1 h-203.0.113.2 service.1 tcp_8443 action Accept track.type None comments 'the allowed remote addresses of a NAT rule, for the public address as it arrives'
-m add access-rule layer Network_internet_to_vlan20-servers position bottom name 'mail (1)' destination.1 h-203.0.113.25 service.1 tcp_25 action Accept track.type None comments 'the allowed remote addresses of a NAT rule, for the public address as it arrives'
-m add access-rule layer Network_internet_to_vlan20-servers position bottom name 'mail (2)' source.1 n-192.0.2.0_24 destination.1 h-203.0.113.25 service.1 icmp_type_8 action Accept track.type None comments 'the allowed remote addresses of a NAT rule, for the public address as it arrives'
-m add access-rule layer Network_internet_to_vlan20-servers position bottom name scada-view source.1 h-192.0.2.10 destination.1 h-203.0.113.30 service.1 tcp_9443 action Accept track.type None comments 'the allowed remote addresses of a NAT rule, for the public address as it arrives'
-m add access-rule layer Network_internet_to_vlan20-servers position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 4 name 'internet to vlan20-servers' source.1 internet destination.1 vlan20-servers action 'Apply Layer' inline-layer Network_internet_to_vlan20-servers
+m add access-layer name Network_internet_to_vlan20-servers add-default-rule false ignore-warnings true
+m add access-rule layer Network_internet_to_vlan20-servers position bottom name vpn-portal source.1 n-198.51.100.0_24 destination.1 h-203.0.113.2 service.1 tcp_8443 action Accept track.type None comments 'the allowed remote addresses of a NAT rule, for the public address as it arrives' ignore-warnings true
+m add access-rule layer Network_internet_to_vlan20-servers position bottom name 'mail (1)' source.1 Any destination.1 h-203.0.113.25 service.1 tcp_25 action Accept track.type None comments 'the allowed remote addresses of a NAT rule, for the public address as it arrives' ignore-warnings true
+m add access-rule layer Network_internet_to_vlan20-servers position bottom name 'mail (2)' source.1 n-192.0.2.0_24 destination.1 h-203.0.113.25 service.1 icmp_type_8 action Accept track.type None comments 'the allowed remote addresses of a NAT rule, for the public address as it arrives' ignore-warnings true
+m add access-rule layer Network_internet_to_vlan20-servers position bottom name scada-view source.1 h-192.0.2.10 destination.1 h-203.0.113.30 service.1 tcp_9443 action Accept track.type None comments 'the allowed remote addresses of a NAT rule, for the public address as it arrives' ignore-warnings true
+m add access-rule layer Network_internet_to_vlan20-servers position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 4 name 'internet to vlan20-servers' source.1 internet destination.1 vlan20-servers service.1 Any action 'Apply Layer' inline-layer Network_internet_to_vlan20-servers ignore-warnings true
 
 # Traffic from zone internet to zone internet
-m add access-layer name Network_internet_to_internet add-default-rule false
-m add access-rule layer Network_internet_to_internet position bottom name 'FWShift cleanup' action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.'
-m add access-rule layer Network position 5 name 'internet to internet' source.1 internet destination.1 internet action 'Apply Layer' inline-layer Network_internet_to_internet
+m add access-layer name Network_internet_to_internet add-default-rule false ignore-warnings true
+m add access-rule layer Network_internet_to_internet position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.' ignore-warnings true
+m add access-rule layer Network position 5 name 'internet to internet' source.1 internet destination.1 internet service.1 Any action 'Apply Layer' inline-layer Network_internet_to_internet ignore-warnings true
 
 # Traffic from zone vlan10-office to zone (any other)
-m add access-layer name Network_vlan10-office_to_any add-default-rule false
-m add access-rule layer Network_vlan10-office_to_any position bottom name 'layer 7 rule 2' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell service.1 tcp_23 service.2 udp_23 action Drop track.type None comments 'layer 7: port 23'
-m add access-rule layer Network_vlan10-office_to_any position bottom name 'layer 7 rule 3' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 n-198.51.100.0_24 action Drop track.type None comments 'layer 7: ipRange 198.51.100.0/24'
-m add access-rule layer Network_vlan10-office_to_any position bottom name 'office to servers web' source.1 VLAN_10_ destination.1 n-10.10.20.0_24 service.1 tcp_80_443 action Accept track.type None comments 'office to servers web'
-m add access-rule layer Network_vlan10-office_to_any position bottom name historian source.1 h-10.10.20.15 destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 tcp_4840 action Accept track.type Log comments historian
-m add access-rule layer Network_vlan10-office_to_any position bottom name 'eng ws to plc' source.1 eng-ws destination.1 plcs service.1 tcp_102 action Accept track.type Log comments 'eng ws to plc'
-m add access-rule layer Network_vlan10-office_to_any position bottom name 'ot cell isolated' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 action Drop track.type Log comments 'ot cell isolated'
-m add access-rule layer Network_vlan10-office_to_any position bottom name 'ot no internet' source.1 n-10.10.30.0_24 source.2 n-172.16.40.0_24 action Drop track.type Log comments 'ot no internet'
-m add access-rule layer Network_vlan10-office_to_any position bottom name 'block update site' source.1 n-10.10.10.0_24 destination.1 .updates.example.com service.1 tcp_443 action Drop track.type None comments 'block update site'
-m add access-rule layer Network_vlan10-office_to_any position bottom name 'dns to servers' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 h-10.10.20.53 service.1 udp_53 action Accept track.type None comments 'dns to servers'
-m add access-rule layer Network_vlan10-office_to_any position bottom name 'ping servers' source.1 VLAN_10_ destination.1 VLAN_20_ service.1 icmp action Accept track.type None comments 'ping servers'
-m add access-rule layer Network_vlan10-office_to_any position bottom name 'office ipv6 out' source.1 n-2001_db8_10___64 action Accept track.type None comments 'office ipv6 out'
-m add access-rule layer Network_vlan10-office_to_any position bottom name 'passive ftp' source.1 n-10.10.10.0_24 destination.1 h-10.10.20.21 service.1 tcp_50000-50100 action Accept track.type None comments 'passive ftp'
-m add access-rule layer Network_vlan10-office_to_any position bottom name 'bad ports' source.1 n-10.10.10.0_24 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. bad ports'
-m add access-rule layer Network_vlan10-office_to_any position bottom name 'Default rule' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell action Accept track.type None comments 'the fixed default rule of the outbound table'
-m add access-rule layer Network_vlan10-office_to_any position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 6 name 'vlan10-office to any' source.1 vlan10-office action 'Apply Layer' inline-layer Network_vlan10-office_to_any
+m add access-layer name Network_vlan10-office_to_any add-default-rule false ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_any position bottom name 'layer 7 rule 2' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 Any service.1 tcp_23 service.2 udp_23 action Drop track.type None comments 'layer 7: port 23' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_any position bottom name 'layer 7 rule 3' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 n-198.51.100.0_24 service.1 Any action Drop track.type None comments 'layer 7: ipRange 198.51.100.0/24' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_any position bottom name 'office to servers web' source.1 VLAN_10_ destination.1 n-10.10.20.0_24 service.1 tcp_80_443 action Accept track.type None comments 'office to servers web' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_any position bottom name historian source.1 h-10.10.20.15 destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 tcp_4840 action Accept track.type Log comments historian ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_any position bottom name 'eng ws to plc' source.1 eng-ws destination.1 plcs service.1 tcp_102 action Accept track.type Log comments 'eng ws to plc' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_any position bottom name 'ot cell isolated' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 Any action Drop track.type Log comments 'ot cell isolated' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_any position bottom name 'ot no internet' source.1 n-10.10.30.0_24 source.2 n-172.16.40.0_24 destination.1 Any service.1 Any action Drop track.type Log comments 'ot no internet' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_any position bottom name 'block update site' source.1 n-10.10.10.0_24 destination.1 .updates.example.com service.1 tcp_443 action Drop track.type None comments 'block update site' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_any position bottom name 'dns to servers' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 h-10.10.20.53 service.1 udp_53 action Accept track.type None comments 'dns to servers' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_any position bottom name 'ping servers' source.1 VLAN_10_ destination.1 VLAN_20_ service.1 icmp action Accept track.type None comments 'ping servers' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_any position bottom name 'office ipv6 out' source.1 n-2001_db8_10___64 destination.1 Any service.1 Any action Accept track.type None comments 'office ipv6 out' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_any position bottom name 'passive ftp' source.1 n-10.10.10.0_24 destination.1 h-10.10.20.21 service.1 tcp_50000-50100 action Accept track.type None comments 'passive ftp' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_any position bottom name 'bad ports' source.1 n-10.10.10.0_24 destination.1 Any service.1 Any action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. bad ports' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_any position bottom name 'Default rule' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 Any service.1 Any action Accept track.type None comments 'the fixed default rule of the outbound table' ignore-warnings true
+m add access-rule layer Network_vlan10-office_to_any position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 6 name 'vlan10-office to any' source.1 vlan10-office destination.1 Any service.1 Any action 'Apply Layer' inline-layer Network_vlan10-office_to_any ignore-warnings true
 
 # Traffic from zone vlan20-servers to zone (any other)
-m add access-layer name Network_vlan20-servers_to_any add-default-rule false
-m add access-rule layer Network_vlan20-servers_to_any position bottom name 'layer 7 rule 2' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell service.1 tcp_23 service.2 udp_23 action Drop track.type None comments 'layer 7: port 23'
-m add access-rule layer Network_vlan20-servers_to_any position bottom name 'layer 7 rule 3' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 n-198.51.100.0_24 action Drop track.type None comments 'layer 7: ipRange 198.51.100.0/24'
-m add access-rule layer Network_vlan20-servers_to_any position bottom name 'office to servers web' source.1 VLAN_10_ destination.1 n-10.10.20.0_24 service.1 tcp_80_443 action Accept track.type None comments 'office to servers web'
-m add access-rule layer Network_vlan20-servers_to_any position bottom name historian source.1 h-10.10.20.15 destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 tcp_4840 action Accept track.type Log comments historian
-m add access-rule layer Network_vlan20-servers_to_any position bottom name 'eng ws to plc' source.1 eng-ws destination.1 plcs service.1 tcp_102 action Accept track.type Log comments 'eng ws to plc'
-m add access-rule layer Network_vlan20-servers_to_any position bottom name 'ot cell isolated' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 action Drop track.type Log comments 'ot cell isolated'
-m add access-rule layer Network_vlan20-servers_to_any position bottom name 'ot no internet' source.1 n-10.10.30.0_24 source.2 n-172.16.40.0_24 action Drop track.type Log comments 'ot no internet'
-m add access-rule layer Network_vlan20-servers_to_any position bottom name 'block update site' source.1 n-10.10.10.0_24 destination.1 .updates.example.com service.1 tcp_443 action Drop track.type None comments 'block update site'
-m add access-rule layer Network_vlan20-servers_to_any position bottom name 'dns to servers' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 h-10.10.20.53 service.1 udp_53 action Accept track.type None comments 'dns to servers'
-m add access-rule layer Network_vlan20-servers_to_any position bottom name 'ping servers' source.1 VLAN_10_ destination.1 VLAN_20_ service.1 icmp action Accept track.type None comments 'ping servers'
-m add access-rule layer Network_vlan20-servers_to_any position bottom name 'office ipv6 out' source.1 n-2001_db8_10___64 action Accept track.type None comments 'office ipv6 out'
-m add access-rule layer Network_vlan20-servers_to_any position bottom name 'passive ftp' source.1 n-10.10.10.0_24 destination.1 h-10.10.20.21 service.1 tcp_50000-50100 action Accept track.type None comments 'passive ftp'
-m add access-rule layer Network_vlan20-servers_to_any position bottom name 'bad ports' source.1 n-10.10.10.0_24 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. bad ports'
-m add access-rule layer Network_vlan20-servers_to_any position bottom name 'Default rule' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell action Accept track.type None comments 'the fixed default rule of the outbound table'
-m add access-rule layer Network_vlan20-servers_to_any position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 7 name 'vlan20-servers to any' source.1 vlan20-servers action 'Apply Layer' inline-layer Network_vlan20-servers_to_any
+m add access-layer name Network_vlan20-servers_to_any add-default-rule false ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_any position bottom name 'layer 7 rule 2' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 Any service.1 tcp_23 service.2 udp_23 action Drop track.type None comments 'layer 7: port 23' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_any position bottom name 'layer 7 rule 3' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 n-198.51.100.0_24 service.1 Any action Drop track.type None comments 'layer 7: ipRange 198.51.100.0/24' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_any position bottom name 'office to servers web' source.1 VLAN_10_ destination.1 n-10.10.20.0_24 service.1 tcp_80_443 action Accept track.type None comments 'office to servers web' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_any position bottom name historian source.1 h-10.10.20.15 destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 tcp_4840 action Accept track.type Log comments historian ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_any position bottom name 'eng ws to plc' source.1 eng-ws destination.1 plcs service.1 tcp_102 action Accept track.type Log comments 'eng ws to plc' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_any position bottom name 'ot cell isolated' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 Any action Drop track.type Log comments 'ot cell isolated' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_any position bottom name 'ot no internet' source.1 n-10.10.30.0_24 source.2 n-172.16.40.0_24 destination.1 Any service.1 Any action Drop track.type Log comments 'ot no internet' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_any position bottom name 'block update site' source.1 n-10.10.10.0_24 destination.1 .updates.example.com service.1 tcp_443 action Drop track.type None comments 'block update site' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_any position bottom name 'dns to servers' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 h-10.10.20.53 service.1 udp_53 action Accept track.type None comments 'dns to servers' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_any position bottom name 'ping servers' source.1 VLAN_10_ destination.1 VLAN_20_ service.1 icmp action Accept track.type None comments 'ping servers' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_any position bottom name 'office ipv6 out' source.1 n-2001_db8_10___64 destination.1 Any service.1 Any action Accept track.type None comments 'office ipv6 out' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_any position bottom name 'passive ftp' source.1 n-10.10.10.0_24 destination.1 h-10.10.20.21 service.1 tcp_50000-50100 action Accept track.type None comments 'passive ftp' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_any position bottom name 'bad ports' source.1 n-10.10.10.0_24 destination.1 Any service.1 Any action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. bad ports' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_any position bottom name 'Default rule' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 Any service.1 Any action Accept track.type None comments 'the fixed default rule of the outbound table' ignore-warnings true
+m add access-rule layer Network_vlan20-servers_to_any position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 7 name 'vlan20-servers to any' source.1 vlan20-servers destination.1 Any service.1 Any action 'Apply Layer' inline-layer Network_vlan20-servers_to_any ignore-warnings true
 
 # Traffic from zone vlan30-ot-cell to zone (any other)
-m add access-layer name Network_vlan30-ot-cell_to_any add-default-rule false
-m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'layer 7 rule 2' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell service.1 tcp_23 service.2 udp_23 action Drop track.type None comments 'layer 7: port 23'
-m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'layer 7 rule 3' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 n-198.51.100.0_24 action Drop track.type None comments 'layer 7: ipRange 198.51.100.0/24'
-m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'office to servers web' source.1 VLAN_10_ destination.1 n-10.10.20.0_24 service.1 tcp_80_443 action Accept track.type None comments 'office to servers web'
-m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name historian source.1 h-10.10.20.15 destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 tcp_4840 action Accept track.type Log comments historian
-m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'eng ws to plc' source.1 eng-ws destination.1 plcs service.1 tcp_102 action Accept track.type Log comments 'eng ws to plc'
-m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'ot cell isolated' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 action Drop track.type Log comments 'ot cell isolated'
-m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'ot no internet' source.1 n-10.10.30.0_24 source.2 n-172.16.40.0_24 action Drop track.type Log comments 'ot no internet'
-m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'block update site' source.1 n-10.10.10.0_24 destination.1 .updates.example.com service.1 tcp_443 action Drop track.type None comments 'block update site'
-m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'dns to servers' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 h-10.10.20.53 service.1 udp_53 action Accept track.type None comments 'dns to servers'
-m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'ping servers' source.1 VLAN_10_ destination.1 VLAN_20_ service.1 icmp action Accept track.type None comments 'ping servers'
-m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'office ipv6 out' source.1 n-2001_db8_10___64 action Accept track.type None comments 'office ipv6 out'
-m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'passive ftp' source.1 n-10.10.10.0_24 destination.1 h-10.10.20.21 service.1 tcp_50000-50100 action Accept track.type None comments 'passive ftp'
-m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'bad ports' source.1 n-10.10.10.0_24 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. bad ports'
-m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'Default rule' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell action Accept track.type None comments 'the fixed default rule of the outbound table'
-m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 8 name 'vlan30-ot-cell to any' source.1 vlan30-ot-cell action 'Apply Layer' inline-layer Network_vlan30-ot-cell_to_any
+m add access-layer name Network_vlan30-ot-cell_to_any add-default-rule false ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'layer 7 rule 2' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 Any service.1 tcp_23 service.2 udp_23 action Drop track.type None comments 'layer 7: port 23' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'layer 7 rule 3' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 n-198.51.100.0_24 service.1 Any action Drop track.type None comments 'layer 7: ipRange 198.51.100.0/24' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'office to servers web' source.1 VLAN_10_ destination.1 n-10.10.20.0_24 service.1 tcp_80_443 action Accept track.type None comments 'office to servers web' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name historian source.1 h-10.10.20.15 destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 tcp_4840 action Accept track.type Log comments historian ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'eng ws to plc' source.1 eng-ws destination.1 plcs service.1 tcp_102 action Accept track.type Log comments 'eng ws to plc' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'ot cell isolated' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 Any action Drop track.type Log comments 'ot cell isolated' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'ot no internet' source.1 n-10.10.30.0_24 source.2 n-172.16.40.0_24 destination.1 Any service.1 Any action Drop track.type Log comments 'ot no internet' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'block update site' source.1 n-10.10.10.0_24 destination.1 .updates.example.com service.1 tcp_443 action Drop track.type None comments 'block update site' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'dns to servers' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 h-10.10.20.53 service.1 udp_53 action Accept track.type None comments 'dns to servers' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'ping servers' source.1 VLAN_10_ destination.1 VLAN_20_ service.1 icmp action Accept track.type None comments 'ping servers' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'office ipv6 out' source.1 n-2001_db8_10___64 destination.1 Any service.1 Any action Accept track.type None comments 'office ipv6 out' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'passive ftp' source.1 n-10.10.10.0_24 destination.1 h-10.10.20.21 service.1 tcp_50000-50100 action Accept track.type None comments 'passive ftp' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'bad ports' source.1 n-10.10.10.0_24 destination.1 Any service.1 Any action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. bad ports' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'Default rule' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 Any service.1 Any action Accept track.type None comments 'the fixed default rule of the outbound table' ignore-warnings true
+m add access-rule layer Network_vlan30-ot-cell_to_any position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 8 name 'vlan30-ot-cell to any' source.1 vlan30-ot-cell destination.1 Any service.1 Any action 'Apply Layer' inline-layer Network_vlan30-ot-cell_to_any ignore-warnings true
 
 # Rules of layer Network for traffic of no zone pair above
-m add access-rule layer Network position 9 name 'layer 7 rule 2' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell service.1 tcp_23 service.2 udp_23 action Drop track.type None comments 'layer 7: port 23'
-m add access-rule layer Network position 10 name 'layer 7 rule 3' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 n-198.51.100.0_24 action Drop track.type None comments 'layer 7: ipRange 198.51.100.0/24'
-m add access-rule layer Network position 11 name 'ot cell isolated' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 action Drop track.type Log comments 'ot cell isolated'
-m add access-rule layer Network position 12 name 'dns to servers' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 h-10.10.20.53 service.1 udp_53 action Accept track.type None comments 'dns to servers'
-m add access-rule layer Network position 13 name 'Default rule' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell action Accept track.type None comments 'the fixed default rule of the outbound table'
-m add access-rule layer Network position 14 name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
+m add access-rule layer Network position 9 name 'layer 7 rule 2' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 Any service.1 tcp_23 service.2 udp_23 action Drop track.type None comments 'layer 7: port 23' ignore-warnings true
+m add access-rule layer Network position 10 name 'layer 7 rule 3' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 n-198.51.100.0_24 service.1 Any action Drop track.type None comments 'layer 7: ipRange 198.51.100.0/24' ignore-warnings true
+m add access-rule layer Network position 11 name 'ot cell isolated' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 VLAN_30_ destination.2 n-172.16.40.0_24 service.1 Any action Drop track.type Log comments 'ot cell isolated' ignore-warnings true
+m add access-rule layer Network position 12 name 'dns to servers' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 h-10.10.20.53 service.1 udp_53 action Accept track.type None comments 'dns to servers' ignore-warnings true
+m add access-rule layer Network position 13 name 'Default rule' source.1 vlan10-office source.2 vlan20-servers source.3 vlan30-ot-cell destination.1 Any service.1 Any action Accept track.type None comments 'the fixed default rule of the outbound table' ignore-warnings true
+m add access-rule layer Network position 14 name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
 
 # NAT rules of package Standard
-m add host name h-10.10.20.30 ip-address 10.10.20.30
-m add nat-rule package Standard position bottom original-destination h-203.0.113.2 original-service tcp_8443 translated-destination h-10.10.20.30 translated-service tcp_443 method static comments NAT_vpn-portal
-m add host name h-10.10.20.25 ip-address 10.10.20.25
-m add nat-rule package Standard position bottom original-source h-10.10.20.25 translated-source h-203.0.113.25 method static comments NAT_mail
-m add nat-rule package Standard position bottom original-destination h-203.0.113.25 translated-destination h-10.10.20.25 method static comments 'NAT_mail (inbound)'
-m add host name h-10.10.20.40 ip-address 10.10.20.40
-m add nat-rule package Standard position bottom original-destination h-203.0.113.30 original-service tcp_9443 translated-destination h-10.10.20.40 translated-service tcp_443 method static comments NAT_scada-view
-m add nat-rule package Standard position bottom translated-source h-203.0.113.2 method hide comments NAT_to_the_uplink
+m add host name h-10.10.20.30 ip-address 10.10.20.30 ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination h-203.0.113.2 original-service tcp_8443 translated-source Original translated-destination h-10.10.20.30 translated-service tcp_443 method static comments NAT_vpn-portal ignore-warnings true
+m add host name h-10.10.20.25 ip-address 10.10.20.25 ignore-warnings true
+m add nat-rule package Standard position bottom original-source h-10.10.20.25 original-destination Any original-service Any translated-source h-203.0.113.25 translated-destination Original translated-service Original method static comments NAT_mail ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination h-203.0.113.25 original-service Any translated-source Original translated-destination h-10.10.20.25 translated-service Original method static comments 'NAT_mail (inbound)' ignore-warnings true
+m add host name h-10.10.20.40 ip-address 10.10.20.40 ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination h-203.0.113.30 original-service tcp_9443 translated-source Original translated-destination h-10.10.20.40 translated-service tcp_443 method static comments NAT_scada-view ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination Any original-service Any translated-source h-203.0.113.2 translated-destination Original translated-service Original method hide comments NAT_to_the_uplink ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'

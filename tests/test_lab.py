@@ -255,7 +255,8 @@ def test_the_sessions_of_tier_3(tmp_path: Path, name: str) -> None:
     if vendor.target in ("ios", "asa"):
         assert session.count("end") == 1
     addresses = [labplan.ZONES[z].replace(".0/24", ".4") for z in tier3.ORDER]
-    text = "\n".join(session) + vendor.user_data
+    uploaded = [f.read_text(encoding="utf-8") for f in vendor.uploads(done["out"]) if f != done["out"]]  # (Check Point: the lab's driver)
+    text = "\n".join(session) + vendor.user_data + "".join(uploaded)
     assert all(a in text for a in addresses), name
     re.compile(vendor.errors)
     # What an image may or may not ship with is deleted in a session of its own, whose answers do not count: never in the
@@ -567,7 +568,7 @@ def test_the_asav_run_keeps_the_firewalls_own_view_after_the_probes(tmp_path: Pa
     assert lines[0] == "terminal pager 0" and lines[-1] == "exit"
     assert "show interface ip brief" in lines and "show asp drop" in lines and "show access-list" in lines
     assert "packet-tracer input inside tcp 10.20.1.10 40000 10.20.2.10 22 detailed" in lines  # (admin-ssh passes it)
-    assert all(not v.diagnose() for name, v in tier3.VENDORS.items() if name not in ("asav", "vsrx"))
+    assert all(not v.diagnose() for name, v in tier3.VENDORS.items() if name not in ("asav", "vsrx", "checkpoint"))
     assert "show security policies hit-count" in tier3.VENDORS["vsrx"].diagnose()
     runner = labrun.Runner(tmp_path, echo=False)
     runner.dry_run = True
@@ -652,7 +653,7 @@ def test_no_ready_check_stops_at_a_pager() -> None:
     try hung until the boot time ran out. A ready check whose answer is long turns the pager off."""
     assert tier3.VENDORS["vsrx"].ready.endswith("| no-more")
     for name, vendor in tier3.VENDORS.items():
-        assert "|" in vendor.ready or name in ("fortigate", "panos"), (name, vendor.ready)
+        assert "|" in vendor.ready or name in ("fortigate", "panos", "checkpoint"), (name, vendor.ready)  # (checkpoint: bash, no pager)
 
 
 def test_the_vsrx_is_ready_once_its_data_interfaces_exist() -> None:
@@ -665,3 +666,39 @@ def test_the_vsrx_is_ready_once_its_data_interfaces_exist() -> None:
     assert not re.search(vendor.ready_answer, typed + "\r\nec2-user> exit\r\n")
     assert not re.search(vendor.ready_answer, two) and re.search(vendor.ready_answer, three)
     assert vendor.ready.endswith("| no-more")
+
+
+def test_the_check_point_standalone_is_set_up_as_check_points_templates_do(tmp_path: Path) -> None:
+    """Check Point (never run): the image's own /etc/cloud_config.py, as Check Point's Terraform module for a standalone
+    writes it; bash for admin (mgmt_cli over SSH); the version from the image's name; no password (the key, -r true)."""
+    vendor = tier3.VENDORS["checkpoint"]
+    data = tier3.user_data(vendor, tmp_path / "id_lab", "", "Check Point CloudGuard IaaS Standalone R82.20-391.2248 PAYG")
+    assert data.startswith("#cloud-config\nruncmd:\n  - |\n    python3 /etc/cloud_config.py ")
+    for part in ('installationType=\\"standalone\\"', 'shell=\\"/bin/bash\\"', 'osVersion=\\"R82.20\\"', 'hostName=\\"fwlab-cp\\"',
+                 'passwordHash=\\"\\"'):
+        assert part in data, part
+    assert tier3.checkpoint_version("") == "R82" and tier3.checkpoint_version("x R81.20-628 y") == "R81.20"
+    assert vendor.boot_minutes == 60 and vendor.instance_type == "m5.xlarge" and vendor.ready == "api status"
+    assert not vendor.ami_pattern  # (no name Check Point's templates look for: --ami)
+
+
+def test_the_check_point_load_names_every_interface_in_one_call_and_installs(tmp_path: Path) -> None:
+    """`set simple-gateway` replaces the interface list: eth0 must be in the same call as eth1-3, each data interface
+    in its zone. The driver stops at the first failing step (FWLAB-FAILED) and ends with FWLAB-LOADED-42."""
+    driver = tier3.checkpoint_driver()
+    sets = [line for line in driver.splitlines() if line.startswith("mgmt_cli set simple-gateway")]
+    assert len(sets) == 1
+    for name in ("eth0", "eth1", "eth2", "eth3"):
+        assert f" {name} " in sets[0]
+    for zone in ("inside", "dmz", "outside"):
+        assert f"security-zone-settings.specific-zone {zone}" in sets[0]
+    order = [driver.index(x) for x in ("SID=fwshift.sid sh ./policy.checkpoint", "mgmt_cli set simple-gateway", "mgmt_cli publish",
+                                       "mgmt_cli install-policy", 'FWLAB-LOADED-$((40 + 2))')]
+    assert order == sorted(order)
+    vendor = tier3.VENDORS["checkpoint"]
+    files = vendor.uploads(tmp_path / "policy.checkpoint")
+    assert [f.name for f in files] == ["policy.checkpoint", "fwlab_load.sh"] and (tmp_path / "fwlab_load.sh").read_text() == driver
+    assert re.search(vendor.success, "FWLAB-LOADED-42") and not re.search(vendor.success, "echo FWLAB-LOADED-$((40 + 2))")
+    assert re.search(vendor.errors, "FWLAB-FAILED: publish") and re.search(vendor.errors, "FAILED: mgmt_cli add host")
+    with pytest.raises(labrun.LabError, match="--ami"):
+        tier3.find_ami(labrun.Runner(tmp_path, echo=False), "eu-west-1", "")

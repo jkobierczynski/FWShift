@@ -30,80 +30,80 @@ m() {
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }
 
 # Network objects
-m add address-range name any-ipv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255
-m add address-range name any-ipv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
-m add network name office-lan subnet 10.40.0.0 mask-length 24 comments 'Branch office'
-m add network name iot-net subnet 10.41.0.0 mask-length 24
-m add host name nas ip-address 10.40.0.10
-m add host name nas-public ip-address 192.0.2.10
-m add address-range name printers ip-address-first 10.40.0.200 ip-address-last 10.40.0.220
-m add network name head-office-v6 subnet 2001:db8:1:: mask-length 48
-m add dns-domain name .telemetry.example.net is-sub-domain false
-m add host name outside-interface ip-address 192.0.2.2 comments 'address of interface outside when the configuration was read'
-m add group name office-devices members.1 nas members.2 printers
+m add address-range name any-ipv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255 ignore-warnings true
+m add address-range name any-ipv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ignore-warnings true
+m add network name office-lan subnet 10.40.0.0 mask-length 24 comments 'Branch office' ignore-warnings true
+m add network name iot-net subnet 10.41.0.0 mask-length 24 ignore-warnings true
+m add host name nas ip-address 10.40.0.10 ignore-warnings true
+m add host name nas-public ip-address 192.0.2.10 ignore-warnings true
+m add address-range name printers ip-address-first 10.40.0.200 ip-address-last 10.40.0.220 ignore-warnings true
+m add network name head-office-v6 subnet 2001:db8:1:: mask-length 48 ignore-warnings true
+m add dns-domain name .telemetry.example.net is-sub-domain false ignore-warnings true
+m add host name outside-interface ip-address 192.0.2.2 comments 'address of interface outside when the configuration was read' ignore-warnings true
+m add group name office-devices members.1 nas members.2 printers ignore-warnings true
 
 # Services
-m add service-tcp name HTTPS port 443 match-for-any false
-m add service-tcp name HTTP port 80 match-for-any false
-m add service-tcp name rdp port 3389 match-for-any false
-m add service-tcp name nas-web port 5001 match-for-any false
-m add service-tcp name nas-external port 8443 match-for-any false
-m add service-udp name DNS_over_UDP port 53 match-for-any false
-m add service-udp name udp-high port 1024-65535 match-for-any false
-m add service-icmp name echo-request icmp-type 8
-m add service-icmp name port-unreachable icmp-type 3 icmp-code 3
-m add service-other name gre ip-protocol 47 match-for-any false
-m add service-udp name udp-src-53-dst-1024-65535 port 1024-65535 source-port 53 match-for-any false
-m add service-group name web members.1 HTTP members.2 HTTPS
+m add service-tcp name HTTPS port 443 match-for-any false ignore-warnings true
+m add service-tcp name HTTP port 80 match-for-any false ignore-warnings true
+m add service-tcp name rdp port 3389 match-for-any false ignore-warnings true
+m add service-tcp name nas-web port 5001 match-for-any false ignore-warnings true
+m add service-tcp name nas-external port 8443 match-for-any false ignore-warnings true
+m add service-udp name DNS_over_UDP port 53 match-for-any false ignore-warnings true
+m add service-udp name udp-high port 1024-65535 match-for-any false ignore-warnings true
+m add service-icmp name echo-request icmp-type 8 ignore-warnings true
+m add service-icmp name port-unreachable icmp-type 3 icmp-code 3 ignore-warnings true
+m add service-other name gre ip-protocol 47 match-for-any false ignore-warnings true
+m add service-udp name udp-src-53-dst-1024-65535 port 1024-65535 source-port 53 match-for-any false ignore-warnings true
+m add service-group name web members.1 HTTP members.2 HTTPS ignore-warnings true
 
 # Security zones
 zone inside_zone
 zone outside_zone
 
 # Traffic from zone inside_zone to zone inside_zone
-m add access-layer name Network_inside_zone_to_inside_zone add-default-rule false
-m add access-rule layer Network_inside_zone_to_inside_zone position bottom name Block_IoT_to_office source.1 iot-net destination.1 office-lan destination.2 nas-public action Drop track.type Log
-m add access-rule layer Network_inside_zone_to_inside_zone position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 1 name 'inside_zone to inside_zone' source.1 inside_zone destination.1 inside_zone action 'Apply Layer' inline-layer Network_inside_zone_to_inside_zone
+m add access-layer name Network_inside_zone_to_inside_zone add-default-rule false ignore-warnings true
+m add access-rule layer Network_inside_zone_to_inside_zone position bottom name Block_IoT_to_office source.1 iot-net destination.1 office-lan destination.2 nas-public service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_inside_zone_to_inside_zone position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 1 name 'inside_zone to inside_zone' source.1 inside_zone destination.1 inside_zone service.1 Any action 'Apply Layer' inline-layer Network_inside_zone_to_inside_zone ignore-warnings true
 
 # Traffic from zone inside_zone to zone outside_zone
-m add access-layer name Network_inside_zone_to_outside_zone add-default-rule false
-m add access-rule layer Network_inside_zone_to_outside_zone position bottom name Inside_Outside_web source.1 office-lan service.1 web service.2 DNS_over_UDP action Accept track.type Log
-m add access-rule layer Network_inside_zone_to_outside_zone position bottom name IoT_telemetry source.1 iot-net destination.1 .telemetry.example.net service.1 HTTPS action Accept track.type Log
-m add access-rule layer Network_inside_zone_to_outside_zone position bottom name Staff_streaming source.1 inside_zone destination.1 outside_zone action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_inside_zone_to_outside_zone position bottom name Guests_by_time source.1 printers service.1 port-unreachable action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_inside_zone_to_outside_zone position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 2 name 'inside_zone to outside_zone' source.1 inside_zone destination.1 outside_zone action 'Apply Layer' inline-layer Network_inside_zone_to_outside_zone
+m add access-layer name Network_inside_zone_to_outside_zone add-default-rule false ignore-warnings true
+m add access-rule layer Network_inside_zone_to_outside_zone position bottom name Inside_Outside_web source.1 office-lan destination.1 Any service.1 web service.2 DNS_over_UDP action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_inside_zone_to_outside_zone position bottom name IoT_telemetry source.1 iot-net destination.1 .telemetry.example.net service.1 HTTPS action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_inside_zone_to_outside_zone position bottom name Staff_streaming source.1 inside_zone destination.1 outside_zone service.1 Any action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_inside_zone_to_outside_zone position bottom name Guests_by_time source.1 printers destination.1 Any service.1 port-unreachable action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_inside_zone_to_outside_zone position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 2 name 'inside_zone to outside_zone' source.1 inside_zone destination.1 outside_zone service.1 Any action 'Apply Layer' inline-layer Network_inside_zone_to_outside_zone ignore-warnings true
 
 # Traffic from zone outside_zone to zone inside_zone
-m add access-layer name Network_outside_zone_to_inside_zone add-default-rule false
-m add access-rule layer Network_outside_zone_to_inside_zone position bottom name NAS_from_Internet destination.1 nas destination.2 outside-interface destination.3 nas-public service.1 nas-web action Accept track.type Log
-m add access-rule layer Network_outside_zone_to_inside_zone position bottom name Head_office_v6 source.1 head-office-v6 destination.1 office-devices destination.2 nas-public service.1 rdp service.2 echo-request service.3 gre action Accept track.type None
-m add access-rule layer Network_outside_zone_to_inside_zone position bottom name DNS_answers source.1 outside_zone destination.1 inside_zone service.1 udp-src-53-dst-1024-65535 action Accept track.type None
-m add access-rule layer Network_outside_zone_to_inside_zone position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 3 name 'outside_zone to inside_zone' source.1 outside_zone destination.1 inside_zone action 'Apply Layer' inline-layer Network_outside_zone_to_inside_zone
+m add access-layer name Network_outside_zone_to_inside_zone add-default-rule false ignore-warnings true
+m add access-rule layer Network_outside_zone_to_inside_zone position bottom name NAS_from_Internet source.1 Any destination.1 nas destination.2 outside-interface destination.3 nas-public service.1 nas-web action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_outside_zone_to_inside_zone position bottom name Head_office_v6 source.1 head-office-v6 destination.1 office-devices destination.2 nas-public service.1 rdp service.2 echo-request service.3 gre action Accept track.type None ignore-warnings true
+m add access-rule layer Network_outside_zone_to_inside_zone position bottom name DNS_answers source.1 outside_zone destination.1 inside_zone service.1 udp-src-53-dst-1024-65535 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_outside_zone_to_inside_zone position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 3 name 'outside_zone to inside_zone' source.1 outside_zone destination.1 inside_zone service.1 Any action 'Apply Layer' inline-layer Network_outside_zone_to_inside_zone ignore-warnings true
 
 # Traffic from zone outside_zone to zone (any other)
-m add access-layer name Network_outside_zone_to_any add-default-rule false
-m add access-rule layer Network_outside_zone_to_any position bottom name Head_office_v6 source.1 head-office-v6 destination.1 office-devices destination.2 nas-public service.1 rdp service.2 echo-request service.3 gre action Accept track.type None
-m add access-rule layer Network_outside_zone_to_any position bottom name DNS_answers source.1 outside_zone destination.1 inside_zone service.1 udp-src-53-dst-1024-65535 action Accept track.type None
-m add access-rule layer Network_outside_zone_to_any position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 4 name 'outside_zone to any' source.1 outside_zone action 'Apply Layer' inline-layer Network_outside_zone_to_any
+m add access-layer name Network_outside_zone_to_any add-default-rule false ignore-warnings true
+m add access-rule layer Network_outside_zone_to_any position bottom name Head_office_v6 source.1 head-office-v6 destination.1 office-devices destination.2 nas-public service.1 rdp service.2 echo-request service.3 gre action Accept track.type None ignore-warnings true
+m add access-rule layer Network_outside_zone_to_any position bottom name DNS_answers source.1 outside_zone destination.1 inside_zone service.1 udp-src-53-dst-1024-65535 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_outside_zone_to_any position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 4 name 'outside_zone to any' source.1 outside_zone destination.1 Any service.1 Any action 'Apply Layer' inline-layer Network_outside_zone_to_any ignore-warnings true
 
 # Rules of layer Network for traffic of no zone pair above
-m add access-rule layer Network position 5 name DNS_answers source.1 outside_zone destination.1 inside_zone service.1 udp-src-53-dst-1024-65535 action Accept track.type None
-m add access-rule layer Network position 6 name Staff_streaming source.1 inside_zone destination.1 outside_zone action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 7 name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
+m add access-rule layer Network position 5 name DNS_answers source.1 outside_zone destination.1 inside_zone service.1 udp-src-53-dst-1024-65535 action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 6 name Staff_streaming source.1 inside_zone destination.1 outside_zone service.1 Any action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 7 name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
 
 # NAT rules of package Standard
-m add nat-rule package Standard position bottom original-destination outside-interface original-service nas-external translated-destination nas translated-service nas-web method static comments 'NAS_published: NAS web interface on the outside address'
-m add nat-rule package Standard position bottom original-source nas translated-source nas-public method static comments nas_static
-m add nat-rule package Standard position bottom original-destination nas-public translated-destination nas method static comments 'nas_static (inbound)'
-m add nat-rule package Standard position bottom original-source any-ipv4 translated-source outside-interface method hide comments InsideOutsideNatRule
-m add nat-rule package Standard position bottom original-source iot-net translated-source outside-interface method hide enabled false comments IoT_out
+m add nat-rule package Standard position bottom original-source Any original-destination outside-interface original-service nas-external translated-source Original translated-destination nas translated-service nas-web method static comments 'NAS_published: NAS web interface on the outside address' ignore-warnings true
+m add nat-rule package Standard position bottom original-source nas original-destination Any original-service Any translated-source nas-public translated-destination Original translated-service Original method static comments nas_static ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination nas-public original-service Any translated-source Original translated-destination nas translated-service Original method static comments 'nas_static (inbound)' ignore-warnings true
+m add nat-rule package Standard position bottom original-source any-ipv4 original-destination Any original-service Any translated-source outside-interface translated-destination Original translated-service Original method hide comments InsideOutsideNatRule ignore-warnings true
+m add nat-rule package Standard position bottom original-source iot-net original-destination Any original-service Any translated-source outside-interface translated-destination Original translated-service Original method hide enabled false comments IoT_out ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'

@@ -359,7 +359,7 @@ def run_image(runner: Runner, args: Any) -> bool:
                              f"UserKnownHostsFile={known}"])  # fmt: skip
             start_vm(runner, Path(args.image), args.memory)
             if not runner.dry_run:
-                wait_ssh(runner, prefix, args.boot_minutes, "/system resource print" if image.name == "routeros" else "uname -a")
+                wait_ssh(runner, prefix, args.boot_minutes or 30, "/system resource print" if image.name == "routeros" else "uname -a")
             if image.name == "routeros":
                 load_routeros(runner, prefix, scp, f"{user}@127.0.0.1", out)
             else:

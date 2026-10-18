@@ -1361,3 +1361,39 @@ def test_rule_of_an_inline_layer_leaves_no_second_report_item() -> None:
     cli.convert(policy, "panos", report)
     assert report.counts("rule")["total"] == len(policy.rules) == 2
     assert [item.name for item in report.items.values() if item.kind == "rule"] == ["parent / chi_ld", "parent / rest"]
+
+
+def test_every_add_ignores_warnings() -> None:
+    """A management server (R82.20) refused `add service-tcp name tcp-ssh port 22` with "The port is already used by
+    another service" (its own `ssh`): a warning, which fails the call unless it is ignored. Every add ignores them;
+    errors (a name taken) still stop the script."""
+    text = (DATA / "expected" / "panos_to_checkpoint.sh").read_text(encoding="utf-8")
+    adds = [line for line in text.splitlines() if line.startswith("m add ")]
+    assert adds and all(line.endswith(" ignore-warnings true") for line in adds)
+    assert 'm add security-zone name "$1" ignore-warnings true' in text
+
+
+def test_every_rule_fills_all_three_cells() -> None:
+    """On R82.20 a cell that `add access-rule` leaves out is stored as None, which matches nothing: the converted
+    rules, the rules that apply a zone pair's layer and the cleanup rules all write Any where nothing is named."""
+    for path in sorted((DATA / "expected").glob("*_to_checkpoint.sh")):
+        rules = [line for line in path.read_text(encoding="utf-8").splitlines() if line.startswith("m add access-rule ")]
+        assert rules, path.name
+        for line in rules:
+            for column in ("source", "destination", "service"):
+                assert f" {column}.1 " in line, (path.name, column, line)
+    text = (DATA / "expected" / "panos_to_checkpoint.sh").read_text(encoding="utf-8")
+    assert "name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action" in text
+
+
+def test_every_nat_rule_fills_all_six_cells() -> None:
+    """NAT cells are written out as well: what the rule names, or Any (original) and Original (translated)."""
+    text = (DATA / "expected" / "panos_to_checkpoint.sh").read_text(encoding="utf-8")
+    nats = [line for line in text.splitlines() if line.startswith("m add nat-rule ")]
+    assert nats
+    for line in nats:
+        for column in ("original-source", "original-destination", "original-service", "translated-source",
+                       "translated-destination", "translated-service"):  # fmt: skip
+            assert f" {column} " in line, (column, line)
+    assert ("original-source mail-1 original-destination Any original-service Any translated-source mail-public "
+            "translated-destination Original translated-service Original method static") in text

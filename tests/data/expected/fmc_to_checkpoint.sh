@@ -30,60 +30,60 @@ m() {
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }
 
 # Network objects
-m add address-range name any-ipv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255
-m add address-range name any-ipv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
-m add network name IPv4-Private-10.0.0.0-8 subnet 10.0.0.0 mask-length 8
-m add network name lan-net subnet 10.10.0.0 mask-length 24 comments 'Office LAN'
-m add network name dmz-net subnet 10.20.0.0 mask-length 24
-m add network name ot-net subnet 10.30.0.0 mask-length 24 comments 'Production cell'
-m add network name partner-net subnet 198.51.100.0 mask-length 24
-m add network name branch-v6 subnet 2001:db8:10:: mask-length 48
-m add host name web-srv ip-address 10.20.0.10
-m add host name web-srv-pub ip-address 203.0.113.10
-m add host name mail-srv ip-address 10.20.0.25
-m add host name mail-srv-pub ip-address 203.0.113.25
-m add address-range name admin-pcs ip-address-first 10.10.0.100 ip-address-last 10.10.0.120
-m add address-range name nat-pool ip-address-first 203.0.113.100 ip-address-last 203.0.113.110
-m add dns-domain name .updates.example.com is-sub-domain false
-m add host name outside-interface ip-address 203.0.113.2 comments 'address of interface outside when the configuration was read'
-m add host name h-10.20.0.30 ip-address 10.20.0.30
-m add group name servers members.1 web-srv members.2 mail-srv members.3 h-10.20.0.30
-m add group name internal members.1 lan-net members.2 dmz-net members.3 servers comments 'Everything behind the firewall'
+m add address-range name any-ipv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255 ignore-warnings true
+m add address-range name any-ipv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ignore-warnings true
+m add network name IPv4-Private-10.0.0.0-8 subnet 10.0.0.0 mask-length 8 ignore-warnings true
+m add network name lan-net subnet 10.10.0.0 mask-length 24 comments 'Office LAN' ignore-warnings true
+m add network name dmz-net subnet 10.20.0.0 mask-length 24 ignore-warnings true
+m add network name ot-net subnet 10.30.0.0 mask-length 24 comments 'Production cell' ignore-warnings true
+m add network name partner-net subnet 198.51.100.0 mask-length 24 ignore-warnings true
+m add network name branch-v6 subnet 2001:db8:10:: mask-length 48 ignore-warnings true
+m add host name web-srv ip-address 10.20.0.10 ignore-warnings true
+m add host name web-srv-pub ip-address 203.0.113.10 ignore-warnings true
+m add host name mail-srv ip-address 10.20.0.25 ignore-warnings true
+m add host name mail-srv-pub ip-address 203.0.113.25 ignore-warnings true
+m add address-range name admin-pcs ip-address-first 10.10.0.100 ip-address-last 10.10.0.120 ignore-warnings true
+m add address-range name nat-pool ip-address-first 203.0.113.100 ip-address-last 203.0.113.110 ignore-warnings true
+m add dns-domain name .updates.example.com is-sub-domain false ignore-warnings true
+m add host name outside-interface ip-address 203.0.113.2 comments 'address of interface outside when the configuration was read' ignore-warnings true
+m add host name h-10.20.0.30 ip-address 10.20.0.30 ignore-warnings true
+m add group name servers members.1 web-srv members.2 mail-srv members.3 h-10.20.0.30 ignore-warnings true
+m add group name internal members.1 lan-net members.2 dmz-net members.3 servers comments 'Everything behind the firewall' ignore-warnings true
 
 # Services
-m add service-tcp name HTTP port 80 match-for-any false
-m add service-tcp name HTTPS port 443 match-for-any false
-m add service-tcp name SSH port 22 match-for-any false
-m add service-udp name DNS_over_UDP port 53 match-for-any false
-m add service-tcp name DNS_over_TCP port 53 match-for-any false
-m add service-udp name NTP-UDP port 123 match-for-any false
-m add service-tcp name web-alt port 8080-8081 match-for-any false
-m add service-tcp name smtp port 25 match-for-any false
-m add service-tcp name backup port 10000 match-for-any false
-m add service-tcp name http-8080 port 8080 match-for-any false
-m add service-tcp name http-8443 port 8443 match-for-any false
-m add service-other name ipsec-esp ip-protocol 50 match-for-any false
-m add service-icmp name echo icmp-type 8
-m add service-icmp6 name echo6 icmp-type 128
-m add service-other name gre ip-protocol 47 match-for-any false
-m add service-other name ipinip ip-protocol 4 match-for-any false
-m add service-other name proto-41 ip-protocol 41 match-for-any false
-m add service-udp name udp-3544 port 3544 match-for-any false
-m add service-tcp name tcp-3389 port 3389 match-for-any false
-m add service-tcp name tcp-8443 port 8443 match-for-any false
-m add service-tcp name tcp-21 port 21 match-for-any false
-m add service-udp name udp-53 port 53 match-for-any false
-m add service-udp name udp-1024-65535 port 1024-65535 match-for-any false
-m add service-udp name udp-src-53-dst-1024-65535 port 1024-65535 source-port 53 match-for-any false
-m add service-group name web members.1 HTTP members.2 HTTPS members.3 web-alt
-m add service-group name mgmt members.1 SSH members.2 echo
-m add address-range name r-10.10.0.200-10.10.0.250 ip-address-first 10.10.0.200 ip-address-last 10.10.0.250
-m add host name h-10.20.0.53 ip-address 10.20.0.53
-m add host name h-2001_db8_20__10 ip-address 2001:db8:20::10
+m add service-tcp name HTTP port 80 match-for-any false ignore-warnings true
+m add service-tcp name HTTPS port 443 match-for-any false ignore-warnings true
+m add service-tcp name SSH port 22 match-for-any false ignore-warnings true
+m add service-udp name DNS_over_UDP port 53 match-for-any false ignore-warnings true
+m add service-tcp name DNS_over_TCP port 53 match-for-any false ignore-warnings true
+m add service-udp name NTP-UDP port 123 match-for-any false ignore-warnings true
+m add service-tcp name web-alt port 8080-8081 match-for-any false ignore-warnings true
+m add service-tcp name smtp port 25 match-for-any false ignore-warnings true
+m add service-tcp name backup port 10000 match-for-any false ignore-warnings true
+m add service-tcp name http-8080 port 8080 match-for-any false ignore-warnings true
+m add service-tcp name http-8443 port 8443 match-for-any false ignore-warnings true
+m add service-other name ipsec-esp ip-protocol 50 match-for-any false ignore-warnings true
+m add service-icmp name echo icmp-type 8 ignore-warnings true
+m add service-icmp6 name echo6 icmp-type 128 ignore-warnings true
+m add service-other name gre ip-protocol 47 match-for-any false ignore-warnings true
+m add service-other name ipinip ip-protocol 4 match-for-any false ignore-warnings true
+m add service-other name proto-41 ip-protocol 41 match-for-any false ignore-warnings true
+m add service-udp name udp-3544 port 3544 match-for-any false ignore-warnings true
+m add service-tcp name tcp-3389 port 3389 match-for-any false ignore-warnings true
+m add service-tcp name tcp-8443 port 8443 match-for-any false ignore-warnings true
+m add service-tcp name tcp-21 port 21 match-for-any false ignore-warnings true
+m add service-udp name udp-53 port 53 match-for-any false ignore-warnings true
+m add service-udp name udp-1024-65535 port 1024-65535 match-for-any false ignore-warnings true
+m add service-udp name udp-src-53-dst-1024-65535 port 1024-65535 source-port 53 match-for-any false ignore-warnings true
+m add service-group name web members.1 HTTP members.2 HTTPS members.3 web-alt ignore-warnings true
+m add service-group name mgmt members.1 SSH members.2 echo ignore-warnings true
+m add address-range name r-10.10.0.200-10.10.0.250 ip-address-first 10.10.0.200 ip-address-last 10.10.0.250 ignore-warnings true
+m add host name h-10.20.0.53 ip-address 10.20.0.53 ignore-warnings true
+m add host name h-2001_db8_20__10 ip-address 2001:db8:20::10 ignore-warnings true
 
 # Security zones
 zone inside
@@ -91,75 +91,75 @@ zone dmz
 zone outside
 
 # Traffic from zone inside to zone dmz
-m add access-layer name Network_inside_to_dmz add-default-rule false
-m add access-rule layer Network_inside_to_dmz position bottom name pre-backup source.1 lan-net destination.1 mail-srv destination.2 mail-srv-pub service.1 backup action Accept track.type None
-m add access-rule layer Network_inside_to_dmz position bottom name prefilter-default-block-tunnels service.1 gre service.2 ipinip service.3 proto-41 service.4 udp-3544 action Drop track.type None comments 'Default action of the prefilter policy: block tunnel traffic.'
-m add access-rule layer Network_inside_to_dmz position bottom name 'Admin access' source.1 admin-pcs destination.1 servers destination.2 mail-srv-pub service.1 mgmt action Accept track.type Log
-m add access-rule layer Network_inside_to_dmz position bottom name 'Helpdesk RDP' destination.1 servers destination.2 mail-srv-pub service.1 tcp-3389 action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_inside_to_dmz position bottom name 'Ping out' source.1 inside source.2 dmz service.1 echo action Accept track.type None
-m add access-rule layer Network_inside_to_dmz position bottom name 'Reset the rest from inside' source.1 inside action Reject track.type Log
-m add access-rule layer Network_inside_to_dmz position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 1 name 'inside to dmz' source.1 inside destination.1 dmz action 'Apply Layer' inline-layer Network_inside_to_dmz
+m add access-layer name Network_inside_to_dmz add-default-rule false ignore-warnings true
+m add access-rule layer Network_inside_to_dmz position bottom name pre-backup source.1 lan-net destination.1 mail-srv destination.2 mail-srv-pub service.1 backup action Accept track.type None ignore-warnings true
+m add access-rule layer Network_inside_to_dmz position bottom name prefilter-default-block-tunnels source.1 Any destination.1 Any service.1 gre service.2 ipinip service.3 proto-41 service.4 udp-3544 action Drop track.type None comments 'Default action of the prefilter policy: block tunnel traffic.' ignore-warnings true
+m add access-rule layer Network_inside_to_dmz position bottom name 'Admin access' source.1 admin-pcs destination.1 servers destination.2 mail-srv-pub service.1 mgmt action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_inside_to_dmz position bottom name 'Helpdesk RDP' source.1 Any destination.1 servers destination.2 mail-srv-pub service.1 tcp-3389 action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_inside_to_dmz position bottom name 'Ping out' source.1 inside source.2 dmz destination.1 Any service.1 echo action Accept track.type None ignore-warnings true
+m add access-rule layer Network_inside_to_dmz position bottom name 'Reset the rest from inside' source.1 inside destination.1 Any service.1 Any action Reject track.type Log ignore-warnings true
+m add access-rule layer Network_inside_to_dmz position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 1 name 'inside to dmz' source.1 inside destination.1 dmz service.1 Any action 'Apply Layer' inline-layer Network_inside_to_dmz ignore-warnings true
 
 # Traffic from zone inside to zone outside
-m add access-layer name Network_inside_to_outside add-default-rule false
-m add access-rule layer Network_inside_to_outside position bottom name prefilter-default-block-tunnels service.1 gre service.2 ipinip service.3 proto-41 service.4 udp-3544 action Drop track.type None comments 'Default action of the prefilter policy: block tunnel traffic.'
-m add access-rule layer Network_inside_to_outside position bottom name 'Block OT outbound' source.1 ot-net action Drop track.type Log comments 'No production cell talks to the Internet'
-m add access-rule layer Network_inside_to_outside position bottom name 'LAN web' source.1 lan-net service.1 web action Accept track.type Log
-m add access-rule layer Network_inside_to_outside position bottom name 'LAN DNS and NTP' source.1 lan-net service.1 DNS_over_UDP service.2 DNS_over_TCP service.3 NTP-UDP action Accept track.type None
-m add access-rule layer Network_inside_to_outside position bottom name Updates destination.1 .updates.example.com service.1 HTTPS action Accept track.type Log
-m add access-rule layer Network_inside_to_outside position bottom name 'Staff social media' source.1 inside destination.1 outside action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_inside_to_outside position bottom name 'Uncategorised web' source.1 r-10.10.0.200-10.10.0.250 service.1 HTTP service.2 HTTPS action Drop track.type Log
-m add access-rule layer Network_inside_to_outside position bottom name 'Old FTP' source.1 inside destination.1 outside service.1 tcp-21 action Accept track.type Log enabled false
-m add access-rule layer Network_inside_to_outside position bottom name 'Ping out' source.1 inside source.2 dmz service.1 echo action Accept track.type None
-m add access-rule layer Network_inside_to_outside position bottom name 'Reset the rest from inside' source.1 inside action Reject track.type Log
-m add access-rule layer Network_inside_to_outside position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 2 name 'inside to outside' source.1 inside destination.1 outside action 'Apply Layer' inline-layer Network_inside_to_outside
+m add access-layer name Network_inside_to_outside add-default-rule false ignore-warnings true
+m add access-rule layer Network_inside_to_outside position bottom name prefilter-default-block-tunnels source.1 Any destination.1 Any service.1 gre service.2 ipinip service.3 proto-41 service.4 udp-3544 action Drop track.type None comments 'Default action of the prefilter policy: block tunnel traffic.' ignore-warnings true
+m add access-rule layer Network_inside_to_outside position bottom name 'Block OT outbound' source.1 ot-net destination.1 Any service.1 Any action Drop track.type Log comments 'No production cell talks to the Internet' ignore-warnings true
+m add access-rule layer Network_inside_to_outside position bottom name 'LAN web' source.1 lan-net destination.1 Any service.1 web action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_inside_to_outside position bottom name 'LAN DNS and NTP' source.1 lan-net destination.1 Any service.1 DNS_over_UDP service.2 DNS_over_TCP service.3 NTP-UDP action Accept track.type None ignore-warnings true
+m add access-rule layer Network_inside_to_outside position bottom name Updates source.1 Any destination.1 .updates.example.com service.1 HTTPS action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_inside_to_outside position bottom name 'Staff social media' source.1 inside destination.1 outside service.1 Any action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_inside_to_outside position bottom name 'Uncategorised web' source.1 r-10.10.0.200-10.10.0.250 destination.1 Any service.1 HTTP service.2 HTTPS action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_inside_to_outside position bottom name 'Old FTP' source.1 inside destination.1 outside service.1 tcp-21 action Accept track.type Log enabled false ignore-warnings true
+m add access-rule layer Network_inside_to_outside position bottom name 'Ping out' source.1 inside source.2 dmz destination.1 Any service.1 echo action Accept track.type None ignore-warnings true
+m add access-rule layer Network_inside_to_outside position bottom name 'Reset the rest from inside' source.1 inside destination.1 Any service.1 Any action Reject track.type Log ignore-warnings true
+m add access-rule layer Network_inside_to_outside position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 2 name 'inside to outside' source.1 inside destination.1 outside service.1 Any action 'Apply Layer' inline-layer Network_inside_to_outside ignore-warnings true
 
 # Traffic from zone dmz to zone outside
-m add access-layer name Network_dmz_to_outside add-default-rule false
-m add access-rule layer Network_dmz_to_outside position bottom name pre-partner-gre-reverse source.1 web-srv destination.1 partner-net service.1 gre action Accept track.type None
-m add access-rule layer Network_dmz_to_outside position bottom name prefilter-default-block-tunnels service.1 gre service.2 ipinip service.3 proto-41 service.4 udp-3544 action Drop track.type None comments 'Default action of the prefilter policy: block tunnel traffic.'
-m add access-rule layer Network_dmz_to_outside position bottom name Updates destination.1 .updates.example.com service.1 HTTPS action Accept track.type Log
-m add access-rule layer Network_dmz_to_outside position bottom name 'Ping out' source.1 inside source.2 dmz service.1 echo action Accept track.type None
-m add access-rule layer Network_dmz_to_outside position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 3 name 'dmz to outside' source.1 dmz destination.1 outside action 'Apply Layer' inline-layer Network_dmz_to_outside
+m add access-layer name Network_dmz_to_outside add-default-rule false ignore-warnings true
+m add access-rule layer Network_dmz_to_outside position bottom name pre-partner-gre-reverse source.1 web-srv destination.1 partner-net service.1 gre action Accept track.type None ignore-warnings true
+m add access-rule layer Network_dmz_to_outside position bottom name prefilter-default-block-tunnels source.1 Any destination.1 Any service.1 gre service.2 ipinip service.3 proto-41 service.4 udp-3544 action Drop track.type None comments 'Default action of the prefilter policy: block tunnel traffic.' ignore-warnings true
+m add access-rule layer Network_dmz_to_outside position bottom name Updates source.1 Any destination.1 .updates.example.com service.1 HTTPS action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_dmz_to_outside position bottom name 'Ping out' source.1 inside source.2 dmz destination.1 Any service.1 echo action Accept track.type None ignore-warnings true
+m add access-rule layer Network_dmz_to_outside position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 3 name 'dmz to outside' source.1 dmz destination.1 outside service.1 Any action 'Apply Layer' inline-layer Network_dmz_to_outside ignore-warnings true
 
 # Traffic from zone outside to zone dmz
-m add access-layer name Network_outside_to_dmz add-default-rule false
-m add access-rule layer Network_outside_to_dmz position bottom name pre-spoofed source.1 IPv4-Private-10.0.0.0-8 action Drop track.type Log
-m add access-rule layer Network_outside_to_dmz position bottom name pre-partner-gre source.1 partner-net destination.1 web-srv destination.2 web-srv-pub service.1 gre action Accept track.type None
-m add access-rule layer Network_outside_to_dmz position bottom name prefilter-default-block-tunnels service.1 gre service.2 ipinip service.3 proto-41 service.4 udp-3544 action Drop track.type None comments 'Default action of the prefilter policy: block tunnel traffic.'
-m add access-rule layer Network_outside_to_dmz position bottom name 'Inbound web' destination.1 web-srv destination.2 web-srv-pub service.1 HTTP service.2 HTTPS action Accept track.type Log
-m add access-rule layer Network_outside_to_dmz position bottom name 'Inbound mail' destination.1 mail-srv destination.2 mail-srv-pub service.1 smtp action Accept track.type Log
-m add access-rule layer Network_outside_to_dmz position bottom name 'Partner service' source.1 partner-net destination.1 web-srv destination.2 web-srv-pub service.1 ipsec-esp service.2 tcp-8443 action Accept track.type Log
-m add access-rule layer Network_outside_to_dmz position bottom name 'DNS answers to resolver' destination.1 h-10.20.0.53 service.1 udp-src-53-dst-1024-65535 action Accept track.type None
-m add access-rule layer Network_outside_to_dmz position bottom name 'Branch IPv6' source.1 branch-v6 destination.1 h-2001_db8_20__10 service.1 HTTPS service.2 echo6 action Accept track.type Log
-m add access-rule layer Network_outside_to_dmz position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 4 name 'outside to dmz' source.1 outside destination.1 dmz action 'Apply Layer' inline-layer Network_outside_to_dmz
+m add access-layer name Network_outside_to_dmz add-default-rule false ignore-warnings true
+m add access-rule layer Network_outside_to_dmz position bottom name pre-spoofed source.1 IPv4-Private-10.0.0.0-8 destination.1 Any service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_outside_to_dmz position bottom name pre-partner-gre source.1 partner-net destination.1 web-srv destination.2 web-srv-pub service.1 gre action Accept track.type None ignore-warnings true
+m add access-rule layer Network_outside_to_dmz position bottom name prefilter-default-block-tunnels source.1 Any destination.1 Any service.1 gre service.2 ipinip service.3 proto-41 service.4 udp-3544 action Drop track.type None comments 'Default action of the prefilter policy: block tunnel traffic.' ignore-warnings true
+m add access-rule layer Network_outside_to_dmz position bottom name 'Inbound web' source.1 Any destination.1 web-srv destination.2 web-srv-pub service.1 HTTP service.2 HTTPS action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_outside_to_dmz position bottom name 'Inbound mail' source.1 Any destination.1 mail-srv destination.2 mail-srv-pub service.1 smtp action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_outside_to_dmz position bottom name 'Partner service' source.1 partner-net destination.1 web-srv destination.2 web-srv-pub service.1 ipsec-esp service.2 tcp-8443 action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_outside_to_dmz position bottom name 'DNS answers to resolver' source.1 Any destination.1 h-10.20.0.53 service.1 udp-src-53-dst-1024-65535 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_outside_to_dmz position bottom name 'Branch IPv6' source.1 branch-v6 destination.1 h-2001_db8_20__10 service.1 HTTPS service.2 echo6 action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_outside_to_dmz position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 4 name 'outside to dmz' source.1 outside destination.1 dmz service.1 Any action 'Apply Layer' inline-layer Network_outside_to_dmz ignore-warnings true
 
 # Traffic from zone outside to zone (any other)
-m add access-layer name Network_outside_to_any add-default-rule false
-m add access-rule layer Network_outside_to_any position bottom name pre-spoofed source.1 IPv4-Private-10.0.0.0-8 action Drop track.type Log
-m add access-rule layer Network_outside_to_any position bottom name prefilter-default-block-tunnels service.1 gre service.2 ipinip service.3 proto-41 service.4 udp-3544 action Drop track.type None comments 'Default action of the prefilter policy: block tunnel traffic.'
-m add access-rule layer Network_outside_to_any position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 5 name 'outside to any' source.1 outside action 'Apply Layer' inline-layer Network_outside_to_any
+m add access-layer name Network_outside_to_any add-default-rule false ignore-warnings true
+m add access-rule layer Network_outside_to_any position bottom name pre-spoofed source.1 IPv4-Private-10.0.0.0-8 destination.1 Any service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_outside_to_any position bottom name prefilter-default-block-tunnels source.1 Any destination.1 Any service.1 gre service.2 ipinip service.3 proto-41 service.4 udp-3544 action Drop track.type None comments 'Default action of the prefilter policy: block tunnel traffic.' ignore-warnings true
+m add access-rule layer Network_outside_to_any position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 5 name 'outside to any' source.1 outside destination.1 Any service.1 Any action 'Apply Layer' inline-layer Network_outside_to_any ignore-warnings true
 
 # Rules of layer Network for traffic of no zone pair above
-m add access-rule layer Network position 6 name prefilter-default-block-tunnels service.1 gre service.2 ipinip service.3 proto-41 service.4 udp-3544 action Drop track.type None comments 'Default action of the prefilter policy: block tunnel traffic.'
-m add access-rule layer Network position 7 name 'Staff social media' source.1 inside destination.1 outside action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 8 name 'Old FTP' source.1 inside destination.1 outside service.1 tcp-21 action Accept track.type Log enabled false
-m add access-rule layer Network position 9 name 'Ping out' source.1 inside source.2 dmz service.1 echo action Accept track.type None
-m add access-rule layer Network position 10 name 'Reset the rest from inside' source.1 inside action Reject track.type Log
-m add access-rule layer Network position 11 name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
+m add access-rule layer Network position 6 name prefilter-default-block-tunnels source.1 Any destination.1 Any service.1 gre service.2 ipinip service.3 proto-41 service.4 udp-3544 action Drop track.type None comments 'Default action of the prefilter policy: block tunnel traffic.' ignore-warnings true
+m add access-rule layer Network position 7 name 'Staff social media' source.1 inside destination.1 outside service.1 Any action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 8 name 'Old FTP' source.1 inside destination.1 outside service.1 tcp-21 action Accept track.type Log enabled false ignore-warnings true
+m add access-rule layer Network position 9 name 'Ping out' source.1 inside source.2 dmz destination.1 Any service.1 echo action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 10 name 'Reset the rest from inside' source.1 inside destination.1 Any service.1 Any action Reject track.type Log ignore-warnings true
+m add access-rule layer Network position 11 name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
 
 # NAT rules of package Standard
-m add nat-rule package Standard position bottom original-source lan-net original-destination partner-net method static comments 'nat-1: No NAT towards the partner'
-m add nat-rule package Standard position bottom original-source any-ipv4 original-destination web-srv-pub translated-destination web-srv method static comments 'nat-2: Web server'
-m add nat-rule package Standard position bottom original-destination outside-interface original-service http-8443 translated-destination web-srv translated-service http-8080 method static comments 'nat-3: Test site on the interface address'
-m add nat-rule package Standard position bottom original-source mail-srv translated-source mail-srv-pub method static comments nat-mail-srv
-m add nat-rule package Standard position bottom original-destination mail-srv-pub translated-destination mail-srv method static comments 'nat-mail-srv (inbound)'
-m add nat-rule package Standard position bottom original-source dmz-net translated-source outside-interface method hide comments nat-dmz-net
-m add nat-rule package Standard position bottom original-source internal translated-source outside-interface method hide comments 'nat-after-auto-1: Whatever else leaves'
+m add nat-rule package Standard position bottom original-source lan-net original-destination partner-net original-service Any translated-source Original translated-destination Original translated-service Original method static comments 'nat-1: No NAT towards the partner' ignore-warnings true
+m add nat-rule package Standard position bottom original-source any-ipv4 original-destination web-srv-pub original-service Any translated-source Original translated-destination web-srv translated-service Original method static comments 'nat-2: Web server' ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination outside-interface original-service http-8443 translated-source Original translated-destination web-srv translated-service http-8080 method static comments 'nat-3: Test site on the interface address' ignore-warnings true
+m add nat-rule package Standard position bottom original-source mail-srv original-destination Any original-service Any translated-source mail-srv-pub translated-destination Original translated-service Original method static comments nat-mail-srv ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination mail-srv-pub original-service Any translated-source Original translated-destination mail-srv translated-service Original method static comments 'nat-mail-srv (inbound)' ignore-warnings true
+m add nat-rule package Standard position bottom original-source dmz-net original-destination Any original-service Any translated-source outside-interface translated-destination Original translated-service Original method hide comments nat-dmz-net ignore-warnings true
+m add nat-rule package Standard position bottom original-source internal original-destination Any original-service Any translated-source outside-interface translated-destination Original translated-service Original method hide comments 'nat-after-auto-1: Whatever else leaves' ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'

@@ -30,111 +30,111 @@ m() {
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }
 
 # Network objects
-m add address-range name DMZ-Servers ip-address-first 10.20.0.16 ip-address-last 10.20.0.255
-m add host name Mail-Server ip-address 10.20.0.25
-m add network name Office-LAN subnet 10.10.0.0 mask-length 16 comments 'the office'
-m add host name Public-Web ip-address 203.0.113.10
-m add dns-domain name .updates.example.com is-sub-domain false
-m add network name V6-Servers subnet 2001:db8:20:: mask-length 64
-m add host name Web-Server ip-address 10.20.0.80
-m add host name h-10.10.5.10 ip-address 10.10.5.10
-m add host name h-10.10.5.11 ip-address 10.10.5.11
-m add host name h-192.0.2.50 ip-address 192.0.2.50
-m add group name Admin-Hosts members.1 h-10.10.5.10 members.2 h-10.10.5.11 members.3 h-192.0.2.50
-m add network name n-198.51.100.0_24 subnet 198.51.100.0 mask-length 24
-m add network name n-2001_db8_bad___48 subnet 2001:db8:bad:: mask-length 48
-m add group name Blocked-Nets members.1 n-198.51.100.0_24 members.2 n-2001_db8_bad___48
-m add group name Server-Group members.1 Web-Server members.2 Mail-Server
-m add group name Updates members.1 .updates.example.com
-m add group name Blocked-Nets__IPv4_ members.1 n-198.51.100.0_24 comments 'the addresses of '\''Blocked-Nets'\'' of IPv4'
-m add group name Blocked-Nets__IPv6_ members.1 n-2001_db8_bad___48 comments 'the addresses of '\''Blocked-Nets'\'' of IPv6'
-m add group name Admin-Hosts__port2_ members.1 h-10.10.5.10 members.2 h-10.10.5.11 comments 'the addresses of '\''Admin-Hosts'\'' at interface port2'
-m add group name Admin-Hosts__port1_ members.1 h-192.0.2.50 comments 'the addresses of '\''Admin-Hosts'\'' at interface port1'
-m add group name Updates__IPv4_ members.1 .updates.example.com comments 'the addresses of '\''Updates'\'' of IPv4'
+m add address-range name DMZ-Servers ip-address-first 10.20.0.16 ip-address-last 10.20.0.255 ignore-warnings true
+m add host name Mail-Server ip-address 10.20.0.25 ignore-warnings true
+m add network name Office-LAN subnet 10.10.0.0 mask-length 16 comments 'the office' ignore-warnings true
+m add host name Public-Web ip-address 203.0.113.10 ignore-warnings true
+m add dns-domain name .updates.example.com is-sub-domain false ignore-warnings true
+m add network name V6-Servers subnet 2001:db8:20:: mask-length 64 ignore-warnings true
+m add host name Web-Server ip-address 10.20.0.80 ignore-warnings true
+m add host name h-10.10.5.10 ip-address 10.10.5.10 ignore-warnings true
+m add host name h-10.10.5.11 ip-address 10.10.5.11 ignore-warnings true
+m add host name h-192.0.2.50 ip-address 192.0.2.50 ignore-warnings true
+m add group name Admin-Hosts members.1 h-10.10.5.10 members.2 h-10.10.5.11 members.3 h-192.0.2.50 ignore-warnings true
+m add network name n-198.51.100.0_24 subnet 198.51.100.0 mask-length 24 ignore-warnings true
+m add network name n-2001_db8_bad___48 subnet 2001:db8:bad:: mask-length 48 ignore-warnings true
+m add group name Blocked-Nets members.1 n-198.51.100.0_24 members.2 n-2001_db8_bad___48 ignore-warnings true
+m add group name Server-Group members.1 Web-Server members.2 Mail-Server ignore-warnings true
+m add group name Updates members.1 .updates.example.com ignore-warnings true
+m add group name Blocked-Nets__IPv4_ members.1 n-198.51.100.0_24 comments 'the addresses of '\''Blocked-Nets'\'' of IPv4' ignore-warnings true
+m add group name Blocked-Nets__IPv6_ members.1 n-2001_db8_bad___48 comments 'the addresses of '\''Blocked-Nets'\'' of IPv6' ignore-warnings true
+m add group name Admin-Hosts__port2_ members.1 h-10.10.5.10 members.2 h-10.10.5.11 comments 'the addresses of '\''Admin-Hosts'\'' at interface port2' ignore-warnings true
+m add group name Admin-Hosts__port1_ members.1 h-192.0.2.50 comments 'the addresses of '\''Admin-Hosts'\'' at interface port1' ignore-warnings true
+m add group name Updates__IPv4_ members.1 .updates.example.com comments 'the addresses of '\''Updates'\'' of IPv4' ignore-warnings true
 
 # Services
-m add service-tcp name DNS-tcp53 port 53 match-for-any false
-m add service-udp name DNS-udp53 port 53 match-for-any false
-m add service-group name DNS members.1 DNS-tcp53 members.2 DNS-udp53
-m add service-other name GRE ip-protocol 47 match-for-any false
-m add service-tcp name HTTP_S-tcp80 port 80 match-for-any false
-m add service-tcp name HTTP_S-tcp443 port 443 match-for-any false
-m add service-group name HTTP_S members.1 HTTP_S-tcp80 members.2 HTTP_S-tcp443
-m add service-tcp name Odd-Ports port 1000-2000 source-port 1024-65535 match-for-any false
-m add service-other name Ping ip-protocol 1 match-for-any false
-m add service-tcp name SMTP port 25 match-for-any false
-m add service-tcp name SSH port 22 match-for-any false
-m add service-tcp name Web-Group_entries port 8080 match-for-any false
-m add service-group name Web-Group members.1 HTTP_S members.2 Web-Group_entries
-m add address-range name All-IPv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255
-m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+m add service-tcp name DNS-tcp53 port 53 match-for-any false ignore-warnings true
+m add service-udp name DNS-udp53 port 53 match-for-any false ignore-warnings true
+m add service-group name DNS members.1 DNS-tcp53 members.2 DNS-udp53 ignore-warnings true
+m add service-other name GRE ip-protocol 47 match-for-any false ignore-warnings true
+m add service-tcp name HTTP_S-tcp80 port 80 match-for-any false ignore-warnings true
+m add service-tcp name HTTP_S-tcp443 port 443 match-for-any false ignore-warnings true
+m add service-group name HTTP_S members.1 HTTP_S-tcp80 members.2 HTTP_S-tcp443 ignore-warnings true
+m add service-tcp name Odd-Ports port 1000-2000 source-port 1024-65535 match-for-any false ignore-warnings true
+m add service-other name Ping ip-protocol 1 match-for-any false ignore-warnings true
+m add service-tcp name SMTP port 25 match-for-any false ignore-warnings true
+m add service-tcp name SSH port 22 match-for-any false ignore-warnings true
+m add service-tcp name Web-Group_entries port 8080 match-for-any false ignore-warnings true
+m add service-group name Web-Group members.1 HTTP_S members.2 Web-Group_entries ignore-warnings true
+m add address-range name All-IPv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255 ignore-warnings true
+m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ignore-warnings true
 
 # Security zones
 zone port2
 zone port1
 
 # Traffic from zone port2 to zone (any other)
-m add access-layer name Network_port2_to_any add-default-rule false
-m add access-rule layer Network_port2_to_any position bottom name BLOCK-BAD source.1 Blocked-Nets__IPv4_ destination.1 All-IPv4 action Drop track.type Log comments 'known bad networks'
-m add access-rule layer Network_port2_to_any position bottom name BLOCK-BAD-V6 source.1 Blocked-Nets__IPv6_ destination.1 All-IPv6 action Drop track.type Log
-m add access-rule layer Network_port2_to_any position bottom name 'ADMIN-SSH (port2)' source.1 Admin-Hosts__port2_ destination.1 DMZ-Servers service.1 SSH action Accept track.type Log
-m add access-rule layer Network_port2_to_any position bottom name LAN-2-INTERNET source.1 Office-LAN destination.1 All-IPv4 service.1 HTTP_S action Accept track.type Log
-m add access-rule layer Network_port2_to_any position bottom name WEB-IN source.1 All-IPv4 destination.1 Public-Web service.1 HTTP_S action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_port2_to_any position bottom name SERVER-SYNC source.1 DMZ-Servers destination.1 Office-LAN service.1 Web-Group action Accept track.type Log
-m add access-rule layer Network_port2_to_any position bottom name 'SERVER-SYNC (back)' source.1 Office-LAN destination.1 DMZ-Servers service.1 Web-Group action Accept track.type Log
-m add access-rule layer Network_port2_to_any position bottom name DNS-OUT source.1 Server-Group destination.1 All-IPv4 service.1 DNS action Accept track.type Log enabled false
-m add access-rule layer Network_port2_to_any position bottom name PING-ALL source.1 Office-LAN destination.1 All-IPv4 service.1 Ping action Accept track.type Log
-m add access-rule layer Network_port2_to_any position bottom name UPDATES source.1 DMZ-Servers destination.1 Updates__IPv4_ service.1 HTTP_S action Accept track.type Log
-m add access-rule layer Network_port2_to_any position bottom name V6-WEB source.1 All-IPv6 destination.1 V6-Servers service.1 HTTP_S action Accept track.type Log
-m add access-rule layer Network_port2_to_any position bottom name DENY-LAN-DMZ source.1 Office-LAN destination.1 DMZ-Servers action Reject track.type Log
-m add access-rule layer Network_port2_to_any position bottom name GRE-LAB source.1 Office-LAN destination.1 Mail-Server service.1 GRE action Accept track.type Log
-m add access-rule layer Network_port2_to_any position bottom name TO-LAB source.1 Office-LAN destination.1 All-IPv4 action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_port2_to_any position bottom name ODD source.1 Office-LAN destination.1 All-IPv4 service.1 Odd-Ports action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_port2_to_any position bottom name BLOCKALL source.1 All-IPv4 destination.1 All-IPv4 action Drop track.type Log
-m add access-rule layer Network_port2_to_any position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 1 name 'port2 to any' source.1 port2 action 'Apply Layer' inline-layer Network_port2_to_any
+m add access-layer name Network_port2_to_any add-default-rule false ignore-warnings true
+m add access-rule layer Network_port2_to_any position bottom name BLOCK-BAD source.1 Blocked-Nets__IPv4_ destination.1 All-IPv4 service.1 Any action Drop track.type Log comments 'known bad networks' ignore-warnings true
+m add access-rule layer Network_port2_to_any position bottom name BLOCK-BAD-V6 source.1 Blocked-Nets__IPv6_ destination.1 All-IPv6 service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_port2_to_any position bottom name 'ADMIN-SSH (port2)' source.1 Admin-Hosts__port2_ destination.1 DMZ-Servers service.1 SSH action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_port2_to_any position bottom name LAN-2-INTERNET source.1 Office-LAN destination.1 All-IPv4 service.1 HTTP_S action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_port2_to_any position bottom name WEB-IN source.1 All-IPv4 destination.1 Public-Web service.1 HTTP_S action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_port2_to_any position bottom name SERVER-SYNC source.1 DMZ-Servers destination.1 Office-LAN service.1 Web-Group action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_port2_to_any position bottom name 'SERVER-SYNC (back)' source.1 Office-LAN destination.1 DMZ-Servers service.1 Web-Group action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_port2_to_any position bottom name DNS-OUT source.1 Server-Group destination.1 All-IPv4 service.1 DNS action Accept track.type Log enabled false ignore-warnings true
+m add access-rule layer Network_port2_to_any position bottom name PING-ALL source.1 Office-LAN destination.1 All-IPv4 service.1 Ping action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_port2_to_any position bottom name UPDATES source.1 DMZ-Servers destination.1 Updates__IPv4_ service.1 HTTP_S action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_port2_to_any position bottom name V6-WEB source.1 All-IPv6 destination.1 V6-Servers service.1 HTTP_S action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_port2_to_any position bottom name DENY-LAN-DMZ source.1 Office-LAN destination.1 DMZ-Servers service.1 Any action Reject track.type Log ignore-warnings true
+m add access-rule layer Network_port2_to_any position bottom name GRE-LAB source.1 Office-LAN destination.1 Mail-Server service.1 GRE action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_port2_to_any position bottom name TO-LAB source.1 Office-LAN destination.1 All-IPv4 service.1 Any action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_port2_to_any position bottom name ODD source.1 Office-LAN destination.1 All-IPv4 service.1 Odd-Ports action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_port2_to_any position bottom name BLOCKALL source.1 All-IPv4 destination.1 All-IPv4 service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_port2_to_any position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 1 name 'port2 to any' source.1 port2 destination.1 Any service.1 Any action 'Apply Layer' inline-layer Network_port2_to_any ignore-warnings true
 
 # Traffic from zone port1 to zone (any other)
-m add access-layer name Network_port1_to_any add-default-rule false
-m add access-rule layer Network_port1_to_any position bottom name BLOCK-BAD source.1 Blocked-Nets__IPv4_ destination.1 All-IPv4 action Drop track.type Log comments 'known bad networks'
-m add access-rule layer Network_port1_to_any position bottom name BLOCK-BAD-V6 source.1 Blocked-Nets__IPv6_ destination.1 All-IPv6 action Drop track.type Log
-m add access-rule layer Network_port1_to_any position bottom name 'ADMIN-SSH (port1)' source.1 Admin-Hosts__port1_ destination.1 DMZ-Servers service.1 SSH action Accept track.type Log
-m add access-rule layer Network_port1_to_any position bottom name LAN-2-INTERNET source.1 Office-LAN destination.1 All-IPv4 service.1 HTTP_S action Accept track.type Log
-m add access-rule layer Network_port1_to_any position bottom name WEB-IN source.1 All-IPv4 destination.1 Public-Web service.1 HTTP_S action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_port1_to_any position bottom name SERVER-SYNC source.1 DMZ-Servers destination.1 Office-LAN service.1 Web-Group action Accept track.type Log
-m add access-rule layer Network_port1_to_any position bottom name 'SERVER-SYNC (back)' source.1 Office-LAN destination.1 DMZ-Servers service.1 Web-Group action Accept track.type Log
-m add access-rule layer Network_port1_to_any position bottom name DNS-OUT source.1 Server-Group destination.1 All-IPv4 service.1 DNS action Accept track.type Log enabled false
-m add access-rule layer Network_port1_to_any position bottom name PING-ALL source.1 Office-LAN destination.1 All-IPv4 service.1 Ping action Accept track.type Log
-m add access-rule layer Network_port1_to_any position bottom name UPDATES source.1 DMZ-Servers destination.1 Updates__IPv4_ service.1 HTTP_S action Accept track.type Log
-m add access-rule layer Network_port1_to_any position bottom name V6-WEB source.1 All-IPv6 destination.1 V6-Servers service.1 HTTP_S action Accept track.type Log
-m add access-rule layer Network_port1_to_any position bottom name DENY-LAN-DMZ source.1 Office-LAN destination.1 DMZ-Servers action Reject track.type Log
-m add access-rule layer Network_port1_to_any position bottom name GRE-LAB source.1 Office-LAN destination.1 Mail-Server service.1 GRE action Accept track.type Log
-m add access-rule layer Network_port1_to_any position bottom name TO-LAB source.1 Office-LAN destination.1 All-IPv4 action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_port1_to_any position bottom name ODD source.1 Office-LAN destination.1 All-IPv4 service.1 Odd-Ports action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_port1_to_any position bottom name BLOCKALL source.1 All-IPv4 destination.1 All-IPv4 action Drop track.type Log
-m add access-rule layer Network_port1_to_any position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 2 name 'port1 to any' source.1 port1 action 'Apply Layer' inline-layer Network_port1_to_any
+m add access-layer name Network_port1_to_any add-default-rule false ignore-warnings true
+m add access-rule layer Network_port1_to_any position bottom name BLOCK-BAD source.1 Blocked-Nets__IPv4_ destination.1 All-IPv4 service.1 Any action Drop track.type Log comments 'known bad networks' ignore-warnings true
+m add access-rule layer Network_port1_to_any position bottom name BLOCK-BAD-V6 source.1 Blocked-Nets__IPv6_ destination.1 All-IPv6 service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_port1_to_any position bottom name 'ADMIN-SSH (port1)' source.1 Admin-Hosts__port1_ destination.1 DMZ-Servers service.1 SSH action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_port1_to_any position bottom name LAN-2-INTERNET source.1 Office-LAN destination.1 All-IPv4 service.1 HTTP_S action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_port1_to_any position bottom name WEB-IN source.1 All-IPv4 destination.1 Public-Web service.1 HTTP_S action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_port1_to_any position bottom name SERVER-SYNC source.1 DMZ-Servers destination.1 Office-LAN service.1 Web-Group action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_port1_to_any position bottom name 'SERVER-SYNC (back)' source.1 Office-LAN destination.1 DMZ-Servers service.1 Web-Group action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_port1_to_any position bottom name DNS-OUT source.1 Server-Group destination.1 All-IPv4 service.1 DNS action Accept track.type Log enabled false ignore-warnings true
+m add access-rule layer Network_port1_to_any position bottom name PING-ALL source.1 Office-LAN destination.1 All-IPv4 service.1 Ping action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_port1_to_any position bottom name UPDATES source.1 DMZ-Servers destination.1 Updates__IPv4_ service.1 HTTP_S action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_port1_to_any position bottom name V6-WEB source.1 All-IPv6 destination.1 V6-Servers service.1 HTTP_S action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_port1_to_any position bottom name DENY-LAN-DMZ source.1 Office-LAN destination.1 DMZ-Servers service.1 Any action Reject track.type Log ignore-warnings true
+m add access-rule layer Network_port1_to_any position bottom name GRE-LAB source.1 Office-LAN destination.1 Mail-Server service.1 GRE action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_port1_to_any position bottom name TO-LAB source.1 Office-LAN destination.1 All-IPv4 service.1 Any action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_port1_to_any position bottom name ODD source.1 Office-LAN destination.1 All-IPv4 service.1 Odd-Ports action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_port1_to_any position bottom name BLOCKALL source.1 All-IPv4 destination.1 All-IPv4 service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_port1_to_any position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 2 name 'port1 to any' source.1 port1 destination.1 Any service.1 Any action 'Apply Layer' inline-layer Network_port1_to_any ignore-warnings true
 
 # Rules of layer Network for traffic of no zone pair above
-m add access-rule layer Network position 3 name BLOCK-BAD source.1 Blocked-Nets__IPv4_ destination.1 All-IPv4 action Drop track.type Log comments 'known bad networks'
-m add access-rule layer Network position 4 name BLOCK-BAD-V6 source.1 Blocked-Nets__IPv6_ destination.1 All-IPv6 action Drop track.type Log
-m add access-rule layer Network position 5 name LAN-2-INTERNET source.1 Office-LAN destination.1 All-IPv4 service.1 HTTP_S action Accept track.type Log
-m add access-rule layer Network position 6 name WEB-IN source.1 All-IPv4 destination.1 Public-Web service.1 HTTP_S action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 7 name SERVER-SYNC source.1 DMZ-Servers destination.1 Office-LAN service.1 Web-Group action Accept track.type Log
-m add access-rule layer Network position 8 name 'SERVER-SYNC (back)' source.1 Office-LAN destination.1 DMZ-Servers service.1 Web-Group action Accept track.type Log
-m add access-rule layer Network position 9 name DNS-OUT source.1 Server-Group destination.1 All-IPv4 service.1 DNS action Accept track.type Log enabled false
-m add access-rule layer Network position 10 name PING-ALL source.1 Office-LAN destination.1 All-IPv4 service.1 Ping action Accept track.type Log
-m add access-rule layer Network position 11 name UPDATES source.1 DMZ-Servers destination.1 Updates__IPv4_ service.1 HTTP_S action Accept track.type Log
-m add access-rule layer Network position 12 name V6-WEB source.1 All-IPv6 destination.1 V6-Servers service.1 HTTP_S action Accept track.type Log
-m add access-rule layer Network position 13 name DENY-LAN-DMZ source.1 Office-LAN destination.1 DMZ-Servers action Reject track.type Log
-m add access-rule layer Network position 14 name GRE-LAB source.1 Office-LAN destination.1 Mail-Server service.1 GRE action Accept track.type Log
-m add access-rule layer Network position 15 name TO-LAB source.1 Office-LAN destination.1 All-IPv4 action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 16 name ODD source.1 Office-LAN destination.1 All-IPv4 service.1 Odd-Ports action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 17 name BLOCKALL source.1 All-IPv4 destination.1 All-IPv4 action Drop track.type Log
-m add access-rule layer Network position 18 name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
+m add access-rule layer Network position 3 name BLOCK-BAD source.1 Blocked-Nets__IPv4_ destination.1 All-IPv4 service.1 Any action Drop track.type Log comments 'known bad networks' ignore-warnings true
+m add access-rule layer Network position 4 name BLOCK-BAD-V6 source.1 Blocked-Nets__IPv6_ destination.1 All-IPv6 service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network position 5 name LAN-2-INTERNET source.1 Office-LAN destination.1 All-IPv4 service.1 HTTP_S action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 6 name WEB-IN source.1 All-IPv4 destination.1 Public-Web service.1 HTTP_S action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 7 name SERVER-SYNC source.1 DMZ-Servers destination.1 Office-LAN service.1 Web-Group action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 8 name 'SERVER-SYNC (back)' source.1 Office-LAN destination.1 DMZ-Servers service.1 Web-Group action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 9 name DNS-OUT source.1 Server-Group destination.1 All-IPv4 service.1 DNS action Accept track.type Log enabled false ignore-warnings true
+m add access-rule layer Network position 10 name PING-ALL source.1 Office-LAN destination.1 All-IPv4 service.1 Ping action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 11 name UPDATES source.1 DMZ-Servers destination.1 Updates__IPv4_ service.1 HTTP_S action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 12 name V6-WEB source.1 All-IPv6 destination.1 V6-Servers service.1 HTTP_S action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 13 name DENY-LAN-DMZ source.1 Office-LAN destination.1 DMZ-Servers service.1 Any action Reject track.type Log ignore-warnings true
+m add access-rule layer Network position 14 name GRE-LAB source.1 Office-LAN destination.1 Mail-Server service.1 GRE action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 15 name TO-LAB source.1 Office-LAN destination.1 All-IPv4 service.1 Any action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 16 name ODD source.1 Office-LAN destination.1 All-IPv4 service.1 Odd-Ports action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 17 name BLOCKALL source.1 All-IPv4 destination.1 All-IPv4 service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network position 18 name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'

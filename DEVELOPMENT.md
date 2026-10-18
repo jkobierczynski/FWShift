@@ -8,7 +8,7 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.36.1 (alpha) |
+| Version | 0.36.2 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Meraki MX (read the answers of the Dashboard API for one network: VLANs, objects, the outbound and layer 7 rules, port forwarding, 1:1 and 1:many NAT, the inbound table with NAT exceptions; write a curl script that puts the outbound and NAT tables); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
 | Tests | 6118, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables and nftables**: rulesets loaded into a Linux kernel and real packets forwarded through it (below; and the lab of 0.32.0, also on the author's machine). **AWS, Azure and Google Cloud**: the lab policy's conversion loaded into a real account by the lab, and real connections between instances checked (0.32.1, below). **FortiOS**: the lab policy's conversion loaded on a FortiGate-VM (FortiOS 8.0.1, AWS Marketplace) and real connections through it checked (0.32.1, below). **PAN-OS**: the same on a VM-Series (PAN-OS 11.2.15, AWS Marketplace). Nothing has been loaded on an ASA, an IOS router, a Huawei USG, a Stormshield firewall, a Meraki MX, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
@@ -2166,6 +2166,63 @@ were not reviewed again; they have tests (the last section of
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
 
+### 2026-10-18: version 0.36.2
+
+**The Check Point output published and verified on a management server.** The converted lab policy ran as FWShift's
+`mgmt_cli` script on R82.20, by hand; its first runs found two faults of the emitter, both fixed. The lab's tier 3 has
+a Check Point firewall, scripted, not yet run.
+
+**Built**
+
+* The Check Point emitter adds `ignore-warnings true` to every `add`: a warning (a port or an address another object
+  has already) refuses a call otherwise. Errors still stop the script.
+* Every access rule writes its source, destination and service, `Any` where the source policy says any, and every NAT
+  rule its six cells (`Any` for an original cell, `Original` for a translated one): a cell left out is stored as None,
+  which matches nothing. The replay of the script in `tests/helpers.py` refuses a rule that leaves a cell out; tests
+  `test_every_add_ignores_warnings`, `test_every_rule_fills_all_three_cells`, `test_every_nat_rule_fills_all_six_cells`.
+  The 28 expected `*_to_checkpoint.sh` outputs differ by those words only.
+* The lab's tier 3 got a Check Point firewall: the All-In-One image (gateway and management on one
+  instance, pay as you go), by `--ami` (Check Point's own templates find it by a map of ids, not by a name), on an
+  m5.xlarge (the management API may not start below 8 GB). Its first-time setup is the image's `/etc/cloud_config.py`
+  as Check Point's Terraform module for a standalone calls it, with bash for `admin`; ready when `api status` reports
+  "API readiness test SUCCESSFUL" (as Check Point's own scripts wait), up to 60 minutes. FWShift's `mgmt_cli` script
+  and the lab's driver are copied over (scp) and run: the data interfaces' addresses (`clish`), the script in its own
+  session, one `set simple-gateway` naming every interface (eth0 too, as it replaces the list) with each data
+  interface in its security zone and anti-spoofing off, publish, install of `Standard`. It stops at the first failing
+  step. Taken from Check Point's templates, the API reference as its Ansible modules spell it, and CheckMates; not
+  confirmed: whether eth2 and eth3 get addresses of their own, the type of a standalone's object (the driver lists
+  them), and whether `set simple-gateway` takes a standalone. Never run.
+
+**Tested**
+
+* The first Check Point output on a real management server: R82.20, a Security Management Server
+  installed from the ISO in VirtualBox, by the author, with the converted lab policy run as FWShift's `mgmt_cli`
+  script. Its first object was refused: `add service-tcp name tcp-ssh port 22` failed with `err_validation_failed`,
+  "Validation failed with 1 warning", "The port is already used by another service" (the server's own `ssh`). A
+  warning fails a call unless it is ignored, and the converted services repeat ports of predefined ones (TCP 80, UDP
+  53) as converted hosts may repeat addresses. A fault of the emitter: every `add` now carries `ignore-warnings true`
+  (accepted by every command the script uses, per Check Point's Ansible collection); errors such as a name taken
+  still stop it. The manual says so. Run again with it: every call accepted ("Done."), the objects, the zones, an
+  inline layer per pair of zones and their rules in the session. Published, SmartConsole showed None in every cell
+  the script had left out where the source says any: the destination of guest-not-to-dmz and inside-out, the
+  source of no-dns-out and outside-web, the services of the seven rules that apply a zone pair's layer, and all
+  three cells of every FWShift cleanup rule; and "Missing cleanup rule" under each layer. None matches nothing:
+  no traffic would have reached the inline layers. The emitter had assumed that a cell left out means Any, and so
+  had the test helper that replays the script. A fault of the emitter: every access rule now writes all three
+  cells, `Any` where nothing is named, and every NAT rule all six (`Any` for an original cell, `Original` for a
+  translated one, which no server has shown yet). The replay in tests/helpers.py refuses a rule that leaves a cell
+  out. The lab policy's script differs from the first only by those cells. Loaded again after the first run's
+  objects were deleted and published: SmartConsole shows Any in every one of those cells, the seven zone-pair
+  rules with their inline layers in the source's order, rule 8 the FWShift cleanup (Drop, Log) above the layer's own
+  Cleanup rule, and no "Missing cleanup rule". `verify-policy policy-package Standard`: "Rules Verified OK!", no
+  warnings, no errors. Not installed on a gateway: no traffic checked. README, manual, guide, lab README and TODO
+  say so. A run that stops
+  halfway leaves objects behind (`More than one object named 'inside-net' exists`): delete them and publish
+  first.
+* The suite (6,644 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: a Check Point policy installed on a gateway with traffic through it; NAT on any device (the lab
+  policy has none); the Catalyst 8000V and Check Point of tier 3, and the VMs of tier 2, never run.
+
 ### 2026-10-18: version 0.36.1
 
 **The ASA and Junos output loaded on an ASAv and a vSRX.** The lab's ASAv passed on its ninth run and its vSRX on its
@@ -2269,8 +2326,8 @@ fourth; the runs before found one fault of the converter and what each firewall 
   destination at once) read as a block. The probe now sends two and takes one reply. The fourth run, by the author:
   **PASSED** (local 32, ok 39, ok-unasserted 89), the fourth firewall of tier 3 to pass. What it took in the lab: a
   ready check without the pager that waits for the data interfaces, and a second echo request per ping.
-* **Not verified**: NAT on any device (the lab policy has none); the Catalyst 8000V of tier 3, and the VMs of tier 2,
-  never run.
+* **Not verified**: NAT on any device (the lab policy has none); the Catalyst 8000V of tier 3, and the
+  VMs of tier 2, never run.
 
 ### 2026-10-17: version 0.36.0
 

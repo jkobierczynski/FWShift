@@ -30,83 +30,83 @@ m() {
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }
 
 # Network objects
-m add dns-domain name .updates.example.com is-sub-domain false
-m add dns-domain name .mirror.example.org is-sub-domain false
-m add host name WAN_address ip-address 198.51.100.2 comments 'address of interface WAN in the configuration'
-m add network name LAN_net subnet 192.168.10.0 mask-length 24 comments 'network of interface LAN in the configuration'
-m add network name LAN_net_IPv6 subnet 2001:db8:10:: mask-length 64 comments 'network of interface LAN in the configuration'
-m add network name DMZ_net subnet 192.168.20.0 mask-length 24 comments 'network of interface DMZ in the configuration'
-m add network name GUEST_net subnet 192.168.30.0 mask-length 24 comments 'network of interface GUEST in the configuration'
-m add host name h-192.168.20.10 ip-address 192.168.20.10
-m add host name h-192.168.20.11 ip-address 192.168.20.11
-m add group name WebServers members.1 h-192.168.20.10 members.2 h-192.168.20.11 comments 'Web servers in the DMZ'
-m add host name h-192.168.20.25 ip-address 192.168.20.25
-m add network name n-192.168.20.64_28 subnet 192.168.20.64 mask-length 28
-m add host name h-2001_db8_20__10 ip-address 2001:db8:20::10
-m add group name DmzServers members.1 WebServers members.2 h-192.168.20.25 members.3 n-192.168.20.64_28 members.4 h-2001_db8_20__10 comments 'Everything that serves in the DMZ'
-m add network name n-10.0.0.0_8 subnet 10.0.0.0 mask-length 8
-m add network name n-172.16.0.0_12 subnet 172.16.0.0 mask-length 12
-m add network name n-192.168.0.0_16 subnet 192.168.0.0 mask-length 16
-m add group name Private members.1 n-10.0.0.0_8 members.2 n-172.16.0.0_12 members.3 n-192.168.0.0_16 comments 'RFC 1918'
-m add host name h-203.0.113.80 ip-address 203.0.113.80
-m add group name Updates members.1 .updates.example.com members.2 .mirror.example.org members.3 h-203.0.113.80 comments 'Where the servers get their updates'
-m add host name h-192.168.10.21 ip-address 192.168.10.21
-m add host name h-192.168.10.22 ip-address 192.168.10.22
-m add group name Admins members.1 h-192.168.10.21 members.2 h-192.168.10.22 comments 'Workstations of the administrators'
-m add group name Blocklist comments 'FWSHIFT PLACEHOLDER, matches nothing: a URL table: its addresses are in a file on the firewall, not in the configuration'
-m add host name h-198.51.100.10 ip-address 198.51.100.10
-m add host name h-198.51.100.11 ip-address 198.51.100.11
-m add host name h-192.168.10.1 ip-address 192.168.10.1
-m add host name h-192.168.20.1 ip-address 192.168.20.1
-m add host name h-192.168.30.1 ip-address 192.168.30.1
-m add group name This_Firewall members.1 WAN_address members.2 h-198.51.100.10 members.3 h-198.51.100.11 members.4 h-192.168.10.1 members.5 h-192.168.20.1 members.6 h-192.168.30.1 comments 'the addresses of the firewall itself in the configuration'
-m add host name h-2001_db8_ffff__2 ip-address 2001:db8:ffff::2
-m add host name h-2001_db8_10__1 ip-address 2001:db8:10::1
-m add host name h-2001_db8_20__1 ip-address 2001:db8:20::1
-m add group name This_Firewall_IPv6 members.1 h-2001_db8_ffff__2 members.2 h-2001_db8_10__1 members.3 h-2001_db8_20__1 comments 'the addresses of the firewall itself in the configuration'
-m add group name DmzServers_IPv4 members.1 WebServers members.2 h-192.168.20.25 members.3 n-192.168.20.64_28 comments 'the IPv4 addresses of DmzServers'
+m add dns-domain name .updates.example.com is-sub-domain false ignore-warnings true
+m add dns-domain name .mirror.example.org is-sub-domain false ignore-warnings true
+m add host name WAN_address ip-address 198.51.100.2 comments 'address of interface WAN in the configuration' ignore-warnings true
+m add network name LAN_net subnet 192.168.10.0 mask-length 24 comments 'network of interface LAN in the configuration' ignore-warnings true
+m add network name LAN_net_IPv6 subnet 2001:db8:10:: mask-length 64 comments 'network of interface LAN in the configuration' ignore-warnings true
+m add network name DMZ_net subnet 192.168.20.0 mask-length 24 comments 'network of interface DMZ in the configuration' ignore-warnings true
+m add network name GUEST_net subnet 192.168.30.0 mask-length 24 comments 'network of interface GUEST in the configuration' ignore-warnings true
+m add host name h-192.168.20.10 ip-address 192.168.20.10 ignore-warnings true
+m add host name h-192.168.20.11 ip-address 192.168.20.11 ignore-warnings true
+m add group name WebServers members.1 h-192.168.20.10 members.2 h-192.168.20.11 comments 'Web servers in the DMZ' ignore-warnings true
+m add host name h-192.168.20.25 ip-address 192.168.20.25 ignore-warnings true
+m add network name n-192.168.20.64_28 subnet 192.168.20.64 mask-length 28 ignore-warnings true
+m add host name h-2001_db8_20__10 ip-address 2001:db8:20::10 ignore-warnings true
+m add group name DmzServers members.1 WebServers members.2 h-192.168.20.25 members.3 n-192.168.20.64_28 members.4 h-2001_db8_20__10 comments 'Everything that serves in the DMZ' ignore-warnings true
+m add network name n-10.0.0.0_8 subnet 10.0.0.0 mask-length 8 ignore-warnings true
+m add network name n-172.16.0.0_12 subnet 172.16.0.0 mask-length 12 ignore-warnings true
+m add network name n-192.168.0.0_16 subnet 192.168.0.0 mask-length 16 ignore-warnings true
+m add group name Private members.1 n-10.0.0.0_8 members.2 n-172.16.0.0_12 members.3 n-192.168.0.0_16 comments 'RFC 1918' ignore-warnings true
+m add host name h-203.0.113.80 ip-address 203.0.113.80 ignore-warnings true
+m add group name Updates members.1 .updates.example.com members.2 .mirror.example.org members.3 h-203.0.113.80 comments 'Where the servers get their updates' ignore-warnings true
+m add host name h-192.168.10.21 ip-address 192.168.10.21 ignore-warnings true
+m add host name h-192.168.10.22 ip-address 192.168.10.22 ignore-warnings true
+m add group name Admins members.1 h-192.168.10.21 members.2 h-192.168.10.22 comments 'Workstations of the administrators' ignore-warnings true
+m add group name Blocklist comments 'FWSHIFT PLACEHOLDER, matches nothing: a URL table: its addresses are in a file on the firewall, not in the configuration' ignore-warnings true
+m add host name h-198.51.100.10 ip-address 198.51.100.10 ignore-warnings true
+m add host name h-198.51.100.11 ip-address 198.51.100.11 ignore-warnings true
+m add host name h-192.168.10.1 ip-address 192.168.10.1 ignore-warnings true
+m add host name h-192.168.20.1 ip-address 192.168.20.1 ignore-warnings true
+m add host name h-192.168.30.1 ip-address 192.168.30.1 ignore-warnings true
+m add group name This_Firewall members.1 WAN_address members.2 h-198.51.100.10 members.3 h-198.51.100.11 members.4 h-192.168.10.1 members.5 h-192.168.20.1 members.6 h-192.168.30.1 comments 'the addresses of the firewall itself in the configuration' ignore-warnings true
+m add host name h-2001_db8_ffff__2 ip-address 2001:db8:ffff::2 ignore-warnings true
+m add host name h-2001_db8_10__1 ip-address 2001:db8:10::1 ignore-warnings true
+m add host name h-2001_db8_20__1 ip-address 2001:db8:20::1 ignore-warnings true
+m add group name This_Firewall_IPv6 members.1 h-2001_db8_ffff__2 members.2 h-2001_db8_10__1 members.3 h-2001_db8_20__1 comments 'the addresses of the firewall itself in the configuration' ignore-warnings true
+m add group name DmzServers_IPv4 members.1 WebServers members.2 h-192.168.20.25 members.3 n-192.168.20.64_28 comments 'the IPv4 addresses of DmzServers' ignore-warnings true
 
 # Services
-m add service-tcp name tcp-443 port 443 match-for-any false
-m add service-tcp name tcp-8000-8010 port 8000-8010 match-for-any false
-m add service-tcp name tcp-2222 port 2222 match-for-any false
-m add service-tcp name tcp-22 port 22 match-for-any false
-m add service-icmp name icmp-echoreq icmp-type 8
-m add service-tcp name tcp-23 port 23 match-for-any false
-m add service-tcp name tcp-9000-9010 port 9000-9010 match-for-any false
-m add service-tcp name MailPorts-tcp25 port 25 match-for-any false
-m add service-tcp name MailPorts-tcp465 port 465 match-for-any false
-m add service-tcp name MailPorts-tcp587 port 587 match-for-any false
-m add service-group name MailPorts members.1 MailPorts-tcp25 members.2 MailPorts-tcp465 members.3 MailPorts-tcp587 comments 'ports of alias MailPorts'
-m add service-icmp name icmp-echoreq-timex-unreach-icmp-type8 icmp-type 8
-m add service-icmp name icmp-echoreq-timex-unreach-icmp-type11 icmp-type 11
-m add service-icmp name icmp-echoreq-timex-unreach-icmp-type3 icmp-type 3
-m add service-group name icmp-echoreq-timex-unreach members.1 icmp-echoreq-timex-unreach-icmp-type8 members.2 icmp-echoreq-timex-unreach-icmp-type11 members.3 icmp-echoreq-timex-unreach-icmp-type3
-m add service-tcp name tcp-udp-53-tcp53 port 53 match-for-any false
-m add service-udp name tcp-udp-53-udp53 port 53 match-for-any false
-m add service-group name tcp-udp-53 members.1 tcp-udp-53-tcp53 members.2 tcp-udp-53-udp53
-m add service-tcp name WebPorts-tcp80 port 80 match-for-any false
-m add service-tcp name WebPorts-tcp443 port 443 match-for-any false
-m add service-tcp name WebPorts-tcp8080-8090 port 8080-8090 match-for-any false
-m add service-group name WebPorts members.1 WebPorts-tcp80 members.2 WebPorts-tcp443 members.3 WebPorts-tcp8080-8090 comments 'ports of alias WebPorts'
-m add service-tcp name tcp-25 port 25 match-for-any false
-m add service-udp name udp-514 port 514 match-for-any false
-m add service-other name esp ip-protocol 50 match-for-any false
-m add service-udp name udp-5060-5061 port 5060-5061 match-for-any false
-m add address-range name All-IPv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255
-m add network name n-203.0.113.128_25 subnet 203.0.113.128 mask-length 25
-m add network name n-203.0.113.0_24 subnet 203.0.113.0 mask-length 24
-m add network name n-127.0.0.0_8 subnet 127.0.0.0 mask-length 8
-m add network name n-fc00___7 subnet fc00:: mask-length 7
-m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
-m add host name h-192.168.10.5 ip-address 192.168.10.5
-m add host name h-192.168.20.70 ip-address 192.168.20.70
-m add host name h-203.0.113.7 ip-address 203.0.113.7
-m add host name h-203.0.113.40 ip-address 203.0.113.40
+m add service-tcp name tcp-443 port 443 match-for-any false ignore-warnings true
+m add service-tcp name tcp-8000-8010 port 8000-8010 match-for-any false ignore-warnings true
+m add service-tcp name tcp-2222 port 2222 match-for-any false ignore-warnings true
+m add service-tcp name tcp-22 port 22 match-for-any false ignore-warnings true
+m add service-icmp name icmp-echoreq icmp-type 8 ignore-warnings true
+m add service-tcp name tcp-23 port 23 match-for-any false ignore-warnings true
+m add service-tcp name tcp-9000-9010 port 9000-9010 match-for-any false ignore-warnings true
+m add service-tcp name MailPorts-tcp25 port 25 match-for-any false ignore-warnings true
+m add service-tcp name MailPorts-tcp465 port 465 match-for-any false ignore-warnings true
+m add service-tcp name MailPorts-tcp587 port 587 match-for-any false ignore-warnings true
+m add service-group name MailPorts members.1 MailPorts-tcp25 members.2 MailPorts-tcp465 members.3 MailPorts-tcp587 comments 'ports of alias MailPorts' ignore-warnings true
+m add service-icmp name icmp-echoreq-timex-unreach-icmp-type8 icmp-type 8 ignore-warnings true
+m add service-icmp name icmp-echoreq-timex-unreach-icmp-type11 icmp-type 11 ignore-warnings true
+m add service-icmp name icmp-echoreq-timex-unreach-icmp-type3 icmp-type 3 ignore-warnings true
+m add service-group name icmp-echoreq-timex-unreach members.1 icmp-echoreq-timex-unreach-icmp-type8 members.2 icmp-echoreq-timex-unreach-icmp-type11 members.3 icmp-echoreq-timex-unreach-icmp-type3 ignore-warnings true
+m add service-tcp name tcp-udp-53-tcp53 port 53 match-for-any false ignore-warnings true
+m add service-udp name tcp-udp-53-udp53 port 53 match-for-any false ignore-warnings true
+m add service-group name tcp-udp-53 members.1 tcp-udp-53-tcp53 members.2 tcp-udp-53-udp53 ignore-warnings true
+m add service-tcp name WebPorts-tcp80 port 80 match-for-any false ignore-warnings true
+m add service-tcp name WebPorts-tcp443 port 443 match-for-any false ignore-warnings true
+m add service-tcp name WebPorts-tcp8080-8090 port 8080-8090 match-for-any false ignore-warnings true
+m add service-group name WebPorts members.1 WebPorts-tcp80 members.2 WebPorts-tcp443 members.3 WebPorts-tcp8080-8090 comments 'ports of alias WebPorts' ignore-warnings true
+m add service-tcp name tcp-25 port 25 match-for-any false ignore-warnings true
+m add service-udp name udp-514 port 514 match-for-any false ignore-warnings true
+m add service-other name esp ip-protocol 50 match-for-any false ignore-warnings true
+m add service-udp name udp-5060-5061 port 5060-5061 match-for-any false ignore-warnings true
+m add address-range name All-IPv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255 ignore-warnings true
+m add network name n-203.0.113.128_25 subnet 203.0.113.128 mask-length 25 ignore-warnings true
+m add network name n-203.0.113.0_24 subnet 203.0.113.0 mask-length 24 ignore-warnings true
+m add network name n-127.0.0.0_8 subnet 127.0.0.0 mask-length 8 ignore-warnings true
+m add network name n-fc00___7 subnet fc00:: mask-length 7 ignore-warnings true
+m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ignore-warnings true
+m add host name h-192.168.10.5 ip-address 192.168.10.5 ignore-warnings true
+m add host name h-192.168.20.70 ip-address 192.168.20.70 ignore-warnings true
+m add host name h-203.0.113.7 ip-address 203.0.113.7 ignore-warnings true
+m add host name h-203.0.113.40 ip-address 203.0.113.40 ignore-warnings true
 
 # Security zones
 zone WAN
@@ -115,129 +115,129 @@ zone DMZ
 zone GUEST
 
 # Traffic from zone WAN to zone WAN
-m add access-layer name Network_WAN_to_WAN add-default-rule false
-m add access-rule layer Network_WAN_to_WAN position bottom name 'Nothing leaves towards the sinkhole' source.1 All-IPv4 destination.1 n-203.0.113.128_25 action Drop track.type Log
-m add access-rule layer Network_WAN_to_WAN position bottom name 'SSH for the partner - pass' source.1 n-203.0.113.0_24 destination.1 h-192.168.20.25 destination.2 WAN_address destination.3 h-198.51.100.11 service.1 tcp-22 action Accept track.type None comments 'what the port forward passes by itself (filter rule association '\''Pass'\'')'
-m add access-rule layer Network_WAN_to_WAN position bottom name 'Block private networks from WAN' source.1 n-10.0.0.0_8 source.2 n-127.0.0.0_8 source.3 n-172.16.0.0_12 source.4 n-192.168.0.0_16 source.5 n-fc00___7 action Drop track.type Log comments 'what '\''Block private networks and loopback addresses'\'' of the interface does on pfSense'
-m add access-rule layer Network_WAN_to_WAN position bottom name 'NAT Web server HTTPS' source.1 All-IPv4 destination.1 h-192.168.20.10 destination.2 h-198.51.100.10 service.1 tcp-443 action Accept track.type None
-m add access-rule layer Network_WAN_to_WAN position bottom name 'NAT Application ports' source.1 All-IPv4 destination.1 h-192.168.20.11 service.1 tcp-9000-9010 action Accept track.type None
-m add access-rule layer Network_WAN_to_WAN position bottom name 'Mail in' source.1 All-IPv4 destination.1 h-192.168.20.25 destination.2 h-198.51.100.11 service.1 MailPorts action Accept track.type None
-m add access-rule layer Network_WAN_to_WAN position bottom name 'Web server over IPv6' source.1 All-IPv6 destination.1 h-2001_db8_20__10 service.1 tcp-443 action Accept track.type None
-m add access-rule layer Network_WAN_to_WAN position bottom name 'Ping and errors to the firewall' source.1 All-IPv4 destination.1 WAN_address service.1 icmp-echoreq-timex-unreach action Accept track.type None
-m add access-rule layer Network_WAN_to_WAN position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log
-m add access-rule layer Network_WAN_to_WAN position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 1 name 'WAN to WAN' source.1 WAN destination.1 WAN action 'Apply Layer' inline-layer Network_WAN_to_WAN
+m add access-layer name Network_WAN_to_WAN add-default-rule false ignore-warnings true
+m add access-rule layer Network_WAN_to_WAN position bottom name 'Nothing leaves towards the sinkhole' source.1 All-IPv4 destination.1 n-203.0.113.128_25 service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_WAN_to_WAN position bottom name 'SSH for the partner - pass' source.1 n-203.0.113.0_24 destination.1 h-192.168.20.25 destination.2 WAN_address destination.3 h-198.51.100.11 service.1 tcp-22 action Accept track.type None comments 'what the port forward passes by itself (filter rule association '\''Pass'\'')' ignore-warnings true
+m add access-rule layer Network_WAN_to_WAN position bottom name 'Block private networks from WAN' source.1 n-10.0.0.0_8 source.2 n-127.0.0.0_8 source.3 n-172.16.0.0_12 source.4 n-192.168.0.0_16 source.5 n-fc00___7 destination.1 Any service.1 Any action Drop track.type Log comments 'what '\''Block private networks and loopback addresses'\'' of the interface does on pfSense' ignore-warnings true
+m add access-rule layer Network_WAN_to_WAN position bottom name 'NAT Web server HTTPS' source.1 All-IPv4 destination.1 h-192.168.20.10 destination.2 h-198.51.100.10 service.1 tcp-443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_WAN_to_WAN position bottom name 'NAT Application ports' source.1 All-IPv4 destination.1 h-192.168.20.11 service.1 tcp-9000-9010 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_WAN_to_WAN position bottom name 'Mail in' source.1 All-IPv4 destination.1 h-192.168.20.25 destination.2 h-198.51.100.11 service.1 MailPorts action Accept track.type None ignore-warnings true
+m add access-rule layer Network_WAN_to_WAN position bottom name 'Web server over IPv6' source.1 All-IPv6 destination.1 h-2001_db8_20__10 service.1 tcp-443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_WAN_to_WAN position bottom name 'Ping and errors to the firewall' source.1 All-IPv4 destination.1 WAN_address service.1 icmp-echoreq-timex-unreach action Accept track.type None ignore-warnings true
+m add access-rule layer Network_WAN_to_WAN position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_WAN_to_WAN position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 1 name 'WAN to WAN' source.1 WAN destination.1 WAN service.1 Any action 'Apply Layer' inline-layer Network_WAN_to_WAN ignore-warnings true
 
 # Traffic from zone LAN to zone WAN
-m add access-layer name Network_LAN_to_WAN add-default-rule false
-m add access-rule layer Network_LAN_to_WAN position bottom name 'Nothing leaves towards the sinkhole' source.1 All-IPv4 destination.1 n-203.0.113.128_25 action Drop track.type Log
-m add access-rule layer Network_LAN_to_WAN position bottom name 'Ping from the inside' source.1 All-IPv4 destination.1 All-IPv4 service.1 icmp-echoreq action Accept track.type None
-m add access-rule layer Network_LAN_to_WAN position bottom name 'DNS from the firewall' source.1 LAN source.2 GUEST destination.1 This_Firewall destination.2 This_Firewall_IPv6 service.1 tcp-udp-53 action Accept track.type None
-m add access-rule layer Network_LAN_to_WAN position bottom name 'Administrators to the servers' source.1 Admins destination.1 DmzServers service.1 tcp-22 action Accept track.type Log
-m add access-rule layer Network_LAN_to_WAN position bottom name 'Users to the web servers' source.1 LAN_net destination.1 WebServers destination.2 h-198.51.100.10 service.1 WebPorts action Accept track.type None
-m add access-rule layer Network_LAN_to_WAN position bottom name 'Users to the web server by its outside address' source.1 LAN_net destination.1 h-198.51.100.10 service.1 tcp-443 action Accept track.type None
-m add access-rule layer Network_LAN_to_WAN position bottom name 'No other private network from the LAN' source.1 LAN_net destination.1 Private destination.2 h-198.51.100.10 action Reject track.type None
-m add access-rule layer Network_LAN_to_WAN position bottom name 'Default allow LAN to any rule' source.1 LAN_net destination.1 All-IPv4 action Accept track.type None
-m add access-rule layer Network_LAN_to_WAN position bottom name 'Default allow LAN IPv6 to any rule' source.1 LAN_net_IPv6 destination.1 All-IPv6 action Accept track.type None
-m add access-rule layer Network_LAN_to_WAN position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log
-m add access-rule layer Network_LAN_to_WAN position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 2 name 'LAN to WAN' source.1 LAN destination.1 WAN action 'Apply Layer' inline-layer Network_LAN_to_WAN
+m add access-layer name Network_LAN_to_WAN add-default-rule false ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'Nothing leaves towards the sinkhole' source.1 All-IPv4 destination.1 n-203.0.113.128_25 service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'Ping from the inside' source.1 All-IPv4 destination.1 All-IPv4 service.1 icmp-echoreq action Accept track.type None ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'DNS from the firewall' source.1 LAN source.2 GUEST destination.1 This_Firewall destination.2 This_Firewall_IPv6 service.1 tcp-udp-53 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'Administrators to the servers' source.1 Admins destination.1 DmzServers service.1 tcp-22 action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'Users to the web servers' source.1 LAN_net destination.1 WebServers destination.2 h-198.51.100.10 service.1 WebPorts action Accept track.type None ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'Users to the web server by its outside address' source.1 LAN_net destination.1 h-198.51.100.10 service.1 tcp-443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'No other private network from the LAN' source.1 LAN_net destination.1 Private destination.2 h-198.51.100.10 service.1 Any action Reject track.type None ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'Default allow LAN to any rule' source.1 LAN_net destination.1 All-IPv4 service.1 Any action Accept track.type None ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'Default allow LAN IPv6 to any rule' source.1 LAN_net_IPv6 destination.1 All-IPv6 service.1 Any action Accept track.type None ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 2 name 'LAN to WAN' source.1 LAN destination.1 WAN service.1 Any action 'Apply Layer' inline-layer Network_LAN_to_WAN ignore-warnings true
 
 # Traffic from zone DMZ to zone WAN
-m add access-layer name Network_DMZ_to_WAN add-default-rule false
-m add access-rule layer Network_DMZ_to_WAN position bottom name 'Nothing leaves towards the sinkhole' source.1 All-IPv4 destination.1 n-203.0.113.128_25 action Drop track.type Log
-m add access-rule layer Network_DMZ_to_WAN position bottom name 'Ping from the inside' source.1 All-IPv4 destination.1 All-IPv4 service.1 icmp-echoreq action Accept track.type None
-m add access-rule layer Network_DMZ_to_WAN position bottom name 'Servers fetch their updates' source.1 DmzServers_IPv4 destination.1 Updates service.1 WebPorts action Accept track.type None
-m add access-rule layer Network_DMZ_to_WAN position bottom name 'Mail out, not to the inside' source.1 h-192.168.20.25 destination.1 Private service.1 tcp-25 destination-negate true action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_DMZ_to_WAN position bottom name 'Syslog to the collector' source.1 DMZ_net destination.1 h-192.168.10.5 service.1 udp-514 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_DMZ_to_WAN position bottom name 'Nothing from the list' source.1 Blocklist destination.1 All-IPv4 action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_DMZ_to_WAN position bottom name 'Tunnel of the old application' source.1 h-192.168.20.70 destination.1 h-203.0.113.7 service.1 esp action Accept track.type None enabled false
-m add access-rule layer Network_DMZ_to_WAN position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log
-m add access-rule layer Network_DMZ_to_WAN position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 3 name 'DMZ to WAN' source.1 DMZ destination.1 WAN action 'Apply Layer' inline-layer Network_DMZ_to_WAN
+m add access-layer name Network_DMZ_to_WAN add-default-rule false ignore-warnings true
+m add access-rule layer Network_DMZ_to_WAN position bottom name 'Nothing leaves towards the sinkhole' source.1 All-IPv4 destination.1 n-203.0.113.128_25 service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_DMZ_to_WAN position bottom name 'Ping from the inside' source.1 All-IPv4 destination.1 All-IPv4 service.1 icmp-echoreq action Accept track.type None ignore-warnings true
+m add access-rule layer Network_DMZ_to_WAN position bottom name 'Servers fetch their updates' source.1 DmzServers_IPv4 destination.1 Updates service.1 WebPorts action Accept track.type None ignore-warnings true
+m add access-rule layer Network_DMZ_to_WAN position bottom name 'Mail out, not to the inside' source.1 h-192.168.20.25 destination.1 Private service.1 tcp-25 destination-negate true action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_DMZ_to_WAN position bottom name 'Syslog to the collector' source.1 DMZ_net destination.1 h-192.168.10.5 service.1 udp-514 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_DMZ_to_WAN position bottom name 'Nothing from the list' source.1 Blocklist destination.1 All-IPv4 service.1 Any action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_DMZ_to_WAN position bottom name 'Tunnel of the old application' source.1 h-192.168.20.70 destination.1 h-203.0.113.7 service.1 esp action Accept track.type None enabled false ignore-warnings true
+m add access-rule layer Network_DMZ_to_WAN position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_DMZ_to_WAN position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 3 name 'DMZ to WAN' source.1 DMZ destination.1 WAN service.1 Any action 'Apply Layer' inline-layer Network_DMZ_to_WAN ignore-warnings true
 
 # Traffic from zone GUEST to zone WAN
-m add access-layer name Network_GUEST_to_WAN add-default-rule false
-m add access-rule layer Network_GUEST_to_WAN position bottom name 'Nothing leaves towards the sinkhole' source.1 All-IPv4 destination.1 n-203.0.113.128_25 action Drop track.type Log
-m add access-rule layer Network_GUEST_to_WAN position bottom name 'DNS from the firewall' source.1 LAN source.2 GUEST destination.1 This_Firewall destination.2 This_Firewall_IPv6 service.1 tcp-udp-53 action Accept track.type None
-m add access-rule layer Network_GUEST_to_WAN position bottom name 'Guests reach nothing private' source.1 GUEST_net destination.1 Private destination.2 h-198.51.100.10 action Drop track.type Log
-m add access-rule layer Network_GUEST_to_WAN position bottom name 'Guests browse' source.1 GUEST_net destination.1 All-IPv4 service.1 WebPorts action Accept track.type None
-m add access-rule layer Network_GUEST_to_WAN position bottom name 'Phones of the guests' source.1 GUEST_net destination.1 h-203.0.113.40 service.1 udp-5060-5061 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_GUEST_to_WAN position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log
-m add access-rule layer Network_GUEST_to_WAN position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 4 name 'GUEST to WAN' source.1 GUEST destination.1 WAN action 'Apply Layer' inline-layer Network_GUEST_to_WAN
+m add access-layer name Network_GUEST_to_WAN add-default-rule false ignore-warnings true
+m add access-rule layer Network_GUEST_to_WAN position bottom name 'Nothing leaves towards the sinkhole' source.1 All-IPv4 destination.1 n-203.0.113.128_25 service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_GUEST_to_WAN position bottom name 'DNS from the firewall' source.1 LAN source.2 GUEST destination.1 This_Firewall destination.2 This_Firewall_IPv6 service.1 tcp-udp-53 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_GUEST_to_WAN position bottom name 'Guests reach nothing private' source.1 GUEST_net destination.1 Private destination.2 h-198.51.100.10 service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_GUEST_to_WAN position bottom name 'Guests browse' source.1 GUEST_net destination.1 All-IPv4 service.1 WebPorts action Accept track.type None ignore-warnings true
+m add access-rule layer Network_GUEST_to_WAN position bottom name 'Phones of the guests' source.1 GUEST_net destination.1 h-203.0.113.40 service.1 udp-5060-5061 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_GUEST_to_WAN position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_GUEST_to_WAN position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 4 name 'GUEST to WAN' source.1 GUEST destination.1 WAN service.1 Any action 'Apply Layer' inline-layer Network_GUEST_to_WAN ignore-warnings true
 
 # Traffic from zone WAN to zone (any other)
-m add access-layer name Network_WAN_to_any add-default-rule false
-m add access-rule layer Network_WAN_to_any position bottom name 'SSH for the partner - pass' source.1 n-203.0.113.0_24 destination.1 h-192.168.20.25 destination.2 WAN_address destination.3 h-198.51.100.11 service.1 tcp-22 action Accept track.type None comments 'what the port forward passes by itself (filter rule association '\''Pass'\'')'
-m add access-rule layer Network_WAN_to_any position bottom name 'Block private networks from WAN' source.1 n-10.0.0.0_8 source.2 n-127.0.0.0_8 source.3 n-172.16.0.0_12 source.4 n-192.168.0.0_16 source.5 n-fc00___7 action Drop track.type Log comments 'what '\''Block private networks and loopback addresses'\'' of the interface does on pfSense'
-m add access-rule layer Network_WAN_to_any position bottom name 'NAT Web server HTTPS' source.1 All-IPv4 destination.1 h-192.168.20.10 destination.2 h-198.51.100.10 service.1 tcp-443 action Accept track.type None
-m add access-rule layer Network_WAN_to_any position bottom name 'NAT Application ports' source.1 All-IPv4 destination.1 h-192.168.20.11 service.1 tcp-9000-9010 action Accept track.type None
-m add access-rule layer Network_WAN_to_any position bottom name 'Mail in' source.1 All-IPv4 destination.1 h-192.168.20.25 destination.2 h-198.51.100.11 service.1 MailPorts action Accept track.type None
-m add access-rule layer Network_WAN_to_any position bottom name 'Web server over IPv6' source.1 All-IPv6 destination.1 h-2001_db8_20__10 service.1 tcp-443 action Accept track.type None
-m add access-rule layer Network_WAN_to_any position bottom name 'Ping and errors to the firewall' source.1 All-IPv4 destination.1 WAN_address service.1 icmp-echoreq-timex-unreach action Accept track.type None
-m add access-rule layer Network_WAN_to_any position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log
-m add access-rule layer Network_WAN_to_any position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 5 name 'WAN to any' source.1 WAN action 'Apply Layer' inline-layer Network_WAN_to_any
+m add access-layer name Network_WAN_to_any add-default-rule false ignore-warnings true
+m add access-rule layer Network_WAN_to_any position bottom name 'SSH for the partner - pass' source.1 n-203.0.113.0_24 destination.1 h-192.168.20.25 destination.2 WAN_address destination.3 h-198.51.100.11 service.1 tcp-22 action Accept track.type None comments 'what the port forward passes by itself (filter rule association '\''Pass'\'')' ignore-warnings true
+m add access-rule layer Network_WAN_to_any position bottom name 'Block private networks from WAN' source.1 n-10.0.0.0_8 source.2 n-127.0.0.0_8 source.3 n-172.16.0.0_12 source.4 n-192.168.0.0_16 source.5 n-fc00___7 destination.1 Any service.1 Any action Drop track.type Log comments 'what '\''Block private networks and loopback addresses'\'' of the interface does on pfSense' ignore-warnings true
+m add access-rule layer Network_WAN_to_any position bottom name 'NAT Web server HTTPS' source.1 All-IPv4 destination.1 h-192.168.20.10 destination.2 h-198.51.100.10 service.1 tcp-443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_WAN_to_any position bottom name 'NAT Application ports' source.1 All-IPv4 destination.1 h-192.168.20.11 service.1 tcp-9000-9010 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_WAN_to_any position bottom name 'Mail in' source.1 All-IPv4 destination.1 h-192.168.20.25 destination.2 h-198.51.100.11 service.1 MailPorts action Accept track.type None ignore-warnings true
+m add access-rule layer Network_WAN_to_any position bottom name 'Web server over IPv6' source.1 All-IPv6 destination.1 h-2001_db8_20__10 service.1 tcp-443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_WAN_to_any position bottom name 'Ping and errors to the firewall' source.1 All-IPv4 destination.1 WAN_address service.1 icmp-echoreq-timex-unreach action Accept track.type None ignore-warnings true
+m add access-rule layer Network_WAN_to_any position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_WAN_to_any position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 5 name 'WAN to any' source.1 WAN destination.1 Any service.1 Any action 'Apply Layer' inline-layer Network_WAN_to_any ignore-warnings true
 
 # Traffic from zone LAN to zone (any other)
-m add access-layer name Network_LAN_to_any add-default-rule false
-m add access-rule layer Network_LAN_to_any position bottom name 'Ping from the inside' source.1 All-IPv4 destination.1 All-IPv4 service.1 icmp-echoreq action Accept track.type None
-m add access-rule layer Network_LAN_to_any position bottom name 'DNS from the firewall' source.1 LAN source.2 GUEST destination.1 This_Firewall destination.2 This_Firewall_IPv6 service.1 tcp-udp-53 action Accept track.type None
-m add access-rule layer Network_LAN_to_any position bottom name 'Administrators to the servers' source.1 Admins destination.1 DmzServers service.1 tcp-22 action Accept track.type Log
-m add access-rule layer Network_LAN_to_any position bottom name 'Users to the web servers' source.1 LAN_net destination.1 WebServers destination.2 h-198.51.100.10 service.1 WebPorts action Accept track.type None
-m add access-rule layer Network_LAN_to_any position bottom name 'Users to the web server by its outside address' source.1 LAN_net destination.1 h-198.51.100.10 service.1 tcp-443 action Accept track.type None
-m add access-rule layer Network_LAN_to_any position bottom name 'No other private network from the LAN' source.1 LAN_net destination.1 Private destination.2 h-198.51.100.10 action Reject track.type None
-m add access-rule layer Network_LAN_to_any position bottom name 'Default allow LAN to any rule' source.1 LAN_net destination.1 All-IPv4 action Accept track.type None
-m add access-rule layer Network_LAN_to_any position bottom name 'Default allow LAN IPv6 to any rule' source.1 LAN_net_IPv6 destination.1 All-IPv6 action Accept track.type None
-m add access-rule layer Network_LAN_to_any position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log
-m add access-rule layer Network_LAN_to_any position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 6 name 'LAN to any' source.1 LAN action 'Apply Layer' inline-layer Network_LAN_to_any
+m add access-layer name Network_LAN_to_any add-default-rule false ignore-warnings true
+m add access-rule layer Network_LAN_to_any position bottom name 'Ping from the inside' source.1 All-IPv4 destination.1 All-IPv4 service.1 icmp-echoreq action Accept track.type None ignore-warnings true
+m add access-rule layer Network_LAN_to_any position bottom name 'DNS from the firewall' source.1 LAN source.2 GUEST destination.1 This_Firewall destination.2 This_Firewall_IPv6 service.1 tcp-udp-53 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_LAN_to_any position bottom name 'Administrators to the servers' source.1 Admins destination.1 DmzServers service.1 tcp-22 action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_LAN_to_any position bottom name 'Users to the web servers' source.1 LAN_net destination.1 WebServers destination.2 h-198.51.100.10 service.1 WebPorts action Accept track.type None ignore-warnings true
+m add access-rule layer Network_LAN_to_any position bottom name 'Users to the web server by its outside address' source.1 LAN_net destination.1 h-198.51.100.10 service.1 tcp-443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_LAN_to_any position bottom name 'No other private network from the LAN' source.1 LAN_net destination.1 Private destination.2 h-198.51.100.10 service.1 Any action Reject track.type None ignore-warnings true
+m add access-rule layer Network_LAN_to_any position bottom name 'Default allow LAN to any rule' source.1 LAN_net destination.1 All-IPv4 service.1 Any action Accept track.type None ignore-warnings true
+m add access-rule layer Network_LAN_to_any position bottom name 'Default allow LAN IPv6 to any rule' source.1 LAN_net_IPv6 destination.1 All-IPv6 service.1 Any action Accept track.type None ignore-warnings true
+m add access-rule layer Network_LAN_to_any position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_LAN_to_any position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 6 name 'LAN to any' source.1 LAN destination.1 Any service.1 Any action 'Apply Layer' inline-layer Network_LAN_to_any ignore-warnings true
 
 # Traffic from zone DMZ to zone (any other)
-m add access-layer name Network_DMZ_to_any add-default-rule false
-m add access-rule layer Network_DMZ_to_any position bottom name 'Ping from the inside' source.1 All-IPv4 destination.1 All-IPv4 service.1 icmp-echoreq action Accept track.type None
-m add access-rule layer Network_DMZ_to_any position bottom name 'Servers fetch their updates' source.1 DmzServers_IPv4 destination.1 Updates service.1 WebPorts action Accept track.type None
-m add access-rule layer Network_DMZ_to_any position bottom name 'Mail out, not to the inside' source.1 h-192.168.20.25 destination.1 Private service.1 tcp-25 destination-negate true action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_DMZ_to_any position bottom name 'Syslog to the collector' source.1 DMZ_net destination.1 h-192.168.10.5 service.1 udp-514 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_DMZ_to_any position bottom name 'Nothing from the list' source.1 Blocklist destination.1 All-IPv4 action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_DMZ_to_any position bottom name 'Tunnel of the old application' source.1 h-192.168.20.70 destination.1 h-203.0.113.7 service.1 esp action Accept track.type None enabled false
-m add access-rule layer Network_DMZ_to_any position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log
-m add access-rule layer Network_DMZ_to_any position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 7 name 'DMZ to any' source.1 DMZ action 'Apply Layer' inline-layer Network_DMZ_to_any
+m add access-layer name Network_DMZ_to_any add-default-rule false ignore-warnings true
+m add access-rule layer Network_DMZ_to_any position bottom name 'Ping from the inside' source.1 All-IPv4 destination.1 All-IPv4 service.1 icmp-echoreq action Accept track.type None ignore-warnings true
+m add access-rule layer Network_DMZ_to_any position bottom name 'Servers fetch their updates' source.1 DmzServers_IPv4 destination.1 Updates service.1 WebPorts action Accept track.type None ignore-warnings true
+m add access-rule layer Network_DMZ_to_any position bottom name 'Mail out, not to the inside' source.1 h-192.168.20.25 destination.1 Private service.1 tcp-25 destination-negate true action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_DMZ_to_any position bottom name 'Syslog to the collector' source.1 DMZ_net destination.1 h-192.168.10.5 service.1 udp-514 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_DMZ_to_any position bottom name 'Nothing from the list' source.1 Blocklist destination.1 All-IPv4 service.1 Any action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_DMZ_to_any position bottom name 'Tunnel of the old application' source.1 h-192.168.20.70 destination.1 h-203.0.113.7 service.1 esp action Accept track.type None enabled false ignore-warnings true
+m add access-rule layer Network_DMZ_to_any position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_DMZ_to_any position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 7 name 'DMZ to any' source.1 DMZ destination.1 Any service.1 Any action 'Apply Layer' inline-layer Network_DMZ_to_any ignore-warnings true
 
 # Traffic from zone GUEST to zone (any other)
-m add access-layer name Network_GUEST_to_any add-default-rule false
-m add access-rule layer Network_GUEST_to_any position bottom name 'DNS from the firewall' source.1 LAN source.2 GUEST destination.1 This_Firewall destination.2 This_Firewall_IPv6 service.1 tcp-udp-53 action Accept track.type None
-m add access-rule layer Network_GUEST_to_any position bottom name 'Guests reach nothing private' source.1 GUEST_net destination.1 Private destination.2 h-198.51.100.10 action Drop track.type Log
-m add access-rule layer Network_GUEST_to_any position bottom name 'Guests browse' source.1 GUEST_net destination.1 All-IPv4 service.1 WebPorts action Accept track.type None
-m add access-rule layer Network_GUEST_to_any position bottom name 'Phones of the guests' source.1 GUEST_net destination.1 h-203.0.113.40 service.1 udp-5060-5061 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_GUEST_to_any position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log
-m add access-rule layer Network_GUEST_to_any position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 8 name 'GUEST to any' source.1 GUEST action 'Apply Layer' inline-layer Network_GUEST_to_any
+m add access-layer name Network_GUEST_to_any add-default-rule false ignore-warnings true
+m add access-rule layer Network_GUEST_to_any position bottom name 'DNS from the firewall' source.1 LAN source.2 GUEST destination.1 This_Firewall destination.2 This_Firewall_IPv6 service.1 tcp-udp-53 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_GUEST_to_any position bottom name 'Guests reach nothing private' source.1 GUEST_net destination.1 Private destination.2 h-198.51.100.10 service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_GUEST_to_any position bottom name 'Guests browse' source.1 GUEST_net destination.1 All-IPv4 service.1 WebPorts action Accept track.type None ignore-warnings true
+m add access-rule layer Network_GUEST_to_any position bottom name 'Phones of the guests' source.1 GUEST_net destination.1 h-203.0.113.40 service.1 udp-5060-5061 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_GUEST_to_any position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_GUEST_to_any position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 8 name 'GUEST to any' source.1 GUEST destination.1 Any service.1 Any action 'Apply Layer' inline-layer Network_GUEST_to_any ignore-warnings true
 
 # Traffic from zone (any other) to zone WAN
-m add access-layer name Network_any_to_WAN add-default-rule false
-m add access-rule layer Network_any_to_WAN position bottom name 'Nothing leaves towards the sinkhole' source.1 All-IPv4 destination.1 n-203.0.113.128_25 action Drop track.type Log
-m add access-rule layer Network_any_to_WAN position bottom name 'DNS from the firewall' source.1 LAN source.2 GUEST destination.1 This_Firewall destination.2 This_Firewall_IPv6 service.1 tcp-udp-53 action Accept track.type None
-m add access-rule layer Network_any_to_WAN position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log
-m add access-rule layer Network_any_to_WAN position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 9 name 'any to WAN' destination.1 WAN action 'Apply Layer' inline-layer Network_any_to_WAN
+m add access-layer name Network_any_to_WAN add-default-rule false ignore-warnings true
+m add access-rule layer Network_any_to_WAN position bottom name 'Nothing leaves towards the sinkhole' source.1 All-IPv4 destination.1 n-203.0.113.128_25 service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_any_to_WAN position bottom name 'DNS from the firewall' source.1 LAN source.2 GUEST destination.1 This_Firewall destination.2 This_Firewall_IPv6 service.1 tcp-udp-53 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_any_to_WAN position bottom name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_any_to_WAN position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 9 name 'any to WAN' source.1 Any destination.1 WAN service.1 Any action 'Apply Layer' inline-layer Network_any_to_WAN ignore-warnings true
 
 # Rules of layer Network for traffic of no zone pair above
-m add access-rule layer Network position 10 name 'DNS from the firewall' source.1 LAN source.2 GUEST destination.1 This_Firewall destination.2 This_Firewall_IPv6 service.1 tcp-udp-53 action Accept track.type None
-m add access-rule layer Network position 11 name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log
-m add access-rule layer Network position 12 name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
+m add access-rule layer Network position 10 name 'DNS from the firewall' source.1 LAN source.2 GUEST destination.1 This_Firewall destination.2 This_Firewall_IPv6 service.1 tcp-udp-53 action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 11 name 'Telnet unless a rule says otherwise' source.1 All-IPv4 destination.1 All-IPv4 service.1 tcp-23 action Drop track.type Log ignore-warnings true
+m add access-rule layer Network position 12 name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
 
 # NAT rules of package Standard
-m add nat-rule package Standard position bottom original-source All-IPv4 original-destination h-198.51.100.10 original-service tcp-443 translated-destination h-192.168.20.10 method static comments Web_server_HTTPS
-m add nat-rule package Standard position bottom original-source n-203.0.113.0_24 original-destination WAN_address original-service tcp-2222 translated-destination h-192.168.20.25 translated-service tcp-22 method static comments SSH_for_the_partner
-m add nat-rule package Standard position bottom original-source All-IPv4 original-destination h-198.51.100.11 translated-destination h-192.168.20.25 method static comments 'Mail_server_-_inbound: one half of a 1:1 NAT rule of pfSense'
-m add nat-rule package Standard position bottom original-source h-192.168.20.25 original-destination All-IPv4 translated-source h-198.51.100.11 method static comments 'Mail_server_-_outbound: one half of a 1:1 NAT rule of pfSense'
-m add nat-rule package Standard position bottom original-source DMZ_net original-destination All-IPv4 translated-source h-198.51.100.10 method hide comments DMZ_leaves_with_the_web_address
-m add nat-rule package Standard position bottom original-source LAN_net original-destination n-203.0.113.0_24 method static comments No_NAT_towards_the_partner
-m add network name n-10.50.0.0_16 subnet 10.50.0.0 mask-length 16
-m add group name Automatic_outbound_NAT_on_WAN-src members.1 LAN_net members.2 DMZ_net members.3 GUEST_net members.4 n-10.50.0.0_16
-m add nat-rule package Standard position bottom original-source Automatic_outbound_NAT_on_WAN-src original-destination All-IPv4 translated-source WAN_address method hide comments 'Automatic_outbound_NAT_on_WAN: the rule pfSense makes by itself for this interface (outbound NAT mode automatic or hybrid)'
+m add nat-rule package Standard position bottom original-source All-IPv4 original-destination h-198.51.100.10 original-service tcp-443 translated-source Original translated-destination h-192.168.20.10 translated-service Original method static comments Web_server_HTTPS ignore-warnings true
+m add nat-rule package Standard position bottom original-source n-203.0.113.0_24 original-destination WAN_address original-service tcp-2222 translated-source Original translated-destination h-192.168.20.25 translated-service tcp-22 method static comments SSH_for_the_partner ignore-warnings true
+m add nat-rule package Standard position bottom original-source All-IPv4 original-destination h-198.51.100.11 original-service Any translated-source Original translated-destination h-192.168.20.25 translated-service Original method static comments 'Mail_server_-_inbound: one half of a 1:1 NAT rule of pfSense' ignore-warnings true
+m add nat-rule package Standard position bottom original-source h-192.168.20.25 original-destination All-IPv4 original-service Any translated-source h-198.51.100.11 translated-destination Original translated-service Original method static comments 'Mail_server_-_outbound: one half of a 1:1 NAT rule of pfSense' ignore-warnings true
+m add nat-rule package Standard position bottom original-source DMZ_net original-destination All-IPv4 original-service Any translated-source h-198.51.100.10 translated-destination Original translated-service Original method hide comments DMZ_leaves_with_the_web_address ignore-warnings true
+m add nat-rule package Standard position bottom original-source LAN_net original-destination n-203.0.113.0_24 original-service Any translated-source Original translated-destination Original translated-service Original method static comments No_NAT_towards_the_partner ignore-warnings true
+m add network name n-10.50.0.0_16 subnet 10.50.0.0 mask-length 16 ignore-warnings true
+m add group name Automatic_outbound_NAT_on_WAN-src members.1 LAN_net members.2 DMZ_net members.3 GUEST_net members.4 n-10.50.0.0_16 ignore-warnings true
+m add nat-rule package Standard position bottom original-source Automatic_outbound_NAT_on_WAN-src original-destination All-IPv4 original-service Any translated-source WAN_address translated-destination Original translated-service Original method hide comments 'Automatic_outbound_NAT_on_WAN: the rule pfSense makes by itself for this interface (outbound NAT mode automatic or hybrid)' ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'

@@ -30,59 +30,59 @@ m() {
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }
 
 # Network objects
-m add network name n-10.10.0.0_24 subnet 10.10.0.0 mask-length 24
-m add network name n-2001_db8_10___64 subnet 2001:db8:10:: mask-length 64
-m add group name office-lan members.1 n-10.10.0.0_24 members.2 n-2001_db8_10___64
-m add address-range name r-10.10.0.200-10.10.0.220 ip-address-first 10.10.0.200 ip-address-last 10.10.0.220
-m add group name printers members.1 r-10.10.0.200-10.10.0.220
-m add network name n-10.20.0.10_31 subnet 10.20.0.10 mask-length 31
-m add group name web-servers members.1 n-10.20.0.10_31
-m add host name h-10.20.0.25 ip-address 10.20.0.25
-m add group name mail-server members.1 h-10.20.0.25
-m add group name dmz-servers members.1 n-10.20.0.10_31 members.2 h-10.20.0.25
-m add network name n-10.30.0.0_24 subnet 10.30.0.0 mask-length 24
-m add group name lab-net members.1 n-10.30.0.0_24
-m add network name n-10.10.0.50_31 subnet 10.10.0.50 mask-length 31
-m add group name admin-hosts members.1 n-10.10.0.50_31
-m add network name n-198.51.100.0_24 subnet 198.51.100.0 mask-length 24
-m add group name blocked-nets members.1 n-198.51.100.0_24
+m add network name n-10.10.0.0_24 subnet 10.10.0.0 mask-length 24 ignore-warnings true
+m add network name n-2001_db8_10___64 subnet 2001:db8:10:: mask-length 64 ignore-warnings true
+m add group name office-lan members.1 n-10.10.0.0_24 members.2 n-2001_db8_10___64 ignore-warnings true
+m add address-range name r-10.10.0.200-10.10.0.220 ip-address-first 10.10.0.200 ip-address-last 10.10.0.220 ignore-warnings true
+m add group name printers members.1 r-10.10.0.200-10.10.0.220 ignore-warnings true
+m add network name n-10.20.0.10_31 subnet 10.20.0.10 mask-length 31 ignore-warnings true
+m add group name web-servers members.1 n-10.20.0.10_31 ignore-warnings true
+m add host name h-10.20.0.25 ip-address 10.20.0.25 ignore-warnings true
+m add group name mail-server members.1 h-10.20.0.25 ignore-warnings true
+m add group name dmz-servers members.1 n-10.20.0.10_31 members.2 h-10.20.0.25 ignore-warnings true
+m add network name n-10.30.0.0_24 subnet 10.30.0.0 mask-length 24 ignore-warnings true
+m add group name lab-net members.1 n-10.30.0.0_24 ignore-warnings true
+m add network name n-10.10.0.50_31 subnet 10.10.0.50 mask-length 31 ignore-warnings true
+m add group name admin-hosts members.1 n-10.10.0.50_31 ignore-warnings true
+m add network name n-198.51.100.0_24 subnet 198.51.100.0 mask-length 24 ignore-warnings true
+m add group name blocked-nets members.1 n-198.51.100.0_24 ignore-warnings true
 
 # Services
-m add service-tcp name web-alt-tcp8080 port 8080 match-for-any false
-m add service-tcp name web-alt-tcp8443 port 8443 match-for-any false
-m add service-group name web-alt members.1 web-alt-tcp8080 members.2 web-alt-tcp8443
-m add service-tcp name lab-tools-tcp5000-5010 port 5000-5010 match-for-any false
-m add service-udp name lab-tools-udp6000-from1024-65535 port 6000 source-port 1024-65535 match-for-any false
-m add service-icmp name lab-tools-icmp-type8-code0 icmp-type 8 icmp-code 0
-m add service-group name lab-tools members.1 lab-tools-tcp5000-5010 members.2 lab-tools-udp6000-from1024-65535 members.3 lab-tools-icmp-type8-code0
-m add service-tcp name lab-all-tcp5000-5010 port 5000-5010 match-for-any false
-m add service-udp name lab-all-udp6000-from1024-65535 port 6000 source-port 1024-65535 match-for-any false
-m add service-icmp name lab-all-icmp-type8-code0 icmp-type 8 icmp-code 0
-m add service-tcp name lab-all-tcp8080 port 8080 match-for-any false
-m add service-tcp name lab-all-tcp8443 port 8443 match-for-any false
-m add service-group name lab-all members.1 lab-all-tcp5000-5010 members.2 lab-all-udp6000-from1024-65535 members.3 lab-all-icmp-type8-code0 members.4 lab-all-tcp8080 members.5 lab-all-tcp8443
-m add service-udp name syslog port 514 match-for-any false
-m add service-tcp name http port 80 match-for-any false
-m add service-tcp name https port 443 match-for-any false
-m add service-tcp name smtp port 25 match-for-any false
-m add service-tcp name dns-tcp53 port 53 match-for-any false
-m add service-udp name dns-udp53 port 53 match-for-any false
-m add service-group name dns members.1 dns-tcp53 members.2 dns-udp53
-m add service-udp name ntp port 123 match-for-any false
-m add service-tcp name ssh port 22 match-for-any false
-m add service-tcp name tcp-destination-port-443 port 443 match-for-any false
-m add service-udp name udp-destination-port-53 port 53 match-for-any false
-m add service-other name icmp ip-protocol 1 match-for-any false
-m add service-tcp name ftp port 21 match-for-any false
-m add host name h-203.0.113.3 ip-address 203.0.113.3
-m add host name h-203.0.113.6 ip-address 203.0.113.6
-m add address-range name r-10.10.0.0-10.10.0.199 ip-address-first 10.10.0.0 ip-address-last 10.10.0.199
-m add address-range name r-10.10.0.221-10.10.0.255 ip-address-first 10.10.0.221 ip-address-last 10.10.0.255
-m add host name h-10.10.0.60 ip-address 10.10.0.60
+m add service-tcp name web-alt-tcp8080 port 8080 match-for-any false ignore-warnings true
+m add service-tcp name web-alt-tcp8443 port 8443 match-for-any false ignore-warnings true
+m add service-group name web-alt members.1 web-alt-tcp8080 members.2 web-alt-tcp8443 ignore-warnings true
+m add service-tcp name lab-tools-tcp5000-5010 port 5000-5010 match-for-any false ignore-warnings true
+m add service-udp name lab-tools-udp6000-from1024-65535 port 6000 source-port 1024-65535 match-for-any false ignore-warnings true
+m add service-icmp name lab-tools-icmp-type8-code0 icmp-type 8 icmp-code 0 ignore-warnings true
+m add service-group name lab-tools members.1 lab-tools-tcp5000-5010 members.2 lab-tools-udp6000-from1024-65535 members.3 lab-tools-icmp-type8-code0 ignore-warnings true
+m add service-tcp name lab-all-tcp5000-5010 port 5000-5010 match-for-any false ignore-warnings true
+m add service-udp name lab-all-udp6000-from1024-65535 port 6000 source-port 1024-65535 match-for-any false ignore-warnings true
+m add service-icmp name lab-all-icmp-type8-code0 icmp-type 8 icmp-code 0 ignore-warnings true
+m add service-tcp name lab-all-tcp8080 port 8080 match-for-any false ignore-warnings true
+m add service-tcp name lab-all-tcp8443 port 8443 match-for-any false ignore-warnings true
+m add service-group name lab-all members.1 lab-all-tcp5000-5010 members.2 lab-all-udp6000-from1024-65535 members.3 lab-all-icmp-type8-code0 members.4 lab-all-tcp8080 members.5 lab-all-tcp8443 ignore-warnings true
+m add service-udp name syslog port 514 match-for-any false ignore-warnings true
+m add service-tcp name http port 80 match-for-any false ignore-warnings true
+m add service-tcp name https port 443 match-for-any false ignore-warnings true
+m add service-tcp name smtp port 25 match-for-any false ignore-warnings true
+m add service-tcp name dns-tcp53 port 53 match-for-any false ignore-warnings true
+m add service-udp name dns-udp53 port 53 match-for-any false ignore-warnings true
+m add service-group name dns members.1 dns-tcp53 members.2 dns-udp53 ignore-warnings true
+m add service-udp name ntp port 123 match-for-any false ignore-warnings true
+m add service-tcp name ssh port 22 match-for-any false ignore-warnings true
+m add service-tcp name tcp-destination-port-443 port 443 match-for-any false ignore-warnings true
+m add service-udp name udp-destination-port-53 port 53 match-for-any false ignore-warnings true
+m add service-other name icmp ip-protocol 1 match-for-any false ignore-warnings true
+m add service-tcp name ftp port 21 match-for-any false ignore-warnings true
+m add host name h-203.0.113.3 ip-address 203.0.113.3 ignore-warnings true
+m add host name h-203.0.113.6 ip-address 203.0.113.6 ignore-warnings true
+m add address-range name r-10.10.0.0-10.10.0.199 ip-address-first 10.10.0.0 ip-address-last 10.10.0.199 ignore-warnings true
+m add address-range name r-10.10.0.221-10.10.0.255 ip-address-first 10.10.0.221 ip-address-last 10.10.0.255 ignore-warnings true
+m add host name h-10.10.0.60 ip-address 10.10.0.60 ignore-warnings true
 
 # Security zones
 zone untrust
@@ -91,92 +91,92 @@ zone trust
 zone lab
 
 # Traffic from zone untrust to zone untrust
-m add access-layer name Network_untrust_to_untrust add-default-rule false
-m add access-rule layer Network_untrust_to_untrust position bottom name block-bad-nets source.1 blocked-nets action Drop track.type None
-m add access-rule layer Network_untrust_to_untrust position bottom name 'intrazone default' action Accept track.type None comments 'traffic inside a zone that no rule matches passes (default packet-filter intrazone enable is not set)'
-m add access-rule layer Network position 1 name 'untrust to untrust' source.1 untrust destination.1 untrust action 'Apply Layer' inline-layer Network_untrust_to_untrust
+m add access-layer name Network_untrust_to_untrust add-default-rule false ignore-warnings true
+m add access-rule layer Network_untrust_to_untrust position bottom name block-bad-nets source.1 blocked-nets destination.1 Any service.1 Any action Drop track.type None ignore-warnings true
+m add access-rule layer Network_untrust_to_untrust position bottom name 'intrazone default' source.1 Any destination.1 Any service.1 Any action Accept track.type None comments 'traffic inside a zone that no rule matches passes (default packet-filter intrazone enable is not set)' ignore-warnings true
+m add access-rule layer Network position 1 name 'untrust to untrust' source.1 untrust destination.1 untrust service.1 Any action 'Apply Layer' inline-layer Network_untrust_to_untrust ignore-warnings true
 
 # Traffic from zone untrust to zone dmz
-m add access-layer name Network_untrust_to_dmz add-default-rule false
-m add access-rule layer Network_untrust_to_dmz position bottom name block-bad-nets source.1 blocked-nets action Drop track.type None
-m add access-rule layer Network_untrust_to_dmz position bottom name web-in destination.1 web-servers destination.2 h-203.0.113.3 service.1 http service.2 https action Accept track.type None comments 'published web servers'
-m add access-rule layer Network_untrust_to_dmz position bottom name mail-in destination.1 mail-server destination.2 h-203.0.113.6 service.1 smtp action Accept track.type Log
-m add access-rule layer Network_untrust_to_dmz position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 2 name 'untrust to dmz' source.1 untrust destination.1 dmz action 'Apply Layer' inline-layer Network_untrust_to_dmz
+m add access-layer name Network_untrust_to_dmz add-default-rule false ignore-warnings true
+m add access-rule layer Network_untrust_to_dmz position bottom name block-bad-nets source.1 blocked-nets destination.1 Any service.1 Any action Drop track.type None ignore-warnings true
+m add access-rule layer Network_untrust_to_dmz position bottom name web-in source.1 Any destination.1 web-servers destination.2 h-203.0.113.3 service.1 http service.2 https action Accept track.type None comments 'published web servers' ignore-warnings true
+m add access-rule layer Network_untrust_to_dmz position bottom name mail-in source.1 Any destination.1 mail-server destination.2 h-203.0.113.6 service.1 smtp action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_untrust_to_dmz position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 2 name 'untrust to dmz' source.1 untrust destination.1 dmz service.1 Any action 'Apply Layer' inline-layer Network_untrust_to_dmz ignore-warnings true
 
 # Traffic from zone dmz to zone dmz
-m add access-layer name Network_dmz_to_dmz add-default-rule false
-m add access-rule layer Network_dmz_to_dmz position bottom name 'intrazone default' action Accept track.type None comments 'traffic inside a zone that no rule matches passes (default packet-filter intrazone enable is not set)'
-m add access-rule layer Network position 3 name 'dmz to dmz' source.1 dmz destination.1 dmz action 'Apply Layer' inline-layer Network_dmz_to_dmz
+m add access-layer name Network_dmz_to_dmz add-default-rule false ignore-warnings true
+m add access-rule layer Network_dmz_to_dmz position bottom name 'intrazone default' source.1 Any destination.1 Any service.1 Any action Accept track.type None comments 'traffic inside a zone that no rule matches passes (default packet-filter intrazone enable is not set)' ignore-warnings true
+m add access-rule layer Network position 3 name 'dmz to dmz' source.1 dmz destination.1 dmz service.1 Any action 'Apply Layer' inline-layer Network_dmz_to_dmz ignore-warnings true
 
 # Traffic from zone dmz to zone trust
-m add access-layer name Network_dmz_to_trust add-default-rule false
-m add access-rule layer Network_dmz_to_trust position bottom name dmz-syslog destination.1 h-10.10.0.60 service.1 syslog action Accept track.type None
-m add access-rule layer Network_dmz_to_trust position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 4 name 'dmz to trust' source.1 dmz destination.1 trust action 'Apply Layer' inline-layer Network_dmz_to_trust
+m add access-layer name Network_dmz_to_trust add-default-rule false ignore-warnings true
+m add access-rule layer Network_dmz_to_trust position bottom name dmz-syslog source.1 Any destination.1 h-10.10.0.60 service.1 syslog action Accept track.type None ignore-warnings true
+m add access-rule layer Network_dmz_to_trust position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 4 name 'dmz to trust' source.1 dmz destination.1 trust service.1 Any action 'Apply Layer' inline-layer Network_dmz_to_trust ignore-warnings true
 
 # Traffic from zone trust to zone untrust
-m add access-layer name Network_trust_to_untrust add-default-rule false
-m add access-rule layer Network_trust_to_untrust position bottom name office-out source.1 r-10.10.0.0-10.10.0.199 source.2 r-10.10.0.221-10.10.0.255 source.3 n-2001_db8_10___64 service.1 http service.2 https service.3 dns service.4 ntp action Accept track.type None
-m add access-rule layer Network_trust_to_untrust position bottom name ipv6-out source.1 n-2001_db8_10___64 action Accept track.type None
-m add access-rule layer Network_trust_to_untrust position bottom name video source.1 trust destination.1 untrust action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_trust_to_untrust position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 5 name 'trust to untrust' source.1 trust destination.1 untrust action 'Apply Layer' inline-layer Network_trust_to_untrust
+m add access-layer name Network_trust_to_untrust add-default-rule false ignore-warnings true
+m add access-rule layer Network_trust_to_untrust position bottom name office-out source.1 r-10.10.0.0-10.10.0.199 source.2 r-10.10.0.221-10.10.0.255 source.3 n-2001_db8_10___64 destination.1 Any service.1 http service.2 https service.3 dns service.4 ntp action Accept track.type None ignore-warnings true
+m add access-rule layer Network_trust_to_untrust position bottom name ipv6-out source.1 n-2001_db8_10___64 destination.1 Any service.1 Any action Accept track.type None ignore-warnings true
+m add access-rule layer Network_trust_to_untrust position bottom name video source.1 trust destination.1 untrust service.1 Any action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_trust_to_untrust position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 5 name 'trust to untrust' source.1 trust destination.1 untrust service.1 Any action 'Apply Layer' inline-layer Network_trust_to_untrust ignore-warnings true
 
 # Traffic from zone trust to zone dmz
-m add access-layer name Network_trust_to_dmz add-default-rule false
-m add access-rule layer Network_trust_to_dmz position bottom name office-dmz source.1 office-lan destination.1 dmz-servers destination.2 h-203.0.113.6 service.1 http service.2 https service.3 smtp service.4 web-alt action Accept track.type None
-m add access-rule layer Network_trust_to_dmz position bottom name admin-ssh source.1 admin-hosts service.1 ssh action Accept track.type None
-m add access-rule layer Network_trust_to_dmz position bottom name ping-dmz source.1 trust destination.1 dmz service.1 icmp action Accept track.type None
-m add access-rule layer Network_trust_to_dmz position bottom name old-ftp source.1 trust destination.1 dmz service.1 ftp action Accept track.type None enabled false
-m add access-rule layer Network_trust_to_dmz position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 6 name 'trust to dmz' source.1 trust destination.1 dmz action 'Apply Layer' inline-layer Network_trust_to_dmz
+m add access-layer name Network_trust_to_dmz add-default-rule false ignore-warnings true
+m add access-rule layer Network_trust_to_dmz position bottom name office-dmz source.1 office-lan destination.1 dmz-servers destination.2 h-203.0.113.6 service.1 http service.2 https service.3 smtp service.4 web-alt action Accept track.type None ignore-warnings true
+m add access-rule layer Network_trust_to_dmz position bottom name admin-ssh source.1 admin-hosts destination.1 Any service.1 ssh action Accept track.type None ignore-warnings true
+m add access-rule layer Network_trust_to_dmz position bottom name ping-dmz source.1 trust destination.1 dmz service.1 icmp action Accept track.type None ignore-warnings true
+m add access-rule layer Network_trust_to_dmz position bottom name old-ftp source.1 trust destination.1 dmz service.1 ftp action Accept track.type None enabled false ignore-warnings true
+m add access-rule layer Network_trust_to_dmz position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 6 name 'trust to dmz' source.1 trust destination.1 dmz service.1 Any action 'Apply Layer' inline-layer Network_trust_to_dmz ignore-warnings true
 
 # Traffic from zone trust to zone trust
-m add access-layer name Network_trust_to_trust add-default-rule false
-m add access-rule layer Network_trust_to_trust position bottom name 'intrazone default' action Accept track.type None comments 'traffic inside a zone that no rule matches passes (default packet-filter intrazone enable is not set)'
-m add access-rule layer Network position 7 name 'trust to trust' source.1 trust destination.1 trust action 'Apply Layer' inline-layer Network_trust_to_trust
+m add access-layer name Network_trust_to_trust add-default-rule false ignore-warnings true
+m add access-rule layer Network_trust_to_trust position bottom name 'intrazone default' source.1 Any destination.1 Any service.1 Any action Accept track.type None comments 'traffic inside a zone that no rule matches passes (default packet-filter intrazone enable is not set)' ignore-warnings true
+m add access-rule layer Network position 7 name 'trust to trust' source.1 trust destination.1 trust service.1 Any action 'Apply Layer' inline-layer Network_trust_to_trust ignore-warnings true
 
 # Traffic from zone trust to zone lab
-m add access-layer name Network_trust_to_lab add-default-rule false
-m add access-rule layer Network_trust_to_lab position bottom name admin-ssh source.1 admin-hosts service.1 ssh action Accept track.type None
-m add access-rule layer Network_trust_to_lab position bottom name lab-tools source.1 n-10.10.0.0_24 destination.1 lab-net service.1 lab-all action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_trust_to_lab position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 8 name 'trust to lab' source.1 trust destination.1 lab action 'Apply Layer' inline-layer Network_trust_to_lab
+m add access-layer name Network_trust_to_lab add-default-rule false ignore-warnings true
+m add access-rule layer Network_trust_to_lab position bottom name admin-ssh source.1 admin-hosts destination.1 Any service.1 ssh action Accept track.type None ignore-warnings true
+m add access-rule layer Network_trust_to_lab position bottom name lab-tools source.1 n-10.10.0.0_24 destination.1 lab-net service.1 lab-all action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_trust_to_lab position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 8 name 'trust to lab' source.1 trust destination.1 lab service.1 Any action 'Apply Layer' inline-layer Network_trust_to_lab ignore-warnings true
 
 # Traffic from zone lab to zone untrust
-m add access-layer name Network_lab_to_untrust add-default-rule false
-m add access-rule layer Network_lab_to_untrust position bottom name lab-out source.1 lab-net service.1 tcp-destination-port-443 service.2 udp-destination-port-53 action Accept track.type None
-m add access-rule layer Network_lab_to_untrust position bottom name lab-deny source.1 lab action Drop track.type None
-m add access-rule layer Network_lab_to_untrust position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 9 name 'lab to untrust' source.1 lab destination.1 untrust action 'Apply Layer' inline-layer Network_lab_to_untrust
+m add access-layer name Network_lab_to_untrust add-default-rule false ignore-warnings true
+m add access-rule layer Network_lab_to_untrust position bottom name lab-out source.1 lab-net destination.1 Any service.1 tcp-destination-port-443 service.2 udp-destination-port-53 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_lab_to_untrust position bottom name lab-deny source.1 lab destination.1 Any service.1 Any action Drop track.type None ignore-warnings true
+m add access-rule layer Network_lab_to_untrust position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 9 name 'lab to untrust' source.1 lab destination.1 untrust service.1 Any action 'Apply Layer' inline-layer Network_lab_to_untrust ignore-warnings true
 
 # Traffic from zone lab to zone lab
-m add access-layer name Network_lab_to_lab add-default-rule false
-m add access-rule layer Network_lab_to_lab position bottom name lab-deny source.1 lab action Drop track.type None
-m add access-rule layer Network_lab_to_lab position bottom name 'intrazone default' action Accept track.type None comments 'traffic inside a zone that no rule matches passes (default packet-filter intrazone enable is not set)'
-m add access-rule layer Network position 10 name 'lab to lab' source.1 lab destination.1 lab action 'Apply Layer' inline-layer Network_lab_to_lab
+m add access-layer name Network_lab_to_lab add-default-rule false ignore-warnings true
+m add access-rule layer Network_lab_to_lab position bottom name lab-deny source.1 lab destination.1 Any service.1 Any action Drop track.type None ignore-warnings true
+m add access-rule layer Network_lab_to_lab position bottom name 'intrazone default' source.1 Any destination.1 Any service.1 Any action Accept track.type None comments 'traffic inside a zone that no rule matches passes (default packet-filter intrazone enable is not set)' ignore-warnings true
+m add access-rule layer Network position 10 name 'lab to lab' source.1 lab destination.1 lab service.1 Any action 'Apply Layer' inline-layer Network_lab_to_lab ignore-warnings true
 
 # Traffic from zone untrust to zone (any other)
-m add access-layer name Network_untrust_to_any add-default-rule false
-m add access-rule layer Network_untrust_to_any position bottom name block-bad-nets source.1 blocked-nets action Drop track.type None
-m add access-rule layer Network_untrust_to_any position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 11 name 'untrust to any' source.1 untrust action 'Apply Layer' inline-layer Network_untrust_to_any
+m add access-layer name Network_untrust_to_any add-default-rule false ignore-warnings true
+m add access-rule layer Network_untrust_to_any position bottom name block-bad-nets source.1 blocked-nets destination.1 Any service.1 Any action Drop track.type None ignore-warnings true
+m add access-rule layer Network_untrust_to_any position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 11 name 'untrust to any' source.1 untrust destination.1 Any service.1 Any action 'Apply Layer' inline-layer Network_untrust_to_any ignore-warnings true
 
 # Rules of layer Network for traffic of no zone pair above
-m add access-rule layer Network position 12 name ping-dmz source.1 trust destination.1 dmz service.1 icmp action Accept track.type None
-m add access-rule layer Network position 13 name video source.1 trust destination.1 untrust action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 14 name old-ftp source.1 trust destination.1 dmz service.1 ftp action Accept track.type None enabled false
-m add access-rule layer Network position 15 name lab-deny source.1 lab action Drop track.type None
-m add access-rule layer Network position 16 name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
+m add access-rule layer Network position 12 name ping-dmz source.1 trust destination.1 dmz service.1 icmp action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 13 name video source.1 trust destination.1 untrust service.1 Any action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 14 name old-ftp source.1 trust destination.1 dmz service.1 ftp action Accept track.type None enabled false ignore-warnings true
+m add access-rule layer Network position 15 name lab-deny source.1 lab destination.1 Any service.1 Any action Drop track.type None ignore-warnings true
+m add access-rule layer Network position 16 name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
 
 # NAT rules of package Standard
-m add host name h-10.20.0.10 ip-address 10.20.0.10
-m add nat-rule package Standard position bottom original-destination h-203.0.113.3 original-service http translated-destination h-10.20.0.10 translated-service http method static comments 'nat-server-web: nat server web 0 zone untrust protocol tcp global 203.0.113.3 www inside 10.20.0.10 www no-reverse unr-route'
-m add nat-rule package Standard position bottom original-destination h-203.0.113.3 original-service https translated-destination h-10.20.0.10 translated-service https method static comments 'nat-server-web-tls: nat server web-tls 1 zone untrust protocol tcp global 203.0.113.3 443 inside 10.20.0.10 443 no-reverse'
-m add nat-rule package Standard position bottom original-source h-10.20.0.25 translated-source h-203.0.113.6 method static comments 'nat-server-mail: nat server mail 2 global 203.0.113.6 inside 10.20.0.25'
-m add nat-rule package Standard position bottom original-destination h-203.0.113.6 translated-destination h-10.20.0.25 method static comments 'nat-server-mail (inbound)'
-m add network name n-192.0.2.0_24 subnet 192.0.2.0 mask-length 24
-m add nat-rule package Standard position bottom original-destination n-192.0.2.0_24 method static comments no-nat-vpn
+m add host name h-10.20.0.10 ip-address 10.20.0.10 ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination h-203.0.113.3 original-service http translated-source Original translated-destination h-10.20.0.10 translated-service http method static comments 'nat-server-web: nat server web 0 zone untrust protocol tcp global 203.0.113.3 www inside 10.20.0.10 www no-reverse unr-route' ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination h-203.0.113.3 original-service https translated-source Original translated-destination h-10.20.0.10 translated-service https method static comments 'nat-server-web-tls: nat server web-tls 1 zone untrust protocol tcp global 203.0.113.3 443 inside 10.20.0.10 443 no-reverse' ignore-warnings true
+m add nat-rule package Standard position bottom original-source h-10.20.0.25 original-destination Any original-service Any translated-source h-203.0.113.6 translated-destination Original translated-service Original method static comments 'nat-server-mail: nat server mail 2 global 203.0.113.6 inside 10.20.0.25' ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination h-203.0.113.6 original-service Any translated-source Original translated-destination h-10.20.0.25 translated-service Original method static comments 'nat-server-mail (inbound)' ignore-warnings true
+m add network name n-192.0.2.0_24 subnet 192.0.2.0 mask-length 24 ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination n-192.0.2.0_24 original-service Any translated-source Original translated-destination Original translated-service Original method static comments no-nat-vpn ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'

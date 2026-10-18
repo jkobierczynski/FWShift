@@ -30,55 +30,55 @@ m() {
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }
 
 # Network objects
-m add network name n-10.30.1.10_31 subnet 10.30.1.10 mask-length 31
-m add network name n-2001_db8_30_1__10_127 subnet 2001:db8:30:1::10 mask-length 127
-m add group name asg-web members.1 n-10.30.1.10_31 members.2 n-2001_db8_30_1__10_127 comments 'application security group /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop/providers/Microsoft.Network/applicationSecurityGroups/asg-web'
-m add group name VirtualNetwork comments 'FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically'
-m add host name h-168.63.129.16 ip-address 168.63.129.16
-m add group name AzureLoadBalancer members.1 h-168.63.129.16 comments 'service tag AzureLoadBalancer'
-m add network name n-203.0.113.64_26 subnet 203.0.113.64 mask-length 26
-m add network name n-2001_db8_ee___48 subnet 2001:db8:ee:: mask-length 48
-m add group name Storage.WestEurope members.1 n-203.0.113.64_26 members.2 n-2001_db8_ee___48 comments 'service tag Storage.WestEurope (the addresses of the service tags of change 63)'
-m add group name Internet comments 'FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically'
-m add host name h-10.30.3.20 ip-address 10.30.3.20
-m add group name asg-db members.1 h-10.30.3.20 comments 'application security group /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop/providers/Microsoft.Network/applicationSecurityGroups/asg-db'
-m add network name n-203.0.113.128_27 subnet 203.0.113.128 mask-length 27
-m add group name Sql.WestEurope members.1 n-203.0.113.128_27 comments 'service tag Sql.WestEurope (the addresses of the service tags of change 63)'
+m add network name n-10.30.1.10_31 subnet 10.30.1.10 mask-length 31 ignore-warnings true
+m add network name n-2001_db8_30_1__10_127 subnet 2001:db8:30:1::10 mask-length 127 ignore-warnings true
+m add group name asg-web members.1 n-10.30.1.10_31 members.2 n-2001_db8_30_1__10_127 comments 'application security group /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop/providers/Microsoft.Network/applicationSecurityGroups/asg-web' ignore-warnings true
+m add group name VirtualNetwork comments 'FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically' ignore-warnings true
+m add host name h-168.63.129.16 ip-address 168.63.129.16 ignore-warnings true
+m add group name AzureLoadBalancer members.1 h-168.63.129.16 comments 'service tag AzureLoadBalancer' ignore-warnings true
+m add network name n-203.0.113.64_26 subnet 203.0.113.64 mask-length 26 ignore-warnings true
+m add network name n-2001_db8_ee___48 subnet 2001:db8:ee:: mask-length 48 ignore-warnings true
+m add group name Storage.WestEurope members.1 n-203.0.113.64_26 members.2 n-2001_db8_ee___48 comments 'service tag Storage.WestEurope (the addresses of the service tags of change 63)' ignore-warnings true
+m add group name Internet comments 'FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically' ignore-warnings true
+m add host name h-10.30.3.20 ip-address 10.30.3.20 ignore-warnings true
+m add group name asg-db members.1 h-10.30.3.20 comments 'application security group /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop/providers/Microsoft.Network/applicationSecurityGroups/asg-db' ignore-warnings true
+m add network name n-203.0.113.128_27 subnet 203.0.113.128 mask-length 27 ignore-warnings true
+m add group name Sql.WestEurope members.1 n-203.0.113.128_27 comments 'service tag Sql.WestEurope (the addresses of the service tags of change 63)' ignore-warnings true
 
 # Services
-m add service-tcp name tcp-443_80-tcp443 port 443 match-for-any false
-m add service-tcp name tcp-443_80-tcp80 port 80 match-for-any false
-m add service-group name tcp-443_80 members.1 tcp-443_80-tcp443 members.2 tcp-443_80-tcp80
-m add service-tcp name tcp-22 port 22 match-for-any false
-m add service-tcp name tcp-443 port 443 match-for-any false
-m add service-tcp name tcp-udp-icmp-tcp1-65535 port 1-65535 match-for-any false
-m add service-udp name tcp-udp-icmp-udp1-65535 port 1-65535 match-for-any false
-m add service-other name tcp-udp-icmp-icmp ip-protocol 1 match-for-any false
-m add service-group name tcp-udp-icmp members.1 tcp-udp-icmp-tcp1-65535 members.2 tcp-udp-icmp-udp1-65535 members.3 tcp-udp-icmp-icmp
-m add service-other name icmp ip-protocol 1 match-for-any false
-m add service-tcp name tcp-udp-icmp-2-tcp1-65535 port 1-65535 match-for-any false
-m add service-udp name tcp-udp-icmp-2-udp1-65535 port 1-65535 match-for-any false
-m add service-other name tcp-udp-icmp-2-icmp ip-protocol 1 match-for-any false
-m add service-group name tcp-udp-icmp-2 members.1 tcp-udp-icmp-2-tcp1-65535 members.2 tcp-udp-icmp-2-udp1-65535 members.3 tcp-udp-icmp-2-icmp
-m add service-tcp name tcp-8443 port 8443 match-for-any false
-m add service-other name esp ip-protocol 50 match-for-any false
-m add service-tcp name tcp-1433 port 1433 match-for-any false
-m add service-udp name udp-53-from-1024-65535 port 53 source-port 1024-65535 match-for-any false
-m add service-other name ah ip-protocol 51 match-for-any false
-m add network name n-198.51.100.0_24 subnet 198.51.100.0 mask-length 24
-m add network name n-192.0.2.128_25 subnet 192.0.2.128 mask-length 25
-m add network name n-10.30.1.0_24 subnet 10.30.1.0 mask-length 24
-m add network name n-2001_db8_ff___48 subnet 2001:db8:ff:: mask-length 48
-m add network name n-203.0.113.0_24 subnet 203.0.113.0 mask-length 24
-m add network name n-10.30.2.0_24 subnet 10.30.2.0 mask-length 24
-m add host name h-198.51.100.40 ip-address 198.51.100.40
-m add host name h-10.30.2.10 ip-address 10.30.2.10
-m add host name h-10.30.0.4 ip-address 10.30.0.4
-m add network name n-10.30.9.0_24 subnet 10.30.9.0 mask-length 24
+m add service-tcp name tcp-443_80-tcp443 port 443 match-for-any false ignore-warnings true
+m add service-tcp name tcp-443_80-tcp80 port 80 match-for-any false ignore-warnings true
+m add service-group name tcp-443_80 members.1 tcp-443_80-tcp443 members.2 tcp-443_80-tcp80 ignore-warnings true
+m add service-tcp name tcp-22 port 22 match-for-any false ignore-warnings true
+m add service-tcp name tcp-443 port 443 match-for-any false ignore-warnings true
+m add service-tcp name tcp-udp-icmp-tcp1-65535 port 1-65535 match-for-any false ignore-warnings true
+m add service-udp name tcp-udp-icmp-udp1-65535 port 1-65535 match-for-any false ignore-warnings true
+m add service-other name tcp-udp-icmp-icmp ip-protocol 1 match-for-any false ignore-warnings true
+m add service-group name tcp-udp-icmp members.1 tcp-udp-icmp-tcp1-65535 members.2 tcp-udp-icmp-udp1-65535 members.3 tcp-udp-icmp-icmp ignore-warnings true
+m add service-other name icmp ip-protocol 1 match-for-any false ignore-warnings true
+m add service-tcp name tcp-udp-icmp-2-tcp1-65535 port 1-65535 match-for-any false ignore-warnings true
+m add service-udp name tcp-udp-icmp-2-udp1-65535 port 1-65535 match-for-any false ignore-warnings true
+m add service-other name tcp-udp-icmp-2-icmp ip-protocol 1 match-for-any false ignore-warnings true
+m add service-group name tcp-udp-icmp-2 members.1 tcp-udp-icmp-2-tcp1-65535 members.2 tcp-udp-icmp-2-udp1-65535 members.3 tcp-udp-icmp-2-icmp ignore-warnings true
+m add service-tcp name tcp-8443 port 8443 match-for-any false ignore-warnings true
+m add service-other name esp ip-protocol 50 match-for-any false ignore-warnings true
+m add service-tcp name tcp-1433 port 1433 match-for-any false ignore-warnings true
+m add service-udp name udp-53-from-1024-65535 port 53 source-port 1024-65535 match-for-any false ignore-warnings true
+m add service-other name ah ip-protocol 51 match-for-any false ignore-warnings true
+m add network name n-198.51.100.0_24 subnet 198.51.100.0 mask-length 24 ignore-warnings true
+m add network name n-192.0.2.128_25 subnet 192.0.2.128 mask-length 25 ignore-warnings true
+m add network name n-10.30.1.0_24 subnet 10.30.1.0 mask-length 24 ignore-warnings true
+m add network name n-2001_db8_ff___48 subnet 2001:db8:ff:: mask-length 48 ignore-warnings true
+m add network name n-203.0.113.0_24 subnet 203.0.113.0 mask-length 24 ignore-warnings true
+m add network name n-10.30.2.0_24 subnet 10.30.2.0 mask-length 24 ignore-warnings true
+m add host name h-198.51.100.40 ip-address 198.51.100.40 ignore-warnings true
+m add host name h-10.30.2.10 ip-address 10.30.2.10 ignore-warnings true
+m add host name h-10.30.0.4 ip-address 10.30.0.4 ignore-warnings true
+m add network name n-10.30.9.0_24 subnet 10.30.9.0 mask-length 24 ignore-warnings true
 
 # Security zones
 zone outside
@@ -87,240 +87,240 @@ zone nsg-app
 zone nsg-db
 
 # Traffic from zone outside to zone nsg-web
-m add access-layer name Network_outside_to_nsg-web add-default-rule false
-m add access-rule layer Network_outside_to_nsg-web position bottom name nsg-web:Allow-HTTPS destination.1 asg-web service.1 tcp-443_80 action Accept track.type None comments 'Web from anywhere'
-m add access-rule layer Network_outside_to_nsg-web position bottom name nsg-web:Allow-SSH-Admins source.1 n-198.51.100.0_24 source.2 n-192.0.2.128_25 destination.1 n-10.30.1.0_24 service.1 tcp-22 action Accept track.type None
-m add access-rule layer Network_outside_to_nsg-web position bottom name nsg-web:Allow-HTTPS-v6 source.1 n-2001_db8_ff___48 service.1 tcp-443 action Accept track.type None
-m add access-rule layer Network_outside_to_nsg-web position bottom name nsg-web:Deny-Partner source.1 n-203.0.113.0_24 service.1 tcp-udp-icmp action Drop track.type None comments 'Old partner range'
-m add access-rule layer Network_outside_to_nsg-web position bottom name nsg-web:Allow-Ping-VNet source.1 VirtualNetwork service.1 icmp action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_outside_to_nsg-web position bottom name nsg-web:AllowVnetInBound source.1 VirtualNetwork service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_outside_to_nsg-web position bottom name nsg-web:AllowAzureLoadBalancerInBound source.1 AzureLoadBalancer service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from azure load balancer'
-m add access-rule layer Network_outside_to_nsg-web position bottom name nsg-web:DenyAllInBound source.1 outside destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_outside_to_nsg-web position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 1 name 'outside to nsg-web' source.1 outside destination.1 nsg-web action 'Apply Layer' inline-layer Network_outside_to_nsg-web
+m add access-layer name Network_outside_to_nsg-web add-default-rule false ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-web position bottom name nsg-web:Allow-HTTPS source.1 Any destination.1 asg-web service.1 tcp-443_80 action Accept track.type None comments 'Web from anywhere' ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-web position bottom name nsg-web:Allow-SSH-Admins source.1 n-198.51.100.0_24 source.2 n-192.0.2.128_25 destination.1 n-10.30.1.0_24 service.1 tcp-22 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-web position bottom name nsg-web:Allow-HTTPS-v6 source.1 n-2001_db8_ff___48 destination.1 Any service.1 tcp-443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-web position bottom name nsg-web:Deny-Partner source.1 n-203.0.113.0_24 destination.1 Any service.1 tcp-udp-icmp action Drop track.type None comments 'Old partner range' ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-web position bottom name nsg-web:Allow-Ping-VNet source.1 VirtualNetwork destination.1 Any service.1 icmp action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-web position bottom name nsg-web:AllowVnetInBound source.1 VirtualNetwork destination.1 Any service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-web position bottom name nsg-web:AllowAzureLoadBalancerInBound source.1 AzureLoadBalancer destination.1 Any service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from azure load balancer' ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-web position bottom name nsg-web:DenyAllInBound source.1 outside destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-web position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 1 name 'outside to nsg-web' source.1 outside destination.1 nsg-web service.1 Any action 'Apply Layer' inline-layer Network_outside_to_nsg-web ignore-warnings true
 
 # Traffic from zone outside to zone nsg-app
-m add access-layer name Network_outside_to_nsg-app add-default-rule false
-m add access-rule layer Network_outside_to_nsg-app position bottom name nsg-app:Allow-From-Web source.1 n-10.30.1.0_24 service.1 tcp-8443 action Accept track.type None
-m add access-rule layer Network_outside_to_nsg-app position bottom name nsg-app:Allow-Esp-Partner source.1 h-198.51.100.40 destination.1 h-10.30.2.10 service.1 esp action Accept track.type None
-m add access-rule layer Network_outside_to_nsg-app position bottom name nsg-app:Allow-Probe source.1 AzureLoadBalancer service.1 tcp-8443 action Accept track.type None
-m add access-rule layer Network_outside_to_nsg-app position bottom name nsg-app:Deny-VNet source.1 VirtualNetwork service.1 tcp-udp-icmp action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_outside_to_nsg-app position bottom name nsg-app:AllowVnetInBound source.1 VirtualNetwork service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_outside_to_nsg-app position bottom name nsg-app:AllowAzureLoadBalancerInBound source.1 AzureLoadBalancer service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from azure load balancer'
-m add access-rule layer Network_outside_to_nsg-app position bottom name nsg-app:DenyAllInBound source.1 outside destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_outside_to_nsg-app position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 2 name 'outside to nsg-app' source.1 outside destination.1 nsg-app action 'Apply Layer' inline-layer Network_outside_to_nsg-app
+m add access-layer name Network_outside_to_nsg-app add-default-rule false ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-app position bottom name nsg-app:Allow-From-Web source.1 n-10.30.1.0_24 destination.1 Any service.1 tcp-8443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-app position bottom name nsg-app:Allow-Esp-Partner source.1 h-198.51.100.40 destination.1 h-10.30.2.10 service.1 esp action Accept track.type None ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-app position bottom name nsg-app:Allow-Probe source.1 AzureLoadBalancer destination.1 Any service.1 tcp-8443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-app position bottom name nsg-app:Deny-VNet source.1 VirtualNetwork destination.1 Any service.1 tcp-udp-icmp action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-app position bottom name nsg-app:AllowVnetInBound source.1 VirtualNetwork destination.1 Any service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-app position bottom name nsg-app:AllowAzureLoadBalancerInBound source.1 AzureLoadBalancer destination.1 Any service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from azure load balancer' ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-app position bottom name nsg-app:DenyAllInBound source.1 outside destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-app position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 2 name 'outside to nsg-app' source.1 outside destination.1 nsg-app service.1 Any action 'Apply Layer' inline-layer Network_outside_to_nsg-app ignore-warnings true
 
 # Traffic from zone outside to zone nsg-db
-m add access-layer name Network_outside_to_nsg-db add-default-rule false
-m add access-rule layer Network_outside_to_nsg-db position bottom name nsg-db:Allow-Sql-From-App source.1 n-10.30.2.0_24 destination.1 asg-db service.1 tcp-1433 action Accept track.type None
-m add access-rule layer Network_outside_to_nsg-db position bottom name nsg-db:Allow-Old-Gre source.1 n-10.30.9.0_24 service.1 ah action Accept track.type None comments 'AH from the management subnet'
-m add access-rule layer Network_outside_to_nsg-db position bottom name nsg-db:AllowVnetInBound source.1 VirtualNetwork service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_outside_to_nsg-db position bottom name nsg-db:AllowAzureLoadBalancerInBound source.1 AzureLoadBalancer service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from azure load balancer'
-m add access-rule layer Network_outside_to_nsg-db position bottom name nsg-db:DenyAllInBound source.1 outside destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_outside_to_nsg-db position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 3 name 'outside to nsg-db' source.1 outside destination.1 nsg-db action 'Apply Layer' inline-layer Network_outside_to_nsg-db
+m add access-layer name Network_outside_to_nsg-db add-default-rule false ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-db position bottom name nsg-db:Allow-Sql-From-App source.1 n-10.30.2.0_24 destination.1 asg-db service.1 tcp-1433 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-db position bottom name nsg-db:Allow-Old-Gre source.1 n-10.30.9.0_24 destination.1 Any service.1 ah action Accept track.type None comments 'AH from the management subnet' ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-db position bottom name nsg-db:AllowVnetInBound source.1 VirtualNetwork destination.1 Any service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-db position bottom name nsg-db:AllowAzureLoadBalancerInBound source.1 AzureLoadBalancer destination.1 Any service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from azure load balancer' ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-db position bottom name nsg-db:DenyAllInBound source.1 outside destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_outside_to_nsg-db position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 3 name 'outside to nsg-db' source.1 outside destination.1 nsg-db service.1 Any action 'Apply Layer' inline-layer Network_outside_to_nsg-db ignore-warnings true
 
 # Traffic from zone nsg-web to zone outside
-m add access-layer name Network_nsg-web_to_outside add-default-rule false
-m add access-rule layer Network_nsg-web_to_outside position bottom name nsg-web:Allow-App-Out destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Accept track.type None
-m add access-rule layer Network_nsg-web_to_outside position bottom name nsg-web:Allow-Storage destination.1 Storage.WestEurope service.1 tcp-443 action Accept track.type None
-m add access-rule layer Network_nsg-web_to_outside position bottom name nsg-web:Deny-Internet destination.1 Internet service.1 tcp-udp-icmp action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_nsg-web_to_outside position bottom name nsg-web:AllowVnetOutBound destination.1 VirtualNetwork service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to all VMs in VNET'
-m add access-rule layer Network_nsg-web_to_outside position bottom name nsg-web:AllowInternetOutBound destination.1 Internet service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to Internet'
-m add access-rule layer Network_nsg-web_to_outside position bottom name nsg-web:DenyAllOutBound source.1 nsg-web destination.1 outside service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network_nsg-web_to_outside position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 4 name 'nsg-web to outside' source.1 nsg-web destination.1 outside action 'Apply Layer' inline-layer Network_nsg-web_to_outside
+m add access-layer name Network_nsg-web_to_outside add-default-rule false ignore-warnings true
+m add access-rule layer Network_nsg-web_to_outside position bottom name nsg-web:Allow-App-Out source.1 Any destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-web_to_outside position bottom name nsg-web:Allow-Storage source.1 Any destination.1 Storage.WestEurope service.1 tcp-443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-web_to_outside position bottom name nsg-web:Deny-Internet source.1 Any destination.1 Internet service.1 tcp-udp-icmp action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_outside position bottom name nsg-web:AllowVnetOutBound source.1 Any destination.1 VirtualNetwork service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_outside position bottom name nsg-web:AllowInternetOutBound source.1 Any destination.1 Internet service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to Internet' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_outside position bottom name nsg-web:DenyAllOutBound source.1 nsg-web destination.1 outside service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_outside position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 4 name 'nsg-web to outside' source.1 nsg-web destination.1 outside service.1 Any action 'Apply Layer' inline-layer Network_nsg-web_to_outside ignore-warnings true
 
 # Traffic from zone nsg-web to zone nsg-web
-m add access-layer name Network_nsg-web_to_nsg-web add-default-rule false
-m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:Allow-App-Out+nsg-web:Deny-Partner source.1 n-203.0.113.0_24 destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Drop track.type None comments 'Old partner range'
-m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:Allow-App-Out+nsg-web:AllowVnetInBound destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:Allow-App-Out+nsg-web:DenyAllInBound destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS destination.1 asg-web service.1 tcp-443_80 action Accept track.type None comments 'Web from anywhere'
-m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:AllowVnetOutBound+nsg-web:Allow-SSH-Admins source.1 n-198.51.100.0_24 source.2 n-192.0.2.128_25 destination.1 n-10.30.1.0_24 service.1 tcp-22 action Accept track.type None
-m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6 source.1 n-2001_db8_ff___48 service.1 tcp-443 action Accept track.type None
-m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:AllowVnetOutBound+nsg-web:Deny-Partner source.1 n-203.0.113.0_24 service.1 tcp-udp-icmp action Drop track.type None comments 'Old partner range'
-m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:AllowVnetOutBound+nsg-web:Allow-Ping-VNet source.1 nsg-web destination.1 nsg-web service.1 icmp action Accept track.type None
-m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound source.1 nsg-web destination.1 nsg-web service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:AllowVnetOutBound+nsg-web:DenyAllInBound source.1 nsg-web destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-web_to_nsg-web position bottom name 'nsg-web:DenyAllOutBound to nsg-web' source.1 nsg-web destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network_nsg-web_to_nsg-web position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 5 name 'nsg-web to nsg-web' source.1 nsg-web destination.1 nsg-web action 'Apply Layer' inline-layer Network_nsg-web_to_nsg-web
+m add access-layer name Network_nsg-web_to_nsg-web add-default-rule false ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:Allow-App-Out+nsg-web:Deny-Partner source.1 n-203.0.113.0_24 destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Drop track.type None comments 'Old partner range' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:Allow-App-Out+nsg-web:AllowVnetInBound source.1 Any destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:Allow-App-Out+nsg-web:DenyAllInBound source.1 Any destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS source.1 Any destination.1 asg-web service.1 tcp-443_80 action Accept track.type None comments 'Web from anywhere' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:AllowVnetOutBound+nsg-web:Allow-SSH-Admins source.1 n-198.51.100.0_24 source.2 n-192.0.2.128_25 destination.1 n-10.30.1.0_24 service.1 tcp-22 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6 source.1 n-2001_db8_ff___48 destination.1 Any service.1 tcp-443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:AllowVnetOutBound+nsg-web:Deny-Partner source.1 n-203.0.113.0_24 destination.1 Any service.1 tcp-udp-icmp action Drop track.type None comments 'Old partner range' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:AllowVnetOutBound+nsg-web:Allow-Ping-VNet source.1 nsg-web destination.1 nsg-web service.1 icmp action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound source.1 nsg-web destination.1 nsg-web service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-web position bottom name nsg-web:AllowVnetOutBound+nsg-web:DenyAllInBound source.1 nsg-web destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-web position bottom name 'nsg-web:DenyAllOutBound to nsg-web' source.1 nsg-web destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-web position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 5 name 'nsg-web to nsg-web' source.1 nsg-web destination.1 nsg-web service.1 Any action 'Apply Layer' inline-layer Network_nsg-web_to_nsg-web ignore-warnings true
 
 # Traffic from zone nsg-web to zone nsg-app
-m add access-layer name Network_nsg-web_to_nsg-app add-default-rule false
-m add access-rule layer Network_nsg-web_to_nsg-app position bottom name nsg-web:Allow-App-Out+nsg-app:Allow-From-Web source.1 n-10.30.1.0_24 destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Accept track.type None
-m add access-rule layer Network_nsg-web_to_nsg-app position bottom name nsg-web:Allow-App-Out+nsg-app:Deny-VNet destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Drop track.type None
-m add access-rule layer Network_nsg-web_to_nsg-app position bottom name nsg-web:Allow-App-Out+nsg-app:AllowVnetInBound destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-web_to_nsg-app position bottom name nsg-web:Allow-App-Out+nsg-app:DenyAllInBound destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-web_to_nsg-app position bottom name nsg-web:AllowVnetOutBound+nsg-app:Allow-From-Web source.1 n-10.30.1.0_24 service.1 tcp-8443 action Accept track.type None
-m add access-rule layer Network_nsg-web_to_nsg-app position bottom name nsg-web:AllowVnetOutBound+nsg-app:Deny-VNet source.1 nsg-web destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None
-m add access-rule layer Network_nsg-web_to_nsg-app position bottom name nsg-web:AllowVnetOutBound+nsg-app:AllowVnetInBound source.1 nsg-web destination.1 nsg-app service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-web_to_nsg-app position bottom name nsg-web:AllowVnetOutBound+nsg-app:DenyAllInBound source.1 nsg-web destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-web_to_nsg-app position bottom name 'nsg-web:DenyAllOutBound to nsg-app' source.1 nsg-web destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network_nsg-web_to_nsg-app position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 6 name 'nsg-web to nsg-app' source.1 nsg-web destination.1 nsg-app action 'Apply Layer' inline-layer Network_nsg-web_to_nsg-app
+m add access-layer name Network_nsg-web_to_nsg-app add-default-rule false ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-app position bottom name nsg-web:Allow-App-Out+nsg-app:Allow-From-Web source.1 n-10.30.1.0_24 destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-app position bottom name nsg-web:Allow-App-Out+nsg-app:Deny-VNet source.1 Any destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Drop track.type None ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-app position bottom name nsg-web:Allow-App-Out+nsg-app:AllowVnetInBound source.1 Any destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-app position bottom name nsg-web:Allow-App-Out+nsg-app:DenyAllInBound source.1 Any destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-app position bottom name nsg-web:AllowVnetOutBound+nsg-app:Allow-From-Web source.1 n-10.30.1.0_24 destination.1 Any service.1 tcp-8443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-app position bottom name nsg-web:AllowVnetOutBound+nsg-app:Deny-VNet source.1 nsg-web destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-app position bottom name nsg-web:AllowVnetOutBound+nsg-app:AllowVnetInBound source.1 nsg-web destination.1 nsg-app service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-app position bottom name nsg-web:AllowVnetOutBound+nsg-app:DenyAllInBound source.1 nsg-web destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-app position bottom name 'nsg-web:DenyAllOutBound to nsg-app' source.1 nsg-web destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-app position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 6 name 'nsg-web to nsg-app' source.1 nsg-web destination.1 nsg-app service.1 Any action 'Apply Layer' inline-layer Network_nsg-web_to_nsg-app ignore-warnings true
 
 # Traffic from zone nsg-web to zone nsg-db
-m add access-layer name Network_nsg-web_to_nsg-db add-default-rule false
-m add access-rule layer Network_nsg-web_to_nsg-db position bottom name nsg-web:Allow-App-Out+nsg-db:AllowVnetInBound destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-web_to_nsg-db position bottom name nsg-web:Allow-App-Out+nsg-db:DenyAllInBound destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-web_to_nsg-db position bottom name nsg-web:AllowVnetOutBound+nsg-db:Allow-Sql-From-App source.1 n-10.30.2.0_24 destination.1 asg-db service.1 tcp-1433 action Accept track.type None
-m add access-rule layer Network_nsg-web_to_nsg-db position bottom name nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound source.1 nsg-web destination.1 nsg-db service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-web_to_nsg-db position bottom name nsg-web:AllowVnetOutBound+nsg-db:DenyAllInBound source.1 nsg-web destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-web_to_nsg-db position bottom name 'nsg-web:DenyAllOutBound to nsg-db' source.1 nsg-web destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network_nsg-web_to_nsg-db position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 7 name 'nsg-web to nsg-db' source.1 nsg-web destination.1 nsg-db action 'Apply Layer' inline-layer Network_nsg-web_to_nsg-db
+m add access-layer name Network_nsg-web_to_nsg-db add-default-rule false ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-db position bottom name nsg-web:Allow-App-Out+nsg-db:AllowVnetInBound source.1 Any destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-db position bottom name nsg-web:Allow-App-Out+nsg-db:DenyAllInBound source.1 Any destination.1 n-10.30.2.0_24 service.1 tcp-8443 action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-db position bottom name nsg-web:AllowVnetOutBound+nsg-db:Allow-Sql-From-App source.1 n-10.30.2.0_24 destination.1 asg-db service.1 tcp-1433 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-db position bottom name nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound source.1 nsg-web destination.1 nsg-db service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-db position bottom name nsg-web:AllowVnetOutBound+nsg-db:DenyAllInBound source.1 nsg-web destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-db position bottom name 'nsg-web:DenyAllOutBound to nsg-db' source.1 nsg-web destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-web_to_nsg-db position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 7 name 'nsg-web to nsg-db' source.1 nsg-web destination.1 nsg-db service.1 Any action 'Apply Layer' inline-layer Network_nsg-web_to_nsg-db ignore-warnings true
 
 # Traffic from zone nsg-app to zone outside
-m add access-layer name Network_nsg-app_to_outside add-default-rule false
-m add access-rule layer Network_nsg-app_to_outside position bottom name nsg-app:Allow-Db destination.1 asg-db service.1 tcp-1433 action Accept track.type None
-m add access-rule layer Network_nsg-app_to_outside position bottom name nsg-app:Allow-Sql destination.1 Sql.WestEurope service.1 tcp-1433 action Accept track.type None
-m add access-rule layer Network_nsg-app_to_outside position bottom name nsg-app:Allow-Dns destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Accept track.type None
-m add access-rule layer Network_nsg-app_to_outside position bottom name nsg-app:Deny-Out source.1 nsg-app destination.1 outside service.1 tcp-udp-icmp action Drop track.type None
-m add access-rule layer Network_nsg-app_to_outside position bottom name nsg-app:AllowVnetOutBound destination.1 VirtualNetwork service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to all VMs in VNET'
-m add access-rule layer Network_nsg-app_to_outside position bottom name nsg-app:AllowInternetOutBound destination.1 Internet service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to Internet'
-m add access-rule layer Network_nsg-app_to_outside position bottom name nsg-app:DenyAllOutBound source.1 nsg-app destination.1 outside service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network_nsg-app_to_outside position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 8 name 'nsg-app to outside' source.1 nsg-app destination.1 outside action 'Apply Layer' inline-layer Network_nsg-app_to_outside
+m add access-layer name Network_nsg-app_to_outside add-default-rule false ignore-warnings true
+m add access-rule layer Network_nsg-app_to_outside position bottom name nsg-app:Allow-Db source.1 Any destination.1 asg-db service.1 tcp-1433 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-app_to_outside position bottom name nsg-app:Allow-Sql source.1 Any destination.1 Sql.WestEurope service.1 tcp-1433 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-app_to_outside position bottom name nsg-app:Allow-Dns source.1 Any destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-app_to_outside position bottom name nsg-app:Deny-Out source.1 nsg-app destination.1 outside service.1 tcp-udp-icmp action Drop track.type None ignore-warnings true
+m add access-rule layer Network_nsg-app_to_outside position bottom name nsg-app:AllowVnetOutBound source.1 Any destination.1 VirtualNetwork service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_outside position bottom name nsg-app:AllowInternetOutBound source.1 Any destination.1 Internet service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to Internet' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_outside position bottom name nsg-app:DenyAllOutBound source.1 nsg-app destination.1 outside service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_outside position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 8 name 'nsg-app to outside' source.1 nsg-app destination.1 outside service.1 Any action 'Apply Layer' inline-layer Network_nsg-app_to_outside ignore-warnings true
 
 # Traffic from zone nsg-app to zone nsg-web
-m add access-layer name Network_nsg-app_to_nsg-web add-default-rule false
-m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:Allow-Db+nsg-web:Deny-Partner source.1 n-203.0.113.0_24 destination.1 asg-db service.1 tcp-1433 action Drop track.type None comments 'Old partner range'
-m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:Allow-Db+nsg-web:AllowVnetInBound destination.1 asg-db service.1 tcp-1433 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:Allow-Db+nsg-web:DenyAllInBound destination.1 asg-db service.1 tcp-1433 action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:Allow-Dns+nsg-web:Deny-Partner source.1 n-203.0.113.0_24 destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Drop track.type None comments 'Old partner range'
-m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:Allow-Dns+nsg-web:AllowVnetInBound destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:Allow-Dns+nsg-web:DenyAllInBound destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-app_to_nsg-web position bottom name 'nsg-app:Deny-Out to nsg-web' source.1 nsg-app destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None
-m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS destination.1 asg-web service.1 tcp-443_80 action Accept track.type None comments 'Web from anywhere'
-m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:AllowVnetOutBound+nsg-web:Allow-SSH-Admins source.1 n-198.51.100.0_24 source.2 n-192.0.2.128_25 destination.1 n-10.30.1.0_24 service.1 tcp-22 action Accept track.type None
-m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6 source.1 n-2001_db8_ff___48 service.1 tcp-443 action Accept track.type None
-m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:AllowVnetOutBound+nsg-web:Deny-Partner source.1 n-203.0.113.0_24 service.1 tcp-udp-icmp action Drop track.type None comments 'Old partner range'
-m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:AllowVnetOutBound+nsg-web:Allow-Ping-VNet source.1 nsg-app destination.1 nsg-web service.1 icmp action Accept track.type None
-m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound source.1 nsg-app destination.1 nsg-web service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:AllowVnetOutBound+nsg-web:DenyAllInBound source.1 nsg-app destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-app_to_nsg-web position bottom name 'nsg-app:DenyAllOutBound to nsg-web' source.1 nsg-app destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network_nsg-app_to_nsg-web position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 9 name 'nsg-app to nsg-web' source.1 nsg-app destination.1 nsg-web action 'Apply Layer' inline-layer Network_nsg-app_to_nsg-web
+m add access-layer name Network_nsg-app_to_nsg-web add-default-rule false ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:Allow-Db+nsg-web:Deny-Partner source.1 n-203.0.113.0_24 destination.1 asg-db service.1 tcp-1433 action Drop track.type None comments 'Old partner range' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:Allow-Db+nsg-web:AllowVnetInBound source.1 Any destination.1 asg-db service.1 tcp-1433 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:Allow-Db+nsg-web:DenyAllInBound source.1 Any destination.1 asg-db service.1 tcp-1433 action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:Allow-Dns+nsg-web:Deny-Partner source.1 n-203.0.113.0_24 destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Drop track.type None comments 'Old partner range' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:Allow-Dns+nsg-web:AllowVnetInBound source.1 Any destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:Allow-Dns+nsg-web:DenyAllInBound source.1 Any destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-web position bottom name 'nsg-app:Deny-Out to nsg-web' source.1 nsg-app destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS source.1 Any destination.1 asg-web service.1 tcp-443_80 action Accept track.type None comments 'Web from anywhere' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:AllowVnetOutBound+nsg-web:Allow-SSH-Admins source.1 n-198.51.100.0_24 source.2 n-192.0.2.128_25 destination.1 n-10.30.1.0_24 service.1 tcp-22 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6 source.1 n-2001_db8_ff___48 destination.1 Any service.1 tcp-443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:AllowVnetOutBound+nsg-web:Deny-Partner source.1 n-203.0.113.0_24 destination.1 Any service.1 tcp-udp-icmp action Drop track.type None comments 'Old partner range' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:AllowVnetOutBound+nsg-web:Allow-Ping-VNet source.1 nsg-app destination.1 nsg-web service.1 icmp action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound source.1 nsg-app destination.1 nsg-web service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-web position bottom name nsg-app:AllowVnetOutBound+nsg-web:DenyAllInBound source.1 nsg-app destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-web position bottom name 'nsg-app:DenyAllOutBound to nsg-web' source.1 nsg-app destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-web position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 9 name 'nsg-app to nsg-web' source.1 nsg-app destination.1 nsg-web service.1 Any action 'Apply Layer' inline-layer Network_nsg-app_to_nsg-web ignore-warnings true
 
 # Traffic from zone nsg-app to zone nsg-app
-m add access-layer name Network_nsg-app_to_nsg-app add-default-rule false
-m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:Allow-Db+nsg-app:Deny-VNet destination.1 asg-db service.1 tcp-1433 action Drop track.type None
-m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:Allow-Db+nsg-app:AllowVnetInBound destination.1 asg-db service.1 tcp-1433 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:Allow-Db+nsg-app:DenyAllInBound destination.1 asg-db service.1 tcp-1433 action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:Allow-Dns+nsg-app:Deny-VNet destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Drop track.type None
-m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:Allow-Dns+nsg-app:AllowVnetInBound destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:Allow-Dns+nsg-app:DenyAllInBound destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-app_to_nsg-app position bottom name 'nsg-app:Deny-Out to nsg-app' source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None
-m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:AllowVnetOutBound+nsg-app:Allow-From-Web source.1 n-10.30.1.0_24 service.1 tcp-8443 action Accept track.type None
-m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:AllowVnetOutBound+nsg-app:Deny-VNet source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None
-m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:AllowVnetOutBound+nsg-app:AllowVnetInBound source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:AllowVnetOutBound+nsg-app:DenyAllInBound source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-app_to_nsg-app position bottom name 'nsg-app:DenyAllOutBound to nsg-app' source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network_nsg-app_to_nsg-app position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 10 name 'nsg-app to nsg-app' source.1 nsg-app destination.1 nsg-app action 'Apply Layer' inline-layer Network_nsg-app_to_nsg-app
+m add access-layer name Network_nsg-app_to_nsg-app add-default-rule false ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:Allow-Db+nsg-app:Deny-VNet source.1 Any destination.1 asg-db service.1 tcp-1433 action Drop track.type None ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:Allow-Db+nsg-app:AllowVnetInBound source.1 Any destination.1 asg-db service.1 tcp-1433 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:Allow-Db+nsg-app:DenyAllInBound source.1 Any destination.1 asg-db service.1 tcp-1433 action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:Allow-Dns+nsg-app:Deny-VNet source.1 Any destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Drop track.type None ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:Allow-Dns+nsg-app:AllowVnetInBound source.1 Any destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:Allow-Dns+nsg-app:DenyAllInBound source.1 Any destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-app position bottom name 'nsg-app:Deny-Out to nsg-app' source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:AllowVnetOutBound+nsg-app:Allow-From-Web source.1 n-10.30.1.0_24 destination.1 Any service.1 tcp-8443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:AllowVnetOutBound+nsg-app:Deny-VNet source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:AllowVnetOutBound+nsg-app:AllowVnetInBound source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-app position bottom name nsg-app:AllowVnetOutBound+nsg-app:DenyAllInBound source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-app position bottom name 'nsg-app:DenyAllOutBound to nsg-app' source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-app position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 10 name 'nsg-app to nsg-app' source.1 nsg-app destination.1 nsg-app service.1 Any action 'Apply Layer' inline-layer Network_nsg-app_to_nsg-app ignore-warnings true
 
 # Traffic from zone nsg-app to zone nsg-db
-m add access-layer name Network_nsg-app_to_nsg-db add-default-rule false
-m add access-rule layer Network_nsg-app_to_nsg-db position bottom name nsg-app:Allow-Db+nsg-db:Allow-Sql-From-App source.1 n-10.30.2.0_24 destination.1 asg-db service.1 tcp-1433 action Accept track.type None
-m add access-rule layer Network_nsg-app_to_nsg-db position bottom name nsg-app:Allow-Db+nsg-db:AllowVnetInBound destination.1 asg-db service.1 tcp-1433 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-app_to_nsg-db position bottom name nsg-app:Allow-Db+nsg-db:DenyAllInBound destination.1 asg-db service.1 tcp-1433 action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-app_to_nsg-db position bottom name nsg-app:Allow-Dns+nsg-db:AllowVnetInBound destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-app_to_nsg-db position bottom name nsg-app:Allow-Dns+nsg-db:DenyAllInBound destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-app_to_nsg-db position bottom name 'nsg-app:Deny-Out to nsg-db' source.1 nsg-app destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None
-m add access-rule layer Network_nsg-app_to_nsg-db position bottom name nsg-app:AllowVnetOutBound+nsg-db:Allow-Sql-From-App source.1 n-10.30.2.0_24 destination.1 asg-db service.1 tcp-1433 action Accept track.type None
-m add access-rule layer Network_nsg-app_to_nsg-db position bottom name nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound source.1 nsg-app destination.1 nsg-db service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-app_to_nsg-db position bottom name nsg-app:AllowVnetOutBound+nsg-db:DenyAllInBound source.1 nsg-app destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-app_to_nsg-db position bottom name 'nsg-app:DenyAllOutBound to nsg-db' source.1 nsg-app destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network_nsg-app_to_nsg-db position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 11 name 'nsg-app to nsg-db' source.1 nsg-app destination.1 nsg-db action 'Apply Layer' inline-layer Network_nsg-app_to_nsg-db
+m add access-layer name Network_nsg-app_to_nsg-db add-default-rule false ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-db position bottom name nsg-app:Allow-Db+nsg-db:Allow-Sql-From-App source.1 n-10.30.2.0_24 destination.1 asg-db service.1 tcp-1433 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-db position bottom name nsg-app:Allow-Db+nsg-db:AllowVnetInBound source.1 Any destination.1 asg-db service.1 tcp-1433 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-db position bottom name nsg-app:Allow-Db+nsg-db:DenyAllInBound source.1 Any destination.1 asg-db service.1 tcp-1433 action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-db position bottom name nsg-app:Allow-Dns+nsg-db:AllowVnetInBound source.1 Any destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-db position bottom name nsg-app:Allow-Dns+nsg-db:DenyAllInBound source.1 Any destination.1 h-10.30.0.4 service.1 udp-53-from-1024-65535 action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-db position bottom name 'nsg-app:Deny-Out to nsg-db' source.1 nsg-app destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-db position bottom name nsg-app:AllowVnetOutBound+nsg-db:Allow-Sql-From-App source.1 n-10.30.2.0_24 destination.1 asg-db service.1 tcp-1433 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-db position bottom name nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound source.1 nsg-app destination.1 nsg-db service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-db position bottom name nsg-app:AllowVnetOutBound+nsg-db:DenyAllInBound source.1 nsg-app destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-db position bottom name 'nsg-app:DenyAllOutBound to nsg-db' source.1 nsg-app destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-app_to_nsg-db position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 11 name 'nsg-app to nsg-db' source.1 nsg-app destination.1 nsg-db service.1 Any action 'Apply Layer' inline-layer Network_nsg-app_to_nsg-db ignore-warnings true
 
 # Traffic from zone nsg-db to zone outside
-m add access-layer name Network_nsg-db_to_outside add-default-rule false
-m add access-rule layer Network_nsg-db_to_outside position bottom name nsg-db:AllowVnetOutBound destination.1 VirtualNetwork service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to all VMs in VNET'
-m add access-rule layer Network_nsg-db_to_outside position bottom name nsg-db:AllowInternetOutBound destination.1 Internet service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to Internet'
-m add access-rule layer Network_nsg-db_to_outside position bottom name nsg-db:DenyAllOutBound source.1 nsg-db destination.1 outside service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network_nsg-db_to_outside position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 12 name 'nsg-db to outside' source.1 nsg-db destination.1 outside action 'Apply Layer' inline-layer Network_nsg-db_to_outside
+m add access-layer name Network_nsg-db_to_outside add-default-rule false ignore-warnings true
+m add access-rule layer Network_nsg-db_to_outside position bottom name nsg-db:AllowVnetOutBound source.1 Any destination.1 VirtualNetwork service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-db_to_outside position bottom name nsg-db:AllowInternetOutBound source.1 Any destination.1 Internet service.1 tcp-udp-icmp-2 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. Allow outbound traffic from all VMs to Internet' ignore-warnings true
+m add access-rule layer Network_nsg-db_to_outside position bottom name nsg-db:DenyAllOutBound source.1 nsg-db destination.1 outside service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-db_to_outside position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 12 name 'nsg-db to outside' source.1 nsg-db destination.1 outside service.1 Any action 'Apply Layer' inline-layer Network_nsg-db_to_outside ignore-warnings true
 
 # Traffic from zone nsg-db to zone nsg-web
-m add access-layer name Network_nsg-db_to_nsg-web add-default-rule false
-m add access-rule layer Network_nsg-db_to_nsg-web position bottom name nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS destination.1 asg-web service.1 tcp-443_80 action Accept track.type None comments 'Web from anywhere'
-m add access-rule layer Network_nsg-db_to_nsg-web position bottom name nsg-db:AllowVnetOutBound+nsg-web:Allow-SSH-Admins source.1 n-198.51.100.0_24 source.2 n-192.0.2.128_25 destination.1 n-10.30.1.0_24 service.1 tcp-22 action Accept track.type None
-m add access-rule layer Network_nsg-db_to_nsg-web position bottom name nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6 source.1 n-2001_db8_ff___48 service.1 tcp-443 action Accept track.type None
-m add access-rule layer Network_nsg-db_to_nsg-web position bottom name nsg-db:AllowVnetOutBound+nsg-web:Deny-Partner source.1 n-203.0.113.0_24 service.1 tcp-udp-icmp action Drop track.type None comments 'Old partner range'
-m add access-rule layer Network_nsg-db_to_nsg-web position bottom name nsg-db:AllowVnetOutBound+nsg-web:Allow-Ping-VNet source.1 nsg-db destination.1 nsg-web service.1 icmp action Accept track.type None
-m add access-rule layer Network_nsg-db_to_nsg-web position bottom name nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound source.1 nsg-db destination.1 nsg-web service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-db_to_nsg-web position bottom name nsg-db:AllowVnetOutBound+nsg-web:DenyAllInBound source.1 nsg-db destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-db_to_nsg-web position bottom name 'nsg-db:DenyAllOutBound to nsg-web' source.1 nsg-db destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network_nsg-db_to_nsg-web position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 13 name 'nsg-db to nsg-web' source.1 nsg-db destination.1 nsg-web action 'Apply Layer' inline-layer Network_nsg-db_to_nsg-web
+m add access-layer name Network_nsg-db_to_nsg-web add-default-rule false ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-web position bottom name nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS source.1 Any destination.1 asg-web service.1 tcp-443_80 action Accept track.type None comments 'Web from anywhere' ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-web position bottom name nsg-db:AllowVnetOutBound+nsg-web:Allow-SSH-Admins source.1 n-198.51.100.0_24 source.2 n-192.0.2.128_25 destination.1 n-10.30.1.0_24 service.1 tcp-22 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-web position bottom name nsg-db:AllowVnetOutBound+nsg-web:Allow-HTTPS-v6 source.1 n-2001_db8_ff___48 destination.1 Any service.1 tcp-443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-web position bottom name nsg-db:AllowVnetOutBound+nsg-web:Deny-Partner source.1 n-203.0.113.0_24 destination.1 Any service.1 tcp-udp-icmp action Drop track.type None comments 'Old partner range' ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-web position bottom name nsg-db:AllowVnetOutBound+nsg-web:Allow-Ping-VNet source.1 nsg-db destination.1 nsg-web service.1 icmp action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-web position bottom name nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound source.1 nsg-db destination.1 nsg-web service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-web position bottom name nsg-db:AllowVnetOutBound+nsg-web:DenyAllInBound source.1 nsg-db destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-web position bottom name 'nsg-db:DenyAllOutBound to nsg-web' source.1 nsg-db destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-web position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 13 name 'nsg-db to nsg-web' source.1 nsg-db destination.1 nsg-web service.1 Any action 'Apply Layer' inline-layer Network_nsg-db_to_nsg-web ignore-warnings true
 
 # Traffic from zone nsg-db to zone nsg-app
-m add access-layer name Network_nsg-db_to_nsg-app add-default-rule false
-m add access-rule layer Network_nsg-db_to_nsg-app position bottom name nsg-db:AllowVnetOutBound+nsg-app:Allow-From-Web source.1 n-10.30.1.0_24 service.1 tcp-8443 action Accept track.type None
-m add access-rule layer Network_nsg-db_to_nsg-app position bottom name nsg-db:AllowVnetOutBound+nsg-app:Deny-VNet source.1 nsg-db destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None
-m add access-rule layer Network_nsg-db_to_nsg-app position bottom name nsg-db:AllowVnetOutBound+nsg-app:AllowVnetInBound source.1 nsg-db destination.1 nsg-app service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-db_to_nsg-app position bottom name nsg-db:AllowVnetOutBound+nsg-app:DenyAllInBound source.1 nsg-db destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-db_to_nsg-app position bottom name 'nsg-db:DenyAllOutBound to nsg-app' source.1 nsg-db destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network_nsg-db_to_nsg-app position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 14 name 'nsg-db to nsg-app' source.1 nsg-db destination.1 nsg-app action 'Apply Layer' inline-layer Network_nsg-db_to_nsg-app
+m add access-layer name Network_nsg-db_to_nsg-app add-default-rule false ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-app position bottom name nsg-db:AllowVnetOutBound+nsg-app:Allow-From-Web source.1 n-10.30.1.0_24 destination.1 Any service.1 tcp-8443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-app position bottom name nsg-db:AllowVnetOutBound+nsg-app:Deny-VNet source.1 nsg-db destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-app position bottom name nsg-db:AllowVnetOutBound+nsg-app:AllowVnetInBound source.1 nsg-db destination.1 nsg-app service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-app position bottom name nsg-db:AllowVnetOutBound+nsg-app:DenyAllInBound source.1 nsg-db destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-app position bottom name 'nsg-db:DenyAllOutBound to nsg-app' source.1 nsg-db destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-app position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 14 name 'nsg-db to nsg-app' source.1 nsg-db destination.1 nsg-app service.1 Any action 'Apply Layer' inline-layer Network_nsg-db_to_nsg-app ignore-warnings true
 
 # Traffic from zone nsg-db to zone nsg-db
-m add access-layer name Network_nsg-db_to_nsg-db add-default-rule false
-m add access-rule layer Network_nsg-db_to_nsg-db position bottom name nsg-db:AllowVnetOutBound+nsg-db:Allow-Sql-From-App source.1 n-10.30.2.0_24 destination.1 asg-db service.1 tcp-1433 action Accept track.type None
-m add access-rule layer Network_nsg-db_to_nsg-db position bottom name nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound source.1 nsg-db destination.1 nsg-db service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network_nsg-db_to_nsg-db position bottom name nsg-db:AllowVnetOutBound+nsg-db:DenyAllInBound source.1 nsg-db destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network_nsg-db_to_nsg-db position bottom name 'nsg-db:DenyAllOutBound to nsg-db' source.1 nsg-db destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network_nsg-db_to_nsg-db position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 15 name 'nsg-db to nsg-db' source.1 nsg-db destination.1 nsg-db action 'Apply Layer' inline-layer Network_nsg-db_to_nsg-db
+m add access-layer name Network_nsg-db_to_nsg-db add-default-rule false ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-db position bottom name nsg-db:AllowVnetOutBound+nsg-db:Allow-Sql-From-App source.1 n-10.30.2.0_24 destination.1 asg-db service.1 tcp-1433 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-db position bottom name nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound source.1 nsg-db destination.1 nsg-db service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-db position bottom name nsg-db:AllowVnetOutBound+nsg-db:DenyAllInBound source.1 nsg-db destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-db position bottom name 'nsg-db:DenyAllOutBound to nsg-db' source.1 nsg-db destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network_nsg-db_to_nsg-db position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 15 name 'nsg-db to nsg-db' source.1 nsg-db destination.1 nsg-db service.1 Any action 'Apply Layer' inline-layer Network_nsg-db_to_nsg-db ignore-warnings true
 
 # Rules of layer Network for traffic of no zone pair above
-m add access-rule layer Network position 16 name nsg-web:DenyAllInBound source.1 outside destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network position 17 name nsg-web:DenyAllOutBound source.1 nsg-web destination.1 outside service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network position 18 name nsg-app:DenyAllInBound source.1 outside destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network position 19 name nsg-app:Deny-Out source.1 nsg-app destination.1 outside service.1 tcp-udp-icmp action Drop track.type None
-m add access-rule layer Network position 20 name nsg-app:DenyAllOutBound source.1 nsg-app destination.1 outside service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network position 21 name nsg-db:DenyAllInBound source.1 outside destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network position 22 name nsg-db:DenyAllOutBound source.1 nsg-db destination.1 outside service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network position 23 name nsg-web:AllowVnetOutBound+nsg-web:Allow-Ping-VNet source.1 nsg-web destination.1 nsg-web service.1 icmp action Accept track.type None
-m add access-rule layer Network position 24 name nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound source.1 nsg-web destination.1 nsg-web service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network position 25 name nsg-web:AllowVnetOutBound+nsg-web:DenyAllInBound source.1 nsg-web destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network position 26 name 'nsg-web:DenyAllOutBound to nsg-web' source.1 nsg-web destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network position 27 name nsg-web:AllowVnetOutBound+nsg-app:Deny-VNet source.1 nsg-web destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None
-m add access-rule layer Network position 28 name nsg-web:AllowVnetOutBound+nsg-app:AllowVnetInBound source.1 nsg-web destination.1 nsg-app service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network position 29 name nsg-web:AllowVnetOutBound+nsg-app:DenyAllInBound source.1 nsg-web destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network position 30 name 'nsg-web:DenyAllOutBound to nsg-app' source.1 nsg-web destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network position 31 name nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound source.1 nsg-web destination.1 nsg-db service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network position 32 name nsg-web:AllowVnetOutBound+nsg-db:DenyAllInBound source.1 nsg-web destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network position 33 name 'nsg-web:DenyAllOutBound to nsg-db' source.1 nsg-web destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network position 34 name 'nsg-app:Deny-Out to nsg-web' source.1 nsg-app destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None
-m add access-rule layer Network position 35 name nsg-app:AllowVnetOutBound+nsg-web:Allow-Ping-VNet source.1 nsg-app destination.1 nsg-web service.1 icmp action Accept track.type None
-m add access-rule layer Network position 36 name nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound source.1 nsg-app destination.1 nsg-web service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network position 37 name nsg-app:AllowVnetOutBound+nsg-web:DenyAllInBound source.1 nsg-app destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network position 38 name 'nsg-app:DenyAllOutBound to nsg-web' source.1 nsg-app destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network position 39 name 'nsg-app:Deny-Out to nsg-app' source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None
-m add access-rule layer Network position 40 name nsg-app:AllowVnetOutBound+nsg-app:Deny-VNet source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None
-m add access-rule layer Network position 41 name nsg-app:AllowVnetOutBound+nsg-app:AllowVnetInBound source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network position 42 name nsg-app:AllowVnetOutBound+nsg-app:DenyAllInBound source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network position 43 name 'nsg-app:DenyAllOutBound to nsg-app' source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network position 44 name 'nsg-app:Deny-Out to nsg-db' source.1 nsg-app destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None
-m add access-rule layer Network position 45 name nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound source.1 nsg-app destination.1 nsg-db service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network position 46 name nsg-app:AllowVnetOutBound+nsg-db:DenyAllInBound source.1 nsg-app destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network position 47 name 'nsg-app:DenyAllOutBound to nsg-db' source.1 nsg-app destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network position 48 name nsg-db:AllowVnetOutBound+nsg-web:Allow-Ping-VNet source.1 nsg-db destination.1 nsg-web service.1 icmp action Accept track.type None
-m add access-rule layer Network position 49 name nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound source.1 nsg-db destination.1 nsg-web service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network position 50 name nsg-db:AllowVnetOutBound+nsg-web:DenyAllInBound source.1 nsg-db destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network position 51 name 'nsg-db:DenyAllOutBound to nsg-web' source.1 nsg-db destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network position 52 name nsg-db:AllowVnetOutBound+nsg-app:Deny-VNet source.1 nsg-db destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None
-m add access-rule layer Network position 53 name nsg-db:AllowVnetOutBound+nsg-app:AllowVnetInBound source.1 nsg-db destination.1 nsg-app service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network position 54 name nsg-db:AllowVnetOutBound+nsg-app:DenyAllInBound source.1 nsg-db destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network position 55 name 'nsg-db:DenyAllOutBound to nsg-app' source.1 nsg-db destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network position 56 name nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound source.1 nsg-db destination.1 nsg-db service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET'
-m add access-rule layer Network position 57 name nsg-db:AllowVnetOutBound+nsg-db:DenyAllInBound source.1 nsg-db destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic'
-m add access-rule layer Network position 58 name 'nsg-db:DenyAllOutBound to nsg-db' source.1 nsg-db destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic'
-m add access-rule layer Network position 59 name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
+m add access-rule layer Network position 16 name nsg-web:DenyAllInBound source.1 outside destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network position 17 name nsg-web:DenyAllOutBound source.1 nsg-web destination.1 outside service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network position 18 name nsg-app:DenyAllInBound source.1 outside destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network position 19 name nsg-app:Deny-Out source.1 nsg-app destination.1 outside service.1 tcp-udp-icmp action Drop track.type None ignore-warnings true
+m add access-rule layer Network position 20 name nsg-app:DenyAllOutBound source.1 nsg-app destination.1 outside service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network position 21 name nsg-db:DenyAllInBound source.1 outside destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network position 22 name nsg-db:DenyAllOutBound source.1 nsg-db destination.1 outside service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network position 23 name nsg-web:AllowVnetOutBound+nsg-web:Allow-Ping-VNet source.1 nsg-web destination.1 nsg-web service.1 icmp action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 24 name nsg-web:AllowVnetOutBound+nsg-web:AllowVnetInBound source.1 nsg-web destination.1 nsg-web service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network position 25 name nsg-web:AllowVnetOutBound+nsg-web:DenyAllInBound source.1 nsg-web destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network position 26 name 'nsg-web:DenyAllOutBound to nsg-web' source.1 nsg-web destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network position 27 name nsg-web:AllowVnetOutBound+nsg-app:Deny-VNet source.1 nsg-web destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None ignore-warnings true
+m add access-rule layer Network position 28 name nsg-web:AllowVnetOutBound+nsg-app:AllowVnetInBound source.1 nsg-web destination.1 nsg-app service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network position 29 name nsg-web:AllowVnetOutBound+nsg-app:DenyAllInBound source.1 nsg-web destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network position 30 name 'nsg-web:DenyAllOutBound to nsg-app' source.1 nsg-web destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network position 31 name nsg-web:AllowVnetOutBound+nsg-db:AllowVnetInBound source.1 nsg-web destination.1 nsg-db service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network position 32 name nsg-web:AllowVnetOutBound+nsg-db:DenyAllInBound source.1 nsg-web destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network position 33 name 'nsg-web:DenyAllOutBound to nsg-db' source.1 nsg-web destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network position 34 name 'nsg-app:Deny-Out to nsg-web' source.1 nsg-app destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None ignore-warnings true
+m add access-rule layer Network position 35 name nsg-app:AllowVnetOutBound+nsg-web:Allow-Ping-VNet source.1 nsg-app destination.1 nsg-web service.1 icmp action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 36 name nsg-app:AllowVnetOutBound+nsg-web:AllowVnetInBound source.1 nsg-app destination.1 nsg-web service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network position 37 name nsg-app:AllowVnetOutBound+nsg-web:DenyAllInBound source.1 nsg-app destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network position 38 name 'nsg-app:DenyAllOutBound to nsg-web' source.1 nsg-app destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network position 39 name 'nsg-app:Deny-Out to nsg-app' source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None ignore-warnings true
+m add access-rule layer Network position 40 name nsg-app:AllowVnetOutBound+nsg-app:Deny-VNet source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None ignore-warnings true
+m add access-rule layer Network position 41 name nsg-app:AllowVnetOutBound+nsg-app:AllowVnetInBound source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network position 42 name nsg-app:AllowVnetOutBound+nsg-app:DenyAllInBound source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network position 43 name 'nsg-app:DenyAllOutBound to nsg-app' source.1 nsg-app destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network position 44 name 'nsg-app:Deny-Out to nsg-db' source.1 nsg-app destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None ignore-warnings true
+m add access-rule layer Network position 45 name nsg-app:AllowVnetOutBound+nsg-db:AllowVnetInBound source.1 nsg-app destination.1 nsg-db service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network position 46 name nsg-app:AllowVnetOutBound+nsg-db:DenyAllInBound source.1 nsg-app destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network position 47 name 'nsg-app:DenyAllOutBound to nsg-db' source.1 nsg-app destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network position 48 name nsg-db:AllowVnetOutBound+nsg-web:Allow-Ping-VNet source.1 nsg-db destination.1 nsg-web service.1 icmp action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 49 name nsg-db:AllowVnetOutBound+nsg-web:AllowVnetInBound source.1 nsg-db destination.1 nsg-web service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network position 50 name nsg-db:AllowVnetOutBound+nsg-web:DenyAllInBound source.1 nsg-db destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network position 51 name 'nsg-db:DenyAllOutBound to nsg-web' source.1 nsg-db destination.1 nsg-web service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network position 52 name nsg-db:AllowVnetOutBound+nsg-app:Deny-VNet source.1 nsg-db destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None ignore-warnings true
+m add access-rule layer Network position 53 name nsg-db:AllowVnetOutBound+nsg-app:AllowVnetInBound source.1 nsg-db destination.1 nsg-app service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network position 54 name nsg-db:AllowVnetOutBound+nsg-app:DenyAllInBound source.1 nsg-db destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network position 55 name 'nsg-db:DenyAllOutBound to nsg-app' source.1 nsg-db destination.1 nsg-app service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network position 56 name nsg-db:AllowVnetOutBound+nsg-db:AllowVnetInBound source.1 nsg-db destination.1 nsg-db service.1 tcp-udp-icmp-2 action Accept track.type None comments 'Allow inbound traffic from all VMs in VNET' ignore-warnings true
+m add access-rule layer Network position 57 name nsg-db:AllowVnetOutBound+nsg-db:DenyAllInBound source.1 nsg-db destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all inbound traffic' ignore-warnings true
+m add access-rule layer Network position 58 name 'nsg-db:DenyAllOutBound to nsg-db' source.1 nsg-db destination.1 nsg-db service.1 tcp-udp-icmp action Drop track.type None comments 'Deny all outbound traffic' ignore-warnings true
+m add access-rule layer Network position 59 name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'

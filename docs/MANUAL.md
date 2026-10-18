@@ -65,9 +65,11 @@ differently, including a source and its conversion read back (section 17).
 > **Status.** Version 0.36 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). AWS, Azure and Google Cloud output was loaded into a real account
-> by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1), PAN-OS output on a VM-Series (PAN-OS 11.2.15), ASA output on an ASAv (9.24.10) and Junos output on a vSRX (23.4R2-S8.9); the policy has no NAT. Output for Check Point,
+> by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1), PAN-OS output on a VM-Series (PAN-OS 11.2.15), ASA output on an ASAv (9.24.10) and Junos output on a vSRX (23.4R2-S8.9); the policy has no NAT. Check Point output for
+> the same policy was loaded on a management server by hand (R82.20): published and verified, not installed on a
+> gateway. Output for
 > Cisco IOS, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, NSX, RouterOS and Forcepoint has
-> not been loaded on a device or management server yet, and the Terraform output has not been applied with Terraform; the Check Point input format follows the
+> not been loaded on a device yet, and the Terraform output has not been applied with Terraform; the Check Point input format follows the
 > API documentation, the FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
 > Sophos's own SDK, and the JSON of a Management Center and of a Device
@@ -114,8 +116,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.36.1.pyz --version
-python3 fwshift-0.36.1.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.36.2.pyz --version
+python3 fwshift-0.36.2.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -4749,6 +4751,13 @@ their own, and its last lines add the jumps to them from `forward` (and from
 The output is a shell script. It needs `mgmt_cli`, which is on every
 management server and in the SmartConsole installation.
 
+> **Loaded on one management server** (R82.20, a standalone installation, by
+> hand): the lab policy's script ran to the end, was published, and
+> `verify-policy` passed with no warnings. That run found two faults, both
+> fixed: a warning (a port another service has) refused a call, and a cell left
+> out was stored as None. The policy was not installed on a gateway, so no
+> traffic has been checked; NAT was not in the policy.
+
 1. Create the target layer and policy package if they do not exist, and
    convert with `--target-layer` / `--target-package` naming them.
 2. Log in and keep the session in a file:
@@ -4760,12 +4769,20 @@ management server and in the SmartConsole installation.
 
 3. Run the script: `sh checkpoint.sh`. From elsewhere:
    `MGMT_OPTS='-m 192.0.2.10' sh checkpoint.sh`.
-4. The script stops at the first call the server refuses and prints it. A
+4. Every `add` carries `ignore-warnings true`: a management server warns where
+   an object repeats a port or an address that another object already has (a
+   service on TCP 22 beside its own `ssh`) and, warned, refuses the call. The
+   script stops at the first call the server refuses and prints it. A
    policy with rules missing is not a safe policy: discard the session
    (`mgmt_cli discard -s fwshift.sid`), fix the cause and run it again. The
    usual cause is a name that exists already; if the existing object is the
    one you want, delete its line from the script, otherwise convert again with
    `--target-prefix`.
+   Every rule names its source, destination and service, and every NAT rule
+   all six of its cells: where the source policy says any, the script writes
+   `Any` (or `Original` for a translated cell). A cell the call leaves out is
+   stored as None, which matches nothing (R82.20), and SmartConsole then shows
+   None in it.
 5. Look at the session in SmartConsole. Nothing is published:
    `mgmt_cli publish -s fwshift.sid` keeps the changes, `discard` throws them
    away. Installing the policy is up to you.

@@ -30,39 +30,39 @@ m() {
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }
 
 # Network objects
-m add host name Web_Server ip-address 10.20.0.10
-m add host name Mail_Server ip-address 10.20.0.25
-m add host name Web_Public ip-address 198.51.100.10
-m add host name Mail_Public ip-address 198.51.100.11
-m add network name Server_Range subnet 10.30.0.0 mask-length 28
-m add network name Server_Public subnet 198.51.100.32 mask-length 28
-m add host name Database ip-address 10.30.0.5
-m add address-range name Admin_PCs ip-address-first 10.10.5.10 ip-address-last 10.10.5.20
-m add network name Bad_Net_One subnet 203.0.113.0 mask-length 25
-m add host name Bad_Host ip-address 192.0.2.66
-m add network name Partner_Net subnet 192.0.2.128 mask-length 26
-m add dns-domain name .updates.example.com is-sub-domain false
-m add network name X0_Subnet subnet 10.10.0.0 mask-length 16
-m add group name Bad_Networks members.1 Bad_Net_One members.2 Bad_Host
-m add group name Partners members.1 Partner_Net members.2 Bad_Networks
+m add host name Web_Server ip-address 10.20.0.10 ignore-warnings true
+m add host name Mail_Server ip-address 10.20.0.25 ignore-warnings true
+m add host name Web_Public ip-address 198.51.100.10 ignore-warnings true
+m add host name Mail_Public ip-address 198.51.100.11 ignore-warnings true
+m add network name Server_Range subnet 10.30.0.0 mask-length 28 ignore-warnings true
+m add network name Server_Public subnet 198.51.100.32 mask-length 28 ignore-warnings true
+m add host name Database ip-address 10.30.0.5 ignore-warnings true
+m add address-range name Admin_PCs ip-address-first 10.10.5.10 ip-address-last 10.10.5.20 ignore-warnings true
+m add network name Bad_Net_One subnet 203.0.113.0 mask-length 25 ignore-warnings true
+m add host name Bad_Host ip-address 192.0.2.66 ignore-warnings true
+m add network name Partner_Net subnet 192.0.2.128 mask-length 26 ignore-warnings true
+m add dns-domain name .updates.example.com is-sub-domain false ignore-warnings true
+m add network name X0_Subnet subnet 10.10.0.0 mask-length 16 ignore-warnings true
+m add group name Bad_Networks members.1 Bad_Net_One members.2 Bad_Host ignore-warnings true
+m add group name Partners members.1 Partner_Net members.2 Bad_Networks ignore-warnings true
 
 # Services
-m add service-tcp name HTTPS_Alt port 8443 match-for-any false
-m add service-tcp name SMTP_Alt port 2525 match-for-any false
-m add service-udp name Media port 16384-16484 match-for-any false
-m add service-other name GRE_Tunnel ip-protocol 47 match-for-any false
-m add service-group name Echo_Object comments 'FWSHIFT PLACEHOLDER, matches nothing: ICMP type and code of a service object: how the export stores them is not known'
-m add service-tcp name SMTP__Send_E-Mail_ port 25 match-for-any false comments 'a default service of SonicOS'
-m add service-tcp name HTTP port 80 match-for-any false comments 'a default service of SonicOS'
-m add service-tcp name HTTPS port 443 match-for-any false comments 'a default service of SonicOS'
-m add service-tcp name SSH port 22 match-for-any false comments 'a default service of SonicOS'
-m add service-group name Web_Services members.1 HTTP members.2 HTTPS members.3 HTTPS_Alt
-m add address-range name All-IPv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255
-m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+m add service-tcp name HTTPS_Alt port 8443 match-for-any false ignore-warnings true
+m add service-tcp name SMTP_Alt port 2525 match-for-any false ignore-warnings true
+m add service-udp name Media port 16384-16484 match-for-any false ignore-warnings true
+m add service-other name GRE_Tunnel ip-protocol 47 match-for-any false ignore-warnings true
+m add service-group name Echo_Object comments 'FWSHIFT PLACEHOLDER, matches nothing: ICMP type and code of a service object: how the export stores them is not known' ignore-warnings true
+m add service-tcp name SMTP__Send_E-Mail_ port 25 match-for-any false comments 'a default service of SonicOS' ignore-warnings true
+m add service-tcp name HTTP port 80 match-for-any false comments 'a default service of SonicOS' ignore-warnings true
+m add service-tcp name HTTPS port 443 match-for-any false comments 'a default service of SonicOS' ignore-warnings true
+m add service-tcp name SSH port 22 match-for-any false comments 'a default service of SonicOS' ignore-warnings true
+m add service-group name Web_Services members.1 HTTP members.2 HTTPS members.3 HTTPS_Alt ignore-warnings true
+m add address-range name All-IPv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255 ignore-warnings true
+m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ignore-warnings true
 
 # Security zones
 zone LAN
@@ -72,85 +72,85 @@ zone Servers
 zone VPN
 
 # Traffic from zone LAN to zone LAN
-m add access-layer name Network_LAN_to_LAN add-default-rule false
-m add access-rule layer Network_LAN_to_LAN position bottom name 'FWShift cleanup' action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.'
-m add access-rule layer Network position 1 name 'LAN to LAN' source.1 LAN destination.1 LAN action 'Apply Layer' inline-layer Network_LAN_to_LAN
+m add access-layer name Network_LAN_to_LAN add-default-rule false ignore-warnings true
+m add access-rule layer Network_LAN_to_LAN position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.' ignore-warnings true
+m add access-rule layer Network position 1 name 'LAN to LAN' source.1 LAN destination.1 LAN service.1 Any action 'Apply Layer' inline-layer Network_LAN_to_LAN ignore-warnings true
 
 # Traffic from zone LAN to zone WAN
-m add access-layer name Network_LAN_to_WAN add-default-rule false
-m add access-rule layer Network_LAN_to_WAN position bottom name 'LAN to WAN #1' source.1 All-IPv4 destination.1 Bad_Networks action Drop track.type Log comments 'nothing to the bad networks'
-m add access-rule layer Network_LAN_to_WAN position bottom name 'Admins out by SSH' source.1 Admin_PCs destination.1 All-IPv4 service.1 SSH action Accept track.type Log
-m add access-rule layer Network_LAN_to_WAN position bottom name 'LAN to WAN #3' source.1 All-IPv4 destination.1 All-IPv4 service.1 Web_Services action Accept track.type Log comments browsing
-m add access-rule layer Network_LAN_to_WAN position bottom name 'LAN to WAN #4' source.1 All-IPv4 destination.1 All-IPv4 service.1 GRE_Tunnel action Accept track.type Log enabled false comments 'tunnels to partners'
-m add access-rule layer Network_LAN_to_WAN position bottom name 'LAN to WAN #5' source.1 All-IPv4 destination.1 All-IPv4 action Accept track.type Log comments 'Auto added default rule'
-m add access-rule layer Network_LAN_to_WAN position bottom name 'IPv6 out' source.1 All-IPv6 destination.1 All-IPv6 action Accept track.type Log
-m add access-rule layer Network_LAN_to_WAN position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 2 name 'LAN to WAN' source.1 LAN destination.1 WAN action 'Apply Layer' inline-layer Network_LAN_to_WAN
+m add access-layer name Network_LAN_to_WAN add-default-rule false ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'LAN to WAN #1' source.1 All-IPv4 destination.1 Bad_Networks service.1 Any action Drop track.type Log comments 'nothing to the bad networks' ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'Admins out by SSH' source.1 Admin_PCs destination.1 All-IPv4 service.1 SSH action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'LAN to WAN #3' source.1 All-IPv4 destination.1 All-IPv4 service.1 Web_Services action Accept track.type Log comments browsing ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'LAN to WAN #4' source.1 All-IPv4 destination.1 All-IPv4 service.1 GRE_Tunnel action Accept track.type Log enabled false comments 'tunnels to partners' ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'LAN to WAN #5' source.1 All-IPv4 destination.1 All-IPv4 service.1 Any action Accept track.type Log comments 'Auto added default rule' ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'IPv6 out' source.1 All-IPv6 destination.1 All-IPv6 service.1 Any action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 2 name 'LAN to WAN' source.1 LAN destination.1 WAN service.1 Any action 'Apply Layer' inline-layer Network_LAN_to_WAN ignore-warnings true
 
 # Traffic from zone LAN to zone DMZ
-m add access-layer name Network_LAN_to_DMZ add-default-rule false
-m add access-rule layer Network_LAN_to_DMZ position bottom name 'Administrators to the DMZ' source.1 All-IPv4 destination.1 All-IPv4 action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_LAN_to_DMZ position bottom name 'default LAN to DMZ' source.1 LAN destination.1 DMZ action Accept track.type None comments 'the default access rule of SonicOS from LAN to DMZ'
-m add access-rule layer Network_LAN_to_DMZ position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 3 name 'LAN to DMZ' source.1 LAN destination.1 DMZ action 'Apply Layer' inline-layer Network_LAN_to_DMZ
+m add access-layer name Network_LAN_to_DMZ add-default-rule false ignore-warnings true
+m add access-rule layer Network_LAN_to_DMZ position bottom name 'Administrators to the DMZ' source.1 All-IPv4 destination.1 All-IPv4 service.1 Any action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_LAN_to_DMZ position bottom name 'default LAN to DMZ' source.1 LAN destination.1 DMZ service.1 Any action Accept track.type None comments 'the default access rule of SonicOS from LAN to DMZ' ignore-warnings true
+m add access-rule layer Network_LAN_to_DMZ position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 3 name 'LAN to DMZ' source.1 LAN destination.1 DMZ service.1 Any action 'Apply Layer' inline-layer Network_LAN_to_DMZ ignore-warnings true
 
 # Traffic from zone WAN to zone LAN
-m add access-layer name Network_WAN_to_LAN add-default-rule false
-m add access-rule layer Network_WAN_to_LAN position bottom name 'WAN to LAN #1' source.1 All-IPv4 destination.1 All-IPv4 action Drop track.type Log
-m add access-rule layer Network_WAN_to_LAN position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 4 name 'WAN to LAN' source.1 WAN destination.1 LAN action 'Apply Layer' inline-layer Network_WAN_to_LAN
+m add access-layer name Network_WAN_to_LAN add-default-rule false ignore-warnings true
+m add access-rule layer Network_WAN_to_LAN position bottom name 'WAN to LAN #1' source.1 All-IPv4 destination.1 All-IPv4 service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_WAN_to_LAN position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 4 name 'WAN to LAN' source.1 WAN destination.1 LAN service.1 Any action 'Apply Layer' inline-layer Network_WAN_to_LAN ignore-warnings true
 
 # Traffic from zone WAN to zone DMZ
-m add access-layer name Network_WAN_to_DMZ add-default-rule false
-m add access-rule layer Network_WAN_to_DMZ position bottom name 'Web server from the internet' source.1 All-IPv4 destination.1 Web_Public service.1 HTTPS action Accept track.type Log
-m add access-rule layer Network_WAN_to_DMZ position bottom name 'Mail from partners' source.1 Partners destination.1 Mail_Public service.1 SMTP_Alt action Accept track.type Log
-m add access-rule layer Network_WAN_to_DMZ position bottom name 'WAN to DMZ #3' source.1 All-IPv4 destination.1 All-IPv4 action Drop track.type Log
-m add access-rule layer Network_WAN_to_DMZ position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 5 name 'WAN to DMZ' source.1 WAN destination.1 DMZ action 'Apply Layer' inline-layer Network_WAN_to_DMZ
+m add access-layer name Network_WAN_to_DMZ add-default-rule false ignore-warnings true
+m add access-rule layer Network_WAN_to_DMZ position bottom name 'Web server from the internet' source.1 All-IPv4 destination.1 Web_Public service.1 HTTPS action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_WAN_to_DMZ position bottom name 'Mail from partners' source.1 Partners destination.1 Mail_Public service.1 SMTP_Alt action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_WAN_to_DMZ position bottom name 'WAN to DMZ #3' source.1 All-IPv4 destination.1 All-IPv4 service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_WAN_to_DMZ position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 5 name 'WAN to DMZ' source.1 WAN destination.1 DMZ service.1 Any action 'Apply Layer' inline-layer Network_WAN_to_DMZ ignore-warnings true
 
 # Traffic from zone DMZ to zone LAN
-m add access-layer name Network_DMZ_to_LAN add-default-rule false
-m add access-rule layer Network_DMZ_to_LAN position bottom name 'Mail server pings the LAN' source.1 Mail_Server destination.1 All-IPv4 service.1 Echo_Object action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_DMZ_to_LAN position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 6 name 'DMZ to LAN' source.1 DMZ destination.1 LAN action 'Apply Layer' inline-layer Network_DMZ_to_LAN
+m add access-layer name Network_DMZ_to_LAN add-default-rule false ignore-warnings true
+m add access-rule layer Network_DMZ_to_LAN position bottom name 'Mail server pings the LAN' source.1 Mail_Server destination.1 All-IPv4 service.1 Echo_Object action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_DMZ_to_LAN position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 6 name 'DMZ to LAN' source.1 DMZ destination.1 LAN service.1 Any action 'Apply Layer' inline-layer Network_DMZ_to_LAN ignore-warnings true
 
 # Traffic from zone DMZ to zone Servers
-m add access-layer name Network_DMZ_to_Servers add-default-rule false
-m add access-rule layer Network_DMZ_to_Servers position bottom name 'Web server to the database' source.1 Web_Server destination.1 Database service.1 Media action Accept track.type Log
-m add access-rule layer Network_DMZ_to_Servers position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 7 name 'DMZ to Servers' source.1 DMZ destination.1 Servers action 'Apply Layer' inline-layer Network_DMZ_to_Servers
+m add access-layer name Network_DMZ_to_Servers add-default-rule false ignore-warnings true
+m add access-rule layer Network_DMZ_to_Servers position bottom name 'Web server to the database' source.1 Web_Server destination.1 Database service.1 Media action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_DMZ_to_Servers position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 7 name 'DMZ to Servers' source.1 DMZ destination.1 Servers service.1 Any action 'Apply Layer' inline-layer Network_DMZ_to_Servers ignore-warnings true
 
 # Traffic from zone Servers to zone WAN
-m add access-layer name Network_Servers_to_WAN add-default-rule false
-m add access-rule layer Network_Servers_to_WAN position bottom name 'Updates in working hours' source.1 All-IPv4 destination.1 .updates.example.com service.1 HTTPS action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_Servers_to_WAN position bottom name 'default Servers to WAN' source.1 Servers destination.1 WAN action Accept track.type None comments 'the default access rule of SonicOS from Servers to WAN'
-m add access-rule layer Network_Servers_to_WAN position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 8 name 'Servers to WAN' source.1 Servers destination.1 WAN action 'Apply Layer' inline-layer Network_Servers_to_WAN
+m add access-layer name Network_Servers_to_WAN add-default-rule false ignore-warnings true
+m add access-rule layer Network_Servers_to_WAN position bottom name 'Updates in working hours' source.1 All-IPv4 destination.1 .updates.example.com service.1 HTTPS action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_Servers_to_WAN position bottom name 'default Servers to WAN' source.1 Servers destination.1 WAN service.1 Any action Accept track.type None comments 'the default access rule of SonicOS from Servers to WAN' ignore-warnings true
+m add access-rule layer Network_Servers_to_WAN position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 8 name 'Servers to WAN' source.1 Servers destination.1 WAN service.1 Any action 'Apply Layer' inline-layer Network_Servers_to_WAN ignore-warnings true
 
 # Traffic from zone Servers to zone Servers
-m add access-layer name Network_Servers_to_Servers add-default-rule false
-m add access-rule layer Network_Servers_to_Servers position bottom name 'FWShift cleanup' action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.'
-m add access-rule layer Network position 9 name 'Servers to Servers' source.1 Servers destination.1 Servers action 'Apply Layer' inline-layer Network_Servers_to_Servers
+m add access-layer name Network_Servers_to_Servers add-default-rule false ignore-warnings true
+m add access-rule layer Network_Servers_to_Servers position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.' ignore-warnings true
+m add access-rule layer Network position 9 name 'Servers to Servers' source.1 Servers destination.1 Servers service.1 Any action 'Apply Layer' inline-layer Network_Servers_to_Servers ignore-warnings true
 
 # Traffic from zone VPN to zone VPN
-m add access-layer name Network_VPN_to_VPN add-default-rule false
-m add access-rule layer Network_VPN_to_VPN position bottom name 'FWShift cleanup' action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.'
-m add access-rule layer Network position 10 name 'VPN to VPN' source.1 VPN destination.1 VPN action 'Apply Layer' inline-layer Network_VPN_to_VPN
+m add access-layer name Network_VPN_to_VPN add-default-rule false ignore-warnings true
+m add access-rule layer Network_VPN_to_VPN position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.' ignore-warnings true
+m add access-rule layer Network position 10 name 'VPN to VPN' source.1 VPN destination.1 VPN service.1 Any action 'Apply Layer' inline-layer Network_VPN_to_VPN ignore-warnings true
 
 # Rules of layer Network for traffic of no zone pair above
-m add access-rule layer Network position 11 name 'default LAN to DMZ' source.1 LAN destination.1 DMZ action Accept track.type None comments 'the default access rule of SonicOS from LAN to DMZ'
-m add access-rule layer Network position 12 name 'default DMZ to WAN' source.1 DMZ destination.1 WAN action Accept track.type None comments 'the default access rule of SonicOS from DMZ to WAN'
-m add access-rule layer Network position 13 name 'default Servers to WAN' source.1 Servers destination.1 WAN action Accept track.type None comments 'the default access rule of SonicOS from Servers to WAN'
-m add access-rule layer Network position 14 name 'default Servers to DMZ' source.1 Servers destination.1 DMZ action Accept track.type None comments 'the default access rule of SonicOS from Servers to DMZ'
-m add access-rule layer Network position 15 name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
+m add access-rule layer Network position 11 name 'default LAN to DMZ' source.1 LAN destination.1 DMZ service.1 Any action Accept track.type None comments 'the default access rule of SonicOS from LAN to DMZ' ignore-warnings true
+m add access-rule layer Network position 12 name 'default DMZ to WAN' source.1 DMZ destination.1 WAN service.1 Any action Accept track.type None comments 'the default access rule of SonicOS from DMZ to WAN' ignore-warnings true
+m add access-rule layer Network position 13 name 'default Servers to WAN' source.1 Servers destination.1 WAN service.1 Any action Accept track.type None comments 'the default access rule of SonicOS from Servers to WAN' ignore-warnings true
+m add access-rule layer Network position 14 name 'default Servers to DMZ' source.1 Servers destination.1 DMZ service.1 Any action Accept track.type None comments 'the default access rule of SonicOS from Servers to DMZ' ignore-warnings true
+m add access-rule layer Network position 15 name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
 
 # NAT rules of package Standard
-m add host name h-198.51.100.2 ip-address 198.51.100.2
-m add nat-rule package Standard position bottom original-source X0_Subnet translated-source h-198.51.100.2 method hide comments 'Default_NAT: Default NAT'
-m add nat-rule package Standard position bottom original-source All-IPv4 original-destination Web_Public original-service HTTPS translated-destination Web_Server method static comments 'Web_server: Web server'
-m add nat-rule package Standard position bottom original-source All-IPv4 original-destination Mail_Public original-service SMTP_Alt translated-destination Mail_Server translated-service SMTP__Send_E-Mail_ method static comments 'Mail_on_another_port: Mail on another port'
-m add nat-rule package Standard position bottom original-source Server_Range translated-source Server_Public method static comments 'Servers_one_to_one: Servers one to one'
-m add nat-rule package Standard position bottom original-source All-IPv4 original-destination Server_Public translated-destination Server_Range method static comments 'Servers_one_to_one__reflexive_: the reflexive policy of Servers one to one'
-m add nat-rule package Standard position bottom original-source Admin_PCs translated-source Web_Public method hide enabled false comments 'Old_admin_NAT: Old admin NAT'
+m add host name h-198.51.100.2 ip-address 198.51.100.2 ignore-warnings true
+m add nat-rule package Standard position bottom original-source X0_Subnet original-destination Any original-service Any translated-source h-198.51.100.2 translated-destination Original translated-service Original method hide comments 'Default_NAT: Default NAT' ignore-warnings true
+m add nat-rule package Standard position bottom original-source All-IPv4 original-destination Web_Public original-service HTTPS translated-source Original translated-destination Web_Server translated-service Original method static comments 'Web_server: Web server' ignore-warnings true
+m add nat-rule package Standard position bottom original-source All-IPv4 original-destination Mail_Public original-service SMTP_Alt translated-source Original translated-destination Mail_Server translated-service SMTP__Send_E-Mail_ method static comments 'Mail_on_another_port: Mail on another port' ignore-warnings true
+m add nat-rule package Standard position bottom original-source Server_Range original-destination Any original-service Any translated-source Server_Public translated-destination Original translated-service Original method static comments 'Servers_one_to_one: Servers one to one' ignore-warnings true
+m add nat-rule package Standard position bottom original-source All-IPv4 original-destination Server_Public original-service Any translated-source Original translated-destination Server_Range translated-service Original method static comments 'Servers_one_to_one__reflexive_: the reflexive policy of Servers one to one' ignore-warnings true
+m add nat-rule package Standard position bottom original-source Admin_PCs original-destination Any original-service Any translated-source Web_Public translated-destination Original translated-service Original method hide enabled false comments 'Old_admin_NAT: Old admin NAT' ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'

@@ -30,69 +30,69 @@ m() {
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }
 
 # Network objects
-m add network name lan-net subnet 10.10.0.0 mask-length 16
-m add network name dmz-net subnet 10.20.0.0 mask-length 24
-m add host name dns-1 ip-address 192.0.2.53
-m add address-range name admin-range ip-address-first 10.10.5.10 ip-address-last 10.10.5.20
-m add host name web-1 ip-address 10.20.0.10 comments 'Web server in the DMZ'
-m add host name web-1_valid_address ip-address 203.0.113.10 comments 'address automatic NAT gives web-1'
-m add host name mail-1 ip-address 10.20.0.25
-m add network name guest-net subnet 10.10.200.0 mask-length 24
-m add group name netadmins comments 'FWSHIFT PLACEHOLDER, matches nothing: access role whose networks and users are not in the export (add the output of '\''show access-roles details-level full'\'')'
-m add network name plc-net subnet 10.30.1.0 mask-length 24
-m add dns-domain name .updates.example.com is-sub-domain false
-m add group name lan-without-guests comments 'FWSHIFT PLACEHOLDER, matches nothing: object of type '\''group-with-exclusion'\'''
-m add network name lan6-net subnet 2001:db8:10:: mask-length 48
-m add host name mail-public ip-address 203.0.113.25
-m add host name nat-out ip-address 198.51.100.20
-m add host name h-192.0.2.54 ip-address 192.0.2.54
-m add host name h-2001_db8_53__54 ip-address 2001:db8:53::54
-m add group name dns-2 members.1 h-192.0.2.54 members.2 h-2001_db8_53__54
-m add group name dns-servers members.1 dns-1 members.2 dns-2
-m add group name dmz-servers members.1 web-1 members.2 web-1_valid_address members.3 mail-1 comments 'Everything in the DMZ'
+m add network name lan-net subnet 10.10.0.0 mask-length 16 ignore-warnings true
+m add network name dmz-net subnet 10.20.0.0 mask-length 24 ignore-warnings true
+m add host name dns-1 ip-address 192.0.2.53 ignore-warnings true
+m add address-range name admin-range ip-address-first 10.10.5.10 ip-address-last 10.10.5.20 ignore-warnings true
+m add host name web-1 ip-address 10.20.0.10 comments 'Web server in the DMZ' ignore-warnings true
+m add host name web-1_valid_address ip-address 203.0.113.10 comments 'address automatic NAT gives web-1' ignore-warnings true
+m add host name mail-1 ip-address 10.20.0.25 ignore-warnings true
+m add network name guest-net subnet 10.10.200.0 mask-length 24 ignore-warnings true
+m add group name netadmins comments 'FWSHIFT PLACEHOLDER, matches nothing: access role whose networks and users are not in the export (add the output of '\''show access-roles details-level full'\'')' ignore-warnings true
+m add network name plc-net subnet 10.30.1.0 mask-length 24 ignore-warnings true
+m add dns-domain name .updates.example.com is-sub-domain false ignore-warnings true
+m add group name lan-without-guests comments 'FWSHIFT PLACEHOLDER, matches nothing: object of type '\''group-with-exclusion'\''' ignore-warnings true
+m add network name lan6-net subnet 2001:db8:10:: mask-length 48 ignore-warnings true
+m add host name mail-public ip-address 203.0.113.25 ignore-warnings true
+m add host name nat-out ip-address 198.51.100.20 ignore-warnings true
+m add host name h-192.0.2.54 ip-address 192.0.2.54 ignore-warnings true
+m add host name h-2001_db8_53__54 ip-address 2001:db8:53::54 ignore-warnings true
+m add group name dns-2 members.1 h-192.0.2.54 members.2 h-2001_db8_53__54 ignore-warnings true
+m add group name dns-servers members.1 dns-1 members.2 dns-2 ignore-warnings true
+m add group name dmz-servers members.1 web-1 members.2 web-1_valid_address members.3 mail-1 comments 'Everything in the DMZ' ignore-warnings true
 
 # Services
-m add service-udp name syslog-from-high port 514 source-port 1024-65535 match-for-any false
-m add service-tcp name tcp-high port 9000-9010 match-for-any false comments 'Application ports'
-m add service-tcp name tcp-2525 port 2525 match-for-any false
-m add service-group name app-ports members.1 https members.2 tcp-high
+m add service-udp name syslog-from-high port 514 source-port 1024-65535 match-for-any false ignore-warnings true
+m add service-tcp name tcp-high port 9000-9010 match-for-any false comments 'Application ports' ignore-warnings true
+m add service-tcp name tcp-2525 port 2525 match-for-any false ignore-warnings true
+m add service-group name app-ports members.1 https members.2 tcp-high ignore-warnings true
 
 # Rules of layer Network
-m add access-rule layer Network position 1 name DNS source.1 lan-net source.2 dmz-net destination.1 dns-servers service.1 domain-udp service.2 domain-tcp action Accept track.type Log comments 'Name resolution'
-m add access-rule layer Network position 2 name rule-2 source.1 admin-range destination.1 dmz-servers service.1 ssh action Accept track.type Log
-m add access-rule layer Network position 3 name 'Web out' source.1 InternalZone destination.1 ExternalZone service.1 http service.2 https action Accept track.type Log
-m add access-rule layer Network position 4 name 'Guests stay out' source.1 guest-net destination.1 dns-servers destination-negate true action Drop track.type Log
-m add access-rule layer Network position 5 name Social source.1 lan-net service.1 Facebook action Accept track.type Log
-m add access-rule layer Network position 6 name Admins source.1 netadmins destination.1 plc-net action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 7 name 'PLC access' source.1 admin-range destination.1 plc-net service.1 https service.2 ssh action Accept track.type Log comments 'Operators from the office, vendor support from anywhere'
-m add access-rule layer Network position 8 name 'PLC access (plc-operators)' source.1 lan-net destination.1 plc-net service.1 https service.2 ssh action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report. Operators from the office, vendor support from anywhere'
-m add access-rule layer Network position 9 name 'PLC access (vendor-support)' destination.1 plc-net service.1 https service.2 ssh action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report. Operators from the office, vendor support from anywhere'
-m add access-rule layer Network position 10 name 'DMZ users' source.1 dmz-net service.1 https action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 11 name Updates source.1 dmz-servers destination.1 .updates.example.com service.1 https action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 12 name 'Old rule' source.1 lan-without-guests service.1 syslog-from-high action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 13 name Partners source.1 lan-net destination.1 plc-net action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 14 name 'IPv6 out' source.1 lan6-net service.1 https action Accept track.type None
-m add access-rule layer Network position 15 name 'Public web' destination.1 web-1 destination.2 web-1_valid_address service.1 https action Accept track.type Log comments 'web-1 has automatic static NAT'
-m add access-rule layer Network position 16 name 'DMZ access / Web in' destination.1 web-1 service.1 app-ports action Accept track.type Log
-m add access-rule layer Network position 17 name 'DMZ access / Mail in' destination.1 mail-1 service.1 smtp action Accept track.type Log
-m add access-rule layer Network position 18 name 'DMZ access / Ping from LAN' source.1 lan-net destination.1 dmz-net service.1 echo-request action Accept track.type None
-m add access-rule layer Network position 19 name 'DMZ access (cleanup of DMZ-Layer)' destination.1 dmz-net action Drop track.type None comments 'implicit cleanup of inline layer DMZ-Layer'
-m add access-rule layer Network position 20 name Tunnels destination.1 gw-edge service.1 gre action Accept track.type Log
-m add access-rule layer Network position 21 name 'No ident' service.1 ident action Reject track.type Log
-m add access-rule layer Network position 22 name 'Cleanup rule' action Drop track.type Log
+m add access-rule layer Network position 1 name DNS source.1 lan-net source.2 dmz-net destination.1 dns-servers service.1 domain-udp service.2 domain-tcp action Accept track.type Log comments 'Name resolution' ignore-warnings true
+m add access-rule layer Network position 2 name rule-2 source.1 admin-range destination.1 dmz-servers service.1 ssh action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 3 name 'Web out' source.1 InternalZone destination.1 ExternalZone service.1 http service.2 https action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 4 name 'Guests stay out' source.1 guest-net destination.1 dns-servers service.1 Any destination-negate true action Drop track.type Log ignore-warnings true
+m add access-rule layer Network position 5 name Social source.1 lan-net destination.1 Any service.1 Facebook action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 6 name Admins source.1 netadmins destination.1 plc-net service.1 Any action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 7 name 'PLC access' source.1 admin-range destination.1 plc-net service.1 https service.2 ssh action Accept track.type Log comments 'Operators from the office, vendor support from anywhere' ignore-warnings true
+m add access-rule layer Network position 8 name 'PLC access (plc-operators)' source.1 lan-net destination.1 plc-net service.1 https service.2 ssh action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report. Operators from the office, vendor support from anywhere' ignore-warnings true
+m add access-rule layer Network position 9 name 'PLC access (vendor-support)' source.1 Any destination.1 plc-net service.1 https service.2 ssh action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report. Operators from the office, vendor support from anywhere' ignore-warnings true
+m add access-rule layer Network position 10 name 'DMZ users' source.1 dmz-net destination.1 Any service.1 https action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 11 name Updates source.1 dmz-servers destination.1 .updates.example.com service.1 https action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 12 name 'Old rule' source.1 lan-without-guests destination.1 Any service.1 syslog-from-high action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 13 name Partners source.1 lan-net destination.1 plc-net service.1 Any action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 14 name 'IPv6 out' source.1 lan6-net destination.1 Any service.1 https action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 15 name 'Public web' source.1 Any destination.1 web-1 destination.2 web-1_valid_address service.1 https action Accept track.type Log comments 'web-1 has automatic static NAT' ignore-warnings true
+m add access-rule layer Network position 16 name 'DMZ access / Web in' source.1 Any destination.1 web-1 service.1 app-ports action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 17 name 'DMZ access / Mail in' source.1 Any destination.1 mail-1 service.1 smtp action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 18 name 'DMZ access / Ping from LAN' source.1 lan-net destination.1 dmz-net service.1 echo-request action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 19 name 'DMZ access (cleanup of DMZ-Layer)' source.1 Any destination.1 dmz-net service.1 Any action Drop track.type None comments 'implicit cleanup of inline layer DMZ-Layer' ignore-warnings true
+m add access-rule layer Network position 20 name Tunnels source.1 Any destination.1 gw-edge service.1 gre action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 21 name 'No ident' source.1 Any destination.1 Any service.1 ident action Reject track.type Log ignore-warnings true
+m add access-rule layer Network position 22 name 'Cleanup rule' source.1 Any destination.1 Any service.1 Any action Drop track.type Log ignore-warnings true
 
 # NAT rules of package Standard
-m add nat-rule package Standard position bottom original-source web-1 translated-source web-1_valid_address method static comments 'nat-1: automatic NAT rule'
-m add nat-rule package Standard position bottom original-destination web-1_valid_address translated-destination web-1 method static comments 'nat-2: automatic NAT rule'
-m add nat-rule package Standard position bottom original-source plc-net original-destination plc-net method static comments 'nat-3: automatic NAT rule'
-m add nat-rule package Standard position bottom original-source lan-net original-destination dmz-net method static comments 'nat-5: No NAT towards the DMZ'
-m add nat-rule package Standard position bottom original-destination mail-public original-service tcp-2525 translated-destination mail-1 translated-service smtp method static comments 'nat-6: Mail on an alternative port'
-m add nat-rule package Standard position bottom original-source dmz-net translated-source nat-out method hide comments nat-7
-m add nat-rule package Standard position bottom original-source lan-net translated-source gw-edge method hide comments 'nat-8: Hide behind the gateway'
-m add nat-rule package Standard position bottom original-source guest-net translated-source nat-out method hide enabled false comments nat-9
+m add nat-rule package Standard position bottom original-source web-1 original-destination Any original-service Any translated-source web-1_valid_address translated-destination Original translated-service Original method static comments 'nat-1: automatic NAT rule' ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination web-1_valid_address original-service Any translated-source Original translated-destination web-1 translated-service Original method static comments 'nat-2: automatic NAT rule' ignore-warnings true
+m add nat-rule package Standard position bottom original-source plc-net original-destination plc-net original-service Any translated-source Original translated-destination Original translated-service Original method static comments 'nat-3: automatic NAT rule' ignore-warnings true
+m add nat-rule package Standard position bottom original-source lan-net original-destination dmz-net original-service Any translated-source Original translated-destination Original translated-service Original method static comments 'nat-5: No NAT towards the DMZ' ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination mail-public original-service tcp-2525 translated-source Original translated-destination mail-1 translated-service smtp method static comments 'nat-6: Mail on an alternative port' ignore-warnings true
+m add nat-rule package Standard position bottom original-source dmz-net original-destination Any original-service Any translated-source nat-out translated-destination Original translated-service Original method hide comments nat-7 ignore-warnings true
+m add nat-rule package Standard position bottom original-source lan-net original-destination Any original-service Any translated-source gw-edge translated-destination Original translated-service Original method hide comments 'nat-8: Hide behind the gateway' ignore-warnings true
+m add nat-rule package Standard position bottom original-source guest-net original-destination Any original-service Any translated-source nat-out translated-destination Original translated-service Original method hide enabled false comments nat-9 ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'

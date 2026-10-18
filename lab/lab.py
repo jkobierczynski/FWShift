@@ -100,7 +100,7 @@ def parser() -> argparse.ArgumentParser:
     r.add_argument("--target-version", help="tier2, OPNsense: the series of the base image (as --target-version of fwshift)")
     r.add_argument("--ami", help="tier3: the image id, where the name the lab looks for does not find it")
     r.add_argument("--instance-type", help="tier3: the firewall's instance type")
-    r.add_argument("--boot-minutes", type=float, default=30, help="how long to wait for the firewall's CLI (30)")
+    r.add_argument("--boot-minutes", type=float, default=None, help="how long to wait for the firewall's CLI (30; Check Point 60)")
     return top
 
 

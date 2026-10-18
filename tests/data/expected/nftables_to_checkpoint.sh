@@ -30,53 +30,53 @@ m() {
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }
 
 # Network objects
-m add network name n-192.0.2.128_25 subnet 192.0.2.128 mask-length 25
-m add host name h-198.51.100.66 ip-address 198.51.100.66
-m add group name blocked members.1 n-192.0.2.128_25 members.2 h-198.51.100.66 comments 'nftables set @blocked of table filter'
-m add address-range name r-10.10.5.10-10.10.5.20 ip-address-first 10.10.5.10 ip-address-last 10.10.5.20
-m add group name admins members.1 r-10.10.5.10-10.10.5.20 comments 'nftables set @admins of table filter'
-m add host name h-2001_db8_20__10 ip-address 2001:db8:20::10
-m add host name h-2001_db8_20__25 ip-address 2001:db8:20::25
-m add group name dmz_v6 members.1 h-2001_db8_20__10 members.2 h-2001_db8_20__25 comments 'nftables set @dmz_v6 of table filter'
+m add network name n-192.0.2.128_25 subnet 192.0.2.128 mask-length 25 ignore-warnings true
+m add host name h-198.51.100.66 ip-address 198.51.100.66 ignore-warnings true
+m add group name blocked members.1 n-192.0.2.128_25 members.2 h-198.51.100.66 comments 'nftables set @blocked of table filter' ignore-warnings true
+m add address-range name r-10.10.5.10-10.10.5.20 ip-address-first 10.10.5.10 ip-address-last 10.10.5.20 ignore-warnings true
+m add group name admins members.1 r-10.10.5.10-10.10.5.20 comments 'nftables set @admins of table filter' ignore-warnings true
+m add host name h-2001_db8_20__10 ip-address 2001:db8:20::10 ignore-warnings true
+m add host name h-2001_db8_20__25 ip-address 2001:db8:20::25 ignore-warnings true
+m add group name dmz_v6 members.1 h-2001_db8_20__10 members.2 h-2001_db8_20__25 comments 'nftables set @dmz_v6 of table filter' ignore-warnings true
 
 # Services
-m add service-tcp name tcp-80_443-tcp80 port 80 match-for-any false
-m add service-tcp name tcp-80_443-tcp443 port 443 match-for-any false
-m add service-group name tcp-80_443 members.1 tcp-80_443-tcp80 members.2 tcp-80_443-tcp443
-m add service-tcp name tcp-53_udp-53-tcp53 port 53 match-for-any false
-m add service-udp name tcp-53_udp-53-udp53 port 53 match-for-any false
-m add service-group name tcp-53_udp-53 members.1 tcp-53_udp-53-tcp53 members.2 tcp-53_udp-53-udp53
-m add service-tcp name tcp-25 port 25 match-for-any false
-m add service-other name ip-47 ip-protocol 47 match-for-any false
-m add service-tcp name tcp-22_3389-tcp22 port 22 match-for-any false
-m add service-tcp name tcp-22_3389-tcp3389 port 3389 match-for-any false
-m add service-group name tcp-22_3389 members.1 tcp-22_3389-tcp22 members.2 tcp-22_3389-tcp3389
-m add service-icmp name icmp-8 icmp-type 8
-m add service-tcp name tcp-502 port 502 match-for-any false
-m add service-tcp name tcp-8443 port 8443 match-for-any false
-m add service-tcp name tcp-25_443-tcp25 port 25 match-for-any false
-m add service-tcp name tcp-25_443-tcp443 port 443 match-for-any false
-m add service-group name tcp-25_443 members.1 tcp-25_443-tcp25 members.2 tcp-25_443-tcp443
-m add service-icmp6 name icmp6-128_icmp6-135_icmp6-136-icmp6-type128 icmp-type 128
-m add service-icmp6 name icmp6-128_icmp6-135_icmp6-136-icmp6-type135 icmp-type 135
-m add service-icmp6 name icmp6-128_icmp6-135_icmp6-136-icmp6-type136 icmp-type 136
-m add service-group name icmp6-128_icmp6-135_icmp6-136 members.1 icmp6-128_icmp6-135_icmp6-136-icmp6-type128 members.2 icmp6-128_icmp6-135_icmp6-136-icmp6-type135 members.3 icmp6-128_icmp6-135_icmp6-136-icmp6-type136
-m add service-tcp name tcp-443 port 443 match-for-any false
-m add address-range name All-IPv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255
-m add network name n-10.10.200.0_24 subnet 10.10.200.0 mask-length 24
-m add network name n-10.20.0.0_24 subnet 10.20.0.0 mask-length 24
-m add host name h-10.10.7.15 ip-address 10.10.7.15
-m add network name n-10.30.1.0_24 subnet 10.30.1.0 mask-length 24
-m add host name h-10.20.0.10 ip-address 10.20.0.10
-m add host name h-203.0.113.10 ip-address 203.0.113.10
-m add host name h-10.20.0.25 ip-address 10.20.0.25
-m add host name h-203.0.113.25 ip-address 203.0.113.25
-m add network name n-10.0.0.0_8 subnet 10.0.0.0 mask-length 8
-m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+m add service-tcp name tcp-80_443-tcp80 port 80 match-for-any false ignore-warnings true
+m add service-tcp name tcp-80_443-tcp443 port 443 match-for-any false ignore-warnings true
+m add service-group name tcp-80_443 members.1 tcp-80_443-tcp80 members.2 tcp-80_443-tcp443 ignore-warnings true
+m add service-tcp name tcp-53_udp-53-tcp53 port 53 match-for-any false ignore-warnings true
+m add service-udp name tcp-53_udp-53-udp53 port 53 match-for-any false ignore-warnings true
+m add service-group name tcp-53_udp-53 members.1 tcp-53_udp-53-tcp53 members.2 tcp-53_udp-53-udp53 ignore-warnings true
+m add service-tcp name tcp-25 port 25 match-for-any false ignore-warnings true
+m add service-other name ip-47 ip-protocol 47 match-for-any false ignore-warnings true
+m add service-tcp name tcp-22_3389-tcp22 port 22 match-for-any false ignore-warnings true
+m add service-tcp name tcp-22_3389-tcp3389 port 3389 match-for-any false ignore-warnings true
+m add service-group name tcp-22_3389 members.1 tcp-22_3389-tcp22 members.2 tcp-22_3389-tcp3389 ignore-warnings true
+m add service-icmp name icmp-8 icmp-type 8 ignore-warnings true
+m add service-tcp name tcp-502 port 502 match-for-any false ignore-warnings true
+m add service-tcp name tcp-8443 port 8443 match-for-any false ignore-warnings true
+m add service-tcp name tcp-25_443-tcp25 port 25 match-for-any false ignore-warnings true
+m add service-tcp name tcp-25_443-tcp443 port 443 match-for-any false ignore-warnings true
+m add service-group name tcp-25_443 members.1 tcp-25_443-tcp25 members.2 tcp-25_443-tcp443 ignore-warnings true
+m add service-icmp6 name icmp6-128_icmp6-135_icmp6-136-icmp6-type128 icmp-type 128 ignore-warnings true
+m add service-icmp6 name icmp6-128_icmp6-135_icmp6-136-icmp6-type135 icmp-type 135 ignore-warnings true
+m add service-icmp6 name icmp6-128_icmp6-135_icmp6-136-icmp6-type136 icmp-type 136 ignore-warnings true
+m add service-group name icmp6-128_icmp6-135_icmp6-136 members.1 icmp6-128_icmp6-135_icmp6-136-icmp6-type128 members.2 icmp6-128_icmp6-135_icmp6-136-icmp6-type135 members.3 icmp6-128_icmp6-135_icmp6-136-icmp6-type136 ignore-warnings true
+m add service-tcp name tcp-443 port 443 match-for-any false ignore-warnings true
+m add address-range name All-IPv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255 ignore-warnings true
+m add network name n-10.10.200.0_24 subnet 10.10.200.0 mask-length 24 ignore-warnings true
+m add network name n-10.20.0.0_24 subnet 10.20.0.0 mask-length 24 ignore-warnings true
+m add host name h-10.10.7.15 ip-address 10.10.7.15 ignore-warnings true
+m add network name n-10.30.1.0_24 subnet 10.30.1.0 mask-length 24 ignore-warnings true
+m add host name h-10.20.0.10 ip-address 10.20.0.10 ignore-warnings true
+m add host name h-203.0.113.10 ip-address 203.0.113.10 ignore-warnings true
+m add host name h-10.20.0.25 ip-address 10.20.0.25 ignore-warnings true
+m add host name h-203.0.113.25 ip-address 203.0.113.25 ignore-warnings true
+m add network name n-10.0.0.0_8 subnet 10.0.0.0 mask-length 8 ignore-warnings true
+m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ignore-warnings true
 
 # Security zones
 zone eth1
@@ -85,73 +85,73 @@ zone eth2
 zone eth3
 
 # Traffic from zone eth1 to zone eth0
-m add access-layer name Network_eth1_to_eth0 add-default-rule false
-m add access-rule layer Network_eth1_to_eth0 position bottom name 'Banned by fail2ban' source.1 All-IPv4 action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_eth1_to_eth0 position bottom name 'Block bad hosts' source.1 blocked action Drop track.type None
-m add access-rule layer Network_eth1_to_eth0 position bottom name 'Guests stay in' source.1 n-10.10.200.0_24 action Drop track.type None
-m add access-rule layer Network_eth1_to_eth0 position bottom name 'LAN web' source.1 eth1 destination.1 eth0 service.1 tcp-80_443 action Accept track.type None
-m add access-rule layer Network_eth1_to_eth0 position bottom name 'LAN DNS' source.1 eth1 destination.1 eth0 service.1 tcp-53_udp-53 action Accept track.type None
-m add access-rule layer Network_eth1_to_eth0 position bottom name 'Rate limited mail' source.1 eth1 destination.1 eth0 service.1 tcp-25 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_eth1_to_eth0 position bottom name 'Partner tunnel' source.1 eth1 destination.1 eth0 service.1 ip-47 action Accept track.type None
-m add access-rule layer Network_eth1_to_eth0 position bottom name 'ICMPv6 basics' source.1 All-IPv6 service.1 icmp6-128_icmp6-135_icmp6-136 action Accept track.type None
-m add access-rule layer Network_eth1_to_eth0 position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 1 name 'eth1 to eth0' source.1 eth1 destination.1 eth0 action 'Apply Layer' inline-layer Network_eth1_to_eth0
+m add access-layer name Network_eth1_to_eth0 add-default-rule false ignore-warnings true
+m add access-rule layer Network_eth1_to_eth0 position bottom name 'Banned by fail2ban' source.1 All-IPv4 destination.1 Any service.1 Any action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_eth1_to_eth0 position bottom name 'Block bad hosts' source.1 blocked destination.1 Any service.1 Any action Drop track.type None ignore-warnings true
+m add access-rule layer Network_eth1_to_eth0 position bottom name 'Guests stay in' source.1 n-10.10.200.0_24 destination.1 Any service.1 Any action Drop track.type None ignore-warnings true
+m add access-rule layer Network_eth1_to_eth0 position bottom name 'LAN web' source.1 eth1 destination.1 eth0 service.1 tcp-80_443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_eth1_to_eth0 position bottom name 'LAN DNS' source.1 eth1 destination.1 eth0 service.1 tcp-53_udp-53 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_eth1_to_eth0 position bottom name 'Rate limited mail' source.1 eth1 destination.1 eth0 service.1 tcp-25 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_eth1_to_eth0 position bottom name 'Partner tunnel' source.1 eth1 destination.1 eth0 service.1 ip-47 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_eth1_to_eth0 position bottom name 'ICMPv6 basics' source.1 All-IPv6 destination.1 Any service.1 icmp6-128_icmp6-135_icmp6-136 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_eth1_to_eth0 position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 1 name 'eth1 to eth0' source.1 eth1 destination.1 eth0 service.1 Any action 'Apply Layer' inline-layer Network_eth1_to_eth0 ignore-warnings true
 
 # Traffic from zone eth1 to zone eth2
-m add access-layer name Network_eth1_to_eth2 add-default-rule false
-m add access-rule layer Network_eth1_to_eth2 position bottom name 'Banned by fail2ban' source.1 All-IPv4 action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_eth1_to_eth2 position bottom name 'Block bad hosts' source.1 blocked action Drop track.type None
-m add access-rule layer Network_eth1_to_eth2 position bottom name Admins source.1 admins destination.1 n-10.20.0.0_24 service.1 tcp-22_3389 action Accept track.type None
-m add access-rule layer Network_eth1_to_eth2 position bottom name 'Ping the DMZ' source.1 All-IPv4 service.1 icmp-8 action Accept track.type None
-m add access-rule layer Network_eth1_to_eth2 position bottom name 'ICMPv6 basics' source.1 All-IPv6 service.1 icmp6-128_icmp6-135_icmp6-136 action Accept track.type None
-m add access-rule layer Network_eth1_to_eth2 position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 2 name 'eth1 to eth2' source.1 eth1 destination.1 eth2 action 'Apply Layer' inline-layer Network_eth1_to_eth2
+m add access-layer name Network_eth1_to_eth2 add-default-rule false ignore-warnings true
+m add access-rule layer Network_eth1_to_eth2 position bottom name 'Banned by fail2ban' source.1 All-IPv4 destination.1 Any service.1 Any action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_eth1_to_eth2 position bottom name 'Block bad hosts' source.1 blocked destination.1 Any service.1 Any action Drop track.type None ignore-warnings true
+m add access-rule layer Network_eth1_to_eth2 position bottom name Admins source.1 admins destination.1 n-10.20.0.0_24 service.1 tcp-22_3389 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_eth1_to_eth2 position bottom name 'Ping the DMZ' source.1 All-IPv4 destination.1 Any service.1 icmp-8 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_eth1_to_eth2 position bottom name 'ICMPv6 basics' source.1 All-IPv6 destination.1 Any service.1 icmp6-128_icmp6-135_icmp6-136 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_eth1_to_eth2 position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 2 name 'eth1 to eth2' source.1 eth1 destination.1 eth2 service.1 Any action 'Apply Layer' inline-layer Network_eth1_to_eth2 ignore-warnings true
 
 # Traffic from zone eth1 to zone eth3
-m add access-layer name Network_eth1_to_eth3 add-default-rule false
-m add access-rule layer Network_eth1_to_eth3 position bottom name 'Banned by fail2ban' source.1 All-IPv4 action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_eth1_to_eth3 position bottom name 'Block bad hosts' source.1 blocked action Drop track.type None
-m add access-rule layer Network_eth1_to_eth3 position bottom name 'SCADA to PLCs' source.1 h-10.10.7.15 destination.1 n-10.30.1.0_24 service.1 tcp-502 action Accept track.type None
-m add access-rule layer Network_eth1_to_eth3 position bottom name 'ICMPv6 basics' source.1 All-IPv6 service.1 icmp6-128_icmp6-135_icmp6-136 action Accept track.type None
-m add access-rule layer Network_eth1_to_eth3 position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 3 name 'eth1 to eth3' source.1 eth1 destination.1 eth3 action 'Apply Layer' inline-layer Network_eth1_to_eth3
+m add access-layer name Network_eth1_to_eth3 add-default-rule false ignore-warnings true
+m add access-rule layer Network_eth1_to_eth3 position bottom name 'Banned by fail2ban' source.1 All-IPv4 destination.1 Any service.1 Any action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_eth1_to_eth3 position bottom name 'Block bad hosts' source.1 blocked destination.1 Any service.1 Any action Drop track.type None ignore-warnings true
+m add access-rule layer Network_eth1_to_eth3 position bottom name 'SCADA to PLCs' source.1 h-10.10.7.15 destination.1 n-10.30.1.0_24 service.1 tcp-502 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_eth1_to_eth3 position bottom name 'ICMPv6 basics' source.1 All-IPv6 destination.1 Any service.1 icmp6-128_icmp6-135_icmp6-136 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_eth1_to_eth3 position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 3 name 'eth1 to eth3' source.1 eth1 destination.1 eth3 service.1 Any action 'Apply Layer' inline-layer Network_eth1_to_eth3 ignore-warnings true
 
 # Traffic from zone eth0 to zone eth2
-m add access-layer name Network_eth0_to_eth2 add-default-rule false
-m add access-rule layer Network_eth0_to_eth2 position bottom name 'Banned by fail2ban' source.1 All-IPv4 action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_eth0_to_eth2 position bottom name 'Block bad hosts' source.1 blocked action Drop track.type None
-m add access-rule layer Network_eth0_to_eth2 position bottom name 'Inbound web' destination.1 h-10.20.0.10 destination.2 h-203.0.113.10 service.1 tcp-8443 action Accept track.type None
-m add access-rule layer Network_eth0_to_eth2 position bottom name 'Inbound mail' destination.1 h-10.20.0.25 destination.2 h-203.0.113.25 service.1 tcp-25 action Accept track.type None
-m add access-rule layer Network_eth0_to_eth2 position bottom name 'Inbound IPv6' destination.1 dmz_v6 service.1 tcp-25_443 action Accept track.type None
-m add access-rule layer Network_eth0_to_eth2 position bottom name 'ICMPv6 basics' source.1 All-IPv6 service.1 icmp6-128_icmp6-135_icmp6-136 action Accept track.type None
-m add access-rule layer Network_eth0_to_eth2 position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 4 name 'eth0 to eth2' source.1 eth0 destination.1 eth2 action 'Apply Layer' inline-layer Network_eth0_to_eth2
+m add access-layer name Network_eth0_to_eth2 add-default-rule false ignore-warnings true
+m add access-rule layer Network_eth0_to_eth2 position bottom name 'Banned by fail2ban' source.1 All-IPv4 destination.1 Any service.1 Any action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_eth0_to_eth2 position bottom name 'Block bad hosts' source.1 blocked destination.1 Any service.1 Any action Drop track.type None ignore-warnings true
+m add access-rule layer Network_eth0_to_eth2 position bottom name 'Inbound web' source.1 Any destination.1 h-10.20.0.10 destination.2 h-203.0.113.10 service.1 tcp-8443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_eth0_to_eth2 position bottom name 'Inbound mail' source.1 Any destination.1 h-10.20.0.25 destination.2 h-203.0.113.25 service.1 tcp-25 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_eth0_to_eth2 position bottom name 'Inbound IPv6' source.1 Any destination.1 dmz_v6 service.1 tcp-25_443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_eth0_to_eth2 position bottom name 'ICMPv6 basics' source.1 All-IPv6 destination.1 Any service.1 icmp6-128_icmp6-135_icmp6-136 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_eth0_to_eth2 position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 4 name 'eth0 to eth2' source.1 eth0 destination.1 eth2 service.1 Any action 'Apply Layer' inline-layer Network_eth0_to_eth2 ignore-warnings true
 
 # Traffic from zone eth2 to zone eth0
-m add access-layer name Network_eth2_to_eth0 add-default-rule false
-m add access-rule layer Network_eth2_to_eth0 position bottom name 'Banned by fail2ban' source.1 All-IPv4 action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_eth2_to_eth0 position bottom name 'Block bad hosts' source.1 blocked action Drop track.type None
-m add access-rule layer Network_eth2_to_eth0 position bottom name 'DMZ updates' source.1 All-IPv4 destination.1 n-10.0.0.0_8 service.1 tcp-80_443 destination-negate true action Accept track.type None
-m add access-rule layer Network_eth2_to_eth0 position bottom name 'ICMPv6 basics' source.1 All-IPv6 service.1 icmp6-128_icmp6-135_icmp6-136 action Accept track.type None
-m add access-rule layer Network_eth2_to_eth0 position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 5 name 'eth2 to eth0' source.1 eth2 destination.1 eth0 action 'Apply Layer' inline-layer Network_eth2_to_eth0
+m add access-layer name Network_eth2_to_eth0 add-default-rule false ignore-warnings true
+m add access-rule layer Network_eth2_to_eth0 position bottom name 'Banned by fail2ban' source.1 All-IPv4 destination.1 Any service.1 Any action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_eth2_to_eth0 position bottom name 'Block bad hosts' source.1 blocked destination.1 Any service.1 Any action Drop track.type None ignore-warnings true
+m add access-rule layer Network_eth2_to_eth0 position bottom name 'DMZ updates' source.1 All-IPv4 destination.1 n-10.0.0.0_8 service.1 tcp-80_443 destination-negate true action Accept track.type None ignore-warnings true
+m add access-rule layer Network_eth2_to_eth0 position bottom name 'ICMPv6 basics' source.1 All-IPv6 destination.1 Any service.1 icmp6-128_icmp6-135_icmp6-136 action Accept track.type None ignore-warnings true
+m add access-rule layer Network_eth2_to_eth0 position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 5 name 'eth2 to eth0' source.1 eth2 destination.1 eth0 service.1 Any action 'Apply Layer' inline-layer Network_eth2_to_eth0 ignore-warnings true
 
 # Rules of layer Network for traffic of no zone pair above
-m add access-rule layer Network position 6 name 'Banned by fail2ban' source.1 All-IPv4 action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 7 name 'Block bad hosts' source.1 blocked action Drop track.type None
-m add access-rule layer Network position 8 name 'LAN web' source.1 eth1 destination.1 eth0 service.1 tcp-80_443 action Accept track.type None
-m add access-rule layer Network position 9 name 'LAN DNS' source.1 eth1 destination.1 eth0 service.1 tcp-53_udp-53 action Accept track.type None
-m add access-rule layer Network position 10 name 'Rate limited mail' source.1 eth1 destination.1 eth0 service.1 tcp-25 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 11 name 'Partner tunnel' source.1 eth1 destination.1 eth0 service.1 ip-47 action Accept track.type None
-m add access-rule layer Network position 12 name 'OT no internet' source.1 eth3 destination.1 eth0 action Drop track.type Log
-m add access-rule layer Network position 13 name 'ICMPv6 basics' source.1 All-IPv6 service.1 icmp6-128_icmp6-135_icmp6-136 action Accept track.type None
-m add access-rule layer Network position 14 name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
+m add access-rule layer Network position 6 name 'Banned by fail2ban' source.1 All-IPv4 destination.1 Any service.1 Any action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 7 name 'Block bad hosts' source.1 blocked destination.1 Any service.1 Any action Drop track.type None ignore-warnings true
+m add access-rule layer Network position 8 name 'LAN web' source.1 eth1 destination.1 eth0 service.1 tcp-80_443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 9 name 'LAN DNS' source.1 eth1 destination.1 eth0 service.1 tcp-53_udp-53 action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 10 name 'Rate limited mail' source.1 eth1 destination.1 eth0 service.1 tcp-25 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 11 name 'Partner tunnel' source.1 eth1 destination.1 eth0 service.1 ip-47 action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 12 name 'OT no internet' source.1 eth3 destination.1 eth0 service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network position 13 name 'ICMPv6 basics' source.1 All-IPv6 destination.1 Any service.1 icmp6-128_icmp6-135_icmp6-136 action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 14 name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
 
 # NAT rules of package Standard
-m add nat-rule package Standard position bottom original-destination h-203.0.113.10 original-service tcp-443 translated-destination h-10.20.0.10 translated-service tcp-8443 method static comments Web_DNAT
-m add nat-rule package Standard position bottom original-destination h-203.0.113.25 translated-destination h-10.20.0.25 method static comments Mail_DNAT
-m add network name n-10.10.0.0_16 subnet 10.10.0.0 mask-length 16
-m add network name n-10.99.0.0_16 subnet 10.99.0.0 mask-length 16
-m add nat-rule package Standard position bottom original-source n-10.10.0.0_16 original-destination n-10.99.0.0_16 method static comments No_NAT_to_partner
+m add nat-rule package Standard position bottom original-source Any original-destination h-203.0.113.10 original-service tcp-443 translated-source Original translated-destination h-10.20.0.10 translated-service tcp-8443 method static comments Web_DNAT ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination h-203.0.113.25 original-service Any translated-source Original translated-destination h-10.20.0.25 translated-service Original method static comments Mail_DNAT ignore-warnings true
+m add network name n-10.10.0.0_16 subnet 10.10.0.0 mask-length 16 ignore-warnings true
+m add network name n-10.99.0.0_16 subnet 10.99.0.0 mask-length 16 ignore-warnings true
+m add nat-rule package Standard position bottom original-source n-10.10.0.0_16 original-destination n-10.99.0.0_16 original-service Any translated-source Original translated-destination Original translated-service Original method static comments No_NAT_to_partner ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'

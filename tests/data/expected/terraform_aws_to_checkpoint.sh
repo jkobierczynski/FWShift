@@ -30,92 +30,92 @@ m() {
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }
 
 # Network objects
-m add host name h-10.30.1.10 ip-address 10.30.1.10
-m add host name h-2001_db8_30_1__10 ip-address 2001:db8:30:1::10
-m add group name shop-web members.1 h-10.30.1.10 members.2 h-2001_db8_30_1__10 comments 'web tier (security group sg-0a1b2c3d4e5f63021)'
-m add network name n-10.30.2.20_31 subnet 10.30.2.20 mask-length 31
-m add group name shop-app members.1 n-10.30.2.20_31 comments 'app tier (security group sg-0a1b2c3d4e5f63022)'
-m add host name h-10.30.9.5 ip-address 10.30.9.5
-m add group name shop-bastion members.1 h-10.30.9.5 comments 'jump host (security group sg-0a1b2c3d4e5f63024)'
-m add host name h-10.30.3.30 ip-address 10.30.3.30
-m add group name shop-db members.1 h-10.30.3.30 comments 'database (security group sg-0a1b2c3d4e5f63023)'
-m add network name n-10.30.0.0_16 subnet 10.30.0.0 mask-length 16
-m add network name n-2001_db8_30___56 subnet 2001:db8:30:: mask-length 56
-m add group name shop members.1 n-10.30.0.0_16 members.2 n-2001_db8_30___56 comments 'the addresses of VPC vpc-0a1b2c3d4e5f63001 (its CIDR blocks)'
-m add group name shop-app_members members.1 n-10.30.2.20_31 comments 'the addresses whose groups are exactly shop-app'
-m add group name shop-db_members members.1 h-10.30.3.30 comments 'the addresses whose groups are exactly shop-db'
-m add network name n-198.51.100.0_25 subnet 198.51.100.0 mask-length 25
-m add network name n-203.0.113.64_26 subnet 203.0.113.64 mask-length 26
-m add group name corp-offices members.1 n-198.51.100.0_25 members.2 n-203.0.113.64_26 comments 'prefix list pl-0a1b2c3d4e5f63061'
-m add group name shop-web_members members.1 h-10.30.1.10 members.2 h-2001_db8_30_1__10 comments 'the addresses whose groups are exactly shop-web'
-m add group name sg-0f9e8d7c6b5a43001 comments 'FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically'
+m add host name h-10.30.1.10 ip-address 10.30.1.10 ignore-warnings true
+m add host name h-2001_db8_30_1__10 ip-address 2001:db8:30:1::10 ignore-warnings true
+m add group name shop-web members.1 h-10.30.1.10 members.2 h-2001_db8_30_1__10 comments 'web tier (security group sg-0a1b2c3d4e5f63021)' ignore-warnings true
+m add network name n-10.30.2.20_31 subnet 10.30.2.20 mask-length 31 ignore-warnings true
+m add group name shop-app members.1 n-10.30.2.20_31 comments 'app tier (security group sg-0a1b2c3d4e5f63022)' ignore-warnings true
+m add host name h-10.30.9.5 ip-address 10.30.9.5 ignore-warnings true
+m add group name shop-bastion members.1 h-10.30.9.5 comments 'jump host (security group sg-0a1b2c3d4e5f63024)' ignore-warnings true
+m add host name h-10.30.3.30 ip-address 10.30.3.30 ignore-warnings true
+m add group name shop-db members.1 h-10.30.3.30 comments 'database (security group sg-0a1b2c3d4e5f63023)' ignore-warnings true
+m add network name n-10.30.0.0_16 subnet 10.30.0.0 mask-length 16 ignore-warnings true
+m add network name n-2001_db8_30___56 subnet 2001:db8:30:: mask-length 56 ignore-warnings true
+m add group name shop members.1 n-10.30.0.0_16 members.2 n-2001_db8_30___56 comments 'the addresses of VPC vpc-0a1b2c3d4e5f63001 (its CIDR blocks)' ignore-warnings true
+m add group name shop-app_members members.1 n-10.30.2.20_31 comments 'the addresses whose groups are exactly shop-app' ignore-warnings true
+m add group name shop-db_members members.1 h-10.30.3.30 comments 'the addresses whose groups are exactly shop-db' ignore-warnings true
+m add network name n-198.51.100.0_25 subnet 198.51.100.0 mask-length 25 ignore-warnings true
+m add network name n-203.0.113.64_26 subnet 203.0.113.64 mask-length 26 ignore-warnings true
+m add group name corp-offices members.1 n-198.51.100.0_25 members.2 n-203.0.113.64_26 comments 'prefix list pl-0a1b2c3d4e5f63061' ignore-warnings true
+m add group name shop-web_members members.1 h-10.30.1.10 members.2 h-2001_db8_30_1__10 comments 'the addresses whose groups are exactly shop-web' ignore-warnings true
+m add group name sg-0f9e8d7c6b5a43001 comments 'FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically' ignore-warnings true
 
 # Services
-m add service-tcp name shop-db-in-1 port 1-65535 match-for-any false comments 'network ACL acl-0a1b2c3d4e5f63031'
-m add service-tcp name shop-db-in-2 port 1024-65535 match-for-any false comments 'network ACL acl-0a1b2c3d4e5f63031'
-m add service-other name shop-db-in-3-icmp ip-protocol 1 match-for-any false
-m add service-tcp name shop-db-in-3-tcp1024-65535 port 1024-65535 match-for-any false
-m add service-group name shop-db-in-3 members.1 shop-db-in-3-icmp members.2 shop-db-in-3-tcp1024-65535 comments 'network ACL acl-0a1b2c3d4e5f63031'
-m add service-other name shop-db-in-4-icmp ip-protocol 1 match-for-any false
-m add service-tcp name shop-db-in-4-tcp1-65535 port 1-65535 match-for-any false
-m add service-group name shop-db-in-4 members.1 shop-db-in-4-icmp members.2 shop-db-in-4-tcp1-65535 comments 'network ACL acl-0a1b2c3d4e5f63031'
-m add service-tcp name tcp-8080 port 8080 match-for-any false
-m add service-tcp name tcp-22 port 22 match-for-any false
-m add service-tcp name tcp-5432 port 5432 match-for-any false
-m add service-udp name udp-53 port 53 match-for-any false
-m add service-other name icmp-all ip-protocol 1 match-for-any false
-m add service-tcp name tcp-443 port 443 match-for-any false
-m add service-tcp name tcp-80 port 80 match-for-any false
-m add service-icmp name icmp-3-4 icmp-type 3 icmp-code 4
-m add network name n-10.30.1.0_24 subnet 10.30.1.0 mask-length 24
-m add network name n-10.30.3.0_24 subnet 10.30.3.0 mask-length 24
-m add address-range name r-0.0.0.0-10.29.255.255 ip-address-first 0.0.0.0 ip-address-last 10.29.255.255
-m add address-range name r-10.31.0.0-255.255.255.255 ip-address-first 10.31.0.0 ip-address-last 255.255.255.255
-m add network name n-10.30.0.0_24 subnet 10.30.0.0 mask-length 24
-m add network name n-10.30.2.0_24 subnet 10.30.2.0 mask-length 24
-m add address-range name r-10.30.4.0-10.30.255.255 ip-address-first 10.30.4.0 ip-address-last 10.30.255.255
-m add host name h-192.0.2.10 ip-address 192.0.2.10
-m add host name h-192.0.2.5 ip-address 192.0.2.5
-m add address-range name All-IPv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255
-m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
-m add network name n-10.0.0.0_8 subnet 10.0.0.0 mask-length 8
-m add network name n-198.51.100.0_24 subnet 198.51.100.0 mask-length 24
-m add network name n-10.30.9.0_24 subnet 10.30.9.0 mask-length 24
+m add service-tcp name shop-db-in-1 port 1-65535 match-for-any false comments 'network ACL acl-0a1b2c3d4e5f63031' ignore-warnings true
+m add service-tcp name shop-db-in-2 port 1024-65535 match-for-any false comments 'network ACL acl-0a1b2c3d4e5f63031' ignore-warnings true
+m add service-other name shop-db-in-3-icmp ip-protocol 1 match-for-any false ignore-warnings true
+m add service-tcp name shop-db-in-3-tcp1024-65535 port 1024-65535 match-for-any false ignore-warnings true
+m add service-group name shop-db-in-3 members.1 shop-db-in-3-icmp members.2 shop-db-in-3-tcp1024-65535 comments 'network ACL acl-0a1b2c3d4e5f63031' ignore-warnings true
+m add service-other name shop-db-in-4-icmp ip-protocol 1 match-for-any false ignore-warnings true
+m add service-tcp name shop-db-in-4-tcp1-65535 port 1-65535 match-for-any false ignore-warnings true
+m add service-group name shop-db-in-4 members.1 shop-db-in-4-icmp members.2 shop-db-in-4-tcp1-65535 comments 'network ACL acl-0a1b2c3d4e5f63031' ignore-warnings true
+m add service-tcp name tcp-8080 port 8080 match-for-any false ignore-warnings true
+m add service-tcp name tcp-22 port 22 match-for-any false ignore-warnings true
+m add service-tcp name tcp-5432 port 5432 match-for-any false ignore-warnings true
+m add service-udp name udp-53 port 53 match-for-any false ignore-warnings true
+m add service-other name icmp-all ip-protocol 1 match-for-any false ignore-warnings true
+m add service-tcp name tcp-443 port 443 match-for-any false ignore-warnings true
+m add service-tcp name tcp-80 port 80 match-for-any false ignore-warnings true
+m add service-icmp name icmp-3-4 icmp-type 3 icmp-code 4 ignore-warnings true
+m add network name n-10.30.1.0_24 subnet 10.30.1.0 mask-length 24 ignore-warnings true
+m add network name n-10.30.3.0_24 subnet 10.30.3.0 mask-length 24 ignore-warnings true
+m add address-range name r-0.0.0.0-10.29.255.255 ip-address-first 0.0.0.0 ip-address-last 10.29.255.255 ignore-warnings true
+m add address-range name r-10.31.0.0-255.255.255.255 ip-address-first 10.31.0.0 ip-address-last 255.255.255.255 ignore-warnings true
+m add network name n-10.30.0.0_24 subnet 10.30.0.0 mask-length 24 ignore-warnings true
+m add network name n-10.30.2.0_24 subnet 10.30.2.0 mask-length 24 ignore-warnings true
+m add address-range name r-10.30.4.0-10.30.255.255 ip-address-first 10.30.4.0 ip-address-last 10.30.255.255 ignore-warnings true
+m add host name h-192.0.2.10 ip-address 192.0.2.10 ignore-warnings true
+m add host name h-192.0.2.5 ip-address 192.0.2.5 ignore-warnings true
+m add address-range name All-IPv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255 ignore-warnings true
+m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ignore-warnings true
+m add network name n-10.0.0.0_8 subnet 10.0.0.0 mask-length 8 ignore-warnings true
+m add network name n-198.51.100.0_24 subnet 198.51.100.0 mask-length 24 ignore-warnings true
+m add network name n-10.30.9.0_24 subnet 10.30.9.0 mask-length 24 ignore-warnings true
 
 # Rules of layer Network
-m add access-rule layer Network position 1 name shop-db-in-shop-db source.1 n-10.30.1.0_24 destination.1 n-10.30.3.0_24 service.1 shop-db-in-1 action Drop track.type None comments 'denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013'
-m add access-rule layer Network position 2 name shop-db-in-shop-db-2 source.1 r-0.0.0.0-10.29.255.255 source.2 r-10.31.0.0-255.255.255.255 destination.1 n-10.30.3.0_24 service.1 shop-db-in-2 service-negate true action Drop track.type None comments 'denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013'
-m add access-rule layer Network position 3 name shop-db-in-shop-db-3 source.1 n-10.30.0.0_24 source.2 n-10.30.2.0_24 source.3 r-10.30.4.0-10.30.255.255 destination.1 n-10.30.3.0_24 service.1 shop-db-in-3 service-negate true action Drop track.type None comments 'denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013'
-m add access-rule layer Network position 4 name shop-db-in-shop-db-4 source.1 n-10.30.1.0_24 destination.1 n-10.30.3.0_24 service.1 shop-db-in-4 service-negate true action Drop track.type None comments 'denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013'
-m add access-rule layer Network position 5 name shop-app-to-shop-db source.1 n-10.30.2.20_31 destination.1 h-10.30.3.30 service.1 tcp-5432 action Accept track.type None comments 'outbound rule of shop-app and inbound rule of shop-db'
-m add access-rule layer Network position 6 name shop-app-outbound-rest source.1 shop-app_members destination.1 shop destination.2 h-192.0.2.10 destination.3 h-192.0.2.5 action Drop track.type None comments 'what the outbound rules of shop-app do not allow inside the VPC'
-m add access-rule layer Network position 7 name shop-db-outbound-rest source.1 shop-db_members destination.1 shop destination.2 h-192.0.2.10 destination.3 h-192.0.2.5 action Drop track.type None comments 'what the outbound rules of shop-db do not allow inside the VPC'
-m add access-rule layer Network position 8 name shop-web-to-shop-app source.1 h-10.30.1.10 destination.1 n-10.30.2.20_31 service.1 tcp-8080 action Accept track.type None comments 'outbound rule of shop-web and inbound rule of shop-app'
-m add access-rule layer Network position 9 name shop-web-outbound-rest source.1 shop-web_members destination.1 shop destination.2 h-192.0.2.10 destination.3 h-192.0.2.5 action Drop track.type None comments 'what the outbound rules of shop-web do not allow inside the VPC'
-m add access-rule layer Network position 10 name shop-web-in-1 source.1 All-IPv4 destination.1 shop-web destination.2 h-192.0.2.10 service.1 tcp-443 action Accept track.type None comments https
-m add access-rule layer Network position 11 name shop-web-in-2 source.1 All-IPv6 destination.1 shop-web destination.2 h-192.0.2.10 service.1 tcp-443 action Accept track.type None comments https
-m add access-rule layer Network position 12 name shop-web-in-3 source.1 All-IPv4 destination.1 shop-web destination.2 h-192.0.2.10 service.1 tcp-80 action Accept track.type None comments http
-m add access-rule layer Network position 13 name shop-web-in-4 source.1 shop-bastion destination.1 shop-web destination.2 h-192.0.2.10 service.1 tcp-22 action Accept track.type None comments 'ssh from bastion'
-m add access-rule layer Network position 14 name shop-web-in-5 source.1 n-10.0.0.0_8 destination.1 shop-web destination.2 h-192.0.2.10 service.1 icmp-3-4 action Accept track.type None comments 'fragmentation needed'
-m add access-rule layer Network position 15 name shop-app-in-1 source.1 shop-web destination.1 shop-app service.1 tcp-8080 action Accept track.type None comments 'from web'
-m add access-rule layer Network position 16 name shop-app-in-2 source.1 shop-bastion destination.1 shop-app service.1 tcp-22 action Accept track.type None comments ssh
-m add access-rule layer Network position 17 name shop-app-in-3 source.1 shop-app destination.1 shop-app action Accept track.type None comments cluster
-m add access-rule layer Network position 18 name shop-bastion-in-1 source.1 n-198.51.100.0_24 destination.1 shop-bastion destination.2 h-192.0.2.5 service.1 tcp-22 action Accept track.type None comments admins
-m add access-rule layer Network position 19 name shop-bastion-in-3 source.1 n-198.51.100.0_24 destination.1 shop-bastion destination.2 h-192.0.2.5 service.1 icmp-all action Accept track.type None
-m add access-rule layer Network position 20 name shop-bastion-in-4 source.1 sg-0f9e8d7c6b5a43001 destination.1 shop-bastion destination.2 h-192.0.2.5 service.1 tcp-22 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. audit account'
-m add access-rule layer Network position 21 name shop-db-in-1 source.1 n-10.30.2.0_24 destination.1 shop-db service.1 tcp-5432 action Accept track.type None comments postgres
-m add access-rule layer Network position 22 name shop-db-in-2 source.1 n-10.30.9.0_24 destination.1 shop-db service.1 tcp-5432 action Accept track.type None comments postgres
-m add access-rule layer Network position 23 name shop-web-out-2 source.1 shop-web destination.1 corp-offices service.1 tcp-443 action Accept track.type None comments 'to the offices'
-m add access-rule layer Network position 24 name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
+m add access-rule layer Network position 1 name shop-db-in-shop-db source.1 n-10.30.1.0_24 destination.1 n-10.30.3.0_24 service.1 shop-db-in-1 action Drop track.type None comments 'denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013' ignore-warnings true
+m add access-rule layer Network position 2 name shop-db-in-shop-db-2 source.1 r-0.0.0.0-10.29.255.255 source.2 r-10.31.0.0-255.255.255.255 destination.1 n-10.30.3.0_24 service.1 shop-db-in-2 service-negate true action Drop track.type None comments 'denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013' ignore-warnings true
+m add access-rule layer Network position 3 name shop-db-in-shop-db-3 source.1 n-10.30.0.0_24 source.2 n-10.30.2.0_24 source.3 r-10.30.4.0-10.30.255.255 destination.1 n-10.30.3.0_24 service.1 shop-db-in-3 service-negate true action Drop track.type None comments 'denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013' ignore-warnings true
+m add access-rule layer Network position 4 name shop-db-in-shop-db-4 source.1 n-10.30.1.0_24 destination.1 n-10.30.3.0_24 service.1 shop-db-in-4 service-negate true action Drop track.type None comments 'denied by network ACL acl-0a1b2c3d4e5f63031 where traffic enters subnet subnet-0a1b2c3d4e5f63013' ignore-warnings true
+m add access-rule layer Network position 5 name shop-app-to-shop-db source.1 n-10.30.2.20_31 destination.1 h-10.30.3.30 service.1 tcp-5432 action Accept track.type None comments 'outbound rule of shop-app and inbound rule of shop-db' ignore-warnings true
+m add access-rule layer Network position 6 name shop-app-outbound-rest source.1 shop-app_members destination.1 shop destination.2 h-192.0.2.10 destination.3 h-192.0.2.5 service.1 Any action Drop track.type None comments 'what the outbound rules of shop-app do not allow inside the VPC' ignore-warnings true
+m add access-rule layer Network position 7 name shop-db-outbound-rest source.1 shop-db_members destination.1 shop destination.2 h-192.0.2.10 destination.3 h-192.0.2.5 service.1 Any action Drop track.type None comments 'what the outbound rules of shop-db do not allow inside the VPC' ignore-warnings true
+m add access-rule layer Network position 8 name shop-web-to-shop-app source.1 h-10.30.1.10 destination.1 n-10.30.2.20_31 service.1 tcp-8080 action Accept track.type None comments 'outbound rule of shop-web and inbound rule of shop-app' ignore-warnings true
+m add access-rule layer Network position 9 name shop-web-outbound-rest source.1 shop-web_members destination.1 shop destination.2 h-192.0.2.10 destination.3 h-192.0.2.5 service.1 Any action Drop track.type None comments 'what the outbound rules of shop-web do not allow inside the VPC' ignore-warnings true
+m add access-rule layer Network position 10 name shop-web-in-1 source.1 All-IPv4 destination.1 shop-web destination.2 h-192.0.2.10 service.1 tcp-443 action Accept track.type None comments https ignore-warnings true
+m add access-rule layer Network position 11 name shop-web-in-2 source.1 All-IPv6 destination.1 shop-web destination.2 h-192.0.2.10 service.1 tcp-443 action Accept track.type None comments https ignore-warnings true
+m add access-rule layer Network position 12 name shop-web-in-3 source.1 All-IPv4 destination.1 shop-web destination.2 h-192.0.2.10 service.1 tcp-80 action Accept track.type None comments http ignore-warnings true
+m add access-rule layer Network position 13 name shop-web-in-4 source.1 shop-bastion destination.1 shop-web destination.2 h-192.0.2.10 service.1 tcp-22 action Accept track.type None comments 'ssh from bastion' ignore-warnings true
+m add access-rule layer Network position 14 name shop-web-in-5 source.1 n-10.0.0.0_8 destination.1 shop-web destination.2 h-192.0.2.10 service.1 icmp-3-4 action Accept track.type None comments 'fragmentation needed' ignore-warnings true
+m add access-rule layer Network position 15 name shop-app-in-1 source.1 shop-web destination.1 shop-app service.1 tcp-8080 action Accept track.type None comments 'from web' ignore-warnings true
+m add access-rule layer Network position 16 name shop-app-in-2 source.1 shop-bastion destination.1 shop-app service.1 tcp-22 action Accept track.type None comments ssh ignore-warnings true
+m add access-rule layer Network position 17 name shop-app-in-3 source.1 shop-app destination.1 shop-app service.1 Any action Accept track.type None comments cluster ignore-warnings true
+m add access-rule layer Network position 18 name shop-bastion-in-1 source.1 n-198.51.100.0_24 destination.1 shop-bastion destination.2 h-192.0.2.5 service.1 tcp-22 action Accept track.type None comments admins ignore-warnings true
+m add access-rule layer Network position 19 name shop-bastion-in-3 source.1 n-198.51.100.0_24 destination.1 shop-bastion destination.2 h-192.0.2.5 service.1 icmp-all action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 20 name shop-bastion-in-4 source.1 sg-0f9e8d7c6b5a43001 destination.1 shop-bastion destination.2 h-192.0.2.5 service.1 tcp-22 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. audit account' ignore-warnings true
+m add access-rule layer Network position 21 name shop-db-in-1 source.1 n-10.30.2.0_24 destination.1 shop-db service.1 tcp-5432 action Accept track.type None comments postgres ignore-warnings true
+m add access-rule layer Network position 22 name shop-db-in-2 source.1 n-10.30.9.0_24 destination.1 shop-db service.1 tcp-5432 action Accept track.type None comments postgres ignore-warnings true
+m add access-rule layer Network position 23 name shop-web-out-2 source.1 shop-web destination.1 corp-offices service.1 tcp-443 action Accept track.type None comments 'to the offices' ignore-warnings true
+m add access-rule layer Network position 24 name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
 
 # NAT rules of package Standard
-m add nat-rule package Standard position bottom original-source h-10.30.1.10 translated-source h-192.0.2.10 method static comments 'public-192.0.2.10: public address of eni-0a1b2c3d4e5f63071'
-m add nat-rule package Standard position bottom original-destination h-192.0.2.10 translated-destination h-10.30.1.10 method static comments 'public-192.0.2.10 (inbound)'
-m add nat-rule package Standard position bottom original-source h-10.30.9.5 translated-source h-192.0.2.5 method static comments 'public-192.0.2.5: public address of eni-0a1b2c3d4e5f63074'
-m add nat-rule package Standard position bottom original-destination h-192.0.2.5 translated-destination h-10.30.9.5 method static comments 'public-192.0.2.5 (inbound)'
+m add nat-rule package Standard position bottom original-source h-10.30.1.10 original-destination Any original-service Any translated-source h-192.0.2.10 translated-destination Original translated-service Original method static comments 'public-192.0.2.10: public address of eni-0a1b2c3d4e5f63071' ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination h-192.0.2.10 original-service Any translated-source Original translated-destination h-10.30.1.10 translated-service Original method static comments 'public-192.0.2.10 (inbound)' ignore-warnings true
+m add nat-rule package Standard position bottom original-source h-10.30.9.5 original-destination Any original-service Any translated-source h-192.0.2.5 translated-destination Original translated-service Original method static comments 'public-192.0.2.5: public address of eni-0a1b2c3d4e5f63074' ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination h-192.0.2.5 original-service Any translated-source Original translated-destination h-10.30.9.5 translated-service Original method static comments 'public-192.0.2.5 (inbound)' ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'

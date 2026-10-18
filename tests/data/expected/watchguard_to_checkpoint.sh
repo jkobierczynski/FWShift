@@ -30,43 +30,43 @@ m() {
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }
 
 # Network objects
-m add host name Web-Server.1.alm ip-address 10.20.0.10
-m add host name Mail-Server.1.alm ip-address 10.20.0.25
-m add address-range name Admins.1.alm ip-address-first 10.10.5.10 ip-address-last 10.10.5.20
-m add network name Bad-Nets.1.alm subnet 203.0.113.0 mask-length 25
-m add host name Bad-Nets.2.alm ip-address 192.0.2.66
-m add dns-domain name .updates.example.com is-sub-domain false
-m add host name Web-Public.1.snat ip-address 198.51.100.10
-m add host name Web-Public.2.snat ip-address 10.20.0.10
-m add host name Mail-Public.1.snat ip-address 198.51.100.11
-m add host name Mail-Public.2.snat ip-address 10.20.0.25
-m add group name Update-Site.1.alm members.1 .updates.example.com
-m add host name h-198.51.100.2 ip-address 198.51.100.2
-m add host name h-10.10.0.1 ip-address 10.10.0.1
-m add host name h-10.20.0.1 ip-address 10.20.0.1
-m add host name h-10.30.0.1 ip-address 10.30.0.1
-m add host name h-10.40.0.1 ip-address 10.40.0.1
-m add group name Firebox members.1 h-198.51.100.2 members.2 h-10.10.0.1 members.3 h-10.20.0.1 members.4 h-10.30.0.1 members.5 h-10.40.0.1 comments 'the addresses of the interfaces of the Firebox'
+m add host name Web-Server.1.alm ip-address 10.20.0.10 ignore-warnings true
+m add host name Mail-Server.1.alm ip-address 10.20.0.25 ignore-warnings true
+m add address-range name Admins.1.alm ip-address-first 10.10.5.10 ip-address-last 10.10.5.20 ignore-warnings true
+m add network name Bad-Nets.1.alm subnet 203.0.113.0 mask-length 25 ignore-warnings true
+m add host name Bad-Nets.2.alm ip-address 192.0.2.66 ignore-warnings true
+m add dns-domain name .updates.example.com is-sub-domain false ignore-warnings true
+m add host name Web-Public.1.snat ip-address 198.51.100.10 ignore-warnings true
+m add host name Web-Public.2.snat ip-address 10.20.0.10 ignore-warnings true
+m add host name Mail-Public.1.snat ip-address 198.51.100.11 ignore-warnings true
+m add host name Mail-Public.2.snat ip-address 10.20.0.25 ignore-warnings true
+m add group name Update-Site.1.alm members.1 .updates.example.com ignore-warnings true
+m add host name h-198.51.100.2 ip-address 198.51.100.2 ignore-warnings true
+m add host name h-10.10.0.1 ip-address 10.10.0.1 ignore-warnings true
+m add host name h-10.20.0.1 ip-address 10.20.0.1 ignore-warnings true
+m add host name h-10.30.0.1 ip-address 10.30.0.1 ignore-warnings true
+m add host name h-10.40.0.1 ip-address 10.40.0.1 ignore-warnings true
+m add group name Firebox members.1 h-198.51.100.2 members.2 h-10.10.0.1 members.3 h-10.20.0.1 members.4 h-10.30.0.1 members.5 h-10.40.0.1 comments 'the addresses of the interfaces of the Firebox' ignore-warnings true
 
 # Services
-m add service-group name Block_Bad comments 'FWSHIFT PLACEHOLDER, matches nothing: a service that matches every IP protocol cannot be an object'
-m add service-tcp name SSH port 22 match-for-any false
-m add service-tcp name Web_Out-tcp80 port 80 match-for-any false
-m add service-tcp name Web_Out-tcp443 port 443 match-for-any false
-m add service-tcp name Web_Out-tcp8000-8010 port 8000-8010 match-for-any false
-m add service-group name Web_Out members.1 Web_Out-tcp80 members.2 Web_Out-tcp443 members.3 Web_Out-tcp8000-8010
-m add service-tcp name HTTPS port 443 match-for-any false
-m add service-tcp name SMTP port 25 match-for-any false
-m add service-tcp name Staff_Only port 3389 match-for-any false
-m add service-icmp name Ping icmp-type 8
-m add service-other name Lab_Tunnel ip-protocol 47 match-for-any false
-m add service-tcp name DNS-tcp53 port 53 match-for-any false
-m add service-udp name DNS-udp53 port 53 match-for-any false
-m add service-group name DNS members.1 DNS-tcp53 members.2 DNS-udp53
+m add service-group name Block_Bad comments 'FWSHIFT PLACEHOLDER, matches nothing: a service that matches every IP protocol cannot be an object' ignore-warnings true
+m add service-tcp name SSH port 22 match-for-any false ignore-warnings true
+m add service-tcp name Web_Out-tcp80 port 80 match-for-any false ignore-warnings true
+m add service-tcp name Web_Out-tcp443 port 443 match-for-any false ignore-warnings true
+m add service-tcp name Web_Out-tcp8000-8010 port 8000-8010 match-for-any false ignore-warnings true
+m add service-group name Web_Out members.1 Web_Out-tcp80 members.2 Web_Out-tcp443 members.3 Web_Out-tcp8000-8010 ignore-warnings true
+m add service-tcp name HTTPS port 443 match-for-any false ignore-warnings true
+m add service-tcp name SMTP port 25 match-for-any false ignore-warnings true
+m add service-tcp name Staff_Only port 3389 match-for-any false ignore-warnings true
+m add service-icmp name Ping icmp-type 8 ignore-warnings true
+m add service-other name Lab_Tunnel ip-protocol 47 match-for-any false ignore-warnings true
+m add service-tcp name DNS-tcp53 port 53 match-for-any false ignore-warnings true
+m add service-udp name DNS-udp53 port 53 match-for-any false ignore-warnings true
+m add service-group name DNS members.1 DNS-tcp53 members.2 DNS-udp53 ignore-warnings true
 
 # Security zones
 zone Trusted
@@ -76,30 +76,30 @@ zone DMZ
 zone Lab
 
 # Traffic from zone Trusted to zone External
-m add access-layer name Network_Trusted_to_External add-default-rule false
-m add access-rule layer Network_Trusted_to_External position bottom name 'Block Bad' source.1 Trusted source.2 Guests destination.1 Bad-Nets.1.alm destination.2 Bad-Nets.2.alm service.1 Block_Bad action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_Trusted_to_External position bottom name 'Admin SSH' source.1 Admins.1.alm service.1 SSH action Accept track.type Log
-m add access-rule layer Network_Trusted_to_External position bottom name 'Web Out' source.1 Trusted source.2 Guests source.3 DMZ destination.1 External service.1 Web_Out action Accept track.type Log
-m add access-rule layer Network_Trusted_to_External position bottom name 'Staff Only' source.1 Trusted destination.1 Web-Server.1.alm service.1 Staff_Only action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_Trusted_to_External position bottom name Ping source.1 Trusted source.2 Guests service.1 Ping action Accept track.type Log
-m add access-rule layer Network_Trusted_to_External position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 1 name 'Trusted to External' source.1 Trusted destination.1 External action 'Apply Layer' inline-layer Network_Trusted_to_External
+m add access-layer name Network_Trusted_to_External add-default-rule false ignore-warnings true
+m add access-rule layer Network_Trusted_to_External position bottom name 'Block Bad' source.1 Trusted source.2 Guests destination.1 Bad-Nets.1.alm destination.2 Bad-Nets.2.alm service.1 Block_Bad action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_Trusted_to_External position bottom name 'Admin SSH' source.1 Admins.1.alm destination.1 Any service.1 SSH action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_Trusted_to_External position bottom name 'Web Out' source.1 Trusted source.2 Guests source.3 DMZ destination.1 External service.1 Web_Out action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_Trusted_to_External position bottom name 'Staff Only' source.1 Trusted destination.1 Web-Server.1.alm service.1 Staff_Only action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_Trusted_to_External position bottom name Ping source.1 Trusted source.2 Guests destination.1 Any service.1 Ping action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_Trusted_to_External position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 1 name 'Trusted to External' source.1 Trusted destination.1 External service.1 Any action 'Apply Layer' inline-layer Network_Trusted_to_External ignore-warnings true
 
 # Rules of layer Network for traffic of no zone pair above
-m add access-rule layer Network position 2 name 'Block Bad' source.1 Trusted source.2 Guests destination.1 Bad-Nets.1.alm destination.2 Bad-Nets.2.alm service.1 Block_Bad action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 3 name 'Web Out' source.1 Trusted source.2 Guests source.3 DMZ destination.1 External service.1 Web_Out action Accept track.type Log
-m add access-rule layer Network position 4 name 'Web In' source.1 External destination.1 Web-Public.1.snat service.1 HTTPS action Accept track.type Log
-m add access-rule layer Network position 5 name 'Mail In' source.1 External destination.1 Mail-Public.1.snat service.1 SMTP action Accept track.type Log
-m add access-rule layer Network position 6 name 'DMZ Updates' source.1 DMZ destination.1 Update-Site.1.alm service.1 HTTPS action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 7 name 'Guests Out' source.1 Guests destination.1 External service.1 DNS action Accept track.type Log enabled false
-m add access-rule layer Network position 8 name 'Staff Only' source.1 Trusted destination.1 Web-Server.1.alm service.1 Staff_Only action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 9 name Ping source.1 Trusted source.2 Guests service.1 Ping action Accept track.type Log
-m add access-rule layer Network position 10 name 'Lab Tunnel' source.1 Lab destination.1 External service.1 Lab_Tunnel action Accept track.type Log
-m add access-rule layer Network position 11 name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
+m add access-rule layer Network position 2 name 'Block Bad' source.1 Trusted source.2 Guests destination.1 Bad-Nets.1.alm destination.2 Bad-Nets.2.alm service.1 Block_Bad action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 3 name 'Web Out' source.1 Trusted source.2 Guests source.3 DMZ destination.1 External service.1 Web_Out action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 4 name 'Web In' source.1 External destination.1 Web-Public.1.snat service.1 HTTPS action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 5 name 'Mail In' source.1 External destination.1 Mail-Public.1.snat service.1 SMTP action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 6 name 'DMZ Updates' source.1 DMZ destination.1 Update-Site.1.alm service.1 HTTPS action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 7 name 'Guests Out' source.1 Guests destination.1 External service.1 DNS action Accept track.type Log enabled false ignore-warnings true
+m add access-rule layer Network position 8 name 'Staff Only' source.1 Trusted destination.1 Web-Server.1.alm service.1 Staff_Only action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 9 name Ping source.1 Trusted source.2 Guests destination.1 Any service.1 Ping action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 10 name 'Lab Tunnel' source.1 Lab destination.1 External service.1 Lab_Tunnel action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 11 name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
 
 # NAT rules of package Standard
-m add nat-rule package Standard position bottom original-destination Web-Public.1.snat original-service HTTPS translated-destination Web-Public.2.snat method static comments 'Web-Public__Web_In_: static NAT action Web-Public of policy Web In'
-m add service-tcp name tcp-2525 port 2525 match-for-any false
-m add nat-rule package Standard position bottom original-destination Mail-Public.1.snat original-service SMTP translated-destination Mail-Public.2.snat translated-service tcp-2525 method static comments 'Mail-Public__Mail_In_: static NAT action Mail-Public of policy Mail In'
+m add nat-rule package Standard position bottom original-source Any original-destination Web-Public.1.snat original-service HTTPS translated-source Original translated-destination Web-Public.2.snat translated-service Original method static comments 'Web-Public__Web_In_: static NAT action Web-Public of policy Web In' ignore-warnings true
+m add service-tcp name tcp-2525 port 2525 match-for-any false ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination Mail-Public.1.snat original-service SMTP translated-source Original translated-destination Mail-Public.2.snat translated-service tcp-2525 method static comments 'Mail-Public__Mail_In_: static NAT action Mail-Public of policy Mail In' ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'

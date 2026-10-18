@@ -30,122 +30,122 @@ m() {
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }
 
 # Network objects
-m add address-range name r-10.20.9.5-10.20.9.6 ip-address-first 10.20.9.5 ip-address-last 10.20.9.6
-m add group name default members.1 r-10.20.9.5-10.20.9.6 comments 'default VPC security group (security group sg-0d0000000000000d1)'
-m add network name n-10.20.1.10_31 subnet 10.20.1.10 mask-length 31
-m add network name n-2001_db8_20_1__10_127 subnet 2001:db8:20:1::10 mask-length 127
-m add group name web-sg members.1 n-10.20.1.10_31 members.2 n-2001_db8_20_1__10_127 comments 'Web servers behind the internet (security group sg-0e0000000000000e1)'
-m add network name n-10.20.2.20_31 subnet 10.20.2.20 mask-length 31
-m add host name h-10.20.2.30 ip-address 10.20.2.30
-m add host name h-2001_db8_20_2__20 ip-address 2001:db8:20:2::20
-m add group name app-sg members.1 n-10.20.2.20_31 members.2 h-10.20.2.30 members.3 h-2001_db8_20_2__20 comments 'Application servers (security group sg-0a0000000000000a1)'
-m add host name h-10.20.3.40 ip-address 10.20.3.40
-m add group name db-sg members.1 h-10.20.3.40 comments 'Database (security group sg-0db00000000000db1)'
-m add host name h-10.20.9.5 ip-address 10.20.9.5
-m add group name bastion-sg members.1 h-10.20.9.5 comments 'Bastion host (security group sg-0b0000000000000b1)'
-m add host name h-10.20.9.6 ip-address 10.20.9.6
-m add group name monitoring-sg members.1 n-10.20.1.10_31 members.2 n-10.20.2.20_31 members.3 h-10.20.9.6 members.4 n-2001_db8_20_1__10_127 members.5 h-2001_db8_20_2__20 comments 'Monitoring (security group sg-0c0000000000000c1)'
-m add group name legacy-sg comments 'FWSHIFT PLACEHOLDER, matches nothing: empty address group'
-m add network name n-10.20.0.0_16 subnet 10.20.0.0 mask-length 16
-m add network name n-2001_db8_20___56 subnet 2001:db8:20:: mask-length 56
-m add group name shop-prod members.1 n-10.20.0.0_16 members.2 n-2001_db8_20___56 comments 'the addresses of VPC vpc-0a1b2c3d4e5f60789 (its CIDR blocks)'
-m add group name sg-0bbbbbbbbbbbbbbb0 comments 'FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically'
-m add address-range name r-203.0.113.128-203.0.113.223 ip-address-first 203.0.113.128 ip-address-last 203.0.113.223
-m add group name com.amazonaws.eu-west-1.s3 members.1 r-203.0.113.128-203.0.113.223 comments 'prefix list pl-6da54004'
-m add group name app-sg_members members.1 h-10.20.2.30 comments 'the addresses whose groups are exactly app-sg'
-m add group name db-sg_members members.1 h-10.20.3.40 comments 'the addresses whose groups are exactly db-sg'
-m add network name n-192.0.2.128_25 subnet 192.0.2.128 mask-length 25
-m add network name n-198.51.100.0_24 subnet 198.51.100.0 mask-length 24
-m add group name corp-offices members.1 n-192.0.2.128_25 members.2 n-198.51.100.0_24 comments 'prefix list pl-0c0000000000000c1'
+m add address-range name r-10.20.9.5-10.20.9.6 ip-address-first 10.20.9.5 ip-address-last 10.20.9.6 ignore-warnings true
+m add group name default members.1 r-10.20.9.5-10.20.9.6 comments 'default VPC security group (security group sg-0d0000000000000d1)' ignore-warnings true
+m add network name n-10.20.1.10_31 subnet 10.20.1.10 mask-length 31 ignore-warnings true
+m add network name n-2001_db8_20_1__10_127 subnet 2001:db8:20:1::10 mask-length 127 ignore-warnings true
+m add group name web-sg members.1 n-10.20.1.10_31 members.2 n-2001_db8_20_1__10_127 comments 'Web servers behind the internet (security group sg-0e0000000000000e1)' ignore-warnings true
+m add network name n-10.20.2.20_31 subnet 10.20.2.20 mask-length 31 ignore-warnings true
+m add host name h-10.20.2.30 ip-address 10.20.2.30 ignore-warnings true
+m add host name h-2001_db8_20_2__20 ip-address 2001:db8:20:2::20 ignore-warnings true
+m add group name app-sg members.1 n-10.20.2.20_31 members.2 h-10.20.2.30 members.3 h-2001_db8_20_2__20 comments 'Application servers (security group sg-0a0000000000000a1)' ignore-warnings true
+m add host name h-10.20.3.40 ip-address 10.20.3.40 ignore-warnings true
+m add group name db-sg members.1 h-10.20.3.40 comments 'Database (security group sg-0db00000000000db1)' ignore-warnings true
+m add host name h-10.20.9.5 ip-address 10.20.9.5 ignore-warnings true
+m add group name bastion-sg members.1 h-10.20.9.5 comments 'Bastion host (security group sg-0b0000000000000b1)' ignore-warnings true
+m add host name h-10.20.9.6 ip-address 10.20.9.6 ignore-warnings true
+m add group name monitoring-sg members.1 n-10.20.1.10_31 members.2 n-10.20.2.20_31 members.3 h-10.20.9.6 members.4 n-2001_db8_20_1__10_127 members.5 h-2001_db8_20_2__20 comments 'Monitoring (security group sg-0c0000000000000c1)' ignore-warnings true
+m add group name legacy-sg comments 'FWSHIFT PLACEHOLDER, matches nothing: empty address group' ignore-warnings true
+m add network name n-10.20.0.0_16 subnet 10.20.0.0 mask-length 16 ignore-warnings true
+m add network name n-2001_db8_20___56 subnet 2001:db8:20:: mask-length 56 ignore-warnings true
+m add group name shop-prod members.1 n-10.20.0.0_16 members.2 n-2001_db8_20___56 comments 'the addresses of VPC vpc-0a1b2c3d4e5f60789 (its CIDR blocks)' ignore-warnings true
+m add group name sg-0bbbbbbbbbbbbbbb0 comments 'FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically' ignore-warnings true
+m add address-range name r-203.0.113.128-203.0.113.223 ip-address-first 203.0.113.128 ip-address-last 203.0.113.223 ignore-warnings true
+m add group name com.amazonaws.eu-west-1.s3 members.1 r-203.0.113.128-203.0.113.223 comments 'prefix list pl-6da54004' ignore-warnings true
+m add group name app-sg_members members.1 h-10.20.2.30 comments 'the addresses whose groups are exactly app-sg' ignore-warnings true
+m add group name db-sg_members members.1 h-10.20.3.40 comments 'the addresses whose groups are exactly db-sg' ignore-warnings true
+m add network name n-192.0.2.128_25 subnet 192.0.2.128 mask-length 25 ignore-warnings true
+m add network name n-198.51.100.0_24 subnet 198.51.100.0 mask-length 24 ignore-warnings true
+m add group name corp-offices members.1 n-192.0.2.128_25 members.2 n-198.51.100.0_24 comments 'prefix list pl-0c0000000000000c1' ignore-warnings true
 
 # Services
-m add service-tcp name db-acl-in-1 port 1-65535 match-for-any false comments 'network ACL acl-0db0000000000000a'
-m add service-icmp name db-acl-in-2-icmp-type3-code4 icmp-type 3 icmp-code 4
-m add service-tcp name db-acl-in-2-tcp1024-65535 port 1024-65535 match-for-any false
-m add service-group name db-acl-in-2 members.1 db-acl-in-2-icmp-type3-code4 members.2 db-acl-in-2-tcp1024-65535 comments 'network ACL acl-0db0000000000000a'
-m add service-icmp name db-acl-in-3-icmp-type3-code4 icmp-type 3 icmp-code 4
-m add service-tcp name db-acl-in-3-tcp22 port 22 match-for-any false
-m add service-tcp name db-acl-in-3-tcp1024-65535 port 1024-65535 match-for-any false
-m add service-group name db-acl-in-3 members.1 db-acl-in-3-icmp-type3-code4 members.2 db-acl-in-3-tcp22 members.3 db-acl-in-3-tcp1024-65535 comments 'network ACL acl-0db0000000000000a'
-m add service-icmp name db-acl-in-4-icmp-type3-code4 icmp-type 3 icmp-code 4
-m add service-tcp name db-acl-in-4-tcp1-65535 port 1-65535 match-for-any false
-m add service-group name db-acl-in-4 members.1 db-acl-in-4-icmp-type3-code4 members.2 db-acl-in-4-tcp1-65535 comments 'network ACL acl-0db0000000000000a'
-m add service-tcp name db-acl-out-1 port 1024-65535 match-for-any false comments 'network ACL acl-0db0000000000000a'
-m add service-tcp name tcp-8443 port 8443 match-for-any false
-m add service-tcp name tcp-22 port 22 match-for-any false
-m add service-other name icmpv6-all ip-protocol 58 match-for-any false
-m add service-tcp name tcp-5432 port 5432 match-for-any false
-m add service-tcp name tcp-443 port 443 match-for-any false
-m add service-udp name udp-161-162 port 161-162 match-for-any false
-m add service-tcp name tcp-80 port 80 match-for-any false
-m add service-icmp name icmp-8 icmp-type 8
-m add service-udp name udp-53 port 53 match-for-any false
-m add network name n-10.20.1.0_24 subnet 10.20.1.0 mask-length 24
-m add network name n-10.20.3.0_24 subnet 10.20.3.0 mask-length 24
-m add address-range name r-0.0.0.0-10.19.255.255 ip-address-first 0.0.0.0 ip-address-last 10.19.255.255
-m add address-range name r-10.21.0.0-255.255.255.255 ip-address-first 10.21.0.0 ip-address-last 255.255.255.255
-m add network name n-10.20.0.0_24 subnet 10.20.0.0 mask-length 24
-m add network name n-10.20.2.0_24 subnet 10.20.2.0 mask-length 24
-m add address-range name r-10.20.4.0-10.20.8.255 ip-address-first 10.20.4.0 ip-address-last 10.20.8.255
-m add address-range name r-10.20.10.0-10.20.255.255 ip-address-first 10.20.10.0 ip-address-last 10.20.255.255
-m add network name n-10.20.9.0_24 subnet 10.20.9.0 mask-length 24
-m add address-range name r-10.20.0.0-10.20.2.255 ip-address-first 10.20.0.0 ip-address-last 10.20.2.255
-m add address-range name r-10.20.4.0-10.20.255.255 ip-address-first 10.20.4.0 ip-address-last 10.20.255.255
-m add host name h-203.0.113.10 ip-address 203.0.113.10
-m add host name h-203.0.113.11 ip-address 203.0.113.11
-m add host name h-203.0.113.50 ip-address 203.0.113.50
-m add address-range name All-IPv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255
-m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
-m add address-range name r-__-2001_db8_1f_ffff_ffff_ffff_ffff_ffff ip-address-first :: ip-address-last 2001:db8:1f:ffff:ffff:ffff:ffff:ffff
-m add address-range name r-2001_db8_20_100__-ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff ip-address-first 2001:db8:20:100:: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+m add service-tcp name db-acl-in-1 port 1-65535 match-for-any false comments 'network ACL acl-0db0000000000000a' ignore-warnings true
+m add service-icmp name db-acl-in-2-icmp-type3-code4 icmp-type 3 icmp-code 4 ignore-warnings true
+m add service-tcp name db-acl-in-2-tcp1024-65535 port 1024-65535 match-for-any false ignore-warnings true
+m add service-group name db-acl-in-2 members.1 db-acl-in-2-icmp-type3-code4 members.2 db-acl-in-2-tcp1024-65535 comments 'network ACL acl-0db0000000000000a' ignore-warnings true
+m add service-icmp name db-acl-in-3-icmp-type3-code4 icmp-type 3 icmp-code 4 ignore-warnings true
+m add service-tcp name db-acl-in-3-tcp22 port 22 match-for-any false ignore-warnings true
+m add service-tcp name db-acl-in-3-tcp1024-65535 port 1024-65535 match-for-any false ignore-warnings true
+m add service-group name db-acl-in-3 members.1 db-acl-in-3-icmp-type3-code4 members.2 db-acl-in-3-tcp22 members.3 db-acl-in-3-tcp1024-65535 comments 'network ACL acl-0db0000000000000a' ignore-warnings true
+m add service-icmp name db-acl-in-4-icmp-type3-code4 icmp-type 3 icmp-code 4 ignore-warnings true
+m add service-tcp name db-acl-in-4-tcp1-65535 port 1-65535 match-for-any false ignore-warnings true
+m add service-group name db-acl-in-4 members.1 db-acl-in-4-icmp-type3-code4 members.2 db-acl-in-4-tcp1-65535 comments 'network ACL acl-0db0000000000000a' ignore-warnings true
+m add service-tcp name db-acl-out-1 port 1024-65535 match-for-any false comments 'network ACL acl-0db0000000000000a' ignore-warnings true
+m add service-tcp name tcp-8443 port 8443 match-for-any false ignore-warnings true
+m add service-tcp name tcp-22 port 22 match-for-any false ignore-warnings true
+m add service-other name icmpv6-all ip-protocol 58 match-for-any false ignore-warnings true
+m add service-tcp name tcp-5432 port 5432 match-for-any false ignore-warnings true
+m add service-tcp name tcp-443 port 443 match-for-any false ignore-warnings true
+m add service-udp name udp-161-162 port 161-162 match-for-any false ignore-warnings true
+m add service-tcp name tcp-80 port 80 match-for-any false ignore-warnings true
+m add service-icmp name icmp-8 icmp-type 8 ignore-warnings true
+m add service-udp name udp-53 port 53 match-for-any false ignore-warnings true
+m add network name n-10.20.1.0_24 subnet 10.20.1.0 mask-length 24 ignore-warnings true
+m add network name n-10.20.3.0_24 subnet 10.20.3.0 mask-length 24 ignore-warnings true
+m add address-range name r-0.0.0.0-10.19.255.255 ip-address-first 0.0.0.0 ip-address-last 10.19.255.255 ignore-warnings true
+m add address-range name r-10.21.0.0-255.255.255.255 ip-address-first 10.21.0.0 ip-address-last 255.255.255.255 ignore-warnings true
+m add network name n-10.20.0.0_24 subnet 10.20.0.0 mask-length 24 ignore-warnings true
+m add network name n-10.20.2.0_24 subnet 10.20.2.0 mask-length 24 ignore-warnings true
+m add address-range name r-10.20.4.0-10.20.8.255 ip-address-first 10.20.4.0 ip-address-last 10.20.8.255 ignore-warnings true
+m add address-range name r-10.20.10.0-10.20.255.255 ip-address-first 10.20.10.0 ip-address-last 10.20.255.255 ignore-warnings true
+m add network name n-10.20.9.0_24 subnet 10.20.9.0 mask-length 24 ignore-warnings true
+m add address-range name r-10.20.0.0-10.20.2.255 ip-address-first 10.20.0.0 ip-address-last 10.20.2.255 ignore-warnings true
+m add address-range name r-10.20.4.0-10.20.255.255 ip-address-first 10.20.4.0 ip-address-last 10.20.255.255 ignore-warnings true
+m add host name h-203.0.113.10 ip-address 203.0.113.10 ignore-warnings true
+m add host name h-203.0.113.11 ip-address 203.0.113.11 ignore-warnings true
+m add host name h-203.0.113.50 ip-address 203.0.113.50 ignore-warnings true
+m add address-range name All-IPv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255 ignore-warnings true
+m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ignore-warnings true
+m add address-range name r-__-2001_db8_1f_ffff_ffff_ffff_ffff_ffff ip-address-first :: ip-address-last 2001:db8:1f:ffff:ffff:ffff:ffff:ffff ignore-warnings true
+m add address-range name r-2001_db8_20_100__-ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff ip-address-first 2001:db8:20:100:: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ignore-warnings true
 
 # Rules of layer Network
-m add access-rule layer Network position 1 name db-acl-in-db source.1 n-10.20.1.0_24 destination.1 n-10.20.3.0_24 service.1 db-acl-in-1 action Drop track.type None comments 'denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a'
-m add access-rule layer Network position 2 name db-acl-in-db-2 source.1 r-0.0.0.0-10.19.255.255 source.2 r-10.21.0.0-255.255.255.255 destination.1 n-10.20.3.0_24 action Drop track.type None comments 'denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a'
-m add access-rule layer Network position 3 name db-acl-in-db-3 source.1 n-10.20.0.0_24 source.2 n-10.20.2.0_24 source.3 r-10.20.4.0-10.20.8.255 source.4 r-10.20.10.0-10.20.255.255 destination.1 n-10.20.3.0_24 service.1 db-acl-in-2 service-negate true action Drop track.type None comments 'denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a'
-m add access-rule layer Network position 4 name db-acl-in-db-4 source.1 n-10.20.9.0_24 destination.1 n-10.20.3.0_24 service.1 db-acl-in-3 service-negate true action Drop track.type None comments 'denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a'
-m add access-rule layer Network position 5 name db-acl-in-db-5 source.1 n-10.20.1.0_24 destination.1 n-10.20.3.0_24 service.1 db-acl-in-4 service-negate true action Drop track.type None comments 'denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a'
-m add access-rule layer Network position 6 name db-acl-out-db source.1 n-10.20.3.0_24 destination.1 r-0.0.0.0-10.19.255.255 destination.2 r-10.21.0.0-255.255.255.255 action Drop track.type None comments 'denied by network ACL acl-0db0000000000000a where traffic leaves subnet subnet-0300000000000003a'
-m add access-rule layer Network position 7 name db-acl-out-db-2 source.1 n-10.20.3.0_24 destination.1 r-10.20.0.0-10.20.2.255 destination.2 r-10.20.4.0-10.20.255.255 destination.3 h-203.0.113.10 destination.4 h-203.0.113.11 destination.5 h-203.0.113.50 service.1 db-acl-out-1 service-negate true action Drop track.type None comments 'denied by network ACL acl-0db0000000000000a where traffic leaves subnet subnet-0300000000000003a'
-m add access-rule layer Network position 8 name app-sg-to-db-sg source.1 h-10.20.2.30 destination.1 h-10.20.3.40 service.1 tcp-5432 action Accept track.type None comments 'outbound rule of app-sg and inbound rule of db-sg'
-m add access-rule layer Network position 9 name app-sg-outbound-rest source.1 app-sg_members destination.1 shop-prod destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 destination.4 h-203.0.113.50 action Drop track.type None comments 'what the outbound rules of app-sg do not allow inside the VPC'
-m add access-rule layer Network position 10 name db-sg-outbound-rest source.1 db-sg_members destination.1 shop-prod destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 destination.4 h-203.0.113.50 action Drop track.type None comments 'what the outbound rules of db-sg do not allow inside the VPC'
-m add access-rule layer Network position 11 name default-in-1 source.1 default destination.1 default destination.2 h-203.0.113.50 action Accept track.type None
-m add access-rule layer Network position 12 name web-sg-in-1 source.1 All-IPv4 destination.1 web-sg destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 service.1 tcp-443 action Accept track.type None comments 'HTTPS from anywhere'
-m add access-rule layer Network position 13 name web-sg-in-2 source.1 All-IPv6 destination.1 web-sg destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 service.1 tcp-443 action Accept track.type None comments 'HTTPS from anywhere'
-m add access-rule layer Network position 14 name web-sg-in-3 source.1 All-IPv4 destination.1 web-sg destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 service.1 tcp-80 action Accept track.type None comments 'HTTP, redirected'
-m add access-rule layer Network position 15 name web-sg-in-4 source.1 All-IPv6 destination.1 web-sg destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 service.1 tcp-80 action Accept track.type None comments 'HTTP, redirected'
-m add access-rule layer Network position 16 name web-sg-in-5 source.1 bastion-sg destination.1 web-sg destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 service.1 tcp-22 action Accept track.type None comments 'SSH from the bastion'
-m add access-rule layer Network position 17 name web-sg-in-6 source.1 monitoring-sg destination.1 web-sg destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 service.1 icmp-8 action Accept track.type None comments 'ping from monitoring'
-m add access-rule layer Network position 18 name app-sg-in-1 source.1 web-sg destination.1 app-sg service.1 tcp-8443 action Accept track.type None comments 'from the web servers'
-m add access-rule layer Network position 19 name app-sg-in-2 source.1 bastion-sg destination.1 app-sg service.1 tcp-22 action Accept track.type None comments 'SSH from the bastion'
-m add access-rule layer Network position 20 name app-sg-in-3 source.1 n-2001_db8_20___56 destination.1 app-sg service.1 icmpv6-all action Accept track.type None comments 'ICMPv6 inside the VPC'
-m add access-rule layer Network position 21 name db-sg-in-1 source.1 app-sg destination.1 db-sg service.1 tcp-5432 action Accept track.type None comments 'from the application'
-m add access-rule layer Network position 22 name db-sg-in-2 source.1 sg-0bbbbbbbbbbbbbbb0 destination.1 db-sg service.1 tcp-5432 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. reporting VPC'
-m add access-rule layer Network position 23 name db-sg-in-3 source.1 bastion-sg destination.1 db-sg service.1 tcp-22 action Accept track.type None comments 'SSH from the bastion'
-m add access-rule layer Network position 24 name bastion-sg-in-1 source.1 corp-offices destination.1 bastion-sg destination.2 h-203.0.113.50 service.1 tcp-22 action Accept track.type None comments 'SSH from the offices'
-m add access-rule layer Network position 25 name monitoring-sg-in-1 source.1 n-10.20.9.0_24 destination.1 monitoring-sg destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 service.1 udp-161-162 action Accept track.type None comments 'SNMP from the management subnet'
-m add access-rule layer Network position 26 name default-out-1 source.1 default destination.1 r-0.0.0.0-10.19.255.255 destination.2 r-10.21.0.0-255.255.255.255 action Accept track.type None comments '0.0.0.0/0 without the addresses of the VPC'
-m add access-rule layer Network position 27 name web-sg-out-2 source.1 web-sg destination.1 r-0.0.0.0-10.19.255.255 destination.2 r-10.21.0.0-255.255.255.255 service.1 tcp-443 action Accept track.type None comments 'updates | 0.0.0.0/0 without the addresses of the VPC'
-m add access-rule layer Network position 28 name web-sg-out-3 source.1 web-sg destination.1 r-__-2001_db8_1f_ffff_ffff_ffff_ffff_ffff destination.2 r-2001_db8_20_100__-ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff service.1 tcp-443 action Accept track.type None comments 'updates | ::/0 without the addresses of the VPC'
-m add access-rule layer Network position 29 name app-sg-out-2 source.1 app-sg destination.1 com.amazonaws.eu-west-1.s3 service.1 tcp-443 action Accept track.type None comments 'to S3'
-m add access-rule layer Network position 30 name bastion-sg-out-2 source.1 bastion-sg destination.1 r-0.0.0.0-10.19.255.255 destination.2 r-10.21.0.0-255.255.255.255 service.1 tcp-443 action Accept track.type None comments 'updates | 0.0.0.0/0 without the addresses of the VPC'
-m add access-rule layer Network position 31 name monitoring-sg-out-1 source.1 monitoring-sg destination.1 r-0.0.0.0-10.19.255.255 destination.2 r-10.21.0.0-255.255.255.255 action Accept track.type None comments '0.0.0.0/0 without the addresses of the VPC'
-m add access-rule layer Network position 32 name monitoring-sg-out-2 source.1 monitoring-sg destination.1 r-__-2001_db8_1f_ffff_ffff_ffff_ffff_ffff destination.2 r-2001_db8_20_100__-ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff action Accept track.type None comments '::/0 without the addresses of the VPC'
-m add access-rule layer Network position 33 name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
+m add access-rule layer Network position 1 name db-acl-in-db source.1 n-10.20.1.0_24 destination.1 n-10.20.3.0_24 service.1 db-acl-in-1 action Drop track.type None comments 'denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a' ignore-warnings true
+m add access-rule layer Network position 2 name db-acl-in-db-2 source.1 r-0.0.0.0-10.19.255.255 source.2 r-10.21.0.0-255.255.255.255 destination.1 n-10.20.3.0_24 service.1 Any action Drop track.type None comments 'denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a' ignore-warnings true
+m add access-rule layer Network position 3 name db-acl-in-db-3 source.1 n-10.20.0.0_24 source.2 n-10.20.2.0_24 source.3 r-10.20.4.0-10.20.8.255 source.4 r-10.20.10.0-10.20.255.255 destination.1 n-10.20.3.0_24 service.1 db-acl-in-2 service-negate true action Drop track.type None comments 'denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a' ignore-warnings true
+m add access-rule layer Network position 4 name db-acl-in-db-4 source.1 n-10.20.9.0_24 destination.1 n-10.20.3.0_24 service.1 db-acl-in-3 service-negate true action Drop track.type None comments 'denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a' ignore-warnings true
+m add access-rule layer Network position 5 name db-acl-in-db-5 source.1 n-10.20.1.0_24 destination.1 n-10.20.3.0_24 service.1 db-acl-in-4 service-negate true action Drop track.type None comments 'denied by network ACL acl-0db0000000000000a where traffic enters subnet subnet-0300000000000003a' ignore-warnings true
+m add access-rule layer Network position 6 name db-acl-out-db source.1 n-10.20.3.0_24 destination.1 r-0.0.0.0-10.19.255.255 destination.2 r-10.21.0.0-255.255.255.255 service.1 Any action Drop track.type None comments 'denied by network ACL acl-0db0000000000000a where traffic leaves subnet subnet-0300000000000003a' ignore-warnings true
+m add access-rule layer Network position 7 name db-acl-out-db-2 source.1 n-10.20.3.0_24 destination.1 r-10.20.0.0-10.20.2.255 destination.2 r-10.20.4.0-10.20.255.255 destination.3 h-203.0.113.10 destination.4 h-203.0.113.11 destination.5 h-203.0.113.50 service.1 db-acl-out-1 service-negate true action Drop track.type None comments 'denied by network ACL acl-0db0000000000000a where traffic leaves subnet subnet-0300000000000003a' ignore-warnings true
+m add access-rule layer Network position 8 name app-sg-to-db-sg source.1 h-10.20.2.30 destination.1 h-10.20.3.40 service.1 tcp-5432 action Accept track.type None comments 'outbound rule of app-sg and inbound rule of db-sg' ignore-warnings true
+m add access-rule layer Network position 9 name app-sg-outbound-rest source.1 app-sg_members destination.1 shop-prod destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 destination.4 h-203.0.113.50 service.1 Any action Drop track.type None comments 'what the outbound rules of app-sg do not allow inside the VPC' ignore-warnings true
+m add access-rule layer Network position 10 name db-sg-outbound-rest source.1 db-sg_members destination.1 shop-prod destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 destination.4 h-203.0.113.50 service.1 Any action Drop track.type None comments 'what the outbound rules of db-sg do not allow inside the VPC' ignore-warnings true
+m add access-rule layer Network position 11 name default-in-1 source.1 default destination.1 default destination.2 h-203.0.113.50 service.1 Any action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 12 name web-sg-in-1 source.1 All-IPv4 destination.1 web-sg destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 service.1 tcp-443 action Accept track.type None comments 'HTTPS from anywhere' ignore-warnings true
+m add access-rule layer Network position 13 name web-sg-in-2 source.1 All-IPv6 destination.1 web-sg destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 service.1 tcp-443 action Accept track.type None comments 'HTTPS from anywhere' ignore-warnings true
+m add access-rule layer Network position 14 name web-sg-in-3 source.1 All-IPv4 destination.1 web-sg destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 service.1 tcp-80 action Accept track.type None comments 'HTTP, redirected' ignore-warnings true
+m add access-rule layer Network position 15 name web-sg-in-4 source.1 All-IPv6 destination.1 web-sg destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 service.1 tcp-80 action Accept track.type None comments 'HTTP, redirected' ignore-warnings true
+m add access-rule layer Network position 16 name web-sg-in-5 source.1 bastion-sg destination.1 web-sg destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 service.1 tcp-22 action Accept track.type None comments 'SSH from the bastion' ignore-warnings true
+m add access-rule layer Network position 17 name web-sg-in-6 source.1 monitoring-sg destination.1 web-sg destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 service.1 icmp-8 action Accept track.type None comments 'ping from monitoring' ignore-warnings true
+m add access-rule layer Network position 18 name app-sg-in-1 source.1 web-sg destination.1 app-sg service.1 tcp-8443 action Accept track.type None comments 'from the web servers' ignore-warnings true
+m add access-rule layer Network position 19 name app-sg-in-2 source.1 bastion-sg destination.1 app-sg service.1 tcp-22 action Accept track.type None comments 'SSH from the bastion' ignore-warnings true
+m add access-rule layer Network position 20 name app-sg-in-3 source.1 n-2001_db8_20___56 destination.1 app-sg service.1 icmpv6-all action Accept track.type None comments 'ICMPv6 inside the VPC' ignore-warnings true
+m add access-rule layer Network position 21 name db-sg-in-1 source.1 app-sg destination.1 db-sg service.1 tcp-5432 action Accept track.type None comments 'from the application' ignore-warnings true
+m add access-rule layer Network position 22 name db-sg-in-2 source.1 sg-0bbbbbbbbbbbbbbb0 destination.1 db-sg service.1 tcp-5432 action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report. reporting VPC' ignore-warnings true
+m add access-rule layer Network position 23 name db-sg-in-3 source.1 bastion-sg destination.1 db-sg service.1 tcp-22 action Accept track.type None comments 'SSH from the bastion' ignore-warnings true
+m add access-rule layer Network position 24 name bastion-sg-in-1 source.1 corp-offices destination.1 bastion-sg destination.2 h-203.0.113.50 service.1 tcp-22 action Accept track.type None comments 'SSH from the offices' ignore-warnings true
+m add access-rule layer Network position 25 name monitoring-sg-in-1 source.1 n-10.20.9.0_24 destination.1 monitoring-sg destination.2 h-203.0.113.10 destination.3 h-203.0.113.11 service.1 udp-161-162 action Accept track.type None comments 'SNMP from the management subnet' ignore-warnings true
+m add access-rule layer Network position 26 name default-out-1 source.1 default destination.1 r-0.0.0.0-10.19.255.255 destination.2 r-10.21.0.0-255.255.255.255 service.1 Any action Accept track.type None comments '0.0.0.0/0 without the addresses of the VPC' ignore-warnings true
+m add access-rule layer Network position 27 name web-sg-out-2 source.1 web-sg destination.1 r-0.0.0.0-10.19.255.255 destination.2 r-10.21.0.0-255.255.255.255 service.1 tcp-443 action Accept track.type None comments 'updates | 0.0.0.0/0 without the addresses of the VPC' ignore-warnings true
+m add access-rule layer Network position 28 name web-sg-out-3 source.1 web-sg destination.1 r-__-2001_db8_1f_ffff_ffff_ffff_ffff_ffff destination.2 r-2001_db8_20_100__-ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff service.1 tcp-443 action Accept track.type None comments 'updates | ::/0 without the addresses of the VPC' ignore-warnings true
+m add access-rule layer Network position 29 name app-sg-out-2 source.1 app-sg destination.1 com.amazonaws.eu-west-1.s3 service.1 tcp-443 action Accept track.type None comments 'to S3' ignore-warnings true
+m add access-rule layer Network position 30 name bastion-sg-out-2 source.1 bastion-sg destination.1 r-0.0.0.0-10.19.255.255 destination.2 r-10.21.0.0-255.255.255.255 service.1 tcp-443 action Accept track.type None comments 'updates | 0.0.0.0/0 without the addresses of the VPC' ignore-warnings true
+m add access-rule layer Network position 31 name monitoring-sg-out-1 source.1 monitoring-sg destination.1 r-0.0.0.0-10.19.255.255 destination.2 r-10.21.0.0-255.255.255.255 service.1 Any action Accept track.type None comments '0.0.0.0/0 without the addresses of the VPC' ignore-warnings true
+m add access-rule layer Network position 32 name monitoring-sg-out-2 source.1 monitoring-sg destination.1 r-__-2001_db8_1f_ffff_ffff_ffff_ffff_ffff destination.2 r-2001_db8_20_100__-ffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff service.1 Any action Accept track.type None comments '::/0 without the addresses of the VPC' ignore-warnings true
+m add access-rule layer Network position 33 name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
 
 # NAT rules of package Standard
-m add host name h-10.20.1.10 ip-address 10.20.1.10
-m add nat-rule package Standard position bottom original-source h-10.20.1.10 translated-source h-203.0.113.10 method static comments 'public-203.0.113.10: public address of eni-0e10000000000000a'
-m add nat-rule package Standard position bottom original-destination h-203.0.113.10 translated-destination h-10.20.1.10 method static comments 'public-203.0.113.10 (inbound)'
-m add host name h-10.20.1.11 ip-address 10.20.1.11
-m add nat-rule package Standard position bottom original-source h-10.20.1.11 translated-source h-203.0.113.11 method static comments 'public-203.0.113.11: public address of eni-0e20000000000000a'
-m add nat-rule package Standard position bottom original-destination h-203.0.113.11 translated-destination h-10.20.1.11 method static comments 'public-203.0.113.11 (inbound)'
-m add nat-rule package Standard position bottom original-source h-10.20.9.5 translated-source h-203.0.113.50 method static comments 'public-203.0.113.50: public address of eni-0b10000000000000a'
-m add nat-rule package Standard position bottom original-destination h-203.0.113.50 translated-destination h-10.20.9.5 method static comments 'public-203.0.113.50 (inbound)'
+m add host name h-10.20.1.10 ip-address 10.20.1.10 ignore-warnings true
+m add nat-rule package Standard position bottom original-source h-10.20.1.10 original-destination Any original-service Any translated-source h-203.0.113.10 translated-destination Original translated-service Original method static comments 'public-203.0.113.10: public address of eni-0e10000000000000a' ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination h-203.0.113.10 original-service Any translated-source Original translated-destination h-10.20.1.10 translated-service Original method static comments 'public-203.0.113.10 (inbound)' ignore-warnings true
+m add host name h-10.20.1.11 ip-address 10.20.1.11 ignore-warnings true
+m add nat-rule package Standard position bottom original-source h-10.20.1.11 original-destination Any original-service Any translated-source h-203.0.113.11 translated-destination Original translated-service Original method static comments 'public-203.0.113.11: public address of eni-0e20000000000000a' ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination h-203.0.113.11 original-service Any translated-source Original translated-destination h-10.20.1.11 translated-service Original method static comments 'public-203.0.113.11 (inbound)' ignore-warnings true
+m add nat-rule package Standard position bottom original-source h-10.20.9.5 original-destination Any original-service Any translated-source h-203.0.113.50 translated-destination Original translated-service Original method static comments 'public-203.0.113.50: public address of eni-0b10000000000000a' ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination h-203.0.113.50 original-service Any translated-source Original translated-destination h-10.20.9.5 translated-service Original method static comments 'public-203.0.113.50 (inbound)' ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'

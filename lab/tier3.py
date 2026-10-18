@@ -68,6 +68,11 @@ class Vendor:
     diagnose: Callable[[], List[str]] = lambda: []
     # A command whose answer names the data interfaces, for a firewall whose names are read from it ({port1}, ...).
     ports_command: str = ""
+    # Files copied to the firewall's home folder before the load (scp), made from the conversion: for a firewall whose
+    # load is a script it runs, not lines typed into its CLI (Check Point: FWShift's mgmt_cli script and the lab's own).
+    uploads: Callable[[Path], List[Path]] = lambda out: []
+    # How long first boot may take, unless --boot-minutes says (Check Point's first-time setup: up to an hour).
+    boot_minutes: float = 30
     # The CLI's prompt, for a firewall whose lines are typed one at a time, each after its prompt (the ASAv: given them
     # all ahead, it closed the session after one letter of its greeting, and nothing was configured).
     prompt: str = ""
@@ -214,6 +219,99 @@ def _asav_session(out: Path) -> List[str]:
 _VSRX_READY = r"(?sm)(?=.*^ge-0/0/0\s)(?=.*^ge-0/0/1\s)(?=.*^ge-0/0/2\s)"
 
 
+# -- Check Point (All-In-One: gateway and management on one instance) --------------------------------------------
+
+# The data interfaces by zone: the second to fourth network card are eth1 to eth3 (Check Point's templates: device
+# index N = ethN). The hostname names the gateway object of the standalone.
+_CP_PORTS = {"inside": "eth1", "dmz": "eth2", "outside": "eth3"}
+_CP_HOSTNAME = "fwlab-cp"
+
+
+def _checkpoint_user_data() -> str:
+    """The first-time setup as Check Point's own Terraform module for a standalone writes it (standalone_userdata.yaml,
+    terraform-aws-cloudguard-network-security, October 2026): the image's /etc/cloud_config.py with the installation
+    type, the admin shell (bash, for mgmt_cli over SSH) and the hostname. No admin password: SSH takes the run's key
+    and the lab uses `mgmt_cli -r true`. {os_version} is the image's (R82.20), from its name."""
+    values = {"enableCloudWatch": "false", "installationType": "standalone", "osVersion": "{os_version}", "allowUploadDownload": "true",
+              "templateVersion": "1.2.1", "templateName": "standalone", "templateType": "terraform_registry", "shell": "/bin/bash",
+              "enableInstanceConnect": "false", "hostName": _CP_HOSTNAME, "ntpPrimary": "169.254.169.123", "ntpSecondary": "0.pool.ntp.org",
+              "passwordHash": "", "MaintenanceModePassword": "", "adminSubnet": "0.0.0.0/0", "allocatePublicAddress": "false",
+              "bootstrapScript64": ""}  # fmt: skip
+    command = "python3 /etc/cloud_config.py " + " ".join(f'{name}=\\"{value}\\"' for name, value in values.items())
+    return "#cloud-config\nruncmd:\n  - |\n    " + command + "\n"
+
+
+def checkpoint_driver() -> str:
+    """The lab's load on the standalone, run in bash after FWShift's script and it are copied over: the data interfaces'
+    addresses (clish), FWShift's script in a session of its own, the interfaces' topology and security zones (one
+    `set simple-gateway` naming every interface, eth0 too: it replaces the list), publish, and the install of the
+    policy package. It prints FWLAB-FAILED and why at the first step that fails, and FWLAB-LOADED-42 at the end."""
+    lines = ["#!/bin/bash", "# The FWShift lab: the converted policy onto a Check Point standalone (gateway and management on one instance).",
+             '[ -r /etc/profile.d/CP.sh ] && . /etc/profile.d/CP.sh', 'cd "$HOME" || exit 2',
+             'step() { echo "== $*"; }',
+             'fail() { echo "FWLAB-FAILED: $*"; if [ -f fwshift.sid ]; then mgmt_cli discard -s fwshift.sid >/dev/null 2>&1; '
+             'mgmt_cli logout -s fwshift.sid >/dev/null 2>&1; fi; exit 1; }',
+             'step "data interfaces"']  # fmt: skip
+    for zone, port in _CP_PORTS.items():
+        lines += [f'clish -c "set interface {port} ipv4-address {_addr(zone)} mask-length 24" -s || fail "the address of {port}"',
+                  f'clish -c "set interface {port} state on" -s || fail "{port} on"']  # fmt: skip
+    lines += ["ip -4 -o addr show",
+              'step "the gateway object"',
+              'mgmt_cli login -r true > fwshift.sid || fail "mgmt_cli login -r true"',
+              'mgmt_cli show gateways-and-servers details-level standard -s fwshift.sid -f json > gateways.json || fail "show gateways-and-servers"',
+              "python3 -c 'import json,sys; [print(o.get(\"name\"), o.get(\"type\")) for o in json.load(open(sys.argv[1])).get(\"objects\", [])]' gateways.json",
+              # (a simple-gateway by the hostname, else any simple-gateway, else the object by the hostname: the type of a
+              # standalone's object is not confirmed)
+              "GW=$(python3 -c 'import json,sys; a=json.load(open(sys.argv[1])).get(\"objects\", []); g=[x for x in a if x.get(\"type\") == \"simple-gateway\"]; "
+              f"n=[x[\"name\"] for x in g if x.get(\"name\") == \"{_CP_HOSTNAME}\"] or [x[\"name\"] for x in g] or "
+              f"[x[\"name\"] for x in a if x.get(\"name\") == \"{_CP_HOSTNAME}\"]; print(n[0] if n else \"\")' gateways.json)",
+              '[ -n "$GW" ] || fail "no gateway object on the management (the objects are listed above)"',
+              'echo "gateway object: $GW"',
+              'step "the converted policy"',
+              'SID=fwshift.sid sh ./policy.checkpoint || fail "the converted policy (the call above)"',
+              'step "topology and security zones"',
+              "E0=$(ip -4 -o addr show dev eth0 | awk '{print $4}' | head -n 1)",
+              '[ -n "$E0" ] || fail "no address on eth0"']  # fmt: skip
+    interfaces = ['interfaces.1.name eth0 interfaces.1.ipv4-address "${E0%/*}" interfaces.1.ipv4-mask-length "${E0#*/}" '
+                  'interfaces.1.topology external interfaces.1.anti-spoofing false']
+    for index, (zone, port) in enumerate(_CP_PORTS.items(), 2):
+        prefix = f"interfaces.{index}."
+        interfaces.append(f"{prefix}name {port} {prefix}ipv4-address {_addr(zone)} {prefix}ipv4-mask-length 24 {prefix}topology internal "
+                          f'{prefix}topology-settings.ip-address-behind-this-interface "network defined by the interface ip and net mask" '
+                          f"{prefix}anti-spoofing false {prefix}security-zone true {prefix}security-zone-settings.auto-calculated false "
+                          f"{prefix}security-zone-settings.specific-zone {zone}")  # fmt: skip
+    lines += ['mgmt_cli set simple-gateway name "$GW" ' + " ".join(interfaces) + ' ignore-warnings true -s fwshift.sid || fail "set simple-gateway (interfaces and zones)"',
+              'step "publish"', 'mgmt_cli publish -s fwshift.sid || fail "publish"',
+              'step "install"',
+              'mgmt_cli install-policy policy-package Standard access true threat-prevention false targets.1 "$GW" -s fwshift.sid || fail "install-policy"',
+              "mgmt_cli logout -s fwshift.sid >/dev/null 2>&1", "rm -f fwshift.sid", "fw stat",
+              'echo "FWLAB-LOADED-$((40 + 2))"']  # fmt: skip
+    return "\n".join(lines) + "\n"
+
+
+def _checkpoint_uploads(out: Path) -> List[Path]:
+    driver = out.with_name("fwlab_load.sh")
+    driver.write_text(checkpoint_driver(), encoding="utf-8")
+    return [out, driver]
+
+
+def _checkpoint_session(out: Path) -> List[str]:
+    return ["bash ./fwlab_load.sh 2>&1", "exit"]
+
+
+def _checkpoint_diagnose() -> List[str]:
+    """The gateway's policy and interfaces, the management's rulebase, and the end of the first-time setup's log."""
+    return ["fw stat", "ip -4 -o addr show", "ip route", "clish -c 'show interfaces all'", "cpstat fw -f policy",
+            "mgmt_cli -r true show access-rulebase name Network details-level standard -f json | head -c 40000",
+            "tail -n 60 /opt/CPcge/log/boot.log 2>/dev/null || tail -n 60 \"$CGEDIR/log/boot.log\"", "exit"]  # fmt: skip
+
+
+def checkpoint_version(image_name: str) -> str:
+    """The Gaia version in the image's name (R82.20, R81.20, R82), for the setup's osVersion; R82 when it says none."""
+    found = re.search(r"\bR(\d{2}(?:\.\d{1,2})?)", image_name or "")
+    return "R" + found.group(1) if found else "R82"
+
+
 def _vsrx_diagnose() -> List[str]:
     """The vSRX's interfaces, zones, routes, policy hits and sessions, and the configuration as it stands."""
     return ["set cli screen-length 0", "show interfaces terse", "show security zones", "show route", "show security policies", "show security policies hit-count",
@@ -248,6 +346,13 @@ VENDORS: Dict[str, Vendor] = {
                    _vsrx_session, ready_answer=_VSRX_READY,
                    success=r"commit complete", diagnose=_vsrx_diagnose,
                    status="run: passed (vSRX 23.4R2-S8.9, appsec PAYG, 0.36.1)"),
+    # The All-In-One image (gateway and management) has no name pattern Check Point's templates use: --ami, the id the
+    # subscription's launch page shows. 16 GB: the management API may not start below 8.
+    "checkpoint": Vendor("checkpoint", "Check Point All-In-One, gateway and management (pay as you go)", "checkpoint", "", "m5.xlarge", "admin",
+                         "api status", r"FWLAB-FAILED|FAILED: mgmt_cli", [], _checkpoint_user_data(), _checkpoint_session,
+                         ready_answer=r"API readiness test SUCCESSFUL", success=r"FWLAB-LOADED-42", diagnose=_checkpoint_diagnose,
+                         uploads=_checkpoint_uploads, boot_minutes=60,
+                         status="scripted from Check Point's templates and API reference, never run"),  # fmt: skip
     "c8000v": Vendor("c8000v", "Cisco Catalyst 8000V, IOS XE (pay as you go)", "ios", "Cisco-C8K-*", "c5.xlarge", "ec2-user",
                      "show version | include uptime", r"% Invalid input|% Incomplete command|% Ambiguous command|% Unknown command",
                      [x for p, i in (("ethernet1/2", "GigabitEthernet2"), ("ethernet1/3", "GigabitEthernet3"), ("ethernet1/1", "GigabitEthernet4"))
@@ -260,7 +365,6 @@ VENDORS: Dict[str, Vendor] = {
 }
 
 NOT_SCRIPTED = {
-    "checkpoint": "needs a management server (a second, large instance) and a first-time setup of about half an hour; the script it gets is mgmt_cli",
     "sonicwall": "SonicWall NSv: the command line is pasted into an SSH session that asks questions on first login",
     "stormshield": "Stormshield EVA: the licence of a pay-as-you-go image and snscli's login are not checked yet",
     "sophos": "Sophos Firewall: the XML API must first be switched on and opened to an address in the web console",
@@ -275,6 +379,8 @@ def find_ami(runner: Runner, region: str, pattern: str, product_codes: Tuple[str
     """The newest x86 Marketplace image of the name, and of the pay-as-you-go product where the vendor names it (the name
     alone does not tell it from the image for a licence of your own): the one found is printed, and --ami (the id your
     subscription's launch page shows) settles it."""
+    if not pattern and not runner.dry_run:
+        raise LabError("this image has no name to look for: give --ami, the id your subscription's launch page shows for the region")
     codes = ["Name=product-code,Values=" + ",".join(product_codes)] if product_codes else []
     out = runner.run(["aws", "ec2", "describe-images", "--region", region, "--owners", "aws-marketplace", "--filters", f"Name=name,Values={pattern}",
                       *codes, "Name=architecture,Values=x86_64", "--query", "sort_by(Images,&CreationDate)[-1].[ImageId,Name,join(',',ProductCodes[].ProductCodeId)]",
@@ -374,10 +480,10 @@ def save_console(runner: Runner, region: str, instance: str) -> None:
                 pass
 
 
-def user_data(vendor: Vendor, key: Path, password: str = "") -> str:
-    """The firewall's first-boot data, with the run's public key where it asks for one ({ssh_key}: its base64 part) and
-    the run's password where it asks for one ({enable_password})."""
-    data = vendor.user_data
+def user_data(vendor: Vendor, key: Path, password: str = "", image_name: str = "") -> str:
+    """The firewall's first-boot data, with the run's public key where it asks for one ({ssh_key}: its base64 part),
+    the run's password where it asks for one ({enable_password}) and the image's version ({os_version})."""
+    data = vendor.user_data.replace("{os_version}", checkpoint_version(image_name))
     if "{ssh_key}" in data:
         parts = key.with_suffix(".pub").read_text(encoding="utf-8").split()
         data = data.replace("{ssh_key}", parts[1] if len(parts) > 1 else parts[0])
@@ -421,19 +527,23 @@ def run_vendor(runner: Runner, args: Any) -> bool:
         if args.ami:
             describe_ami(runner, region, args.ami)
         tf.apply({"region": region, "run_id": runner.work.name, "zone_order": ORDER, "firewall_ami": ami,
-                  "firewall_instance_type": args.instance_type or vendor.instance_type, "firewall_user_data": user_data(vendor, key, run_password(runner.work) if "{enable_password}" in vendor.user_data else ""),
+                  "firewall_instance_type": args.instance_type or vendor.instance_type, "firewall_user_data": user_data(vendor, key, run_password(runner.work) if "{enable_password}" in vendor.user_data else "",
+                                                                                  str(labrun.load_state(runner.work).get("image_name", ""))),
                   **tier1.common_variables(runner, args, key), "hosts": tier1.host_variables(gateway="firewall")})  # fmt: skip
         outputs = tf.output({"firewall_ip": "192.0.2.4", "firewall_instance": "i-0dryrun", "user": "ec2-user", "hosts": tier1.fake_hosts()})
         if not runner.dry_run:
             try:
-                wait_cli(runner, key, vendor.user, outputs["firewall_ip"], vendor.ready, vendor.ready_answer, args.boot_minutes,
-                         vendor.ssh_options)
+                wait_cli(runner, key, vendor.user, outputs["firewall_ip"], vendor.ready, vendor.ready_answer,
+                         args.boot_minutes or vendor.boot_minutes, vendor.ssh_options)
             except LabError:
                 save_console(runner, region, outputs["firewall_instance"])
                 raise
         if vendor.prepare():  # (answers that do not count, kept in prepare.txt)
             session(runner, key, vendor.user, outputs["firewall_ip"], vendor.prepare(), "", "prepare", options=vendor.ssh_options,
                     prompt=vendor.prompt)
+        files = vendor.uploads(out)
+        if files:
+            upload(runner, key, vendor.user, outputs["firewall_ip"], files, vendor.ssh_options)
         lines = vendor.session(out)
         if vendor.ports_command:
             ports = _ASA_DRY_PORTS if runner.dry_run else asa_data_ports(
@@ -450,6 +560,14 @@ def run_vendor(runner: Runner, args: Any) -> bool:
         if not args.keep:
             with labrun.shielded():
                 teardown(runner, tf)
+
+
+def upload(runner: Runner, key: Path, user: str, host: str, files: Sequence[Path], options: Sequence[str] = ()) -> None:
+    """Copies files to the firewall's home folder (scp, with the run's key and the firewall's ssh settings)."""
+    extra = [word for option in options for word in ("-o", option)]
+    runner.run(["scp", "-q", "-i", str(key), "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o",
+                f"UserKnownHostsFile={runner.work / 'known_hosts'}", "-o", "ConnectTimeout=10", *extra, *[str(f) for f in files],
+                f"{user}@{host}:"], timeout=300)  # fmt: skip
 
 
 def diagnose(runner: Runner, vendor: Vendor, key: Path, host: str) -> None:

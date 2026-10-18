@@ -141,7 +141,14 @@ class CheckPointScript:
             layer = str(fields["layer"])
             assert layer in self.layers, f"layer '{layer}' does not exist"
             for column in ("source", "destination", "service"):
-                self._known(fields.get(column, []))
+                # A server stores a cell the call leaves out as None, which matches nothing (R82.20): every rule
+                # names all three. Any matches everything; it is read here as an empty cell.
+                assert column in fields, f"rule {fields.get('name')!r} leaves {column} out, which is stored as None"
+                if fields[column] == ["Any"]:
+                    del fields[column]
+                else:
+                    assert "Any" not in fields[column], words
+                    self._known(fields[column])
             if "inline-layer" in fields:
                 assert fields["action"] == "Apply Layer" and fields["inline-layer"] in self.layers, words
             position = str(fields["position"])
@@ -155,7 +162,11 @@ class CheckPointScript:
         if kind == "nat-rule":
             for column in ("original-source", "original-destination", "original-service", "translated-source",
                            "translated-destination", "translated-service"):  # fmt: skip
-                if column in fields:
+                # every cell is written; Any and Original are read as a cell left empty
+                assert column in fields, f"NAT rule leaves {column} out"
+                if fields[column] in ("Any", "Original"):
+                    del fields[column]
+                else:
                     self._known(fields[column])
             self.nat.append(fields)
             return

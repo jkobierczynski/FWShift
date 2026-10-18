@@ -30,66 +30,66 @@ m() {
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }
 
 # Network objects
-m add group name Quarantine comments 'FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically'
-m add network name n-10.10.0.0_16 subnet 10.10.0.0 mask-length 16
-m add group name LAN members.1 n-10.10.0.0_16
-m add network name n-10.10.200.0_24 subnet 10.10.200.0 mask-length 24
-m add group name Guests members.1 n-10.10.200.0_24
-m add host name h-10.20.0.10 ip-address 10.20.0.10
-m add host name h-10.20.0.11 ip-address 10.20.0.11
-m add group name Web_servers members.1 h-10.20.0.10 members.2 h-10.20.0.11
-m add network name n-10.20.1.0_24 subnet 10.20.1.0 mask-length 24
-m add group name App_servers members.1 n-10.20.1.0_24
-m add group name DMZ members.1 Web_servers members.2 App_servers
-m add network name n-10.20.2.0_24 subnet 10.20.2.0 mask-length 24
-m add network name n-2001_db8_20_2___64 subnet 2001:db8:20:2:: mask-length 64
-m add group name DB_servers members.1 n-10.20.2.0_24 members.2 n-2001_db8_20_2___64
-m add address-range name r-10.10.5.10-10.10.5.20 ip-address-first 10.10.5.10 ip-address-last 10.10.5.20
-m add group name Admins members.1 r-10.10.5.10-10.10.5.20
-m add network name n-10.30.1.0_24 subnet 10.30.1.0 mask-length 24
-m add group name OT_cell members.1 n-10.30.1.0_24
+m add group name Quarantine comments 'FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically' ignore-warnings true
+m add network name n-10.10.0.0_16 subnet 10.10.0.0 mask-length 16 ignore-warnings true
+m add group name LAN members.1 n-10.10.0.0_16 ignore-warnings true
+m add network name n-10.10.200.0_24 subnet 10.10.200.0 mask-length 24 ignore-warnings true
+m add group name Guests members.1 n-10.10.200.0_24 ignore-warnings true
+m add host name h-10.20.0.10 ip-address 10.20.0.10 ignore-warnings true
+m add host name h-10.20.0.11 ip-address 10.20.0.11 ignore-warnings true
+m add group name Web_servers members.1 h-10.20.0.10 members.2 h-10.20.0.11 ignore-warnings true
+m add network name n-10.20.1.0_24 subnet 10.20.1.0 mask-length 24 ignore-warnings true
+m add group name App_servers members.1 n-10.20.1.0_24 ignore-warnings true
+m add group name DMZ members.1 Web_servers members.2 App_servers ignore-warnings true
+m add network name n-10.20.2.0_24 subnet 10.20.2.0 mask-length 24 ignore-warnings true
+m add network name n-2001_db8_20_2___64 subnet 2001:db8:20:2:: mask-length 64 ignore-warnings true
+m add group name DB_servers members.1 n-10.20.2.0_24 members.2 n-2001_db8_20_2___64 ignore-warnings true
+m add address-range name r-10.10.5.10-10.10.5.20 ip-address-first 10.10.5.10 ip-address-last 10.10.5.20 ignore-warnings true
+m add group name Admins members.1 r-10.10.5.10-10.10.5.20 ignore-warnings true
+m add network name n-10.30.1.0_24 subnet 10.30.1.0 mask-length 24 ignore-warnings true
+m add group name OT_cell members.1 n-10.30.1.0_24 ignore-warnings true
 
 # Services
-m add service-tcp name DNS port 53 match-for-any false
-m add service-udp name DNS-UDP port 53 match-for-any false
-m add service-udp name NTP.services port 123 match-for-any false
-m add service-tcp name SSH port 22 match-for-any false
-m add service-tcp name HTTPS port 443 match-for-any false
-m add service-tcp name app-8443 port 8443 match-for-any false
-m add service-tcp name MySQL port 3306 match-for-any false
-m add service-tcp name Modbus port 502 match-for-any false
-m add service-tcp name FTP port 21 match-for-any false
-m add service-other name ICMP-ALL-icmp ip-protocol 1 match-for-any false
-m add service-other name ICMP-ALL-icmp6 ip-protocol 58 match-for-any false
-m add service-group name ICMP-ALL members.1 ICMP-ALL-icmp members.2 ICMP-ALL-icmp6
-m add service-group name Web_all members.1 HTTPS members.2 app-8443
-m add host name h-192.0.2.53 ip-address 192.0.2.53
-m add host name h-192.0.2.123 ip-address 192.0.2.123
-m add network name n-10.0.0.0_8 subnet 10.0.0.0 mask-length 8
-m add host name h-10.10.7.15 ip-address 10.10.7.15
-m add host name h-198.51.100.40 ip-address 198.51.100.40
-m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+m add service-tcp name DNS port 53 match-for-any false ignore-warnings true
+m add service-udp name DNS-UDP port 53 match-for-any false ignore-warnings true
+m add service-udp name NTP.services port 123 match-for-any false ignore-warnings true
+m add service-tcp name SSH port 22 match-for-any false ignore-warnings true
+m add service-tcp name HTTPS port 443 match-for-any false ignore-warnings true
+m add service-tcp name app-8443 port 8443 match-for-any false ignore-warnings true
+m add service-tcp name MySQL port 3306 match-for-any false ignore-warnings true
+m add service-tcp name Modbus port 502 match-for-any false ignore-warnings true
+m add service-tcp name FTP port 21 match-for-any false ignore-warnings true
+m add service-other name ICMP-ALL-icmp ip-protocol 1 match-for-any false ignore-warnings true
+m add service-other name ICMP-ALL-icmp6 ip-protocol 58 match-for-any false ignore-warnings true
+m add service-group name ICMP-ALL members.1 ICMP-ALL-icmp members.2 ICMP-ALL-icmp6 ignore-warnings true
+m add service-group name Web_all members.1 HTTPS members.2 app-8443 ignore-warnings true
+m add host name h-192.0.2.53 ip-address 192.0.2.53 ignore-warnings true
+m add host name h-192.0.2.123 ip-address 192.0.2.123 ignore-warnings true
+m add network name n-10.0.0.0_8 subnet 10.0.0.0 mask-length 8 ignore-warnings true
+m add host name h-10.10.7.15 ip-address 10.10.7.15 ignore-warnings true
+m add host name h-198.51.100.40 ip-address 198.51.100.40 ignore-warnings true
+m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ignore-warnings true
 
 # Rules of layer Network
-m add access-rule layer Network position 1 name 'Block quarantined' source.1 Quarantine action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 2 name 'DNS to resolvers' source.1 LAN destination.1 h-192.0.2.53 service.1 DNS service.2 DNS-UDP action Accept track.type None
-m add access-rule layer Network position 3 name NTP destination.1 h-192.0.2.123 service.1 NTP.services action Accept track.type None
-m add access-rule layer Network position 4 name 'Guests stay out' source.1 Guests destination.1 n-10.0.0.0_8 action Drop track.type None
-m add access-rule layer Network position 5 name 'LAN block the rest' source.1 LAN service.1 SSH action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 6 name 'Inbound web' destination.1 Web_servers service.1 Web_all action Accept track.type Log
-m add access-rule layer Network position 7 name 'Web to app' source.1 Web_servers destination.1 App_servers service.1 app-8443 action Accept track.type None
-m add access-rule layer Network position 8 name 'App to DB' source.1 App_servers destination.1 DB_servers service.1 MySQL action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 9 name 'Admins SSH' source.1 Admins destination.1 DMZ service.1 SSH action Accept track.type None
-m add access-rule layer Network position 10 name 'Others no SSH' source.1 Admins destination.1 DMZ service.1 SSH source-negate true action Drop track.type None
-m add access-rule layer Network position 11 name 'Engineering to PLCs' source.1 h-10.10.7.15 destination.1 OT_cell service.1 Modbus action Accept track.type None
-m add access-rule layer Network position 12 name 'FTP to partner' source.1 LAN destination.1 h-198.51.100.40 service.1 FTP action Accept track.type None
-m add access-rule layer Network position 13 name 'TLS out' source.1 LAN service.1 HTTPS action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 14 name 'Ping over IPv6' source.1 All-IPv6 service.1 ICMP-ALL action Accept track.type None
-m add access-rule layer Network position 15 name 'Old rule' source.1 LAN destination.1 DB_servers service.1 MySQL action Accept track.type None enabled false
-m add access-rule layer Network position 16 name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
+m add access-rule layer Network position 1 name 'Block quarantined' source.1 Quarantine destination.1 Any service.1 Any action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 2 name 'DNS to resolvers' source.1 LAN destination.1 h-192.0.2.53 service.1 DNS service.2 DNS-UDP action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 3 name NTP source.1 Any destination.1 h-192.0.2.123 service.1 NTP.services action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 4 name 'Guests stay out' source.1 Guests destination.1 n-10.0.0.0_8 service.1 Any action Drop track.type None ignore-warnings true
+m add access-rule layer Network position 5 name 'LAN block the rest' source.1 LAN destination.1 Any service.1 SSH action Drop track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 6 name 'Inbound web' source.1 Any destination.1 Web_servers service.1 Web_all action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 7 name 'Web to app' source.1 Web_servers destination.1 App_servers service.1 app-8443 action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 8 name 'App to DB' source.1 App_servers destination.1 DB_servers service.1 MySQL action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 9 name 'Admins SSH' source.1 Admins destination.1 DMZ service.1 SSH action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 10 name 'Others no SSH' source.1 Admins destination.1 DMZ service.1 SSH source-negate true action Drop track.type None ignore-warnings true
+m add access-rule layer Network position 11 name 'Engineering to PLCs' source.1 h-10.10.7.15 destination.1 OT_cell service.1 Modbus action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 12 name 'FTP to partner' source.1 LAN destination.1 h-198.51.100.40 service.1 FTP action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 13 name 'TLS out' source.1 LAN destination.1 Any service.1 HTTPS action Accept track.type None enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 14 name 'Ping over IPv6' source.1 All-IPv6 destination.1 Any service.1 ICMP-ALL action Accept track.type None ignore-warnings true
+m add access-rule layer Network position 15 name 'Old rule' source.1 LAN destination.1 DB_servers service.1 MySQL action Accept track.type None enabled false ignore-warnings true
+m add access-rule layer Network position 16 name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'

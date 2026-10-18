@@ -30,55 +30,55 @@ m() {
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }
 
 # Network objects
-m add host name dns-1 ip-address 192.0.2.53 comments 'Shared resolver'
-m add network name lan-net subnet 10.10.0.0 mask-length 16
-m add host name web-1 ip-address 10.20.0.10
-m add host name web-public ip-address 203.0.113.10 comments 'Public address of web-1'
-m add host name mail-1 ip-address 10.20.0.25
-m add host name mail-public ip-address 203.0.113.25
-m add host name dns-2 ip-address 192.0.2.54
-m add address-range name admin-range ip-address-first 10.10.5.10 ip-address-last 10.10.5.20
-m add dns-domain name .updates.example.com is-sub-domain false
-m add group name odd-hosts comments 'FWSHIFT PLACEHOLDER, matches nothing: wildcard mask 10.20.1.2/0.0.254.0'
-m add address-range name snat-pool ip-address-first 198.51.100.20 ip-address-last 198.51.100.23
-m add network name partner-net subnet 10.99.0.0 mask-length 16
-m add host name eng-station ip-address 10.10.7.15
-m add network name plc-net subnet 10.30.1.0 mask-length 24
-m add network name lan6-net subnet 2001:db8:10:: mask-length 48
-m add group name KP comments 'FWSHIFT PLACEHOLDER, matches nothing: not defined in the input'
-m add group name dns-servers members.1 dns-1 members.2 dns-2
-m add group name dmz-servers members.1 web-1 members.2 mail-1 comments 'Everything in the DMZ'
-m add group name all-servers members.1 dmz-servers members.2 dns-servers
-m add group name tagged-servers comments 'FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically'
+m add host name dns-1 ip-address 192.0.2.53 comments 'Shared resolver' ignore-warnings true
+m add network name lan-net subnet 10.10.0.0 mask-length 16 ignore-warnings true
+m add host name web-1 ip-address 10.20.0.10 ignore-warnings true
+m add host name web-public ip-address 203.0.113.10 comments 'Public address of web-1' ignore-warnings true
+m add host name mail-1 ip-address 10.20.0.25 ignore-warnings true
+m add host name mail-public ip-address 203.0.113.25 ignore-warnings true
+m add host name dns-2 ip-address 192.0.2.54 ignore-warnings true
+m add address-range name admin-range ip-address-first 10.10.5.10 ip-address-last 10.10.5.20 ignore-warnings true
+m add dns-domain name .updates.example.com is-sub-domain false ignore-warnings true
+m add group name odd-hosts comments 'FWSHIFT PLACEHOLDER, matches nothing: wildcard mask 10.20.1.2/0.0.254.0' ignore-warnings true
+m add address-range name snat-pool ip-address-first 198.51.100.20 ip-address-last 198.51.100.23 ignore-warnings true
+m add network name partner-net subnet 10.99.0.0 mask-length 16 ignore-warnings true
+m add host name eng-station ip-address 10.10.7.15 ignore-warnings true
+m add network name plc-net subnet 10.30.1.0 mask-length 24 ignore-warnings true
+m add network name lan6-net subnet 2001:db8:10:: mask-length 48 ignore-warnings true
+m add group name KP comments 'FWSHIFT PLACEHOLDER, matches nothing: not defined in the input' ignore-warnings true
+m add group name dns-servers members.1 dns-1 members.2 dns-2 ignore-warnings true
+m add group name dmz-servers members.1 web-1 members.2 mail-1 comments 'Everything in the DMZ' ignore-warnings true
+m add group name all-servers members.1 dmz-servers members.2 dns-servers ignore-warnings true
+m add group name tagged-servers comments 'FWSHIFT PLACEHOLDER, matches nothing: dynamic address group, members are not known statically' ignore-warnings true
 
 # Services
-m add service-tcp name tcp-8443 port 8443 match-for-any false
-m add service-tcp name tcp-high-web-tcp8080 port 8080 match-for-any false
-m add service-tcp name tcp-high-web-tcp8443 port 8443 match-for-any false
-m add service-tcp name tcp-high-web-tcp9000-9010 port 9000-9010 match-for-any false
-m add service-group name tcp-high-web members.1 tcp-high-web-tcp8080 members.2 tcp-high-web-tcp8443 members.3 tcp-high-web-tcp9000-9010
-m add service-udp name udp-syslog-src port 514 source-port 1024-65535 match-for-any false
-m add service-tcp name service-http-tcp80 port 80 match-for-any false
-m add service-tcp name service-http-tcp8080 port 8080 match-for-any false
-m add service-group name service-http members.1 service-http-tcp80 members.2 service-http-tcp8080
-m add service-tcp name service-https port 443 match-for-any false
-m add service-group name web-ports members.1 service-http members.2 service-https members.3 tcp-high-web
-m add service-tcp name app-web-browsing port 80 match-for-any false comments 'well-known ports of application web-browsing'
-m add service-tcp name app-ssl port 443 match-for-any false comments 'well-known ports of application ssl'
-m add service-tcp name app-dns-tcp53 port 53 match-for-any false
-m add service-udp name app-dns-udp53 port 53 match-for-any false
-m add service-group name app-dns members.1 app-dns-tcp53 members.2 app-dns-udp53 comments 'well-known ports of application dns'
-m add service-tcp name app-smtp port 25 match-for-any false comments 'well-known ports of application smtp'
-m add service-tcp name app-ssh port 22 match-for-any false comments 'well-known ports of application ssh'
-m add service-tcp name app-modbus port 502 match-for-any false comments 'well-known ports of application modbus'
-m add service-tcp name app-siemens-s7 port 102 match-for-any false comments 'well-known ports of application siemens-s7'
-m add host name h-198.51.100.200 ip-address 198.51.100.200
-m add service-icmp name app-ping icmp-type 8 comments 'well-known ports of application ping'
-m add network name n-10.10.200.0_24 subnet 10.10.200.0 mask-length 24
+m add service-tcp name tcp-8443 port 8443 match-for-any false ignore-warnings true
+m add service-tcp name tcp-high-web-tcp8080 port 8080 match-for-any false ignore-warnings true
+m add service-tcp name tcp-high-web-tcp8443 port 8443 match-for-any false ignore-warnings true
+m add service-tcp name tcp-high-web-tcp9000-9010 port 9000-9010 match-for-any false ignore-warnings true
+m add service-group name tcp-high-web members.1 tcp-high-web-tcp8080 members.2 tcp-high-web-tcp8443 members.3 tcp-high-web-tcp9000-9010 ignore-warnings true
+m add service-udp name udp-syslog-src port 514 source-port 1024-65535 match-for-any false ignore-warnings true
+m add service-tcp name service-http-tcp80 port 80 match-for-any false ignore-warnings true
+m add service-tcp name service-http-tcp8080 port 8080 match-for-any false ignore-warnings true
+m add service-group name service-http members.1 service-http-tcp80 members.2 service-http-tcp8080 ignore-warnings true
+m add service-tcp name service-https port 443 match-for-any false ignore-warnings true
+m add service-group name web-ports members.1 service-http members.2 service-https members.3 tcp-high-web ignore-warnings true
+m add service-tcp name app-web-browsing port 80 match-for-any false comments 'well-known ports of application web-browsing' ignore-warnings true
+m add service-tcp name app-ssl port 443 match-for-any false comments 'well-known ports of application ssl' ignore-warnings true
+m add service-tcp name app-dns-tcp53 port 53 match-for-any false ignore-warnings true
+m add service-udp name app-dns-udp53 port 53 match-for-any false ignore-warnings true
+m add service-group name app-dns members.1 app-dns-tcp53 members.2 app-dns-udp53 comments 'well-known ports of application dns' ignore-warnings true
+m add service-tcp name app-smtp port 25 match-for-any false comments 'well-known ports of application smtp' ignore-warnings true
+m add service-tcp name app-ssh port 22 match-for-any false comments 'well-known ports of application ssh' ignore-warnings true
+m add service-tcp name app-modbus port 502 match-for-any false comments 'well-known ports of application modbus' ignore-warnings true
+m add service-tcp name app-siemens-s7 port 102 match-for-any false comments 'well-known ports of application siemens-s7' ignore-warnings true
+m add host name h-198.51.100.200 ip-address 198.51.100.200 ignore-warnings true
+m add service-icmp name app-ping icmp-type 8 comments 'well-known ports of application ping' ignore-warnings true
+m add network name n-10.10.200.0_24 subnet 10.10.200.0 mask-length 24 ignore-warnings true
 
 # Security zones
 zone trust
@@ -87,82 +87,82 @@ zone dmz
 zone ot
 
 # Traffic from zone trust to zone trust
-m add access-layer name Network_trust_to_trust add-default-rule false
-m add access-rule layer Network_trust_to_trust position bottom name 'FWShift cleanup' action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.'
-m add access-rule layer Network position 1 name 'trust to trust' source.1 trust destination.1 trust action 'Apply Layer' inline-layer Network_trust_to_trust
+m add access-layer name Network_trust_to_trust add-default-rule false ignore-warnings true
+m add access-rule layer Network_trust_to_trust position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.' ignore-warnings true
+m add access-rule layer Network position 1 name 'trust to trust' source.1 trust destination.1 trust service.1 Any action 'Apply Layer' inline-layer Network_trust_to_trust ignore-warnings true
 
 # Traffic from zone trust to zone untrust
-m add access-layer name Network_trust_to_untrust add-default-rule false
-m add access-rule layer Network_trust_to_untrust position bottom name Allow-Web-Out source.1 lan-net service.1 app-web-browsing service.2 app-ssl action Accept track.type Log comments 'Outbound web for the "office" LAN'
-m add access-rule layer Network_trust_to_untrust position bottom name Allow-DNS destination.1 dns-servers service.1 app-dns action Accept track.type Log
-m add access-rule layer Network_trust_to_untrust position bottom name Block-Torrents source.1 trust destination.1 untrust action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_trust_to_untrust position bottom name Block-Region destination.1 KP destination.2 h-198.51.100.200 action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_trust_to_untrust position bottom name Old-Rule source.1 odd-hosts service.1 udp-syslog-src action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_trust_to_untrust position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 2 name 'trust to untrust' source.1 trust destination.1 untrust action 'Apply Layer' inline-layer Network_trust_to_untrust
+m add access-layer name Network_trust_to_untrust add-default-rule false ignore-warnings true
+m add access-rule layer Network_trust_to_untrust position bottom name Allow-Web-Out source.1 lan-net destination.1 Any service.1 app-web-browsing service.2 app-ssl action Accept track.type Log comments 'Outbound web for the "office" LAN' ignore-warnings true
+m add access-rule layer Network_trust_to_untrust position bottom name Allow-DNS source.1 Any destination.1 dns-servers service.1 app-dns action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_trust_to_untrust position bottom name Block-Torrents source.1 trust destination.1 untrust service.1 Any action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_trust_to_untrust position bottom name Block-Region source.1 Any destination.1 KP destination.2 h-198.51.100.200 service.1 Any action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_trust_to_untrust position bottom name Old-Rule source.1 odd-hosts destination.1 Any service.1 udp-syslog-src action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_trust_to_untrust position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 2 name 'trust to untrust' source.1 trust destination.1 untrust service.1 Any action 'Apply Layer' inline-layer Network_trust_to_untrust ignore-warnings true
 
 # Traffic from zone trust to zone dmz
-m add access-layer name Network_trust_to_dmz add-default-rule false
-m add access-rule layer Network_trust_to_dmz position bottom name Admin-SSH source.1 admin-range destination.1 dmz-servers service.1 app-ssh action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_trust_to_dmz position bottom name App-Server-Ports source.1 lan-net source.2 lan6-net destination.1 web-1 service.1 web-ports service.2 tcp-8443 action Accept track.type Log
-m add access-rule layer Network_trust_to_dmz position bottom name Not-From-Guests source.1 n-10.10.200.0_24 destination.1 all-servers service.1 app-ping source-negate true action Accept track.type Log
-m add access-rule layer Network_trust_to_dmz position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 3 name 'trust to dmz' source.1 trust destination.1 dmz action 'Apply Layer' inline-layer Network_trust_to_dmz
+m add access-layer name Network_trust_to_dmz add-default-rule false ignore-warnings true
+m add access-rule layer Network_trust_to_dmz position bottom name Admin-SSH source.1 admin-range destination.1 dmz-servers service.1 app-ssh action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_trust_to_dmz position bottom name App-Server-Ports source.1 lan-net source.2 lan6-net destination.1 web-1 service.1 web-ports service.2 tcp-8443 action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_trust_to_dmz position bottom name Not-From-Guests source.1 n-10.10.200.0_24 destination.1 all-servers service.1 app-ping source-negate true action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_trust_to_dmz position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 3 name 'trust to dmz' source.1 trust destination.1 dmz service.1 Any action 'Apply Layer' inline-layer Network_trust_to_dmz ignore-warnings true
 
 # Traffic from zone trust to zone ot
-m add access-layer name Network_trust_to_ot add-default-rule false
-m add access-rule layer Network_trust_to_ot position bottom name 'Engineering to PLCs' source.1 eng-station destination.1 plc-net service.1 app-modbus service.2 app-siemens-s7 action Accept track.type Log
-m add access-rule layer Network_trust_to_ot position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 4 name 'trust to ot' source.1 trust destination.1 ot action 'Apply Layer' inline-layer Network_trust_to_ot
+m add access-layer name Network_trust_to_ot add-default-rule false ignore-warnings true
+m add access-rule layer Network_trust_to_ot position bottom name 'Engineering to PLCs' source.1 eng-station destination.1 plc-net service.1 app-modbus service.2 app-siemens-s7 action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_trust_to_ot position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 4 name 'trust to ot' source.1 trust destination.1 ot service.1 Any action 'Apply Layer' inline-layer Network_trust_to_ot ignore-warnings true
 
 # Traffic from zone untrust to zone untrust
-m add access-layer name Network_untrust_to_untrust add-default-rule false
-m add access-rule layer Network_untrust_to_untrust position bottom name Block-Region destination.1 KP destination.2 h-198.51.100.200 action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_untrust_to_untrust position bottom name 'FWShift cleanup' action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.'
-m add access-rule layer Network position 5 name 'untrust to untrust' source.1 untrust destination.1 untrust action 'Apply Layer' inline-layer Network_untrust_to_untrust
+m add access-layer name Network_untrust_to_untrust add-default-rule false ignore-warnings true
+m add access-rule layer Network_untrust_to_untrust position bottom name Block-Region source.1 Any destination.1 KP destination.2 h-198.51.100.200 service.1 Any action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_untrust_to_untrust position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.' ignore-warnings true
+m add access-rule layer Network position 5 name 'untrust to untrust' source.1 untrust destination.1 untrust service.1 Any action 'Apply Layer' inline-layer Network_untrust_to_untrust ignore-warnings true
 
 # Traffic from zone untrust to zone dmz
-m add access-layer name Network_untrust_to_dmz add-default-rule false
-m add access-rule layer Network_untrust_to_dmz position bottom name Inbound-Web destination.1 web-public service.1 service-https action Accept track.type Log
-m add access-rule layer Network_untrust_to_dmz position bottom name Inbound-Mail destination.1 mail-public service.1 app-smtp action Accept track.type Log
-m add access-rule layer Network_untrust_to_dmz position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 6 name 'untrust to dmz' source.1 untrust destination.1 dmz action 'Apply Layer' inline-layer Network_untrust_to_dmz
+m add access-layer name Network_untrust_to_dmz add-default-rule false ignore-warnings true
+m add access-rule layer Network_untrust_to_dmz position bottom name Inbound-Web source.1 Any destination.1 web-public service.1 service-https action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_untrust_to_dmz position bottom name Inbound-Mail source.1 Any destination.1 mail-public service.1 app-smtp action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_untrust_to_dmz position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 6 name 'untrust to dmz' source.1 untrust destination.1 dmz service.1 Any action 'Apply Layer' inline-layer Network_untrust_to_dmz ignore-warnings true
 
 # Traffic from zone dmz to zone untrust
-m add access-layer name Network_dmz_to_untrust add-default-rule false
-m add access-rule layer Network_dmz_to_untrust position bottom name Allow-DNS destination.1 dns-servers service.1 app-dns action Accept track.type Log
-m add access-rule layer Network_dmz_to_untrust position bottom name Block-Region destination.1 KP destination.2 h-198.51.100.200 action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_dmz_to_untrust position bottom name Tagged-Servers-Updates source.1 tagged-servers destination.1 .updates.example.com service.1 app-ssl action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_dmz_to_untrust position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 7 name 'dmz to untrust' source.1 dmz destination.1 untrust action 'Apply Layer' inline-layer Network_dmz_to_untrust
+m add access-layer name Network_dmz_to_untrust add-default-rule false ignore-warnings true
+m add access-rule layer Network_dmz_to_untrust position bottom name Allow-DNS source.1 Any destination.1 dns-servers service.1 app-dns action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_dmz_to_untrust position bottom name Block-Region source.1 Any destination.1 KP destination.2 h-198.51.100.200 service.1 Any action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_dmz_to_untrust position bottom name Tagged-Servers-Updates source.1 tagged-servers destination.1 .updates.example.com service.1 app-ssl action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_dmz_to_untrust position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 7 name 'dmz to untrust' source.1 dmz destination.1 untrust service.1 Any action 'Apply Layer' inline-layer Network_dmz_to_untrust ignore-warnings true
 
 # Traffic from zone dmz to zone dmz
-m add access-layer name Network_dmz_to_dmz add-default-rule false
-m add access-rule layer Network_dmz_to_dmz position bottom name DMZ-Intrazone action Drop track.type Log
-m add access-rule layer Network position 8 name 'dmz to dmz' source.1 dmz destination.1 dmz action 'Apply Layer' inline-layer Network_dmz_to_dmz
+m add access-layer name Network_dmz_to_dmz add-default-rule false ignore-warnings true
+m add access-rule layer Network_dmz_to_dmz position bottom name DMZ-Intrazone source.1 Any destination.1 Any service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network position 8 name 'dmz to dmz' source.1 dmz destination.1 dmz service.1 Any action 'Apply Layer' inline-layer Network_dmz_to_dmz ignore-warnings true
 
 # Traffic from zone ot to zone ot
-m add access-layer name Network_ot_to_ot add-default-rule false
-m add access-rule layer Network_ot_to_ot position bottom name 'FWShift cleanup' action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.'
-m add access-rule layer Network position 9 name 'ot to ot' source.1 ot destination.1 ot action 'Apply Layer' inline-layer Network_ot_to_ot
+m add access-layer name Network_ot_to_ot add-default-rule false ignore-warnings true
+m add access-rule layer Network_ot_to_ot position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Accept track.type None comments 'Added by FWShift: the source allows traffic inside this zone that no rule denies.' ignore-warnings true
+m add access-rule layer Network position 9 name 'ot to ot' source.1 ot destination.1 ot service.1 Any action 'Apply Layer' inline-layer Network_ot_to_ot ignore-warnings true
 
 # Traffic from zone (any other) to zone untrust
-m add access-layer name Network_any_to_untrust add-default-rule false
-m add access-rule layer Network_any_to_untrust position bottom name Block-OT-Outbound source.1 ot destination.1 untrust action Drop track.type Log
-m add access-rule layer Network_any_to_untrust position bottom name Block-Torrents source.1 trust destination.1 untrust action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_any_to_untrust position bottom name Block-Region destination.1 KP destination.2 h-198.51.100.200 action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_any_to_untrust position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 10 name 'any to untrust' destination.1 untrust action 'Apply Layer' inline-layer Network_any_to_untrust
+m add access-layer name Network_any_to_untrust add-default-rule false ignore-warnings true
+m add access-rule layer Network_any_to_untrust position bottom name Block-OT-Outbound source.1 ot destination.1 untrust service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network_any_to_untrust position bottom name Block-Torrents source.1 trust destination.1 untrust service.1 Any action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_any_to_untrust position bottom name Block-Region source.1 Any destination.1 KP destination.2 h-198.51.100.200 service.1 Any action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_any_to_untrust position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 10 name 'any to untrust' source.1 Any destination.1 untrust service.1 Any action 'Apply Layer' inline-layer Network_any_to_untrust ignore-warnings true
 
 # Rules of layer Network for traffic of no zone pair above
-m add access-rule layer Network position 11 name Block-OT-Outbound source.1 ot destination.1 untrust action Drop track.type Log
-m add access-rule layer Network position 12 name Block-Torrents source.1 trust destination.1 untrust action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 13 name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
+m add access-rule layer Network position 11 name Block-OT-Outbound source.1 ot destination.1 untrust service.1 Any action Drop track.type Log ignore-warnings true
+m add access-rule layer Network position 12 name Block-Torrents source.1 trust destination.1 untrust service.1 Any action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 13 name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
 
 # NAT rules of package Standard
-m add nat-rule package Standard position bottom original-source lan-net original-destination partner-net method static comments No-NAT-Partner
-m add nat-rule package Standard position bottom original-destination web-public original-service service-https translated-destination web-1 translated-service tcp-8443 method static comments Inbound-Web-DNAT
-m add nat-rule package Standard position bottom original-source mail-1 translated-source mail-public method static comments Mail-Static
-m add nat-rule package Standard position bottom original-destination mail-public translated-destination mail-1 method static comments 'Mail-Static (inbound)'
+m add nat-rule package Standard position bottom original-source lan-net original-destination partner-net original-service Any translated-source Original translated-destination Original translated-service Original method static comments No-NAT-Partner ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination web-public original-service service-https translated-source Original translated-destination web-1 translated-service tcp-8443 method static comments Inbound-Web-DNAT ignore-warnings true
+m add nat-rule package Standard position bottom original-source mail-1 original-destination Any original-service Any translated-source mail-public translated-destination Original translated-service Original method static comments Mail-Static ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination mail-public original-service Any translated-source Original translated-destination mail-1 translated-service Original method static comments 'Mail-Static (inbound)' ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'

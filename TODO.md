@@ -341,7 +341,9 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1). Still open
 
 * the first real run of each of the others, and correcting what it finds (the Marketplace image names, the logins,
   the reload commands of OPNsense and pfSense);
-* the images not scripted yet (Check Point with its management server, SonicWall NSv, Stormshield EVA, Sophos,
+* the first run of the Check Point vendor of tier 3 (its `mgmt_cli` script was published and verified on an R82.20
+  management server by hand; the lab's interfaces, `set simple-gateway` and the install are untried);
+* the images not scripted yet (SonicWall NSv, Stormshield EVA, Sophos,
   Barracuda; WatchGuard and Forcepoint need tools of their own, Meraki a Dashboard);
 * the conversion of the other sample configurations, not only the lab policy, and NAT in the plan;
 * a run of the conversion *from* each platform: export the lab policy as the target holds it after loading, read it

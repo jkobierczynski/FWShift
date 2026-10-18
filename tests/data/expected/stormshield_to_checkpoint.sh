@@ -30,63 +30,63 @@ m() {
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }
 
 # Network objects
-m add network name Network_out subnet 203.0.113.0 mask-length 29
-m add host name Firewall_out ip-address 203.0.113.2
-m add network name Network_in subnet 10.10.0.0 mask-length 24
-m add host name Firewall_in ip-address 10.10.0.254
-m add network name Network_dmz1 subnet 10.20.0.0 mask-length 24
-m add host name Firewall_dmz1 ip-address 10.20.0.254
-m add network name Network_lab subnet 10.30.0.0 mask-length 24
-m add host name Firewall_lab ip-address 10.30.0.254
-m add network name Network_labbridge subnet 10.30.0.0 mask-length 24
-m add host name Firewall_labbridge ip-address 10.30.0.254
-m add host name web_srv ip-address 10.20.0.10 comments 'web server'
-m add host name mail_srv ip-address 10.20.0.25
-m add host name web_pub ip-address 203.0.113.3 comments 'public address of the web server'
-m add host name admin_ws ip-address 10.10.0.50
-m add address-range name dhcp_pool ip-address-first 10.10.0.100 ip-address-last 10.10.0.199
-m add dns-domain name .updates.example.com is-sub-domain false
-m add network name lan subnet 10.10.0.0 mask-length 24
-m add network name lan6 subnet 2001:db8:10:: mask-length 64
-m add network name lab_net subnet 10.30.0.0 mask-length 24
-m add network name blocked subnet 198.51.100.0 mask-length 24
-m add dns-domain name .www.example.org is-sub-domain false
-m add network name global_bad subnet 192.0.2.128 mask-length 25
-m add host name h-10.10.0.60 ip-address 10.10.0.60
-m add host name h-2001_db8_10__60 ip-address 2001:db8:10::60
-m add group name dual_ws members.1 h-10.10.0.60 members.2 h-2001_db8_10__60 comments 'dual stack'
-m add group name dmz_servers members.1 web_srv members.2 mail_srv
-m add group name admins members.1 admin_ws members.2 dual_ws
-m add group name firewall_all members.1 Firewall_out members.2 Firewall_in members.3 Firewall_dmz1 members.4 Firewall_lab members.5 Firewall_labbridge
-m add group name Network_internals members.1 Network_in members.2 Network_dmz1 members.3 Network_lab members.4 Network_labbridge
-m add address-range name r-0.0.0.0-10.9.255.255 ip-address-first 0.0.0.0 ip-address-last 10.9.255.255
-m add address-range name r-10.10.1.0-10.19.255.255 ip-address-first 10.10.1.0 ip-address-last 10.19.255.255
-m add address-range name r-10.20.1.0-10.29.255.255 ip-address-first 10.20.1.0 ip-address-last 10.29.255.255
-m add address-range name r-10.30.1.0-255.255.255.255 ip-address-first 10.30.1.0 ip-address-last 255.255.255.255
-m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
-m add group name Internet members.1 r-0.0.0.0-10.9.255.255 members.2 r-10.10.1.0-10.19.255.255 members.3 r-10.20.1.0-10.29.255.255 members.4 r-10.30.1.0-255.255.255.255 members.5 All-IPv6
+m add network name Network_out subnet 203.0.113.0 mask-length 29 ignore-warnings true
+m add host name Firewall_out ip-address 203.0.113.2 ignore-warnings true
+m add network name Network_in subnet 10.10.0.0 mask-length 24 ignore-warnings true
+m add host name Firewall_in ip-address 10.10.0.254 ignore-warnings true
+m add network name Network_dmz1 subnet 10.20.0.0 mask-length 24 ignore-warnings true
+m add host name Firewall_dmz1 ip-address 10.20.0.254 ignore-warnings true
+m add network name Network_lab subnet 10.30.0.0 mask-length 24 ignore-warnings true
+m add host name Firewall_lab ip-address 10.30.0.254 ignore-warnings true
+m add network name Network_labbridge subnet 10.30.0.0 mask-length 24 ignore-warnings true
+m add host name Firewall_labbridge ip-address 10.30.0.254 ignore-warnings true
+m add host name web_srv ip-address 10.20.0.10 comments 'web server' ignore-warnings true
+m add host name mail_srv ip-address 10.20.0.25 ignore-warnings true
+m add host name web_pub ip-address 203.0.113.3 comments 'public address of the web server' ignore-warnings true
+m add host name admin_ws ip-address 10.10.0.50 ignore-warnings true
+m add address-range name dhcp_pool ip-address-first 10.10.0.100 ip-address-last 10.10.0.199 ignore-warnings true
+m add dns-domain name .updates.example.com is-sub-domain false ignore-warnings true
+m add network name lan subnet 10.10.0.0 mask-length 24 ignore-warnings true
+m add network name lan6 subnet 2001:db8:10:: mask-length 64 ignore-warnings true
+m add network name lab_net subnet 10.30.0.0 mask-length 24 ignore-warnings true
+m add network name blocked subnet 198.51.100.0 mask-length 24 ignore-warnings true
+m add dns-domain name .www.example.org is-sub-domain false ignore-warnings true
+m add network name global_bad subnet 192.0.2.128 mask-length 25 ignore-warnings true
+m add host name h-10.10.0.60 ip-address 10.10.0.60 ignore-warnings true
+m add host name h-2001_db8_10__60 ip-address 2001:db8:10::60 ignore-warnings true
+m add group name dual_ws members.1 h-10.10.0.60 members.2 h-2001_db8_10__60 comments 'dual stack' ignore-warnings true
+m add group name dmz_servers members.1 web_srv members.2 mail_srv ignore-warnings true
+m add group name admins members.1 admin_ws members.2 dual_ws ignore-warnings true
+m add group name firewall_all members.1 Firewall_out members.2 Firewall_in members.3 Firewall_dmz1 members.4 Firewall_lab members.5 Firewall_labbridge ignore-warnings true
+m add group name Network_internals members.1 Network_in members.2 Network_dmz1 members.3 Network_lab members.4 Network_labbridge ignore-warnings true
+m add address-range name r-0.0.0.0-10.9.255.255 ip-address-first 0.0.0.0 ip-address-last 10.9.255.255 ignore-warnings true
+m add address-range name r-10.10.1.0-10.19.255.255 ip-address-first 10.10.1.0 ip-address-last 10.19.255.255 ignore-warnings true
+m add address-range name r-10.20.1.0-10.29.255.255 ip-address-first 10.20.1.0 ip-address-last 10.29.255.255 ignore-warnings true
+m add address-range name r-10.30.1.0-255.255.255.255 ip-address-first 10.30.1.0 ip-address-last 255.255.255.255 ignore-warnings true
+m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ignore-warnings true
+m add group name Internet members.1 r-0.0.0.0-10.9.255.255 members.2 r-10.10.1.0-10.19.255.255 members.3 r-10.20.1.0-10.29.255.255 members.4 r-10.30.1.0-255.255.255.255 members.5 All-IPv6 ignore-warnings true
 
 # Services
-m add service-tcp name http port 80 match-for-any false
-m add service-tcp name https port 443 match-for-any false
-m add service-tcp name ssh port 22 match-for-any false
-m add service-udp name dns_udp port 53 match-for-any false
-m add service-tcp name smtp port 25 match-for-any false
-m add service-tcp name ident port 113 match-for-any false
-m add service-tcp name web_alt port 8080-8090 match-for-any false
-m add service-udp name syslog port 514 match-for-any false
-m add service-tcp name lab_tools-tcp5000-5010 port 5000-5010 match-for-any false
-m add service-udp name lab_tools-udp5000-5010 port 5000-5010 match-for-any false
-m add service-group name lab_tools members.1 lab_tools-tcp5000-5010 members.2 lab_tools-udp5000-5010
-m add service-other name proto_200 ip-protocol 200 match-for-any false
-m add service-other name x_rule__ipproto-icmp ip-protocol 1 match-for-any false
-m add service-udp name x_rule__dns_udp-udp port 53 match-for-any false
-m add service-other name x_rule__ipproto-proto_200 ip-protocol 200 match-for-any false
-m add service-group name web_ports members.1 http members.2 https members.3 web_alt
+m add service-tcp name http port 80 match-for-any false ignore-warnings true
+m add service-tcp name https port 443 match-for-any false ignore-warnings true
+m add service-tcp name ssh port 22 match-for-any false ignore-warnings true
+m add service-udp name dns_udp port 53 match-for-any false ignore-warnings true
+m add service-tcp name smtp port 25 match-for-any false ignore-warnings true
+m add service-tcp name ident port 113 match-for-any false ignore-warnings true
+m add service-tcp name web_alt port 8080-8090 match-for-any false ignore-warnings true
+m add service-udp name syslog port 514 match-for-any false ignore-warnings true
+m add service-tcp name lab_tools-tcp5000-5010 port 5000-5010 match-for-any false ignore-warnings true
+m add service-udp name lab_tools-udp5000-5010 port 5000-5010 match-for-any false ignore-warnings true
+m add service-group name lab_tools members.1 lab_tools-tcp5000-5010 members.2 lab_tools-udp5000-5010 ignore-warnings true
+m add service-other name proto_200 ip-protocol 200 match-for-any false ignore-warnings true
+m add service-other name x_rule__ipproto-icmp ip-protocol 1 match-for-any false ignore-warnings true
+m add service-udp name x_rule__dns_udp-udp port 53 match-for-any false ignore-warnings true
+m add service-other name x_rule__ipproto-proto_200 ip-protocol 200 match-for-any false ignore-warnings true
+m add service-group name web_ports members.1 http members.2 https members.3 web_alt ignore-warnings true
 
 # Security zones
 zone in
@@ -94,51 +94,51 @@ zone lab
 zone out
 
 # Traffic from zone in to zone (any other)
-m add access-layer name Network_in_to_any add-default-rule false
-m add access-rule layer Network_in_to_any position bottom name 'global 1' source.1 global_bad action Drop track.type Log comments 'blocked company-wide'
-m add access-rule layer Network_in_to_any position bottom name 'local 1' source.1 admins destination.1 firewall_all service.1 ssh service.2 https action Accept track.type Log comments 'admin access'
-m add access-rule layer Network_in_to_any position bottom name 'local 2' source.1 Network_internals destination.1 firewall_all service.1 x_rule__ipproto-icmp action Accept track.type Log comments 'ping the firewall'
-m add access-rule layer Network_in_to_any position bottom name 'local 3' destination.1 blocked action Drop track.type Log comments 'known bad'
-m add access-rule layer Network_in_to_any position bottom name 'local 4' source.1 Network_internals destination.1 Network_internals service.1 web_ports destination-negate true action Accept track.type Log comments web
-m add access-rule layer Network_in_to_any position bottom name 'local 5' source.1 lan service.1 x_rule__dns_udp-udp action Accept track.type Log comments dns
-m add access-rule layer Network_in_to_any position bottom name 'local 6' source.1 Network_internals service.1 ident action Reject track.type Log
-m add access-rule layer Network_in_to_any position bottom name 'local 11' source.1 lan destination.1 dmz_servers service.1 web_ports action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_in_to_any position bottom name 'local 12' source.1 lab_net service.1 x_rule__ipproto-proto_200 action Accept track.type Log
-m add access-rule layer Network_in_to_any position bottom name 'local 13' source.1 lan destination.1 .updates.example.com service.1 https source-negate true action Accept track.type Log
-m add access-rule layer Network_in_to_any position bottom name 'local 14' source.1 lan6 action Accept track.type Log
-m add access-rule layer Network_in_to_any position bottom name 'local 15' source.1 lan destination.1 .www.example.org service.1 http service.2 web_alt action Accept track.type Log
-m add access-rule layer Network_in_to_any position bottom name 'local 16' action Drop track.type Log comments 'Block all'
-m add access-rule layer Network position 1 name 'in to any' source.1 in action 'Apply Layer' inline-layer Network_in_to_any
+m add access-layer name Network_in_to_any add-default-rule false ignore-warnings true
+m add access-rule layer Network_in_to_any position bottom name 'global 1' source.1 global_bad destination.1 Any service.1 Any action Drop track.type Log comments 'blocked company-wide' ignore-warnings true
+m add access-rule layer Network_in_to_any position bottom name 'local 1' source.1 admins destination.1 firewall_all service.1 ssh service.2 https action Accept track.type Log comments 'admin access' ignore-warnings true
+m add access-rule layer Network_in_to_any position bottom name 'local 2' source.1 Network_internals destination.1 firewall_all service.1 x_rule__ipproto-icmp action Accept track.type Log comments 'ping the firewall' ignore-warnings true
+m add access-rule layer Network_in_to_any position bottom name 'local 3' source.1 Any destination.1 blocked service.1 Any action Drop track.type Log comments 'known bad' ignore-warnings true
+m add access-rule layer Network_in_to_any position bottom name 'local 4' source.1 Network_internals destination.1 Network_internals service.1 web_ports destination-negate true action Accept track.type Log comments web ignore-warnings true
+m add access-rule layer Network_in_to_any position bottom name 'local 5' source.1 lan destination.1 Any service.1 x_rule__dns_udp-udp action Accept track.type Log comments dns ignore-warnings true
+m add access-rule layer Network_in_to_any position bottom name 'local 6' source.1 Network_internals destination.1 Any service.1 ident action Reject track.type Log ignore-warnings true
+m add access-rule layer Network_in_to_any position bottom name 'local 11' source.1 lan destination.1 dmz_servers service.1 web_ports action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_in_to_any position bottom name 'local 12' source.1 lab_net destination.1 Any service.1 x_rule__ipproto-proto_200 action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_in_to_any position bottom name 'local 13' source.1 lan destination.1 .updates.example.com service.1 https source-negate true action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_in_to_any position bottom name 'local 14' source.1 lan6 destination.1 Any service.1 Any action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_in_to_any position bottom name 'local 15' source.1 lan destination.1 .www.example.org service.1 http service.2 web_alt action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_in_to_any position bottom name 'local 16' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Block all' ignore-warnings true
+m add access-rule layer Network position 1 name 'in to any' source.1 in destination.1 Any service.1 Any action 'Apply Layer' inline-layer Network_in_to_any ignore-warnings true
 
 # Traffic from zone lab to zone (any other)
-m add access-layer name Network_lab_to_any add-default-rule false
-m add access-rule layer Network_lab_to_any position bottom name 'global 1' source.1 global_bad action Drop track.type Log comments 'blocked company-wide'
-m add access-rule layer Network_lab_to_any position bottom name 'local 2' source.1 Network_internals destination.1 firewall_all service.1 x_rule__ipproto-icmp action Accept track.type Log comments 'ping the firewall'
-m add access-rule layer Network_lab_to_any position bottom name 'local 3' destination.1 blocked action Drop track.type Log comments 'known bad'
-m add access-rule layer Network_lab_to_any position bottom name 'local 4' source.1 Network_internals destination.1 Network_internals service.1 web_ports destination-negate true action Accept track.type Log comments web
-m add access-rule layer Network_lab_to_any position bottom name 'local 6' source.1 Network_internals service.1 ident action Reject track.type Log
-m add access-rule layer Network_lab_to_any position bottom name 'local 10' source.1 lab_net service.1 lab_tools action Accept track.type Log
-m add access-rule layer Network_lab_to_any position bottom name 'local 11' source.1 lan destination.1 dmz_servers service.1 web_ports action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_lab_to_any position bottom name 'local 12' source.1 lab_net service.1 x_rule__ipproto-proto_200 action Accept track.type Log
-m add access-rule layer Network_lab_to_any position bottom name 'local 13' source.1 lan destination.1 .updates.example.com service.1 https source-negate true action Accept track.type Log
-m add access-rule layer Network_lab_to_any position bottom name 'local 14' source.1 lan6 action Accept track.type Log
-m add access-rule layer Network_lab_to_any position bottom name 'local 15' source.1 lan destination.1 .www.example.org service.1 http service.2 web_alt action Accept track.type Log
-m add access-rule layer Network_lab_to_any position bottom name 'local 16' action Drop track.type Log comments 'Block all'
-m add access-rule layer Network position 2 name 'lab to any' source.1 lab action 'Apply Layer' inline-layer Network_lab_to_any
+m add access-layer name Network_lab_to_any add-default-rule false ignore-warnings true
+m add access-rule layer Network_lab_to_any position bottom name 'global 1' source.1 global_bad destination.1 Any service.1 Any action Drop track.type Log comments 'blocked company-wide' ignore-warnings true
+m add access-rule layer Network_lab_to_any position bottom name 'local 2' source.1 Network_internals destination.1 firewall_all service.1 x_rule__ipproto-icmp action Accept track.type Log comments 'ping the firewall' ignore-warnings true
+m add access-rule layer Network_lab_to_any position bottom name 'local 3' source.1 Any destination.1 blocked service.1 Any action Drop track.type Log comments 'known bad' ignore-warnings true
+m add access-rule layer Network_lab_to_any position bottom name 'local 4' source.1 Network_internals destination.1 Network_internals service.1 web_ports destination-negate true action Accept track.type Log comments web ignore-warnings true
+m add access-rule layer Network_lab_to_any position bottom name 'local 6' source.1 Network_internals destination.1 Any service.1 ident action Reject track.type Log ignore-warnings true
+m add access-rule layer Network_lab_to_any position bottom name 'local 10' source.1 lab_net destination.1 Any service.1 lab_tools action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_lab_to_any position bottom name 'local 11' source.1 lan destination.1 dmz_servers service.1 web_ports action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_lab_to_any position bottom name 'local 12' source.1 lab_net destination.1 Any service.1 x_rule__ipproto-proto_200 action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_lab_to_any position bottom name 'local 13' source.1 lan destination.1 .updates.example.com service.1 https source-negate true action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_lab_to_any position bottom name 'local 14' source.1 lan6 destination.1 Any service.1 Any action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_lab_to_any position bottom name 'local 15' source.1 lan destination.1 .www.example.org service.1 http service.2 web_alt action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_lab_to_any position bottom name 'local 16' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Block all' ignore-warnings true
+m add access-rule layer Network position 2 name 'lab to any' source.1 lab destination.1 Any service.1 Any action 'Apply Layer' inline-layer Network_lab_to_any ignore-warnings true
 
 # Rules of layer Network for traffic of no zone pair above
-m add access-rule layer Network position 3 name 'global 1' source.1 global_bad action Drop track.type Log comments 'blocked company-wide'
-m add access-rule layer Network position 4 name 'local 2' source.1 Network_internals destination.1 firewall_all service.1 x_rule__ipproto-icmp action Accept track.type Log comments 'ping the firewall'
-m add access-rule layer Network position 5 name 'local 3' destination.1 blocked action Drop track.type Log comments 'known bad'
-m add access-rule layer Network position 6 name 'local 4' source.1 Network_internals destination.1 Network_internals service.1 web_ports destination-negate true action Accept track.type Log comments web
-m add access-rule layer Network position 7 name 'local 6' source.1 Network_internals service.1 ident action Reject track.type Log
-m add access-rule layer Network position 8 name 'local 8' source.1 out destination.1 web_pub service.1 http service.2 https action Accept track.type Log comments 'public web, as it arrives'
-m add access-rule layer Network position 9 name 'local 9' source.1 out destination.1 dmz_servers service.1 smtp action Accept track.type Log
-m add access-rule layer Network position 10 name 'local 11' source.1 lan destination.1 dmz_servers service.1 web_ports action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network position 11 name 'local 12' source.1 lab_net service.1 x_rule__ipproto-proto_200 action Accept track.type Log
-m add access-rule layer Network position 12 name 'local 13' source.1 lan destination.1 .updates.example.com service.1 https source-negate true action Accept track.type Log
-m add access-rule layer Network position 13 name 'local 14' source.1 lan6 action Accept track.type Log
-m add access-rule layer Network position 14 name 'local 15' source.1 lan destination.1 .www.example.org service.1 http service.2 web_alt action Accept track.type Log
-m add access-rule layer Network position 15 name 'local 16' action Drop track.type Log comments 'Block all'
+m add access-rule layer Network position 3 name 'global 1' source.1 global_bad destination.1 Any service.1 Any action Drop track.type Log comments 'blocked company-wide' ignore-warnings true
+m add access-rule layer Network position 4 name 'local 2' source.1 Network_internals destination.1 firewall_all service.1 x_rule__ipproto-icmp action Accept track.type Log comments 'ping the firewall' ignore-warnings true
+m add access-rule layer Network position 5 name 'local 3' source.1 Any destination.1 blocked service.1 Any action Drop track.type Log comments 'known bad' ignore-warnings true
+m add access-rule layer Network position 6 name 'local 4' source.1 Network_internals destination.1 Network_internals service.1 web_ports destination-negate true action Accept track.type Log comments web ignore-warnings true
+m add access-rule layer Network position 7 name 'local 6' source.1 Network_internals destination.1 Any service.1 ident action Reject track.type Log ignore-warnings true
+m add access-rule layer Network position 8 name 'local 8' source.1 out destination.1 web_pub service.1 http service.2 https action Accept track.type Log comments 'public web, as it arrives' ignore-warnings true
+m add access-rule layer Network position 9 name 'local 9' source.1 out destination.1 dmz_servers service.1 smtp action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 10 name 'local 11' source.1 lan destination.1 dmz_servers service.1 web_ports action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network position 11 name 'local 12' source.1 lab_net destination.1 Any service.1 x_rule__ipproto-proto_200 action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 12 name 'local 13' source.1 lan destination.1 .updates.example.com service.1 https source-negate true action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 13 name 'local 14' source.1 lan6 destination.1 Any service.1 Any action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 14 name 'local 15' source.1 lan destination.1 .www.example.org service.1 http service.2 web_alt action Accept track.type Log ignore-warnings true
+m add access-rule layer Network position 15 name 'local 16' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Block all' ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'

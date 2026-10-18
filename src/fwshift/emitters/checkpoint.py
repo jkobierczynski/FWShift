@@ -92,9 +92,27 @@ m() {{
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {{
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }}
 """
+
+
+def _cell(column: str, members: List[str]) -> List[str]:
+    """The words that fill one cell of an access rule. An empty cell is written as Any: a cell the command leaves
+    out is stored as None, which matches nothing (seen on R82.20)."""
+    return [f"{column}.{index} {q(member)}" for index, member in enumerate(members or ["Any"], 1)]
+
+
+_NAT_CELLS = (("original-source", "Any"), ("original-destination", "Any"), ("original-service", "Any"),
+              ("translated-source", "Original"), ("translated-destination", "Original"),
+              ("translated-service", "Original"))  # fmt: skip
+
+
+def _nat_cells(words: List[str]) -> List[str]:
+    """All six cells of a NAT rule, in order, each written out: what it names, or Any or Original."""
+    given = dict(zip(words[0::2], words[1::2]))
+    assert set(given) <= {column for column, _ in _NAT_CELLS}, words
+    return [word for column, default in _NAT_CELLS for word in (column, given.get(column, default))]
 
 
 def q(text: str) -> str:
@@ -267,6 +285,11 @@ class _Emitter:
         self.layer_count = 0
 
     def cmd(self, *words: str) -> None:
+        # Every add takes ignore-warnings: a management server warns where an object repeats a port or address another
+        # object already has ("The port is already used by another service": tcp/22 of its own `ssh`, R82.20) and then
+        # refuses the call, though the object is the one the policy needs. Errors (a name taken) still stop the script.
+        if words and words[0].split()[0] == "add":
+            words = (*words, "ignore-warnings", "true")
         self.lines.append("m " + " ".join(words))
 
     def comment(self, text: str) -> None:
@@ -534,7 +557,7 @@ class _Emitter:
         sources = row.sources or (row.src_zones if row.standalone else [])
         destinations = row.destinations or (row.dst_zones if row.standalone else [])
         for column, members in (("source", sources), ("destination", destinations), ("service", row.services)):
-            words += [f"{column}.{index} {q(member)}" for index, member in enumerate(members, 1)]
+            words += _cell(column, members)
         if rule.negate_source:
             words.append("source-negate true")
         if rule.negate_destination:
@@ -552,7 +575,7 @@ class _Emitter:
     def _cleanup(self, layer: str, position: str, accept: bool, comment: str) -> None:
         self.cmd(
             "add access-rule layer", q(layer), "position", position, "name", q("FWShift cleanup"),
-            "action", "Accept" if accept else "Drop", "track.type", "None" if accept else "Log", "comments", _text(comment),
+            *_cell("source", []), *_cell("destination", []), *_cell("service", []), "action", "Accept" if accept else "Drop", "track.type", "None" if accept else "Log", "comments", _text(comment),
         )  # fmt: skip
 
     def _applies(self, rule: Rule, src: Optional[str], dst: Optional[str]) -> bool:
@@ -638,8 +661,8 @@ class _Emitter:
             self.position += 1
             words = ["add access-rule layer", q(self.layer), "position", str(self.position)]
             words += ["name", _text(f"{src or 'any'} to {dst or 'any'}")]
-            words += ["source.1", q(src)] if src else []
-            words += ["destination.1", q(dst)] if dst else []
+            words += _cell("source", [src] if src else []) + _cell("destination", [dst] if dst else [])
+            words += _cell("service", [])
             self.cmd(*words, "action", q("Apply Layer"), "inline-layer", q(name))
         self.comment(f"Rules of layer {self.layer}" + (" for traffic of no zone pair above" if classes else ""))
         self._fill(self.layer, [rows[i] for i in top_rows], top[1], numbered=True)
@@ -798,13 +821,13 @@ class _Emitter:
         state = [] if nat.enabled else ["enabled false"]
         note = nat.name + (f": {nat.description}" if nat.description else "")
         head = ["add nat-rule package", q(self.package), "position bottom"]
-        self.cmd(*head, *words, "method", method, *state, "comments", _text(note))
+        self.cmd(*head, *_nat_cells(words), "method", method, *state, "comments", _text(note))
         self.nat_written += 1
         if source is not None and source.kind == SnatKind.STATIC and source.bidirectional:
             # The inbound half: traffic to the translated address goes to the real one.
             back = ["original-destination", q(self._member(source.addresses[0]))]
             back += ["translated-destination", q(self._member(nat.sources[0]))]
-            self.cmd(*head, *back, "method static", *state, "comments", _text(nat.name + " (inbound)"))
+            self.cmd(*head, *_nat_cells(back), "method static", *state, "comments", _text(nat.name + " (inbound)"))
             report.add(
                 "nat", nat.origin, Severity.INFO, "NAT_BIDIRECTIONAL",
                 "bi-directional static NAT written as two rules, one for each direction",

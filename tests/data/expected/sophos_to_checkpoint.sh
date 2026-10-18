@@ -30,56 +30,56 @@ m() {
 
 # A zone has no content of its own: one that exists already is used as it is.
 zone() {
-    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1"
+    mgmt_cli show security-zone name "$1" $MGMT_OPTS -s "$SID" >/dev/null 2>&1 || m add security-zone name "$1" ignore-warnings true
 }
 
 # Network objects
-m add network name lan-net subnet 10.10.0.0 mask-length 15
-m add host name web-1 ip-address 10.20.0.10
-m add host name mail-1 ip-address 10.20.0.25
-m add host name web-public ip-address 198.51.100.10
-m add host name mail-public ip-address 198.51.100.25
-m add address-range name admin-range ip-address-first 10.10.5.10 ip-address-last 10.10.5.20
-m add network name partner-net subnet 10.99.0.0 mask-length 16
-m add host name scada-server ip-address 10.10.7.15
-m add network name plc-net subnet 10.30.1.0 mask-length 24
-m add network name lan6-net subnet 2001:db8:10:: mask-length 48
-m add dns-domain name .updates.example.com is-sub-domain false
-m add dns-domain name .mirror.example.net is-sub-domain false
-m add group name any-example-org comments 'FWSHIFT PLACEHOLDER, matches nothing: wildcard host name *.example.org'
-m add group name Blocked_countries comments 'FWSHIFT PLACEHOLDER, matches nothing: country group'
-m add host name h-10.10.0.53 ip-address 10.10.0.53
-m add host name h-10.11.0.53 ip-address 10.11.0.53
-m add group name dns-servers members.1 h-10.10.0.53 members.2 h-10.11.0.53
-m add group name dmz-servers members.1 web-1 members.2 mail-1 comments 'Servers that are published'
-m add group name update-sites members.1 .mirror.example.net members.2 .updates.example.com
+m add network name lan-net subnet 10.10.0.0 mask-length 15 ignore-warnings true
+m add host name web-1 ip-address 10.20.0.10 ignore-warnings true
+m add host name mail-1 ip-address 10.20.0.25 ignore-warnings true
+m add host name web-public ip-address 198.51.100.10 ignore-warnings true
+m add host name mail-public ip-address 198.51.100.25 ignore-warnings true
+m add address-range name admin-range ip-address-first 10.10.5.10 ip-address-last 10.10.5.20 ignore-warnings true
+m add network name partner-net subnet 10.99.0.0 mask-length 16 ignore-warnings true
+m add host name scada-server ip-address 10.10.7.15 ignore-warnings true
+m add network name plc-net subnet 10.30.1.0 mask-length 24 ignore-warnings true
+m add network name lan6-net subnet 2001:db8:10:: mask-length 48 ignore-warnings true
+m add dns-domain name .updates.example.com is-sub-domain false ignore-warnings true
+m add dns-domain name .mirror.example.net is-sub-domain false ignore-warnings true
+m add group name any-example-org comments 'FWSHIFT PLACEHOLDER, matches nothing: wildcard host name *.example.org' ignore-warnings true
+m add group name Blocked_countries comments 'FWSHIFT PLACEHOLDER, matches nothing: country group' ignore-warnings true
+m add host name h-10.10.0.53 ip-address 10.10.0.53 ignore-warnings true
+m add host name h-10.11.0.53 ip-address 10.11.0.53 ignore-warnings true
+m add group name dns-servers members.1 h-10.10.0.53 members.2 h-10.11.0.53 ignore-warnings true
+m add group name dmz-servers members.1 web-1 members.2 mail-1 comments 'Servers that are published' ignore-warnings true
+m add group name update-sites members.1 .mirror.example.net members.2 .updates.example.com ignore-warnings true
 
 # Services
-m add service-tcp name HTTP port 80 match-for-any false
-m add service-tcp name HTTPS port 443 match-for-any false
-m add service-tcp name DNS-tcp53 port 53 match-for-any false
-m add service-udp name DNS-udp53 port 53 match-for-any false
-m add service-group name DNS members.1 DNS-tcp53 members.2 DNS-udp53
-m add service-tcp name SMTP port 25 match-for-any false
-m add service-tcp name smtp-alt port 2525 match-for-any false
-m add service-tcp name SSH port 22 match-for-any false
-m add service-tcp name MODBUS port 502 match-for-any false
-m add service-tcp name app-ports-tcp8080 port 8080 match-for-any false
-m add service-tcp name app-ports-tcp8443 port 8443 match-for-any false
-m add service-tcp name app-ports-tcp9000-9010 port 9000-9010 match-for-any false
-m add service-group name app-ports members.1 app-ports-tcp8080 members.2 app-ports-tcp8443 members.3 app-ports-tcp9000-9010
-m add service-udp name syslog-from-high port 514 source-port 1024-65535 match-for-any false
-m add service-icmp name PING icmp-type 8
-m add service-icmp name TIMESTAMP icmp-type 13
-m add service-icmp6 name PING6 icmp-type 128
-m add service-other name GRE ip-protocol 47 match-for-any false
-m add service-group name Web_Access members.1 HTTP members.2 HTTPS comments 'HTTP and HTTPS'
-m add service-group name basic-net members.1 DNS members.2 PING
-m add service-group name NAT_of_LAN_to_Internet_web_services members.1 Web_Access members.2 DNS comments 'the services of NAT rule NAT of LAN to Internet web'
-m add address-range name All-IPv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255
-m add address-range name r-10.10.0.0-10.10.5.9 ip-address-first 10.10.0.0 ip-address-last 10.10.5.9
-m add address-range name r-10.10.5.21-10.11.255.255 ip-address-first 10.10.5.21 ip-address-last 10.11.255.255
-m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+m add service-tcp name HTTP port 80 match-for-any false ignore-warnings true
+m add service-tcp name HTTPS port 443 match-for-any false ignore-warnings true
+m add service-tcp name DNS-tcp53 port 53 match-for-any false ignore-warnings true
+m add service-udp name DNS-udp53 port 53 match-for-any false ignore-warnings true
+m add service-group name DNS members.1 DNS-tcp53 members.2 DNS-udp53 ignore-warnings true
+m add service-tcp name SMTP port 25 match-for-any false ignore-warnings true
+m add service-tcp name smtp-alt port 2525 match-for-any false ignore-warnings true
+m add service-tcp name SSH port 22 match-for-any false ignore-warnings true
+m add service-tcp name MODBUS port 502 match-for-any false ignore-warnings true
+m add service-tcp name app-ports-tcp8080 port 8080 match-for-any false ignore-warnings true
+m add service-tcp name app-ports-tcp8443 port 8443 match-for-any false ignore-warnings true
+m add service-tcp name app-ports-tcp9000-9010 port 9000-9010 match-for-any false ignore-warnings true
+m add service-group name app-ports members.1 app-ports-tcp8080 members.2 app-ports-tcp8443 members.3 app-ports-tcp9000-9010 ignore-warnings true
+m add service-udp name syslog-from-high port 514 source-port 1024-65535 match-for-any false ignore-warnings true
+m add service-icmp name PING icmp-type 8 ignore-warnings true
+m add service-icmp name TIMESTAMP icmp-type 13 ignore-warnings true
+m add service-icmp6 name PING6 icmp-type 128 ignore-warnings true
+m add service-other name GRE ip-protocol 47 match-for-any false ignore-warnings true
+m add service-group name Web_Access members.1 HTTP members.2 HTTPS comments 'HTTP and HTTPS' ignore-warnings true
+m add service-group name basic-net members.1 DNS members.2 PING ignore-warnings true
+m add service-group name NAT_of_LAN_to_Internet_web_services members.1 Web_Access members.2 DNS comments 'the services of NAT rule NAT of LAN to Internet web' ignore-warnings true
+m add address-range name All-IPv4 ip-address-first 0.0.0.0 ip-address-last 255.255.255.255 ignore-warnings true
+m add address-range name r-10.10.0.0-10.10.5.9 ip-address-first 10.10.0.0 ip-address-last 10.10.5.9 ignore-warnings true
+m add address-range name r-10.10.5.21-10.11.255.255 ip-address-first 10.10.5.21 ip-address-last 10.11.255.255 ignore-warnings true
+m add address-range name All-IPv6 ip-address-first :: ip-address-last ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ignore-warnings true
 
 # Security zones
 zone WAN
@@ -88,83 +88,83 @@ zone LAN
 zone OT
 
 # Traffic from zone WAN to zone DMZ
-m add access-layer name Network_WAN_to_DMZ add-default-rule false
-m add access-rule layer Network_WAN_to_DMZ position bottom name 'Block countries' source.1 Blocked_countries destination.1 All-IPv4 action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report. Geo block'
-m add access-rule layer Network_WAN_to_DMZ position bottom name 'Internet to web' source.1 All-IPv4 destination.1 web-public service.1 HTTPS action Accept track.type Log comments 'Published web server'
-m add access-rule layer Network_WAN_to_DMZ position bottom name 'Internet to mail' source.1 All-IPv4 destination.1 mail-public service.1 smtp-alt action Accept track.type Log comments 'Mail arrives on port 2525'
-m add access-rule layer Network_WAN_to_DMZ position bottom name 'Old test rule' source.1 All-IPv4 service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off'
-m add access-rule layer Network_WAN_to_DMZ position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 1 name 'WAN to DMZ' source.1 WAN destination.1 DMZ action 'Apply Layer' inline-layer Network_WAN_to_DMZ
+m add access-layer name Network_WAN_to_DMZ add-default-rule false ignore-warnings true
+m add access-rule layer Network_WAN_to_DMZ position bottom name 'Block countries' source.1 Blocked_countries destination.1 All-IPv4 service.1 Any action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report. Geo block' ignore-warnings true
+m add access-rule layer Network_WAN_to_DMZ position bottom name 'Internet to web' source.1 All-IPv4 destination.1 web-public service.1 HTTPS action Accept track.type Log comments 'Published web server' ignore-warnings true
+m add access-rule layer Network_WAN_to_DMZ position bottom name 'Internet to mail' source.1 All-IPv4 destination.1 mail-public service.1 smtp-alt action Accept track.type Log comments 'Mail arrives on port 2525' ignore-warnings true
+m add access-rule layer Network_WAN_to_DMZ position bottom name 'Old test rule' source.1 All-IPv4 destination.1 Any service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off' ignore-warnings true
+m add access-rule layer Network_WAN_to_DMZ position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 1 name 'WAN to DMZ' source.1 WAN destination.1 DMZ service.1 Any action 'Apply Layer' inline-layer Network_WAN_to_DMZ ignore-warnings true
 
 # Traffic from zone LAN to zone WAN
-m add access-layer name Network_LAN_to_WAN add-default-rule false
-m add access-rule layer Network_LAN_to_WAN position bottom name 'LAN to Internet web' source.1 lan-net destination.1 All-IPv4 service.1 Web_Access service.2 DNS action Accept track.type Log comments 'Browsing, with a linked NAT rule'
-m add access-rule layer Network_LAN_to_WAN position bottom name 'LAN web again' source.1 lan-net destination.1 All-IPv4 service.1 HTTP action Accept track.type None comments 'Never matches: the rule above takes it'
-m add access-rule layer Network_LAN_to_WAN position bottom name 'Old test rule' source.1 All-IPv4 service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off'
-m add access-rule layer Network_LAN_to_WAN position bottom name 'Reject the rest from LAN' source.1 All-IPv4 action Reject track.type Log
-m add access-rule layer Network_LAN_to_WAN position bottom name 'LAN6 to Internet' source.1 lan6-net destination.1 All-IPv6 service.1 Web_Access service.2 PING6 action Accept track.type Log comments 'IPv6 rulebase'
-m add access-rule layer Network_LAN_to_WAN position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 2 name 'LAN to WAN' source.1 LAN destination.1 WAN action 'Apply Layer' inline-layer Network_LAN_to_WAN
+m add access-layer name Network_LAN_to_WAN add-default-rule false ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'LAN to Internet web' source.1 lan-net destination.1 All-IPv4 service.1 Web_Access service.2 DNS action Accept track.type Log comments 'Browsing, with a linked NAT rule' ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'LAN web again' source.1 lan-net destination.1 All-IPv4 service.1 HTTP action Accept track.type None comments 'Never matches: the rule above takes it' ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'Old test rule' source.1 All-IPv4 destination.1 Any service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off' ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'Reject the rest from LAN' source.1 All-IPv4 destination.1 Any service.1 Any action Reject track.type Log ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'LAN6 to Internet' source.1 lan6-net destination.1 All-IPv6 service.1 Web_Access service.2 PING6 action Accept track.type Log comments 'IPv6 rulebase' ignore-warnings true
+m add access-rule layer Network_LAN_to_WAN position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 2 name 'LAN to WAN' source.1 LAN destination.1 WAN service.1 Any action 'Apply Layer' inline-layer Network_LAN_to_WAN ignore-warnings true
 
 # Traffic from zone LAN to zone DMZ
-m add access-layer name Network_LAN_to_DMZ add-default-rule false
-m add access-rule layer Network_LAN_to_DMZ position bottom name 'Admins to DMZ' source.1 admin-range destination.1 dmz-servers service.1 SSH service.2 PING action Accept track.type Log
-m add access-rule layer Network_LAN_to_DMZ position bottom name 'LAN to DMZ web not mail' source.1 lan-net destination.1 mail-1 service.1 Web_Access destination-negate true action Accept track.type Log comments 'Exclusion of one kind'
-m add access-rule layer Network_LAN_to_DMZ position bottom name 'LAN SSH out-2' source.1 r-10.10.0.0-10.10.5.9 source.2 r-10.10.5.21-10.11.255.255 destination.1 All-IPv4 service.1 SSH action Accept track.type Log comments 'Exclusions of two kinds: skipped for the admins when they go to the DMZ'
-m add access-rule layer Network_LAN_to_DMZ position bottom name 'Finance to app' source.1 All-IPv4 destination.1 web-1 service.1 app-ports action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report. Matches known users'
-m add access-rule layer Network_LAN_to_DMZ position bottom name 'Old test rule' source.1 All-IPv4 service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off'
-m add access-rule layer Network_LAN_to_DMZ position bottom name 'Reject the rest from LAN' source.1 All-IPv4 action Reject track.type Log
-m add access-rule layer Network_LAN_to_DMZ position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 3 name 'LAN to DMZ' source.1 LAN destination.1 DMZ action 'Apply Layer' inline-layer Network_LAN_to_DMZ
+m add access-layer name Network_LAN_to_DMZ add-default-rule false ignore-warnings true
+m add access-rule layer Network_LAN_to_DMZ position bottom name 'Admins to DMZ' source.1 admin-range destination.1 dmz-servers service.1 SSH service.2 PING action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_LAN_to_DMZ position bottom name 'LAN to DMZ web not mail' source.1 lan-net destination.1 mail-1 service.1 Web_Access destination-negate true action Accept track.type Log comments 'Exclusion of one kind' ignore-warnings true
+m add access-rule layer Network_LAN_to_DMZ position bottom name 'LAN SSH out-2' source.1 r-10.10.0.0-10.10.5.9 source.2 r-10.10.5.21-10.11.255.255 destination.1 All-IPv4 service.1 SSH action Accept track.type Log comments 'Exclusions of two kinds: skipped for the admins when they go to the DMZ' ignore-warnings true
+m add access-rule layer Network_LAN_to_DMZ position bottom name 'Finance to app' source.1 All-IPv4 destination.1 web-1 service.1 app-ports action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report. Matches known users' ignore-warnings true
+m add access-rule layer Network_LAN_to_DMZ position bottom name 'Old test rule' source.1 All-IPv4 destination.1 Any service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off' ignore-warnings true
+m add access-rule layer Network_LAN_to_DMZ position bottom name 'Reject the rest from LAN' source.1 All-IPv4 destination.1 Any service.1 Any action Reject track.type Log ignore-warnings true
+m add access-rule layer Network_LAN_to_DMZ position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 3 name 'LAN to DMZ' source.1 LAN destination.1 DMZ service.1 Any action 'Apply Layer' inline-layer Network_LAN_to_DMZ ignore-warnings true
 
 # Traffic from zone LAN to zone OT
-m add access-layer name Network_LAN_to_OT add-default-rule false
-m add access-rule layer Network_LAN_to_OT position bottom name 'LAN SSH out' source.1 lan-net destination.1 All-IPv4 service.1 SSH action Accept track.type Log comments 'Exclusions of two kinds: skipped for the admins when they go to the DMZ'
-m add access-rule layer Network_LAN_to_OT position bottom name 'LAN SSH out-2' source.1 r-10.10.0.0-10.10.5.9 source.2 r-10.10.5.21-10.11.255.255 destination.1 All-IPv4 service.1 SSH action Accept track.type Log comments 'Exclusions of two kinds: skipped for the admins when they go to the DMZ'
-m add access-rule layer Network_LAN_to_OT position bottom name 'Old test rule' source.1 All-IPv4 service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off'
-m add access-rule layer Network_LAN_to_OT position bottom name 'Reject the rest from LAN' source.1 All-IPv4 action Reject track.type Log
-m add access-rule layer Network_LAN_to_OT position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 4 name 'LAN to OT' source.1 LAN destination.1 OT action 'Apply Layer' inline-layer Network_LAN_to_OT
+m add access-layer name Network_LAN_to_OT add-default-rule false ignore-warnings true
+m add access-rule layer Network_LAN_to_OT position bottom name 'LAN SSH out' source.1 lan-net destination.1 All-IPv4 service.1 SSH action Accept track.type Log comments 'Exclusions of two kinds: skipped for the admins when they go to the DMZ' ignore-warnings true
+m add access-rule layer Network_LAN_to_OT position bottom name 'LAN SSH out-2' source.1 r-10.10.0.0-10.10.5.9 source.2 r-10.10.5.21-10.11.255.255 destination.1 All-IPv4 service.1 SSH action Accept track.type Log comments 'Exclusions of two kinds: skipped for the admins when they go to the DMZ' ignore-warnings true
+m add access-rule layer Network_LAN_to_OT position bottom name 'Old test rule' source.1 All-IPv4 destination.1 Any service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off' ignore-warnings true
+m add access-rule layer Network_LAN_to_OT position bottom name 'Reject the rest from LAN' source.1 All-IPv4 destination.1 Any service.1 Any action Reject track.type Log ignore-warnings true
+m add access-rule layer Network_LAN_to_OT position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 4 name 'LAN to OT' source.1 LAN destination.1 OT service.1 Any action 'Apply Layer' inline-layer Network_LAN_to_OT ignore-warnings true
 
 # Traffic from zone DMZ to zone WAN
-m add access-layer name Network_DMZ_to_WAN add-default-rule false
-m add access-rule layer Network_DMZ_to_WAN position bottom name 'DMZ updates' source.1 dmz-servers destination.1 update-sites service.1 HTTPS action Accept track.type Log
-m add access-rule layer Network_DMZ_to_WAN position bottom name 'Old test rule' source.1 All-IPv4 service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off'
-m add access-rule layer Network_DMZ_to_WAN position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 5 name 'DMZ to WAN' source.1 DMZ destination.1 WAN action 'Apply Layer' inline-layer Network_DMZ_to_WAN
+m add access-layer name Network_DMZ_to_WAN add-default-rule false ignore-warnings true
+m add access-rule layer Network_DMZ_to_WAN position bottom name 'DMZ updates' source.1 dmz-servers destination.1 update-sites service.1 HTTPS action Accept track.type Log ignore-warnings true
+m add access-rule layer Network_DMZ_to_WAN position bottom name 'Old test rule' source.1 All-IPv4 destination.1 Any service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off' ignore-warnings true
+m add access-rule layer Network_DMZ_to_WAN position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 5 name 'DMZ to WAN' source.1 DMZ destination.1 WAN service.1 Any action 'Apply Layer' inline-layer Network_DMZ_to_WAN ignore-warnings true
 
 # Traffic from zone OT to zone LAN
-m add access-layer name Network_OT_to_LAN add-default-rule false
-m add access-rule layer Network_OT_to_LAN position bottom name 'OT to SCADA' source.1 plc-net destination.1 scada-server service.1 MODBUS service.2 syslog-from-high action Accept track.type None
-m add access-rule layer Network_OT_to_LAN position bottom name 'DNS in office hours' source.1 All-IPv4 destination.1 dns-servers service.1 basic-net action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.'
-m add access-rule layer Network_OT_to_LAN position bottom name 'Old test rule' source.1 All-IPv4 service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off'
-m add access-rule layer Network_OT_to_LAN position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 6 name 'OT to LAN' source.1 OT destination.1 LAN action 'Apply Layer' inline-layer Network_OT_to_LAN
+m add access-layer name Network_OT_to_LAN add-default-rule false ignore-warnings true
+m add access-rule layer Network_OT_to_LAN position bottom name 'OT to SCADA' source.1 plc-net destination.1 scada-server service.1 MODBUS service.2 syslog-from-high action Accept track.type None ignore-warnings true
+m add access-rule layer Network_OT_to_LAN position bottom name 'DNS in office hours' source.1 All-IPv4 destination.1 dns-servers service.1 basic-net action Accept track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report.' ignore-warnings true
+m add access-rule layer Network_OT_to_LAN position bottom name 'Old test rule' source.1 All-IPv4 destination.1 Any service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off' ignore-warnings true
+m add access-rule layer Network_OT_to_LAN position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 6 name 'OT to LAN' source.1 OT destination.1 LAN service.1 Any action 'Apply Layer' inline-layer Network_OT_to_LAN ignore-warnings true
 
 # Traffic from zone WAN to zone (any other)
-m add access-layer name Network_WAN_to_any add-default-rule false
-m add access-rule layer Network_WAN_to_any position bottom name 'Block countries' source.1 Blocked_countries destination.1 All-IPv4 action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report. Geo block'
-m add access-rule layer Network_WAN_to_any position bottom name 'Old test rule' source.1 All-IPv4 service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off'
-m add access-rule layer Network_WAN_to_any position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 7 name 'WAN to any' source.1 WAN action 'Apply Layer' inline-layer Network_WAN_to_any
+m add access-layer name Network_WAN_to_any add-default-rule false ignore-warnings true
+m add access-rule layer Network_WAN_to_any position bottom name 'Block countries' source.1 Blocked_countries destination.1 All-IPv4 service.1 Any action Drop track.type Log enabled false comments 'FWSHIFT: disabled by the converter, see the report. Geo block' ignore-warnings true
+m add access-rule layer Network_WAN_to_any position bottom name 'Old test rule' source.1 All-IPv4 destination.1 Any service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off' ignore-warnings true
+m add access-rule layer Network_WAN_to_any position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 7 name 'WAN to any' source.1 WAN destination.1 Any service.1 Any action 'Apply Layer' inline-layer Network_WAN_to_any ignore-warnings true
 
 # Traffic from zone LAN to zone (any other)
-m add access-layer name Network_LAN_to_any add-default-rule false
-m add access-rule layer Network_LAN_to_any position bottom name 'Old test rule' source.1 All-IPv4 service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off'
-m add access-rule layer Network_LAN_to_any position bottom name 'Reject the rest from LAN' source.1 All-IPv4 action Reject track.type Log
-m add access-rule layer Network_LAN_to_any position bottom name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
-m add access-rule layer Network position 8 name 'LAN to any' source.1 LAN action 'Apply Layer' inline-layer Network_LAN_to_any
+m add access-layer name Network_LAN_to_any add-default-rule false ignore-warnings true
+m add access-rule layer Network_LAN_to_any position bottom name 'Old test rule' source.1 All-IPv4 destination.1 Any service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off' ignore-warnings true
+m add access-rule layer Network_LAN_to_any position bottom name 'Reject the rest from LAN' source.1 All-IPv4 destination.1 Any service.1 Any action Reject track.type Log ignore-warnings true
+m add access-rule layer Network_LAN_to_any position bottom name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
+m add access-rule layer Network position 8 name 'LAN to any' source.1 LAN destination.1 Any service.1 Any action 'Apply Layer' inline-layer Network_LAN_to_any ignore-warnings true
 
 # Rules of layer Network for traffic of no zone pair above
-m add access-rule layer Network position 9 name 'Old test rule' source.1 All-IPv4 service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off'
-m add access-rule layer Network position 10 name 'FWShift cleanup' action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.'
+m add access-rule layer Network position 9 name 'Old test rule' source.1 All-IPv4 destination.1 Any service.1 GRE service.2 TIMESTAMP action Accept track.type None enabled false comments 'Switched off' ignore-warnings true
+m add access-rule layer Network position 10 name 'FWShift cleanup' source.1 Any destination.1 Any service.1 Any action Drop track.type Log comments 'Added by FWShift: the source drops what no rule allows.' ignore-warnings true
 
 # NAT rules of package Standard
-m add nat-rule package Standard position bottom original-destination web-public original-service HTTPS translated-destination web-1 method static comments Publish_web
-m add nat-rule package Standard position bottom original-destination mail-public original-service smtp-alt translated-destination mail-1 translated-service SMTP method static comments 'Publish_mail: Port 2525 outside, 25 on the server'
-m add nat-rule package Standard position bottom original-source mail-1 translated-source mail-public method static comments Mail_server_out
-m add nat-rule package Standard position bottom original-source lan-net original-destination partner-net method static comments 'No_NAT_to_partner: Reached through a tunnel'
-m add host name h-198.51.100.1 ip-address 198.51.100.1
-m add nat-rule package Standard position bottom translated-source h-198.51.100.1 method hide comments Default_SNAT_IPv4
+m add nat-rule package Standard position bottom original-source Any original-destination web-public original-service HTTPS translated-source Original translated-destination web-1 translated-service Original method static comments Publish_web ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination mail-public original-service smtp-alt translated-source Original translated-destination mail-1 translated-service SMTP method static comments 'Publish_mail: Port 2525 outside, 25 on the server' ignore-warnings true
+m add nat-rule package Standard position bottom original-source mail-1 original-destination Any original-service Any translated-source mail-public translated-destination Original translated-service Original method static comments Mail_server_out ignore-warnings true
+m add nat-rule package Standard position bottom original-source lan-net original-destination partner-net original-service Any translated-source Original translated-destination Original translated-service Original method static comments 'No_NAT_to_partner: Reached through a tunnel' ignore-warnings true
+m add host name h-198.51.100.1 ip-address 198.51.100.1 ignore-warnings true
+m add nat-rule package Standard position bottom original-source Any original-destination Any original-service Any translated-source h-198.51.100.1 translated-destination Original translated-service Original method hide comments Default_SNAT_IPv4 ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'
