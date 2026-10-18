@@ -8,7 +8,7 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.36.2 (alpha) |
+| Version | 0.36.3 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Meraki MX (read the answers of the Dashboard API for one network: VLANs, objects, the outbound and layer 7 rules, port forwarding, 1:1 and 1:many NAT, the inbound table with NAT exceptions; write a curl script that puts the outbound and NAT tables); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
 | Tests | 6118, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables and nftables**: rulesets loaded into a Linux kernel and real packets forwarded through it (below; and the lab of 0.32.0, also on the author's machine). **AWS, Azure and Google Cloud**: the lab policy's conversion loaded into a real account by the lab, and real connections between instances checked (0.32.1, below). **FortiOS**: the lab policy's conversion loaded on a FortiGate-VM (FortiOS 8.0.1, AWS Marketplace) and real connections through it checked (0.32.1, below). **PAN-OS**: the same on a VM-Series (PAN-OS 11.2.15, AWS Marketplace). Nothing has been loaded on an ASA, an IOS router, a Huawei USG, a Stormshield firewall, a Meraki MX, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
@@ -2165,6 +2165,48 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-18: version 0.36.3
+
+**The IOS output loaded on a Catalyst 8000V.** The lab's 8000V passed on its third run, the sixth firewall of tier 3
+to pass and the first device loaded with FWShift's Cisco IOS output; the runs before it found what the lab needs to
+reach the router, nothing in the converted policy.
+
+**Built**
+
+* The lab, tier 3, the 8000V, with what the ASAv and vSRX runs taught: ready once `show ip interface brief | include
+  GigabitEthernet` lists GigabitEthernet2 to 4 (filtered, for the pager); lines typed one at a time after the prompt; a
+  2048-bit key; the router's own view kept after the probes (interfaces, zones, zone pairs with their sessions, routes,
+  the configuration). The image is "Cisco Catalyst 8000V SD-WAN & Router - PAYG - DNA Essentials", named
+  `Cisco-C8K-PAYG-ESS-<version>-<id>`; the lab looks for `Cisco-C8K-PAYG-ESS-*` (it had `Cisco-C8K-*`, which also
+  matches the bring-your-own-licence and DNA Advantage editions).
+* Day 0 configuration for the 8000V in its user data (Cisco's `Section: IOS configuration`): the run's key whole, as a
+  `key-string` wrapped at 64 characters, for `ec2-user`, and `ip ssh server algorithm publickey rsa-sha2-512
+  rsa-sha2-256 ssh-rsa`; ssh is given `PubkeyAcceptedAlgorithms=+ssh-rsa`. (`{ssh_key_lines}` in a vendor's user data:
+  the key's base64 part, wrapped.)
+* Every ssh and scp of the lab offers only the run's key (`IdentitiesOnly=yes`): an ssh agent's keys go first
+  otherwise, and a device that allows three tries (IOS XE) can refuse the login before the run's key is tried.
+* The first refused login of a run is followed by one `ssh -v`, whose lines about the login (the key offered or
+  skipped, the server's answer, the signatures it takes) go to boot.txt.
+* An image given with `--ami` that does not exist in the region stops the run before anything is made (it went on to
+  Terraform, which failed).
+
+**Tested**
+
+* The first 8000V run, with `--ami`: the id was of another region (the subscription's launch page shows the id of the
+  region chosen there); `describe-images` said so and the run went on to Terraform. Nothing was made.
+* The second run found the image by its name (IOS XE 26.02.1, c5.xlarge, us-east-1) and booted it; SSH as `ec2-user`
+  was refused for the whole boot, "Permission denied (publickey,keyboard-interactive,password)". Its console: IOS XE
+  takes no ssh-rsa signature by default (`SSH_COMPLIANCE_SSH_RSA_DISABLED`, "from IOS-XE release 17.16.1 onwards"), and
+  its own set-up (CVAC, from the instance's metadata) gave `ec2-user` the AWS key as an MD5 `key-hash`; every session
+  was set up and every login failed at authentication. Two possible causes: a server that does not announce the RSA
+  signatures it takes leaves OpenSSH none to use with an RSA key, and the lab's ssh offered an agent's keys first.
+* The third run, by the author, with the Day 0 configuration and only the run's key: **PASSED** (local 32, ok 112,
+  ok-unasserted 16): the converted zone-based firewall taken without an error, every connection through the router as
+  the source decides. Which of the two fixes the login needed is not known from the result.
+* The suite (6,649 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: NAT on any device (the lab policy has none); a Check Point policy installed on a gateway; the Check
+  Point vendor of tier 3 and the VMs of tier 2, never run.
 
 ### 2026-10-18: version 0.36.2
 

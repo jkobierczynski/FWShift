@@ -531,8 +531,12 @@ def test_ssh_to_the_asav_allows_ssh_rsa_and_only_there() -> None:
     prefix = labrun.ssh_prefix(Path("k"), "admin", "192.0.2.4", Path("kh"), options=tier3.VENDORS["asav"].ssh_options)
     assert "HostKeyAlgorithms=+ssh-rsa" in prefix and "PubkeyAcceptedAlgorithms=+ssh-rsa" in prefix
     assert prefix[-1] == "admin@192.0.2.4"
-    others = {name: (v.ssh_options, v.key_bits) for name, v in tier3.VENDORS.items() if name != "asav"}
-    assert all(value == ((), 4096) for value in others.values()), others
+    others = {name: v.ssh_options for name, v in tier3.VENDORS.items() if name not in ("asav", "c8000v")}
+    assert all(value == () for value in others.values()), others
+    assert tier3.VENDORS["c8000v"].ssh_options == ("PubkeyAcceptedAlgorithms=+ssh-rsa",)
+    # 2048 bits for the ASAv (its 511-character key line) and the 8000V (the size AWS makes); 4096 elsewhere
+    bits = {name: v.key_bits for name, v in tier3.VENDORS.items()}
+    assert {name for name, value in bits.items() if value != 4096} == {"asav", "c8000v"} and bits["asav"] == 2048
 
 
 def test_no_algorithm_in_common_ends_the_wait_at_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -568,7 +572,8 @@ def test_the_asav_run_keeps_the_firewalls_own_view_after_the_probes(tmp_path: Pa
     assert lines[0] == "terminal pager 0" and lines[-1] == "exit"
     assert "show interface ip brief" in lines and "show asp drop" in lines and "show access-list" in lines
     assert "packet-tracer input inside tcp 10.20.1.10 40000 10.20.2.10 22 detailed" in lines  # (admin-ssh passes it)
-    assert all(not v.diagnose() for name, v in tier3.VENDORS.items() if name not in ("asav", "vsrx", "checkpoint"))
+    assert all(not v.diagnose() for name, v in tier3.VENDORS.items() if name not in ("asav", "vsrx", "checkpoint", "c8000v"))
+    assert "show policy-map type inspect zone-pair sessions" in tier3.VENDORS["c8000v"].diagnose()
     assert "show security policies hit-count" in tier3.VENDORS["vsrx"].diagnose()
     runner = labrun.Runner(tmp_path, echo=False)
     runner.dry_run = True
@@ -607,7 +612,8 @@ def test_a_session_that_answers_almost_nothing_fails(tmp_path: Path, monkeypatch
     monkeypatch.setattr(runner, "run_paced", lambda *args, **kwargs: "U")
     with pytest.raises(labrun.LabError, match="answered almost nothing"):
         tier3.session(runner, tmp_path / "id_lab", "admin", "192.0.2.4", ["terminal pager 0"], "ERROR:", "load", prompt=r"[>#] ?$")
-    assert tier3.VENDORS["asav"].prompt and all(not v.prompt for name, v in tier3.VENDORS.items() if name != "asav")
+    paced = {name for name, v in tier3.VENDORS.items() if v.prompt}
+    assert paced == {"asav", "c8000v"}, paced  # (the 8000V paced too, before its first run: an IOS CLI like the ASA's)
 
 
 def test_the_asav_interface_names_are_read_from_the_firewall() -> None:
@@ -702,3 +708,81 @@ def test_the_check_point_load_names_every_interface_in_one_call_and_installs(tmp
     assert re.search(vendor.errors, "FWLAB-FAILED: publish") and re.search(vendor.errors, "FAILED: mgmt_cli add host")
     with pytest.raises(labrun.LabError, match="--ami"):
         tier3.find_ami(labrun.Runner(tmp_path, echo=False), "eu-west-1", "")
+
+
+def test_the_c8000v_waits_for_its_data_interfaces() -> None:
+    """Ready once `show ip interface brief` lists GigabitEthernet2 to 4, not when the command alone is echoed."""
+    vendor = tier3.VENDORS["c8000v"]
+    answer = ("Interface              IP-Address      OK? Method Status                Protocol\n"
+              "GigabitEthernet1       10.0.0.5        YES DHCP   up                    up\n"
+              "GigabitEthernet2       unassigned      YES unset  administratively down down\n"
+              "GigabitEthernet3       unassigned      YES unset  administratively down down\n"
+              "GigabitEthernet4       unassigned      YES unset  administratively down down\n")  # fmt: skip
+    assert re.search(vendor.ready_answer, answer)
+    typed = "router#show ip interface brief | include GigabitEthernet2 GigabitEthernet3 GigabitEthernet4\n"
+    assert not re.search(vendor.ready_answer, typed + "GigabitEthernet1       10.0.0.5  YES DHCP up up\n")
+    assert "|" in vendor.ready
+    assert vendor.key_bits == 2048 and vendor.prompt and vendor.diagnose()[-1] == "exit"
+    assert re.search(vendor.prompt, "fwlab(config-if)#") and re.search(vendor.prompt, "ip-10-0-0-5#")
+
+
+def test_an_image_id_of_another_region_stops_the_run_at_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The first 8000V run: the id was of another region; describe-images said so and the run went on to Terraform."""
+    runner = labrun.Runner(tmp_path, echo=False)
+    monkeypatch.setattr(runner, "run", lambda *args, **kwargs: "")  # (stdout: nothing; the error went to stderr)
+    with pytest.raises(labrun.LabError, match="does not exist in us-east-1.*one region"):
+        tier3.describe_ami(runner, "us-east-1", "ami-0896874345732e1ce")
+    monkeypatch.setattr(runner, "run", lambda *args, **kwargs: "Cisco-C8K-PAYG-ESS-26.02.01-x\tabc123\n")
+    tier3.describe_ami(runner, "us-east-1", "ami-0896874345732e1ce")
+
+
+def test_only_the_runs_key_is_offered() -> None:
+    """The second 8000V run: "Permission denied (publickey...)" for the whole boot. An ssh agent's keys are offered before
+    -i unless IdentitiesOnly says otherwise, and IOS XE allows three tries: only the run's key is offered."""
+    prefix = labrun.ssh_prefix(Path("k"), "ec2-user", "192.0.2.4", Path("kh"))
+    assert prefix[prefix.index("IdentitiesOnly=yes") - 1] == "-o"
+    for name in ("labrun.py", "tier1.py", "tier2.py", "tier3.py"):
+        text = (Path(labrun.__file__).parent / name).read_text(encoding="utf-8")
+        assert text.count('"BatchMode=yes"') == text.count('"BatchMode=yes", "-o", "IdentitiesOnly=yes"'), name
+
+
+def test_the_c8000v_gets_the_runs_key_whole_and_takes_rsa_signatures(tmp_path: Path) -> None:
+    """The second 8000V run: every login refused; IOS XE 26.02 takes no ssh-rsa signature by default, and its own set-up
+    gave ec2-user an MD5 key-hash of the AWS key. Day 0: the key as a key-string, the RSA signatures allowed."""
+    key = tmp_path / "id_lab"
+    blob = "AAAAB3NzaC1yc2E" + "x" * 357
+    key.with_suffix(".pub").write_text(f"ssh-rsa {blob} fwlab\n", encoding="utf-8")
+    data = tier3.user_data(tier3.VENDORS["c8000v"], key)
+    lines = data.splitlines()
+    assert lines[0] == "Section: IOS configuration"
+    assert "ip ssh server algorithm publickey rsa-sha2-512 rsa-sha2-256 ssh-rsa" in lines
+    start = lines.index("  key-string") + 1
+    body = lines[start:lines.index("  exit")]
+    assert "".join(part.strip() for part in body) == blob and all(len(part) <= 67 for part in body)
+    assert lines[lines.index("ip ssh pubkey-chain") + 1] == " username ec2-user"
+    assert "{" not in data
+
+
+def test_a_refused_key_is_traced_once_with_ssh_v(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The second 8000V run kept only "Permission denied" thirty times: the first refusal is followed by one ssh -v,
+    whose lines about the login go to boot.txt."""
+    runner = labrun.Runner(tmp_path, echo=False)
+    calls: List[List[str]] = []
+
+    def fake_run(args: List[str], **kwargs: object) -> str:
+        calls.append(list(args))
+        if "-v" in args:
+            runner.last_stderr = ("debug1: Remote protocol version 2.0, remote software version Cisco-1.25\n"
+                                  "debug1: kex_input_ext_info: server-sig-algs=<rsa-sha2-256,rsa-sha2-512>\n"
+                                  "debug1: Offering public key: k RSA SHA256:abc explicit\ndebug1: noise\n")  # fmt: skip
+            return ""
+        if len(calls) < 4:
+            raise labrun.LabError("ssh failed (255): ec2-user@192.0.2.4: Permission denied (publickey,keyboard-interactive,password).")
+        return "GigabitEthernet2  x\nGigabitEthernet3  x\nGigabitEthernet4  x\n"
+
+    monkeypatch.setattr(runner, "run", fake_run)
+    monkeypatch.setattr(tier3.time, "sleep", lambda seconds: None)
+    tier3.wait_cli(runner, tmp_path / "id_lab", "ec2-user", "192.0.2.4", "show ip interface brief", tier3._C8000V_READY, 30)
+    text = (tmp_path / "boot.txt").read_text()
+    assert text.count("ssh -v, once") == 1 and "server-sig-algs=" in text and "Offering public key" in text and "noise" not in text
+    assert sum("-v" in c for c in calls) == 1

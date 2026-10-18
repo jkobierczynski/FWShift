@@ -355,7 +355,7 @@ def run_image(runner: Runner, args: Any) -> bool:
             key, user = Path(args.ssh_key), args.ssh_user or image.user
             known = runner.work / "known_hosts"
             prefix = in_switch(labrun.ssh_prefix(key, user, "127.0.0.1", known, SSH_PORT))
-            scp = in_switch(["scp", "-q", "-P", str(SSH_PORT), "-i", str(key), "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o",
+            scp = in_switch(["scp", "-q", "-P", str(SSH_PORT), "-i", str(key), "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=accept-new", "-o",
                              f"UserKnownHostsFile={known}"])  # fmt: skip
             start_vm(runner, Path(args.image), args.memory)
             if not runner.dry_run:

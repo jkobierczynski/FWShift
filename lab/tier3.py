@@ -219,6 +219,29 @@ def _asav_session(out: Path) -> List[str]:
 _VSRX_READY = r"(?sm)(?=.*^ge-0/0/0\s)(?=.*^ge-0/0/1\s)(?=.*^ge-0/0/2\s)"
 
 
+def _c8000v_user_data() -> str:
+    """Day 0 configuration in the user data (Cisco's format: `Section: IOS configuration`, one command a line). The second
+    run: every login of ec2-user refused, "Permission denied (publickey...)"; the image (IOS XE 26.02) takes no ssh-rsa
+    signature by default (SSH_COMPLIANCE_SSH_RSA_DISABLED, from 17.16.1), and its own set-up gave ec2-user the AWS key as
+    an MD5 key-hash. Here the run's key is given whole (key-string, wrapped) and the RSA signatures are allowed, with
+    ssh-rsa for a client that is not told which the router takes. {ssh_key_lines}: the key's base64 part, wrapped."""
+    return "\n".join(["Section: IOS configuration", "hostname fwlab-c8k",
+                      "ip ssh server algorithm publickey rsa-sha2-512 rsa-sha2-256 ssh-rsa",
+                      "ip ssh pubkey-chain", " username ec2-user", "  key-string", "{ssh_key_lines}", "  exit", " exit", " exit", ""])  # fmt: skip
+
+
+# All three data interfaces listed by `show ip interface brief` (an interface line: the name at the start of a line;
+# filtered, so that no pager stops it).
+_C8000V_READY = r"(?sm)(?=.*^GigabitEthernet2\s)(?=.*^GigabitEthernet3\s)(?=.*^GigabitEthernet4\s)"
+
+
+def _c8000v_diagnose() -> List[str]:
+    """The router's interfaces, zones, zone pairs with their sessions and counters, routes, and the configuration."""
+    return ["terminal length 0", "show version", "show ip interface brief", "show zone security", "show zone-pair security",
+            "show policy-map type inspect zone-pair", "show policy-map type inspect zone-pair sessions", "show ip route",
+            "show ip arp", "show running-config", "exit"]  # fmt: skip
+
+
 # -- Check Point (All-In-One: gateway and management on one instance) --------------------------------------------
 
 # The data interfaces by zone: the second to fourth network card are eth1 to eth3 (Check Point's templates: device
@@ -353,10 +376,16 @@ VENDORS: Dict[str, Vendor] = {
                          ready_answer=r"API readiness test SUCCESSFUL", success=r"FWLAB-LOADED-42", diagnose=_checkpoint_diagnose,
                          uploads=_checkpoint_uploads, boot_minutes=60,
                          status="scripted from Check Point's templates and API reference, never run"),  # fmt: skip
-    "c8000v": Vendor("c8000v", "Cisco Catalyst 8000V, IOS XE (pay as you go)", "ios", "Cisco-C8K-*", "c5.xlarge", "ec2-user",
-                     "show version | include uptime", r"% Invalid input|% Incomplete command|% Ambiguous command|% Unknown command",
+    # Ready once its data interfaces are listed (the vSRX had none for a while after its CLI answered); lines typed one at
+    # a time after the prompt (the ASAv lost what was typed ahead); a 2048-bit key (the ASAv's limit; the size AWS makes).
+    # The image: "Cisco Catalyst 8000V SD-WAN & Router - PAYG - DNA Essentials", named Cisco-C8K-PAYG-ESS-<version>-<id>
+    # (26.02.01, October 2026); the pattern leaves out the bring-your-own-licence and DNA Advantage editions.
+    "c8000v": Vendor("c8000v", "Cisco Catalyst 8000V, IOS XE (pay as you go, DNA Essentials)", "ios", "Cisco-C8K-PAYG-ESS-*", "c5.xlarge", "ec2-user",
+                     "show ip interface brief | include GigabitEthernet", r"% Invalid input|% Incomplete command|% Ambiguous command|% Unknown command",
                      [x for p, i in (("ethernet1/2", "GigabitEthernet2"), ("ethernet1/3", "GigabitEthernet3"), ("ethernet1/1", "GigabitEthernet4"))
-                      for x in ("--interface-map", f"{p}={i}")], "", _c8000v_session, ready_answer=r"uptime"),  # fmt: skip
+                      for x in ("--interface-map", f"{p}={i}")], _c8000v_user_data(), _c8000v_session, ready_answer=_C8000V_READY,
+                     key_bits=2048, diagnose=_c8000v_diagnose, prompt=r"[>#] ?$", ssh_options=("PubkeyAcceptedAlgorithms=+ssh-rsa",),
+                     status="run: passed (Catalyst 8000V, IOS XE 26.02.1, PAYG DNA Essentials, 0.36.3)"),  # fmt: skip
     "asav": Vendor("asav", "Cisco ASAv (pay as you go)", "asa", "asav*", "c5.xlarge", "admin", "show version | include up",
                    r"ERROR:|% Invalid input|% Incomplete command", list(_ZONE_NETWORKS), _asav_user_data(), _asav_session,
                    "run: passed (ASAv 9.24.10, 0.36.1)",
@@ -399,6 +428,10 @@ def describe_ami(runner: Runner, region: str, ami: str) -> None:
     out = runner.run(["aws", "ec2", "describe-images", "--region", region, "--image-ids", ami, "--query",
                       "Images[0].[Name,join(',',ProductCodes[].ProductCodeId)]", "--output", "text"], check=False, fake="dry run\t")  # fmt: skip
     fields = out.strip().split("\t")
+    if not runner.dry_run and (not fields[0] or fields[0] == "None"):
+        # The first 8000V run: an id copied from the launch page of another region went on to Terraform, which failed.
+        raise LabError(f"image {ami} does not exist in {region}: an image id belongs to one region. Take the id the "
+                       "subscription's launch page shows with this region chosen, or run in the image's own region (--region)")
     labrun.save_state(runner.work, image=ami, image_name=fields[0] if fields else "", product_code=fields[1] if len(fields) > 1 else "")
 
 
@@ -436,6 +469,10 @@ def session(runner: Runner, key: Path, user: str, host: str, lines: List[str], e
 _NO_COMMON = "Unable to negotiate"
 
 
+# What `ssh -v` says about the login: the key offered or skipped, the firewall's answer, the signatures it takes.
+_SSH_AUTH_LINES = r"Offering|Server accepts|Authentications that can continue|server-sig-algs|kex_input_ext_info|no mutual signature|send_pubkey|Will attempt|Skipping|identity file|Remote protocol version|Authenticated|denied"
+
+
 def wait_cli(runner: Runner, key: Path, user: str, host: str, command: str, answer: str, minutes: float,
              options: Sequence[str] = ()) -> None:  # fmt: skip
     """Until the CLI answers the ready command as it should (PAN-OS: chassis ready, after its first commit). Every try is
@@ -445,6 +482,7 @@ def wait_cli(runner: Runner, key: Path, user: str, host: str, command: str, answ
     prefix = labrun.ssh_prefix(key, user, host, runner.work / "known_hosts", options=options)
     tries = runner.work / "boot.txt"
     last = ""
+    verbose_done = False
     while True:
         try:
             out = runner.run(prefix[:1] + ["-tt"] + prefix[1:], stdin=command + "\nexit\n", quiet=True, timeout=120)
@@ -456,6 +494,12 @@ def wait_cli(runner: Runner, key: Path, user: str, host: str, command: str, answ
             last = str(error)
         with tries.open("a", encoding="utf-8") as handle:
             handle.write(f"--- {time.strftime('%H:%M:%S')}\n{last.strip()}\n")
+            if "Permission denied" in last and not verbose_done:
+                # Once: what ssh offered and what the firewall said it takes (the second 8000V run had only "denied").
+                verbose_done = True
+                runner.run(prefix[:1] + ["-v"] + prefix[1:] + ["exit"], check=False, quiet=True, timeout=60)
+                seen = [line for line in runner.last_stderr.splitlines() if re.search(_SSH_AUTH_LINES, line)]
+                handle.write("ssh -v, once (the lines about the login):\n" + "\n".join(seen) + "\n")
         if _NO_COMMON in last:
             raise LabError(f"ssh and the firewall have no algorithm in common (waiting longer will not change it): {last.strip()[-300:]} "
                            "(every try in boot.txt, the firewall's console in console.txt)")  # fmt: skip
@@ -484,9 +528,11 @@ def user_data(vendor: Vendor, key: Path, password: str = "", image_name: str = "
     """The firewall's first-boot data, with the run's public key where it asks for one ({ssh_key}: its base64 part),
     the run's password where it asks for one ({enable_password}) and the image's version ({os_version})."""
     data = vendor.user_data.replace("{os_version}", checkpoint_version(image_name))
-    if "{ssh_key}" in data:
+    if "{ssh_key}" in data or "{ssh_key_lines}" in data:
         parts = key.with_suffix(".pub").read_text(encoding="utf-8").split()
-        data = data.replace("{ssh_key}", parts[1] if len(parts) > 1 else parts[0])
+        blob = parts[1] if len(parts) > 1 else parts[0]
+        data = data.replace("{ssh_key_lines}", "\n".join("   " + blob[i:i + 64] for i in range(0, len(blob), 64)))
+        data = data.replace("{ssh_key}", blob)
     if "{enable_password}" in data:
         if not password:
             raise LabError(f"the first-boot data of {vendor.name} needs a password, and none was given")
@@ -565,7 +611,7 @@ def run_vendor(runner: Runner, args: Any) -> bool:
 def upload(runner: Runner, key: Path, user: str, host: str, files: Sequence[Path], options: Sequence[str] = ()) -> None:
     """Copies files to the firewall's home folder (scp, with the run's key and the firewall's ssh settings)."""
     extra = [word for option in options for word in ("-o", option)]
-    runner.run(["scp", "-q", "-i", str(key), "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o",
+    runner.run(["scp", "-q", "-i", str(key), "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=accept-new", "-o",
                 f"UserKnownHostsFile={runner.work / 'known_hosts'}", "-o", "ConnectTimeout=10", *extra, *[str(f) for f in files],
                 f"{user}@{host}:"], timeout=300)  # fmt: skip
 

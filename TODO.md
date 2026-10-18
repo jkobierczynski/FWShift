@@ -337,7 +337,7 @@ The lab (`lab/`, 0.32.0; the clouds first run in 0.32.1) scripts much of what fo
 iptables, RouterOS, OPNsense and pfSense on a local host (tier 2), and FortiGate, VM-Series, vSRX, Catalyst 8000V and
 ASAv from the AWS Marketplace (tier 3), each loaded with the converted lab policy and checked with real connections.
 nftables and iptables run in the test suite; AWS, Azure and Google Cloud have run in real accounts, and of tier 3 the
-FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1). Still open there:
+FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), and the Catalyst 8000V (0.36.3). Still open there:
 
 * the first real run of each of the others, and correcting what it finds (the Marketplace image names, the logins,
   the reload commands of OPNsense and pfSense);

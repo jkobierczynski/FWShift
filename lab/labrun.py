@@ -294,9 +294,12 @@ class Target:
 
 
 def ssh_prefix(key: Path, user: str, host: str, known: Path, port: int = 22, options: Sequence[str] = ()) -> List[str]:
-    """The ssh command that reaches a host; options: more -o settings, for a host that needs them (an old host key type)."""
+    """The ssh command that reaches a host; options: more -o settings, for a host that needs them (an old host key type).
+    Only the run's key is offered (IdentitiesOnly): the keys of an ssh agent go first otherwise, and a router that allows
+    three tries (IOS XE) can refuse the login before the run's key is tried (the second 8000V run: "Permission denied
+    (publickey...)" for the whole boot)."""
     extra = [word for option in options for word in ("-o", option)]
-    return ["ssh", "-i", str(key), "-p", str(port), "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o",
+    return ["ssh", "-i", str(key), "-p", str(port), "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=accept-new", "-o",
             f"UserKnownHostsFile={known}", "-o", "ConnectTimeout=10", "-o", "ServerAliveInterval=15", *extra, f"{user}@{host}"]  # fmt: skip
 
 

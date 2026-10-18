@@ -65,10 +65,10 @@ differently, including a source and its conversion read back (section 17).
 > **Status.** Version 0.36 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). AWS, Azure and Google Cloud output was loaded into a real account
-> by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1), PAN-OS output on a VM-Series (PAN-OS 11.2.15), ASA output on an ASAv (9.24.10) and Junos output on a vSRX (23.4R2-S8.9); the policy has no NAT. Check Point output for
+> by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1), PAN-OS output on a VM-Series (PAN-OS 11.2.15), ASA output on an ASAv (9.24.10), Junos output on a vSRX (23.4R2-S8.9) and IOS output on a Catalyst 8000V (IOS XE 26.02.1); the policy has no NAT. Check Point output for
 > the same policy was loaded on a management server by hand (R82.20): published and verified, not installed on a
 > gateway. Output for
-> Cisco IOS, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, NSX, RouterOS and Forcepoint has
+> Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, NSX, RouterOS and Forcepoint has
 > not been loaded on a device yet, and the Terraform output has not been applied with Terraform; the Check Point input format follows the
 > API documentation, the FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
@@ -85,7 +85,7 @@ differently, including a source and its conversion read back (section 17).
 > the JSON of gcloud and what Google Cloud makes of its firewall rules and policies from Google's API reference and
 > documentation; the gcloud commands of a script were run against a project only by the lab. IOS and IOS XE syntax and behaviour are
 > taken from Cisco's configuration guides and command references and its IOS XE YANG models, with the grammars of
-> published readers of IOS configurations as corroboration; nothing was loaded on a router. Huawei USG syntax and
+> published readers of IOS configurations as corroboration; the lab loaded IOS output on one Catalyst 8000V (IOS XE 26.02.1). Huawei USG syntax and
 > behaviour are taken from Huawei's documentation, its support pages and configurations it publishes in them; the
 > command reference could not be read, and the indentation of `display current-configuration` is assumed.
 > Stormshield's configuration files are read as its own tools and their test data show them (the syntax of a rule
@@ -116,8 +116,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.36.2.pyz --version
-python3 fwshift-0.36.2.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.36.3.pyz --version
+python3 fwshift-0.36.3.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -4855,6 +4855,10 @@ The output is commands for the system view, from `system-view` to `return`. Comm
 The output is configuration commands. Pasted in configuration mode they create zones, access lists, object groups,
 class maps, inspect policies and zone pairs; nothing changes until interfaces are put in the zones.
 
+> **Loaded on one router** (a Catalyst 8000V, IOS XE 26.02.1, by the lab): the lab policy's commands were taken
+> without an error and, with the zones on the interfaces, 128 connections through the router went as the source
+> decides. NAT was not in the policy.
+
 1. Convert, with `--interface-map` for the interfaces of the router that the zones' interfaces stand for:
 
    ```sh
@@ -5589,7 +5593,8 @@ deliberate: see *IPv4 and IPv6* in section 8.
   list of remarks only is empty, and how an empty class map matches are taken from the documentation or assumed and
   said. To IOS: the zone-based firewall only (no interface lists), IPv6 addresses as prefixes in the list (no object
   groups), no logging of inspected traffic, the zone membership and NAT left to you. The syntax follows Cisco's
-  documentation and its IOS XE YANG models; nothing was loaded on a router.
+  documentation and its IOS XE YANG models; the lab policy's output was loaded on one Catalyst 8000V (IOS XE 26.02.1)
+  and passed; reading a router's configuration has not been tried on a real export.
 * Terraform: the resources of hashicorp/aws, hashicorp/azurerm and hashicorp/google listed in section 3, as
   `terraform show -json` or a raw state of version 4 gives them, with what the AWS, Azure and Google Cloud sources cannot do. Resources made elsewhere (by
   hand, by another state, by a module whose state is apart) are not in the input; neither are the members of a group

@@ -86,7 +86,7 @@ def scp_copier(runner: Runner, key: Path, user: str, hosts: Dict[str, Any]) -> C
 
     def copy(target: Target, plan_file: Path) -> Tuple[str, str]:
         host = hosts[target.name]["mgmt_ip"]
-        runner.run(["scp", "-q", "-i", str(key), "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o", f"UserKnownHostsFile={known}",
+        runner.run(["scp", "-q", "-i", str(key), "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=accept-new", "-o", f"UserKnownHostsFile={known}",
                     str(plan_file), f"{user}@{host}:/tmp/fwlab-plan.json"], timeout=120)  # fmt: skip
         return "/opt/fwlab/probe.py", "/tmp/fwlab-plan.json"
 

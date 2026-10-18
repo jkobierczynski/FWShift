@@ -69,13 +69,14 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   for one synthetic policy: AWS security groups and Azure NSGs decided all 160 test connections between real
 >   instances as the source does (or as the report announced); on Google Cloud the 32 connections inside a zone
 >   differed, as announced, until 0.32.1 wrote them: then all 160 passed.
-> * **FortiOS**, **PAN-OS**, **Cisco ASA** and **Juniper SRX** output was loaded on a real FortiGate-VM (FortiOS 8.0.1),
->   VM-Series (PAN-OS 11.2.15), ASAv (9.24.10) and vSRX (Junos 23.4R2-S8.9), the AWS Marketplace images, by the lab,
+> * **FortiOS**, **PAN-OS**, **Cisco ASA**, **Juniper SRX** and **Cisco IOS XE** output was loaded on a real FortiGate-VM
+>   (FortiOS 8.0.1), VM-Series (PAN-OS 11.2.15), ASAv (9.24.10), vSRX (Junos 23.4R2-S8.9) and Catalyst 8000V (IOS XE
+>   26.02.1, the zone-based firewall), the AWS Marketplace images, by the lab,
 >   for the same policy: all 128 connections through each as the source decides. The policy has security rules and no NAT: NAT is not checked on a device.
 > * **Check Point** output for the same policy was loaded on a management server by hand (R82.20, a standalone
 >   installation): every call accepted, published, and the policy package verified. It has not been installed on a
 >   gateway with traffic through it.
-> * **Cisco IOS, Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall,
+> * **Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall,
 >   Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, VMware NSX, RouterOS and Forcepoint** output has **not been loaded on a
 >   device**, and the **Terraform** output has not been applied with Terraform. The Check Point input format is taken from the API
 >   documentation, not from a real export, the FTD syntax from Cisco's
@@ -107,7 +108,7 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   dump program have only talked to a stand-in written for the tests); Terraform from the documentation and source of its
 >   JSON output and the documentation and schemas of the AWS, Azure and Google providers; Google Cloud from Google's API
 >   reference and the gcloud documentation, and its scripts were run against a project only by the lab; IOS from Cisco's configuration
->   guides, command references and IOS XE YANG models, and nothing was loaded on a router; Huawei USG from Huawei's
+>   guides, command references and IOS XE YANG models, and loaded on one router (a Catalyst 8000V, IOS XE 26.02.1); Huawei USG from Huawei's
 >   documentation and support pages (its command reference could not be read), and nothing was loaded on a firewall;
 >   Stormshield from its command reference and, for the configuration files (whose rule syntax is not published), from
 >   its own tools and their test data, and nothing was run on a firewall; Meraki from the OpenAPI specification of the
@@ -192,8 +193,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.36.2.pyz --version
-python3 fwshift-0.36.2.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.36.3.pyz --version
+python3 fwshift-0.36.3.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
