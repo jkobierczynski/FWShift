@@ -138,15 +138,15 @@ Still open for Huawei: virtual systems (each as its own policy, chosen as
 rule groups, and whether a disabled group shows in display output; the ports of
 the predefined services as `display predefined-service` prints them; checking on
 a firewall the indentation of display output, the input form of IPv6 entries in
-address sets and that `disable` is taken in a new rule; reading the output back
-for `convert --compare`.
+address sets and that `disable` is taken in a new rule. (0.40.0: the output read
+back for `convert --compare`.)
 
 Still open for IOS: interface access lists as a target (for routers without the
 zone-based firewall); NAT of the NAT virtual interface, outside NAT and route
 maps; VRFs as separate routing tables; time ranges as schedules; checking on a
 router which addresses the zone-based firewall sees under NAT, how an empty class
-map matches and whether a list of remarks only is empty; reading the output back
-for `convert --compare`.
+map matches and whether a list of remarks only is empty. (0.40.0: the output
+read back for `convert --compare`; the NAT sides of a published host.)
 
 Still open for Google Cloud: the region of a regional policy in the answer of
 `get-effective-firewalls`; secure tags (resolved through the instances' tag
@@ -347,8 +347,14 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Cataly
   name, the NSv's X2 and X3,
   its zone commands and its login;
 * Sophos Firewall in tier 3: its XML API is switched on in the web console only, so a run would wait for that step;
-* the first run of each image of tier 3 on Azure and Google Cloud (0.39.0, scripted from the vendors' Terraform and
-  guides, never run), and the plans and image projects not found yet: the PAYG plans of the Catalyst 8000V and ASAv on
+* tier 3 on Google Cloud: each firewall's zone interfaces written Google Cloud's way (a `/32` address or DHCP, and the
+  subnet through its gateway), per vendor; until then a run there stops (`--untested`);
+* IOS: `ip nat inside source static ... extendable` for a published port also translates the replies of direct
+  connections to the host's own address and port (outside to 10.20.2.10:80 in the lab policy), and the converted rule
+  for the published service names the host's address with the published port: both seen by the review of 0.40.0,
+  neither yet written differently;
+* the first run of each image of tier 3 on Azure (0.39.0, scripted from the vendors' Terraform and guides, never
+  run), and the plans and image projects not found yet: the PAYG plans of the Catalyst 8000V and ASAv on
   Azure, pfSense Plus and OPNsense on Azure, the vSRX and the Catalyst 8000V on Google Cloud, SonicWall's BYOL offer;
 * the images not scripted yet ( Stormshield EVA, Sophos,
   Barracuda; WatchGuard and Forcepoint need tools of their own, Meraki a Dashboard);

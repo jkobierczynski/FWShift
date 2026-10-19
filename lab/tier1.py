@@ -378,6 +378,7 @@ def leftovers_gcp(runner: Runner, project: str) -> List[str]:
     out: List[str] = []
     for what, args in (("instance", ["instances", "list", f"--filter=labels.fwshift-lab={name}"]),
                        ("network", ["networks", "list", f"--filter=name~^{name}-"]),
+                       ("address", ["addresses", "list", f"--filter=name~^{name}-"]),
                        ("firewall policy", ["network-firewall-policies", "list", "--global", f"--filter=name={name}"])):  # fmt: skip
         text = runner.run(["gcloud", "compute", *args, "--project", project, "--format=value(name)"], check=False, quiet=True)
         out += [f"{what} {line.strip()}" for line in text.splitlines() if line.strip()]

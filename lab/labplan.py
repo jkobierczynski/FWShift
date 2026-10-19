@@ -318,6 +318,8 @@ def build_plan(target: str, report: Optional[Dict[str, Any]] = None, hosts: Sequ
             might = _might(simulator, point)
             inexact = sorted({name for name in might if statuses and statuses.get(name, "missing") != "exact"})
             deciding = _nat_for(policy, a.zone, pub["zone"], a.ip, pub["address"], pub["protocol"], pub["port"])
+            if deciding is None or deciding.name != pub["rule"]:
+                continue  # (another NAT rule matches first, or the rule's sources leave this host out)
             doubt = _nat_doubt(policy, nat_report, deciding, a.zone, pub["zone"], a.ip, pub["address"], pub["protocol"], pub["port"])
             if expected == "unknown":
                 why = "the source does not decide it surely"
@@ -417,6 +419,11 @@ def _check_nat(row: Dict[str, Any], result: Dict[str, Any]) -> None:
         return
     got = {k: result[k.replace("seen_from", "seen_as")] for k in expect if result.get(k.replace("seen_from", "seen_as"))}
     if not got:
+        if row.get("answered_by") and row.get("nat_asserted"):
+            # (every run's hosts have this probe: what answered a published address without saying who it is was no
+            # probe of the lab, a listener the translation should not have reached)
+            row.update(nat="FAIL", nat_wrong="no probe answered", verdict="FAIL")
+            return
         row["nat"] = "unseen"
         return
     wrong = [f"{k.replace('_', ' ')} {got[k]}, not {v}" for k, v in expect.items() if k in got and got[k] != v]

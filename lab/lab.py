@@ -100,6 +100,7 @@ def parser() -> argparse.ArgumentParser:
     r.add_argument("--target-version", help="tier2, OPNsense: the series of the base image (as --target-version of fwshift)")
     r.add_argument("--cloud", choices=("aws", "azure", "gcp"), default="aws", help="tier3: the cloud whose Marketplace image runs (aws)")
     r.add_argument("--cloud-image", help="tier3 on Azure: PUBLISHER:OFFER:SKU; on Google Cloud: the image or its family (projects/P/global/images/family/F)")
+    r.add_argument("--untested", action="store_true", help="tier3 on a cloud: run an image the lab knows does not fit that cloud yet (it will most likely fail)")
     r.add_argument("--ami", help="tier3: the image id, where the name the lab looks for does not find it")
     r.add_argument("--instance-type", help="tier3: the firewall's instance type")
     r.add_argument("--boot-minutes", type=float, default=None, help="how long to wait for the firewall's CLI (30; Check Point 60)")

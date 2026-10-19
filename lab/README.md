@@ -58,7 +58,8 @@ Everything a run makes is destroyed at the end, also when a step fails.
 
 * **The read-back** (0.38.0, tiers 2 and 3): after the probes the lab exports the policy as the firewall holds it
   and reads it with FWShift (`readback.py`), then compares it with `fwshift compare`: with what was loaded (the
-  converted output, where FWShift reads its own output back: FortiOS, PAN-OS, Junos, ASA, nftables, iptables), and
+  converted output, where FWShift reads its own output back: FortiOS, PAN-OS, Junos, ASA, IOS (0.40.0), nftables,
+  iptables), and
   with the source. Only differences between two of the lab's zones count: what an image keeps for its management
   interface lies outside them, and flows inside a zone do not pass the firewall. Certain differences are counted apart
   from possible ones (something one side holds is not read exactly). Against the output, the run should show none:
@@ -75,7 +76,7 @@ Everything a run makes is destroyed at the end, also when a step fails.
   | `fortigate` | `show` of the zones, objects, VIPs, IP pools, central SNAT and policies | FortiOS |
   | `panos` | `show` in configure mode, in `set` format | PAN-OS |
   | `vsrx` | `show configuration \| display inheritance no-comments \| display set \| no-more` | Junos |
-  | `c8000v` | `show running-config` | IOS (against the source only) |
+  | `c8000v` | `show running-config` | IOS (against the output as loaded, its zones switched on, since 0.40.0) |
   | `asav` | `show running-config` | ASA |
   | `checkpoint` | the Management API: every access layer's rulebase, the NAT rulebase, the layers (as the manual's export) | Check Point |
   | `sonicwall` | not read: SonicOS exports its settings (the file FWShift reads) from the web console only | |
@@ -259,15 +260,22 @@ Every vendor of tier 3 on every cloud (`python3 lab/lab.py list` shows the same)
 
 | Vendor | AWS | Azure | Google Cloud |
 |---|---|---|---|
-| FortiGate-VM | passed (PAYG) | scripted: `fortinet:fortinet_fortigate-vm:fortinet_fg-vm_payg_76_g2` (PAYG); custom data as Fortinet's templates write it (MIME, the configuration), the run's key for the VM's user | scripted: family `fortigate-72-payg` of `fortigcp-project-001` (PAYG; the 7.4 and 7.6 families not confirmed); the configuration in `user-data` |
-| VM-Series | passed (PAYG Bundle 1) | scripted: `paloaltonetworks:vmseries-flex:bundle1` | scripted: the newest `vmseries-flex-bundle1-*` of `paloaltonetworksgcp-public` |
+| FortiGate-VM | passed (PAYG) | scripted: `fortinet:fortinet_fortigate-vm:fortinet_fg-vm_payg_76_g2` (PAYG); custom data as Fortinet's templates write it (MIME, the configuration), the run's key for the VM's user | image found, not ready (below): family `fortigate-72-payg` of `fortigcp-project-001` (PAYG; the 7.4 and 7.6 families not confirmed); the configuration in `user-data` |
+| VM-Series | passed (PAYG Bundle 1) | scripted: `paloaltonetworks:vmseries-flex:bundle1` | image found, not ready (below): the newest `vmseries-flex-bundle1-*` of `paloaltonetworksgcp-public` |
 | vSRX | passed (PAYG) | scripted: `juniper-networks:vsrx-next-generation-firewall-payg:vsrx-azure-image-payg-b1` (from Juniper's 2022 templates: check it with `az vm image list --publisher juniper-networks --all`) | not scripted: on the Marketplace, its image project not found (logins as `gcp-user` only) |
 | Catalyst 8000V | passed (PAYG, DNA Essentials) | scripted: `cisco:cisco-c8000v-byol:17_12_01a-byol` (BYOL: the PAYG plan not found; unlicensed it forwards little, which the probes are) | not scripted: BYOL only, its image project not found |
-| ASAv | passed (PAYG) | scripted: `cisco:cisco-asav:asav-azure-byol` (BYOL, as the 8000V); Day 0 in the custom data | scripted: the newest `cisco-asav-9-*` of `cisco-public` (BYOL); Day 0 in the startup script |
-| Check Point | scripted (published and verified by hand) | scripted: `checkpoint:check-point-cg-r82:sg-ngtp` (PAYG); `/etc/cloud_config.py` as the custom data's interpreter, a standalone, as CloudGuardIaaS writes it | scripted: the newest `check-point-r8210-gw-payg-single-*` of `checkpoint-public`; the startup script and `instanceSSHKey` as CloudGuardIaaS writes them |
+| ASAv | passed (PAYG) | scripted: `cisco:cisco-asav:asav-azure-byol` (BYOL, as the 8000V); Day 0 in the custom data | image found, not ready (below): the newest `cisco-asav-9-*` of `cisco-public` (BYOL); Day 0 in the startup script |
+| Check Point | scripted (published and verified by hand) | scripted: `checkpoint:check-point-cg-r82:sg-ngtp` (PAYG); `/etc/cloud_config.py` as the custom data's interpreter, a standalone, as CloudGuardIaaS writes it | image found, not ready (below): the newest `check-point-r8210-gw-payg-single-*` of `checkpoint-public`; the startup script and `instanceSSHKey` as CloudGuardIaaS writes them |
 | pfSense Plus | passed | not scripted: the image is there (`netgate:pfsense-plus-public-cloud-fw-vpn-router`), its plan not found; Netgate: several NICs cannot be set up from the portal | not offered |
 | OPNsense | passed | not scripted: Deciso's image is there (`decisosalesbv:opnsense`), one NIC in its guide, its plan not found | no image |
 | SonicWall NSv | scripted | not scripted: BYOL only, the offer's id not found | not offered |
+
+**Google Cloud is not ready** (found by the review of 0.40.0): Google Cloud delivers through each subnet's gateway, not
+to a neighbour found by ARP (tier 1 found it for the test hosts, which route their own subnet through the gateway
+there), and the lab sets each firewall's zone interfaces as `/24` on the link, as on AWS and Azure: the firewall would
+not reach the hosts. Google Cloud's way, a `/32` address (or DHCP) and the subnet through its gateway, is not written
+for any vendor yet, so a run there stops before it starts anything; `--untested` runs it anyway (and will most likely
+fail). The module, the images and the first-boot data are there for when it is.
 
 The other images of the README's list (Sophos, Stormshield, Barracuda, WatchGuard, Forcepoint) are on Azure, and
 Barracuda and Forcepoint on Google Cloud as well; they are not scripted on any cloud (`lab.py list` says why). The

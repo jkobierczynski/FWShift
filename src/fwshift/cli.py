@@ -1013,7 +1013,7 @@ def _run_compare(args: argparse.Namespace) -> int:
 # The targets that use the networks behind the zones (--zone-network), and take them from the source where it says.
 NETWORK_TARGETS = ("asa", "pfsense", "opnsense", "barracuda", "nsx", "aws", "azure", "gcp", "terraform-aws", "terraform-azure",
                    "terraform-google", "meraki", "sonicwall")  # fmt: skip
-READ_BACK = ("asa", "azure", "fdm", "fortios", "iptables", "ip6tables", "junos", "nftables", "nsx", "panos", "routeros", "sophos", "watchguard")
+READ_BACK = ("asa", "azure", "fdm", "fortios", "huawei", "ios", "iptables", "ip6tables", "junos", "nftables", "nsx", "panos", "routeros", "sophos", "watchguard")
 
 
 def _alignment(source: Policy, back: Policy, options: Options) -> Tuple[Dict[str, str], List[str]]:
@@ -1025,7 +1025,7 @@ def _alignment(source: Policy, back: Policy, options: Options) -> Tuple[Dict[str
     if not theirs:
         return {}, []
     by_plain: Dict[str, str] = {}
-    prefix = plain(options.object_prefix or ("fws-" if back.vendor == "routeros" else ""))
+    prefix = plain(options.object_prefix or ("fws-" if back.vendor in ("routeros", "ios", "huawei") else ""))
     for name in theirs:
         key = plain(name)
         by_plain.setdefault(key, name)
@@ -1060,6 +1060,9 @@ def _compare_output(args: argparse.Namespace, source: Policy, source_report: aud
         if args.target == "routeros":
             # The jumps that switch the script on are disabled in it; what is compared is the policy once they are on.
             back = parse_routeros.parse(output.encode("utf-8"), back_report, activate=True)
+        elif args.target == "ios":
+            # The interfaces are put in their zones by commented lines at the end; compared is the policy once they are.
+            back = load(emit_ios.activate(output).encode("utf-8"), args.target, back_report)
         else:
             back = load(output.encode("utf-8"), args.target, back_report)
         transform.harden(back, back_report)

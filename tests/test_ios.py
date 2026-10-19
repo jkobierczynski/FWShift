@@ -1112,3 +1112,53 @@ def test_r36_icmp_type_and_code_numbers() -> None:
     for icmp_type, wanted in ((3, True), (8, True), (0, False)):
         pkt = Packet(units["GigabitEthernet0/0"], units["GigabitEthernet0/1"], "10.0.0.5", "192.0.2.9", "icmp", 0, 0, icmp_type)
         assert model_allows(model, pkt) is wanted, icmp_type
+
+
+def _run(argv: List[str]) -> int:
+    import contextlib
+    import io
+
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        try:
+            return cli.main(argv)
+        except SystemExit as stop:
+            return int(stop.code or 0)
+
+
+def test_nat_sides_name_where_the_published_host_is(tmp_path: Any) -> None:
+    """0.40.0: `ip nat inside source static` names the published host as its inside has it: the inside is the zone of
+    the host's own address, the outside where the connections come from (it was the NAT rule's zones, both outside)."""
+    import re
+    from pathlib import Path
+
+    lab = Path(__file__).resolve().parent.parent / "lab" / "policy" / "lab_panos.xml"
+    nets = ["--zone-network", "inside=10.20.1.0/24", "--zone-network", "dmz=10.20.2.0/24", "--zone-network", "outside=10.20.3.0/24"]
+    for extra, inside in ((nets, ["FWS-dmz", "FWS-inside"]), ([], ["FWS-inside"])):
+        out = tmp_path / "o.ios"
+        assert _run(["convert", str(lab), "--to", "ios", "-o", str(out), "-q", *extra]) in (0, 3)
+        text = out.read_text(encoding="utf-8")
+        found = re.findall(r"^! \(the interfaces of zone (\S+): ip nat (inside|outside)\)$", text, re.M)
+        assert sorted(z for z, side in found if side == "inside") == inside and [z for z, side in found if side == "outside"] == ["FWS-outside"], found
+        assert ("the interfaces toward 10.20.2.10" in text) == (not extra)
+
+
+def test_ios_output_is_read_back(tmp_path: Any) -> None:
+    """convert --compare reads IOS output back, with its interfaces in their zones (the commented lines at its end)."""
+    from fwshift.emitters import ios as emit_ios
+
+    report = tmp_path / "report.txt"
+    code = _run(["convert", str(DATA / "asa_sample.cfg"), "--to", "ios", "-o", str(tmp_path / "o"), "--report", str(report), "-q", "--compare"])
+    text = report.read_text(encoding="utf-8")
+    assert code in (0, 3) and "COMPARE_NOT_READ_BACK" not in text and "COMPARE_" in text, text[-2000:]
+    assert emit_ios.activate("! interface Gi2\n!  zone-member security FWS-a\n! ip nat inside source list X interface Gi4 overload\n") == \
+        "interface Gi2\n zone-member security FWS-a\n! ip nat inside source list X interface Gi4 overload\n"
+
+
+def test_huawei_output_is_read_back(tmp_path: Any) -> None:
+    """0.40.0: convert --compare reads Huawei output back; its zones are matched without FWShift's own prefix."""
+    report = tmp_path / "report.txt"
+    code = _run(["convert", str(DATA / "huawei_sample.cfg"), "--to", "huawei", "-o", str(tmp_path / "o"), "--report", str(report), "-q",
+                 "--compare", str(tmp_path / "compare.txt")])
+    text = report.read_text(encoding="utf-8")
+    assert code in (0, 3) and "COMPARE_NOT_READ_BACK" not in text and "COMPARE_" in text, text[-2000:]
+    assert "opened" not in (tmp_path / "compare.txt").read_text(encoding="utf-8").split("Notes")[0].split("compared):", 1)[1].split("\n")[0]

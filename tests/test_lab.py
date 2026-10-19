@@ -122,15 +122,20 @@ def test_the_check_of_nat() -> None:
     plan = {"target": "t", "flows": [flow("a", True, seen_from="10.20.3.4"), flow("b", True, seen_from="10.20.3.4"),
                                      flow("c", False, seen_from="10.20.3.4"), flow("d", True, seen_from="10.20.3.4"),
                                      flow("e", True, seen_from="10.20.3.10", answered_by="10.20.2.10"),
+                                     flow("f", True, seen_from="10.20.3.10", answered_by="10.20.2.10"),
                                      {"id": "z", "expected": "blocked", "asserted": True, "decided_by": "r", "why_not_asserted": ""}]}  # fmt: skip
     summary = labplan.check(plan, [{"id": "a", "observed": "passed", "seen_as": "10.20.3.4", "answered_by": "10.20.3.10"},
                                    {"id": "b", "observed": "passed", "seen_as": "10.20.1.10"},
                                    {"id": "c", "observed": "passed", "seen_as": "10.20.1.10"},
                                    {"id": "d", "observed": "passed"},
                                    {"id": "e", "observed": "passed", "seen_as": "10.20.3.10", "answered_by": "10.20.2.11"},
+                                   {"id": "f", "observed": "passed"},
                                    {"id": "z", "observed": "blocked"}])  # fmt: skip
     rows = {r["id"]: r for r in summary["rows"]}
-    assert {i: r.get("nat") for i, r in rows.items()} == {"a": "ok", "b": "FAIL", "c": "differs-announced", "d": "unseen", "e": "FAIL", "z": None}
+    # (f: a published address answered by no probe of the lab: something the translation should not have reached)
+    assert {i: r.get("nat") for i, r in rows.items()} == {"a": "ok", "b": "FAIL", "c": "differs-announced", "d": "unseen", "e": "FAIL", "f": "FAIL",
+                                                          "z": None}  # fmt: skip
+    assert rows["f"]["verdict"] == "FAIL" and rows["f"]["nat_wrong"] == "no probe answered"
     assert rows["b"]["verdict"] == "FAIL" and rows["c"]["verdict"] == "ok" and rows["d"]["verdict"] == "ok" and not summary["passed"]
     assert rows["e"]["nat_wrong"] == "answered by 10.20.2.11, not 10.20.2.10"
     text = labplan.render(summary)
@@ -183,8 +188,16 @@ def test_tier3_coverage() -> None:
     assert "on Google Cloud: not scripted" in tier3.describe()
 
 
-def test_tier3_cloud_refuses_what_is_not_there(tmp_path: Path) -> None:
+def test_tier3_cloud_refuses_what_is_not_there(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert labcli.main(["run", "tier3", "pfsense", "--cloud", "gcp", "--project", "p", "--dry-run", "--work", str(tmp_path)]) == 2
+    # Google Cloud: the images are found, but the firewalls' zone interfaces are not written its way yet (the review of
+    # 0.40.0): a run stops before it starts anything, unless --untested.
+    for name, clouds in tier3.CLOUD_IMAGES.items():
+        if "gcp" in clouds:
+            assert clouds["gcp"].open_point, name
+            assert labcli.main(["run", "tier3", name, "--cloud", "gcp", "--project", "p", "--dry-run", "--work", str(tmp_path)]) == 2
+            assert "not ready" in capsys.readouterr().err
+    assert all(not clouds["azure"].open_point for clouds in tier3.CLOUD_IMAGES.values() if "azure" in clouds)
     with pytest.raises(SystemExit):
         labcli.main(["run", "tier3", "fortigate", "--cloud", "oracle", "--dry-run", "--work", str(tmp_path)])
 
@@ -202,6 +215,12 @@ def test_tier3_cloud_first_boot(tmp_path: Path) -> None:
     assert gcp.startswith("#cloud-config\nruncmd:") and 'installationType="XGateway and Management (Standalone)X"' in gcp
     c8k = tier3.user_data(tier3.cloud_vendor(tier3.VENDORS["c8000v"], tier3.CLOUD_IMAGES["c8000v"]["azure"]), key)
     assert " username fwlab" in c8k  # (the VM's user on Azure, whom the Day 0 gives the key)
+    asa = tier3.user_data(tier3.cloud_vendor(tier3.VENDORS["asav"], tier3.CLOUD_IMAGES["asav"]["azure"]), key, "pw")
+    assert "username fwlab nopassword privilege 15" in asa and "username admin" not in asa  # (review of 0.40.0)
+    assert "username admin nopassword privilege 15" in tier3.user_data(tier3.VENDORS["asav"], key, "pw")
+    assert 'set accprofile "super_admin"' in data
+    assert tier3.cloud_os_version("check-point-r8210-gw-payg-single-v20250101") == "R8210"
+    assert tier3.cloud_os_version("check-point-cg-r82") == "R82" and tier3.cloud_os_version("x") == "R82"
     runner = labrun.Runner(tmp_path, dry_run=True, echo=False)
     assert tier3.find_gcp_image(runner, "projects/cisco-public/global/images/cisco-asav-9-*", "p") == "projects/cisco-public/global/images/cisco-asav-9-dry-run"
     with pytest.raises(labrun.LabError):
@@ -229,6 +248,25 @@ def test_readback_extracts() -> None:
                           "against_source": {"certain": 1, "possible": 0}}) == \
         "  read-back (nftables): the firewall holds the policy as converted (2 possible); 1 certain difference from the source " \
         "(announced in the report, or not) (readback.txt)"  # fmt: skip
+
+
+def test_readback_sees_a_changed_router(tmp_path: Path) -> None:
+    """The review of 0.40.0: the IOS read-back against the output counted no difference (its zones are FWS-inside ...,
+    the lab's inside ...). A zone pair taken out of the router's configuration is seen."""
+    runner = labrun.Runner(tmp_path, dry_run=True, echo=False)
+    target, options = tier3.conversion("c8000v")
+    out = tmp_path / "policy.ios"
+    labrun.fwshift(runner, target, out, options)
+    labplan.save(tmp_path / "summary.json", {"passed": True})
+    (tmp_path / "summary.txt").write_text("FWShift lab: ios\n  result: PASSED\n")
+    loaded = readback.as_loaded("ios", out.read_text()).splitlines()
+    at = next(i for i, line in enumerate(loaded) if line.startswith("zone-pair security") and "FWS-inside-FWS-dmz" in line)
+    changed = "\n".join(loaded[:at] + loaded[at + 2:]) + "\n"
+    same = readback.check(runner, target, out, "\n".join(loaded) + "\n", tier3.EXPORTS["c8000v"], options)
+    assert same["status"] == "read" and same["against_output"]["certain"] == 0, same
+    found = readback.check(runner, target, out, changed, tier3.EXPORTS["c8000v"], options)
+    assert found["against_output"]["certain"] >= 1, found
+    assert "FWS-inside -> FWS-dmz" in (tmp_path / "readback.txt").read_text()
 
 
 def test_readback_sees_a_changed_policy(tmp_path: Path) -> None:
@@ -437,7 +475,8 @@ def test_the_areas_of_pfsense_and_opnsense() -> None:
 
 DRY = [["tier1", "aws"], ["tier1", "azure"], ["tier1", "gcp", "--project", "p"], ["tier2", "nftables"], ["tier2", "iptables"],
        *[["tier2", n, "--image", "IMAGE", "--ssh-key", "KEY"] for n in ("routeros", "opnsense", "pfsense")], *[["tier3", n] for n in sorted(tier3.VENDORS)],
-       *[["tier3", n, "--cloud", c, *(["--project", "p"] if c == "gcp" else [])] for n in sorted(tier3.CLOUD_IMAGES) for c in sorted(tier3.CLOUD_IMAGES[n])]]  # fmt: skip
+       *[["tier3", n, "--cloud", c, *(["--project", "p", "--untested"] if c == "gcp" else [])] for n in sorted(tier3.CLOUD_IMAGES)
+         for c in sorted(tier3.CLOUD_IMAGES[n])]]  # fmt: skip
 CLOUD = {"azure", "gcp"}
 
 
@@ -473,13 +512,13 @@ def test_every_run_dry(tmp_path: Path, run: List[str], capsys: pytest.CaptureFix
     text = (work / "summary.txt").read_text()
     if run[0] == "tier1":
         assert "read-back" not in text
-    elif run[1] in ("checkpoint", "sonicwall", "c8000v", "routeros"):
+    elif run[1] in ("checkpoint", "sonicwall", "routeros"):
         assert "read-back: not read" in text, text
     else:
         assert summary.get("readback") is None or True
         found = json.loads((work / "summary.json").read_text())["readback"]
         assert found["status"] == "read", found
-        if run[1] in ("nftables", "iptables", "fortigate", "panos", "vsrx", "asav"):
+        if run[1] in ("nftables", "iptables", "fortigate", "panos", "vsrx", "asav", "c8000v"):
             assert found["against_output"]["certain"] == 0 and "holds the policy as converted" in text, (found, text)
         assert found["against_source"]["certain"] <= 1, found  # (at most the published port: NAT_PORT_TRANSLATION)
         assert (work / "readback.txt").exists() and text.index("read-back") < text.index("result: ")
@@ -968,6 +1007,22 @@ def test_only_the_runs_key_is_offered() -> None:
     for name in ("tier1.py", "tier2.py", "tier3.py"):  # (the scp commands; ssh_prefix above)
         text = (Path(labrun.__file__).parent / name).read_text(encoding="utf-8")
         assert text.count('"BatchMode=yes"') == text.count('"BatchMode=yes", "-o", "IdentitiesOnly=yes"'), name
+
+
+def test_the_c8000v_gets_the_nat_the_output_leaves_as_comments(tmp_path: Path) -> None:
+    """0.37.0 put NAT in the lab policy; the IOS output leaves it as comments (it changes traffic at once), as it leaves
+    the zones: the session puts in both, each interface on its side (the dmz, where the published server is, inside)."""
+    target, options = tier3.conversion("c8000v")
+    out = tmp_path / "policy.ios"
+    labrun.fwshift(labrun.Runner(tmp_path, dry_run=True, echo=False), target, out, options)
+    commands, sides = tier3.ios_nat(out.read_text())
+    assert sides == {"GigabitEthernet2": "inside", "GigabitEthernet3": "inside", "GigabitEthernet4": "outside"}, sides
+    assert "ip nat inside source static tcp 10.20.2.10 80 10.20.3.100 8080 extendable" in commands
+    assert any(c.startswith("ip nat inside source list FWS-NAT") and c.endswith("interface GigabitEthernet4 overload") for c in commands)
+    lines = tier3.VENDORS["c8000v"].session(out)
+    assert lines.index(" ip nat outside") > lines.index("interface GigabitEthernet4") and lines.index("end") > lines.index(commands[-1])
+    assert not any(line.startswith("!") or line.startswith("(") for line in lines)
+    assert tier3.ios_nat("hostname x\n") == ([], {})
 
 
 def test_the_c8000v_gets_the_runs_key_whole_and_takes_rsa_signatures(tmp_path: Path) -> None:

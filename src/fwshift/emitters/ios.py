@@ -69,6 +69,14 @@ def _prefixes(interval: Interval) -> List[str]:
     return out
 
 
+def activate(text: str) -> str:
+    """The output as it is once its interfaces are put in their zones: the commented `interface` and `zone-member
+    security` lines at its end switched on (for reading it back: `convert --compare`, the lab's read-back). The NAT
+    stays commented: the comparison does not compare NAT."""
+    out = re.sub(r"^! (interface \S+)$", r"\1", text, flags=re.M)
+    return re.sub(r"^!  (zone-member security \S+)$", r" \1", out, flags=re.M)
+
+
 def _printable(text: str) -> str:
     return "".join(c if c.isprintable() else " " for c in text)
 
@@ -364,6 +372,51 @@ class _Emitter:
         names = [self.options.interface_map.get(i, i) for i in transform.target_interfaces(self.p, self.options.zone_map, zone)]
         return names[0] if len(names) == 1 and re.fullmatch(r"[A-Za-z][A-Za-z0-9./:_-]*", names[0]) else ""
 
+    def _nat_sides(self) -> Tuple[List[str], List[str], List[str]]:
+        """The zones whose interfaces are ip nat inside and outside, for the NAT that is written, and the addresses of
+        published hosts whose zone is not known. `ip nat inside source static` names the host as its inside has it:
+        for a published host (destination NAT of the source) the inside is where the host is, the zone of its own
+        address, and the outside where the connections come from; for a source NAT the inside is where they come from."""
+        inside: List[str] = []
+        outside: List[str] = []
+        toward: List[str] = []
+        for nat in self.p.nat_rules:
+            if not self.nat_lines(nat):
+                continue
+            dnat = nat.destination_translation
+            if dnat is not None and nat.source_translation is None and transform.bidirectional_pair(self.p, nat) is None:
+                zones = self._zones_of(dnat.address)
+                if zones:
+                    inside += zones
+                else:
+                    intervals = transform.known_intervals(self.p, dnat.address)[0] if dnat.address else []
+                    toward += [str(int_to_ip(4, intervals[0][1]))] if len(intervals) == 1 and intervals[0][0] == 4 else [dnat.address]
+                outside += [z for z in nat.src_zones if z != ANY]
+            else:
+                inside += [z for z in nat.src_zones if z != ANY]
+                outside += [z for z in nat.dst_zones if z != ANY]
+        return transform.dedupe(inside), transform.dedupe(outside), transform.dedupe(toward)
+
+    def _zones_of(self, name: str) -> List[str]:
+        """The zones whose networks (--zone-network, or the source's interfaces and routes) hold all of an address object;
+        empty when none is known."""
+        intervals = transform.known_intervals(self.p, name)[0] if name else []
+        if len(intervals) != 1 or intervals[0][0] != 4:
+            return []
+        version, first, last = intervals[0]
+        found = []
+        for zone in self.zones:
+            given = self.options.zone_networks.get(self.options.zone_map.get(zone, zone), self.options.zone_networks.get(zone, []))
+            for net in given or getattr(self.p, "zone_networks", {}).get(zone, []):  # (else the source's own: its interfaces, routes)
+                try:
+                    network = ipaddress.ip_network(net, strict=False)
+                except ValueError:
+                    continue
+                if network.version == 4 and int(network.network_address) <= first and last <= int(network.broadcast_address):
+                    found.append(zone)
+                    break
+        return found
+
     def nat_lines(self, nat: NatRule) -> List[str]:
         """The commands for a NAT rule; empty when it cannot be written."""
         key = nat.origin + "\0" + nat.name
@@ -531,12 +584,13 @@ class _Emitter:
             for interface in interfaces:
                 tail += [f"! interface {_printable(interface)}", f"!  zone-member security {self.zone_names[zone]}"]
         if nat_lines:
-            inside = transform.dedupe([z for nat in self.p.nat_rules if self.nat_lines(nat) for z in nat.src_zones if z != ANY])
-            outside = transform.dedupe([z for nat in self.p.nat_rules if self.nat_lines(nat) for z in nat.dst_zones if z != ANY])
+            inside, outside, toward = self._nat_sides()
             tail += ["!", "! NAT, which changes traffic at once on interfaces with ip nat inside or outside:"]
             tail += [f"! {line}" for line in nat_lines]
             for zone in inside:
                 tail.append(f"! (the interfaces of zone {self.zone_names.get(zone, zone)}: ip nat inside)")
+            for address in toward:
+                tail.append(f"! (the interfaces toward {address}, the address a published host has: ip nat inside)")
             for zone in outside:
                 tail.append(f"! (the interfaces of zone {self.zone_names.get(zone, zone)}: ip nat outside)")
         if self.not_written:

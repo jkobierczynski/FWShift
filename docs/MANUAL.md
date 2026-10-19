@@ -8,7 +8,7 @@ rule by rule, how faithful the result is. It can also audit a policy: rules that
 rules that never match, loose ends; show what each zone may reach in each
 other zone; check a policy against a zone and conduit model kept as a file;
 and say which connections two policies decide differently.
-This manual covers version 0.39.
+This manual covers version 0.40.
 
 **Contents**
 
@@ -62,7 +62,7 @@ may reach (section 14), check a policy against a zone and conduit model kept
 as a file (section 16), and name every connection two policies decide
 differently, including a source and its conversion read back (section 17).
 
-> **Status.** Version 0.39 is tested against synthetic configurations. iptables
+> **Status.** Version 0.40 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). AWS, Azure and Google Cloud output was loaded into a real account
 > by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1), PAN-OS output on a VM-Series (PAN-OS 11.2.15), ASA output on an ASAv (9.24.10), Junos output on a vSRX (23.4R2-S8.9), IOS output on a Catalyst 8000V (IOS XE 26.02.1), pfSense output on pfSense Plus 26.07 and OPNsense output on OPNsense 26.1.5; the policy then had no NAT (it has since 0.37.0, and the lab checks it: so far through the kernel for nftables and iptables). Check Point output for
@@ -116,8 +116,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.39.0.pyz --version
-python3 fwshift-0.39.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.40.0.pyz --version
+python3 fwshift-0.40.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -1148,7 +1148,7 @@ rules. `--from ip6tables` settles it for a file that shows neither.
 | `--target-package NAME` | Check Point: the policy package whose NAT rulebase gets the NAT rules. Default `Standard`. |
 | `--target-gateway NAME` | Check Point: the gateway or cluster object to hide behind, for source NAT "to the address of the outgoing interface". Without it such rules are skipped unless the source gives an address. |
 | `--target-prefix TEXT` | Check Point, ASA, IOS, Huawei, Stormshield, Sophos, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, Juniper, Management Center, Device Manager, NSX, AWS, Azure (also as Terraform), Google Cloud (also as Terraform), RouterOS and Forcepoint: put `TEXT` in front of the name of every object (on an ASA also every access list; on AWS every security group, instead of `fwshift-`; on Azure every network security group; on Google Cloud the network firewall policy; on IOS every zone, access list, object group, class map and policy map, instead of `FWS-`; on Huawei every zone, address set, service set, rule, address pool and `nat server`, instead of `FWS_`; on Stormshield every object, instead of `fws_` (not `Firewall_` or `Network_`); on RouterOS every interface list and address list, instead of `fws-`) that is created, so that none collides with one the target has. On a Sophos Firewall and on a Device Manager an import overwrites an object of the same name; the script for a Management Center stops before it creates anything when a name is taken. Up to 20 letters, digits, periods, underscores and hyphens for the two Cisco managers. |
-| `--compare[=FILE]` | Read the output back (for the targets FWShift reads: `asa`, `azure`, `fdm`, `fortios`, `iptables`, `ip6tables`, `junos`, `nftables`, `nsx`, `routeros`, `sophos`, `watchguard`) and compare it with the policy as it was read: every connection the two decide differently is in the report (`COMPARE_OPENED`, `COMPARE_CLOSED`, section 17). With `FILE` the whole comparison is written there. Give `--zone-network` for every zone, so that only connections that can happen are compared (from a FortiOS, PAN-OS or ASA source, the networks its interfaces and routes tell are taken for the zones not given). |
+| `--compare[=FILE]` | Read the output back (for the targets FWShift reads: `asa`, `azure`, `fdm`, `fortios`, `huawei`, `ios`, `iptables`, `ip6tables`, `junos`, `nftables`, `nsx`, `routeros`, `sophos`, `watchguard`) and compare it with the policy as it was read: every connection the two decide differently is in the report (`COMPARE_OPENED`, `COMPARE_CLOSED`, section 17). With `FILE` the whole comparison is written there. Give `--zone-network` for every zone, so that only connections that can happen are compared (from a FortiOS, PAN-OS or ASA source, the networks its interfaces and routes tell are taken for the zones not given). |
 | `--target-policy NAME` | Management Center: the name of the access control policy and of the NAT policy the script creates; the script can be given another name when it is run (`--name`). NSX: the name of the security policy. Azure and `terraform-azure`: the name of the one network security group written when no zone has networks. `gcp` and `terraform-google`: the name of the network firewall policy, in lower case with hyphens (`fwshift` when not given). Default `FWShift`. Forcepoint: the name of the firewall policy the program creates (`--name` when it is run gives another). |
 | `--target-template NAME` | Forcepoint: the template the new firewall policy is based on (default `Firewall Template`, the predefined one). The loader stops when the SMC has no template of that name; it can be given another when it is run (`--template`). |
 
@@ -3364,7 +3364,11 @@ The second column matters too:
   before one that permits the rest, which the class does not take.
 * The `zone-member security` lines (the interfaces from `--interface-map`), NAT (static translations of an address,
   a network or a port; port translation to an interface or a pool for a list of sources and destinations) and the
-  interfaces' `ip nat inside`/`outside` are comments: they change traffic at once.
+  interfaces' `ip nat inside`/`outside` are comments: they change traffic at once. The inside of a source NAT is the
+  zone its connections come from; of a published host (destination NAT) the zone of the host's own address, from
+  `--zone-network` or the source's interfaces and routes ("the interfaces toward ADDRESS" where no network holds
+  it), and its outside the zone the
+  connections come from (0.40.0; before, both sides were the NAT rule's zones, which named the outside as inside).
 * The class maps see the inside address of a static translation, so the rules are written for it.
 
 ### Cisco ASA
@@ -6854,7 +6858,7 @@ target, and compared with the policy as it was read (before the audit's
 actions, which are part of what is compared). The zones of the output are
 matched to those of the source by name (exactly, through `--interface-map`,
 without case and punctuation, without the `--target-prefix`, or `fws-` for
-RouterOS). The networks of the zones, which keep the comparison to connections
+RouterOS, IOS and Huawei). The networks of the zones, which keep the comparison to connections
 that can happen, are those of `--zone-network` and, for the other zones, those
 the source tells (section 3). The output is judged with the same networks it
 was written with: a network the source's routes put behind the wrong zone is
@@ -6870,7 +6874,9 @@ opened connection the report does not explain is a defect: report it.
 
 Read back are `asa` (with the networks of its zones, `--zone-network` or from
 the source's interfaces and routes: the output names no interfaces or routes),
-`azure`, `fdm`, `fortios`, `iptables`, `ip6tables`, `junos`,
+`azure`, `fdm`, `fortios`, `huawei` (its commands, as FWShift reads a
+configuration, 0.40.0), `ios` (read as if its interfaces were put in their
+zones, the commented lines at its end; 0.40.0), `iptables`, `ip6tables`, `junos`,
 `nftables`, `nsx`, `panos` (its set commands, 0.34.0), `routeros` (read as if
 its jumps were switched on), `sophos` and `watchguard`. The other targets write scripts
 or parts of a configuration FWShift does not read.

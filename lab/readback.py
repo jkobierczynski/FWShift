@@ -26,12 +26,22 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import labplan
 import labrun
-from labrun import LabError, Runner
+from labrun import Runner
 
 # FWShift's own output it reads back (convert --compare), by target. Not RouterOS: its script holds the jumps to its
 # chains disabled, which the lab switches on after the import. pfSense and OPNsense output holds areas, not a whole
-# configuration; IOS output its interfaces' zones only as comments.
-OUTPUT_FORMAT = {"fortios": "fortios", "panos": "panos", "junos": "junos", "asa": "asa", "nftables": "nftables", "iptables": "iptables"}
+# configuration.
+OUTPUT_FORMAT = {"fortios": "fortios", "panos": "panos", "junos": "junos", "asa": "asa", "ios": "ios", "nftables": "nftables", "iptables": "iptables"}
+
+
+def as_loaded(target: str, text: str) -> str:
+    """The output as the lab loads it: IOS output with its interfaces put in their zones (the commented lines at its end)."""
+    if target != "ios":
+        return text
+    sys.path.insert(0, str(labrun.REPO / "src"))
+    from fwshift.emitters import ios as emit_ios
+
+    return emit_ios.activate(text)
 
 
 def _plain(text: str) -> str:
@@ -182,6 +192,8 @@ def aligned(zone_map: Dict[str, str], names: Sequence[str]) -> Dict[str, str]:
     """The lab's zones as the export names them: the names the conversion gave them, or their own, as FWShift reads
     them there (pfSense: the interface's description; FortiOS: the port, port2)."""
     by_plain = {_plain_name(name): name for name in names}
+    # (FWShift's own prefix of the zones it writes, as convert --compare takes it off: FWS-inside for inside)
+    by_plain.update({_plain_name(name)[3:]: name for name in names if _plain_name(name).startswith("fws") and _plain_name(name)[3:] not in by_plain})
     out = {}
     for zone in labplan.ZONES:
         for candidate in (zone_map.get(zone, ""), zone):  # (the name the conversion gave it first: another zone may have its own)
@@ -206,11 +218,18 @@ def check(runner: Runner, target: str, out: Path, export_text: str, export: Expo
     if names is None:
         return finish(runner, {"status": "not read", "why": f"FWShift read no rule from the export ({path.name})"})
     zone_map = {zone: descriptions(export_text, export.fmt).get(name, name) for zone, name in zone_map_of(conversion_options).items()}
-    lab_zones = [zone_map.get(z, z) for z in labplan.ZONES]
+    # The lab's zones as FWShift reads them from the export (and from its own output: the same names, FWS-inside for
+    # inside in IOS output): the review of 0.40.0 found the IOS comparison against the output counted none of them.
+    named = {zone: aligned(zone_map, names).get(zone, zone_map.get(zone, zone)) for zone in labplan.ZONES}
+    lab_zones = list(named.values())
     found: Dict[str, Any] = {"status": "read", "format": export.fmt, "export": path.name}
     parts = []
     if target in OUTPUT_FORMAT:
-        result = compare(runner, out, OUTPUT_FORMAT[target], path, export.fmt, [*networks(zone_map), *export.options], "readback-output")
+        loaded = out
+        if target == "ios":  # (its interfaces' zones are commented lines, which the lab's session puts in)
+            loaded = runner.work / "policy.ios.loaded"
+            loaded.write_text(as_loaded(target, out.read_text(encoding="utf-8")), encoding="utf-8")
+        result = compare(runner, loaded, OUTPUT_FORMAT[target], path, export.fmt, [*networks(named), *export.options], "readback-output")
         if "error" in result:
             found.update(status="not read", why=f"FWShift could not read the export: {result['error']}")
             return finish(runner, found)
@@ -297,5 +316,5 @@ def safely(runner: Runner, step: Callable[[], Dict[str, Any]]) -> Optional[Dict[
     """The read-back never fails the run: an error is its line in the summary."""
     try:
         return step()
-    except (LabError, OSError, ValueError) as error:
-        return not_read(runner, f"the export failed: {str(error)[:300]}")
+    except Exception as error:  # (whatever goes wrong: the read-back's line, never the end of the run)
+        return not_read(runner, f"the export failed: {type(error).__name__}: {str(error)[:300]}")

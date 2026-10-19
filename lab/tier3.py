@@ -9,8 +9,9 @@ addresses, the zones) that FWShift does not write."""
 from __future__ import annotations
 
 import base64
-import os
 import dataclasses
+import ipaddress
+import os
 import re
 import secrets
 import sys
@@ -113,6 +114,8 @@ class CloudImage:
     metadata_key: str = "user-data"  # (Google Cloud: the metadata the first-boot data goes in)
     key_metadata: str = ""  # (Google Cloud: a metadata the image reads the run's key from, beside ssh-keys)
     vm_user: str = "fwlab"  # (Azure: the VM's user, which Azure makes; never admin)
+    # What is known not to fit the cloud yet: a run stops before it starts anything, unless --untested.
+    open_point: str = ""
     status: str = "scripted from the vendor's documentation, never run"
     source: str = ""  # (where the image's name was found)
 
@@ -175,6 +178,7 @@ def _vsrx_session(out: Path) -> List[str]:
 # -- Cisco Catalyst 8000V (IOS XE) -------------------------------------------------------------------------------
 
 _IOS_PORTS = {"inside": "GigabitEthernet2", "dmz": "GigabitEthernet3", "outside": "GigabitEthernet4"}
+_IOS_ZONE_OF = {port: zone for zone, port in _IOS_PORTS.items()}
 
 
 def ios_zone_members(text: str) -> Dict[str, str]:
@@ -192,16 +196,44 @@ def ios_zone_members(text: str) -> Dict[str, str]:
     return out
 
 
+def ios_nat(text: str) -> Tuple[List[str], Dict[str, str]]:
+    """The NAT the IOS output leaves as comments: its commands, and which side each interface is (interface -> inside
+    or outside), from the notes that follow them (by zone, or toward the address of a published host)."""
+    members = ios_zone_members(text)
+    commands: List[str] = []
+    sides: Dict[str, str] = {}
+    lines = text.splitlines()
+    if "! NAT, which changes traffic at once on interfaces with ip nat inside or outside:" not in lines:
+        return [], {}
+    for line in lines[lines.index("! NAT, which changes traffic at once on interfaces with ip nat inside or outside:") + 1:]:
+        if not line.startswith("! ") or line.startswith("! Not written"):
+            break
+        body = line[2:]
+        side = re.match(r"\(the interfaces (?:of zone (\S+)|toward (\S+), .*): ip nat (inside|outside)\)$", body)
+        if side:
+            zone, address, which = side.groups()
+            for port, member in members.items():
+                if (zone and member == zone) or (address and ipaddress.ip_address(address.rstrip(",")) in
+                                                 ipaddress.ip_network(labplan.ZONES[_IOS_ZONE_OF[port]])):
+                    sides.setdefault(port, which)
+        elif not body.startswith("("):
+            commands.append(body)
+    return commands, sides
+
+
 def _c8000v_session(out: Path) -> List[str]:
     text = out.read_text(encoding="utf-8")
     members = ios_zone_members(text)
+    nat, sides = ios_nat(text)
     base = []
     for zone, port in _IOS_PORTS.items():
         base += [f"interface {port}", f" ip address {_addr(zone)} 255.255.255.0", " no shutdown"]
         if port in members:
             base.append(f" zone-member security {members[port]}")
+        if port in sides:  # (0.37.0: the lab policy's NAT; the output leaves it as comments, as it leaves the zones)
+            base.append(f" ip nat {sides[port]}")
         base.append(" exit")
-    return ["terminal length 0", "configure terminal", *_lines(out, "!", drop_end=True), *base, "end", "exit"]
+    return ["terminal length 0", "configure terminal", *_lines(out, "!", drop_end=True), *base, *nat, "end", "exit"]
 
 
 # -- Cisco ASAv --------------------------------------------------------------------------------------------------
@@ -245,7 +277,7 @@ def _asav_user_data() -> str:
         # Without an enable password the ASA asks for one at the first login, and takes the lines typed as the answers
         # (the fourth run: "The enable password is not set. Please set it now."): one made for the run.
         "enable password {enable_password}",
-        "username admin nopassword privilege 15", "username admin attributes", " service-type admin",
+        "username {user} nopassword privilege 15", "username {user} attributes", " service-type admin",
         " ssh authentication publickey {ssh_key}", "!", ""])  # fmt: skip
 
 
@@ -581,7 +613,7 @@ VENDORS: Dict[str, Vendor] = {
     "c8000v": Vendor("c8000v", "Cisco Catalyst 8000V, IOS XE (pay as you go, DNA Essentials)", "ios", "Cisco-C8K-PAYG-ESS-*", "c5.xlarge", "ec2-user",
                      "show ip interface brief | include GigabitEthernet", r"% Invalid input|% Incomplete command|% Ambiguous command|% Unknown command",
                      [x for p, i in (("ethernet1/2", "GigabitEthernet2"), ("ethernet1/3", "GigabitEthernet3"), ("ethernet1/1", "GigabitEthernet4"))
-                      for x in ("--interface-map", f"{p}={i}")], _c8000v_user_data(), _c8000v_session, ready_answer=_C8000V_READY,
+                      for x in ("--interface-map", f"{p}={i}")] + list(_ZONE_NETWORKS), _c8000v_user_data(), _c8000v_session, ready_answer=_C8000V_READY,
                      key_bits=2048, diagnose=_c8000v_diagnose, prompt=r"[>#] ?$", ssh_options=("PubkeyAcceptedAlgorithms=+ssh-rsa",),
                      status="run: passed (Catalyst 8000V, IOS XE 26.02.1, PAYG DNA Essentials, 0.36.3)"),  # fmt: skip
     # Netgate's pfSense Plus ("Netgate pfSense Plus Firewall/VPN/Router", named pfSense-plus-ec2-26.07-RELEASE-amd64...,
@@ -613,8 +645,8 @@ VENDORS: Dict[str, Vendor] = {
 def _fortigate_azure_data() -> str:
     """FortiGate on Azure: its custom data as Fortinet's own Azure templates write it (MIME, the configuration as
     text/x-shellscript), with the run's key for the VM's user, whom Azure makes (it takes no user named admin)."""
-    config = _fortigate_user_data() + "\n".join(["config system admin", '    edit "{user}"', '        set ssh-public-key1 "ssh-rsa {ssh_key}"',
-                                                  "    next", "end", ""])  # fmt: skip
+    config = _fortigate_user_data() + "\n".join(["config system admin", '    edit "{user}"', '        set accprofile "super_admin"',
+                                                  '        set vdom "root"', '        set ssh-public-key1 "ssh-rsa {ssh_key}"', "    next", "end", ""])  # fmt: skip
     return ('Content-Type: multipart/mixed; boundary="==FWLAB=="\nMIME-Version: 1.0\n\n--==FWLAB==\n'
             'Content-Type: text/x-shellscript; charset="us-ascii"\nMIME-Version: 1.0\n\n' + config + "\n--==FWLAB==--\n")
 
@@ -646,19 +678,25 @@ CLOUD_TITLES = {"aws": "AWS", "azure": "Azure", "gcp": "Google Cloud"}
 # machine with four vCPUs (as many NICs as vCPUs). The user of the VM on Azure is never admin, which Azure refuses.
 _AZ4 = "Standard_D3_v2"
 _GCP4 = "n2-standard-4"
+# The review of 0.40.0: Google Cloud delivers through each subnet's gateway, not to a neighbour found by ARP (tier 1
+# found it for the test hosts, which route their own subnet through the gateway there); the firewalls' zone interfaces
+# are set as /24 on the link, as on AWS and Azure, and would not reach the hosts. Google Cloud's way (a /32 address, or
+# DHCP, and the subnet through its gateway) is not written for any vendor yet.
+_GCP_ON_LINK = ("its zone interfaces are set as /24 on the link, and Google Cloud delivers only through each subnet's gateway: "
+                "the firewall would not reach the hosts (a /32 address and the subnet through the gateway are not written yet)")
 CLOUD_IMAGES: Dict[str, Dict[str, CloudImage]] = {
     "fortigate": {
         "azure": CloudImage("fortinet:fortinet_fortigate-vm:fortinet_fg-vm_payg_76_g2", _AZ4,
                             changes=(("user", "fwlab"), ("user_data", _fortigate_azure_data())),
                             source="fortinet/fortigate-terraform-deploy, azure/7.6/single"),
-        "gcp": CloudImage("projects/fortigcp-project-001/global/images/family/fortigate-72-payg", _GCP4,
+        "gcp": CloudImage("projects/fortigcp-project-001/global/images/family/fortigate-72-payg", _GCP4, open_point=_GCP_ON_LINK,
                           source="Fortinet's GCP administration guide (the image families; 7.2 the one confirmed)"),
     },
     "panos": {
         # (no first-boot data: the management interface by DHCP, the rest by the session, as on AWS)
         "azure": CloudImage("paloaltonetworks:vmseries-flex:bundle1", _AZ4, changes=(("user", "fwlab"),),
                             source="PaloAltoNetworks/terraform-azurerm-swfw-modules, modules/vmseries"),
-        "gcp": CloudImage("projects/paloaltonetworksgcp-public/global/images/vmseries-flex-bundle1-*", _GCP4,
+        "gcp": CloudImage("projects/paloaltonetworksgcp-public/global/images/vmseries-flex-bundle1-*", _GCP4, open_point=_GCP_ON_LINK,
                           source="PaloAltoNetworks/terraform-google-swfw-modules, and Palo Alto's list of image names"),
     },
     "vsrx": {
@@ -675,14 +713,14 @@ CLOUD_IMAGES: Dict[str, Dict[str, CloudImage]] = {
         "azure": CloudImage("cisco:cisco-asav:asav-azure-byol", _AZ4, changes=(("user", "fwlab"),),
                             status="scripted from Cisco's Azure guide, never run; BYOL (unlicensed: throughput limited)",
                             source="Cisco's ASAv Azure guide; a Terraform example of the Marketplace image"),
-        "gcp": CloudImage("projects/cisco-public/global/images/cisco-asav-9-*", _GCP4, metadata_key="startup-script",
+        "gcp": CloudImage("projects/cisco-public/global/images/cisco-asav-9-*", _GCP4, metadata_key="startup-script", open_point=_GCP_ON_LINK,
                           status="scripted from Cisco's ASAv Google Cloud guide, never run; BYOL (unlicensed: throughput limited)",
                           source="gehoumi/terraform-google-ciscoasav-vm (Day 0 in the startup script)"),
     },
     "checkpoint": {
         "azure": CloudImage("checkpoint:check-point-cg-r82:sg-ngtp", _AZ4, changes=(("user_data", _checkpoint_azure_data()),),
                             vm_user="notused", source="CheckPointSW/CloudGuardIaaS, terraform/azure (cloud-init.sh)"),
-        "gcp": CloudImage("projects/checkpoint-public/global/images/check-point-r8210-gw-payg-single-*", _GCP4,
+        "gcp": CloudImage("projects/checkpoint-public/global/images/check-point-r8210-gw-payg-single-*", _GCP4, open_point=_GCP_ON_LINK,
                           changes=(("user_data", _checkpoint_gcp_data()),), metadata_key="startup-script", key_metadata="instanceSSHKey",
                           source="CheckPointSW/CloudGuardIaaS, terraform/gcp/single"),
     },
@@ -989,7 +1027,7 @@ def read_back(runner: Runner, vendor: Vendor, key: Path, host: str, out: Path, l
     def step() -> Dict[str, Any]:
         merged = runner.work / "config.merged.xml"
         if runner.dry_run:
-            text = (merged if merged.exists() else out).read_text(encoding="utf-8")
+            text = readback.as_loaded(vendor.target, (merged if merged.exists() else out).read_text(encoding="utf-8"))
             raw = text if vendor.name != "checkpoint" else "{}"
         elif vendor.as_command:
             prefix = labrun.ssh_prefix(key, vendor.user, host, runner.work / "known_hosts", options=vendor.ssh_options)
@@ -1097,8 +1135,9 @@ def _boot_load_probe(runner: Runner, vendor: Vendor, key: Path, outputs: Dict[st
     try:
         return tier1.probe_hosts(runner, key, outputs, data)
     finally:
-        diagnose(runner, vendor, key, outputs["firewall_ip"], login)
-        read_back(runner, vendor, key, outputs["firewall_ip"], out, login)
+        if not isinstance(sys.exc_info()[1], KeyboardInterrupt):  # (Ctrl-C: straight to the teardown)
+            diagnose(runner, vendor, key, outputs["firewall_ip"], login)
+            read_back(runner, vendor, key, outputs["firewall_ip"], out, login)
 
 
 def upload(runner: Runner, key: Path, user: str, host: str, files: Sequence[Path], options: Sequence[str] = ()) -> None:
@@ -1148,6 +1187,13 @@ def find_gcp_image(runner: Runner, pattern: str, project: str) -> str:
     return f"projects/{owner}/global/images/{name}"
 
 
+def cloud_os_version(image_name: str) -> str:
+    """Check Point's version in an image's name as Azure and Google Cloud name it (check-point-cg-r82, check-point-r8210-...),
+    written as CloudGuardIaaS writes it there (R82, R8210); R82 when the name says none."""
+    found = re.search(r"[Rr](\d{2})(?:\.?(\d{1,2}))?(?!\d)", image_name or "")
+    return "R" + found.group(1) + (found.group(2) or "") if found else "R82"
+
+
 def cloud_vendor(vendor: Vendor, image: CloudImage) -> Vendor:
     """The vendor as it is on another cloud: its changes put in."""
     return dataclasses.replace(vendor, **dict(image.changes)) if image.changes else vendor
@@ -1159,6 +1205,8 @@ def run_cloud(runner: Runner, args: Any, vendor: Vendor, cloud: str) -> bool:
     if image is None:
         why = NOT_ON.get((vendor.name, cloud), "not scripted there yet")
         raise LabError(f"{vendor.title} on {CLOUD_TITLES[cloud]}: {why}")
+    if image.open_point and not getattr(args, "untested", False):
+        raise LabError(f"{vendor.title} on {CLOUD_TITLES[cloud]} is not ready: {image.open_point}. --untested runs it anyway")
     vendor = cloud_vendor(vendor, image)
     region = args.region or CLOUD_REGIONS[cloud]
     project = getattr(args, "project", None) or ("dry-run-project" if runner.dry_run else "")
@@ -1176,13 +1224,18 @@ def run_cloud(runner: Runner, args: Any, vendor: Vendor, cloud: str) -> bool:
     labplan.save(runner.work / "plan.json", data)
     tf = tier1.Terraform(runner, labrun.ROOT / "tier3" / cloud, tier1.terraform_binary(args.terraform))
     name = getattr(args, "cloud_image", None) or image.image
-    first_boot = user_data(vendor, key, run_password(runner.work) if "{enable_password}" in vendor.user_data else "")
     common = tier1.common_variables(runner, args, key)
+
+    def first_boot_for(image_name: str) -> str:
+        # (Check Point's version as its templates for Azure and Google Cloud write it: R82, R8120; from the image's name)
+        made = dataclasses.replace(vendor, user_data=vendor.user_data.replace("{os_version}", cloud_os_version(image_name)))
+        return user_data(made, key, run_password(runner.work) if "{enable_password}" in vendor.user_data else "")
     try:
         if cloud == "azure":
             publisher, offer, sku = (name.split(":") + ["", "", ""])[:3]
             if image.plan and not runner.dry_run:  # (the terms of a Marketplace image are accepted once per subscription)
                 runner.run(["az", "vm", "image", "terms", "accept", "--urn", f"{publisher}:{offer}:{sku}:latest", "-o", "none"], check=False)
+            first_boot = first_boot_for(offer)
             tf.apply({**common, "location": region, "zone_order": ORDER, "published": published_addresses(),
                       "firewall_image": {"publisher": publisher, "offer": offer, "sku": sku, "version": "latest"}, "firewall_plan": image.plan,
                       "firewall_size": args.instance_type or image.size, "firewall_user": image.vm_user, "firewall_custom_data": first_boot,
@@ -1198,6 +1251,7 @@ def run_cloud(runner: Runner, args: Any, vendor: Vendor, cloud: str) -> bool:
         else:
             if "*" in name:
                 name = find_gcp_image(runner, name, project)
+            first_boot = first_boot_for(name.rsplit("/", 1)[-1])
             metadata = {image.metadata_key: first_boot} if first_boot else {}
             if image.key_metadata:
                 metadata[image.key_metadata] = key.with_suffix(".pub").read_text(encoding="utf-8").strip()
@@ -1249,7 +1303,12 @@ def coverage() -> List[Tuple[str, str, str]]:
         rows.append((name, "aws", vendor.status))
         for cloud in ("azure", "gcp"):
             image = CLOUD_IMAGES.get(name, {}).get(cloud)
-            rows.append((name, cloud, f"{image.status} ({image.image})" if image else "not scripted: " + NOT_ON.get((name, cloud), "not scripted there yet")))
+            if image is None:
+                rows.append((name, cloud, "not scripted: " + NOT_ON.get((name, cloud), "not scripted there yet")))
+            elif image.open_point:
+                rows.append((name, cloud, f"image found ({image.image}), not ready: {image.open_point}"))
+            else:
+                rows.append((name, cloud, f"{image.status} ({image.image})"))
     return rows
 
 
