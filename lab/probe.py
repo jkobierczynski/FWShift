@@ -31,11 +31,31 @@ from concurrent.futures import ThreadPoolExecutor
 MAGIC = b"fwshift-lab "
 
 
+def _bind(sock, address, port, kind, stop):
+    """Binds the socket, waiting for the address while the host does not have it yet: a test interface is attached
+    after the host boots, and the probe may start first (the fourth pfSense run: every port of in11 failed with "Cannot
+    assign requested address", once, and the host never answered). Other errors are raised."""
+    told = False
+    while True:
+        try:
+            sock.bind((address, port))
+            if told:
+                print("%s/%d: %s is there now" % (kind, port, address), file=sys.stderr)
+            return
+        except OSError as error:
+            if error.errno != errno.EADDRNOTAVAIL or stop.is_set():
+                raise
+            if not told:
+                print("%s/%d: %s; waiting for the address" % (kind, port, error), file=sys.stderr)
+                told = True
+            time.sleep(2)
+
+
 def _serve_tcp(address, port, stop):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
-        sock.bind((address, port))
+        _bind(sock, address, port, "tcp", stop)
     except OSError as error:
         # Taken already (sshd on 22): that listener completes the handshake, which is all a TCP flow needs.
         print("tcp/%d: %s; the listener there answers" % (port, error), file=sys.stderr)
@@ -61,7 +81,7 @@ def _serve_udp(address, port, stop):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
-        sock.bind((address, port))
+        _bind(sock, address, port, "udp", stop)
     except OSError as error:
         print("udp/%d: %s" % (port, error), file=sys.stderr)
         return

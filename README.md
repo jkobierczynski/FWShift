@@ -73,11 +73,14 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   (FortiOS 8.0.1), VM-Series (PAN-OS 11.2.15), ASAv (9.24.10), vSRX (Junos 23.4R2-S8.9) and Catalyst 8000V (IOS XE
 >   26.02.1, the zone-based firewall), the AWS Marketplace images, by the lab,
 >   for the same policy: all 128 connections through each as the source decides. The policy has security rules and no NAT: NAT is not checked on a device.
+> * **pfSense** and **OPNsense** output passed the same way on Netgate's pfSense Plus 26.07 and on OPNsense 26.1.5 (AWS
+>   Marketplace), the areas put into each firewall's `config.xml` by the lab as a restore of each area does (not through
+>   the web console's restore).
 > * **Check Point** output for the same policy was loaded on a management server by hand (R82.20, a standalone
 >   installation): every call accepted, published, and the policy package verified. It has not been installed on a
 >   gateway with traffic through it.
 > * **Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall,
->   Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, VMware NSX, RouterOS and Forcepoint** output has **not been loaded on a
+>   Sophos Firewall, SonicWall, WatchGuard, Barracuda, VMware NSX, RouterOS and Forcepoint** output has **not been loaded on a
 >   device**, and the **Terraform** output has not been applied with Terraform. The Check Point input format is taken from the API
 >   documentation, not from a real export, the FTD syntax from Cisco's
 >   command references, and the Sophos format from the documentation of its
@@ -193,8 +196,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.36.3.pyz --version
-python3 fwshift-0.36.3.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.36.4.pyz --version
+python3 fwshift-0.36.4.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start

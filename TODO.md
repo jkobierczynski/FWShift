@@ -337,13 +337,17 @@ The lab (`lab/`, 0.32.0; the clouds first run in 0.32.1) scripts much of what fo
 iptables, RouterOS, OPNsense and pfSense on a local host (tier 2), and FortiGate, VM-Series, vSRX, Catalyst 8000V and
 ASAv from the AWS Marketplace (tier 3), each loaded with the converted lab policy and checked with real connections.
 nftables and iptables run in the test suite; AWS, Azure and Google Cloud have run in real accounts, and of tier 3 the
-FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), and the Catalyst 8000V (0.36.3). Still open there:
+FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Catalyst 8000V (0.36.3), pfSense Plus and OPNsense (0.36.4). Still open there:
 
 * the first real run of each of the others, and correcting what it finds (the Marketplace image names, the logins,
   the reload commands of OPNsense and pfSense);
 * the first run of the Check Point vendor of tier 3 (its `mgmt_cli` script was published and verified on an R82.20
   management server by hand; the lab's interfaces, `set simple-gateway` and the install are untried);
-* the images not scripted yet (SonicWall NSv, Stormshield EVA, Sophos,
+* the first run of the SonicWall NSv in tier 3 (scripted in 0.36.4, never run; pfSense Plus and OPNsense passed): its image
+  name, the NSv's X2 and X3,
+  its zone commands and its login;
+* Sophos Firewall in tier 3: its XML API is switched on in the web console only, so a run would wait for that step;
+* the images not scripted yet ( Stormshield EVA, Sophos,
   Barracuda; WatchGuard and Forcepoint need tools of their own, Meraki a Dashboard);
 * the conversion of the other sample configurations, not only the lab policy, and NAT in the plan;
 * a run of the conversion *from* each platform: export the lab policy as the target holds it after loading, read it

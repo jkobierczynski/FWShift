@@ -65,10 +65,10 @@ differently, including a source and its conversion read back (section 17).
 > **Status.** Version 0.36 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). AWS, Azure and Google Cloud output was loaded into a real account
-> by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1), PAN-OS output on a VM-Series (PAN-OS 11.2.15), ASA output on an ASAv (9.24.10), Junos output on a vSRX (23.4R2-S8.9) and IOS output on a Catalyst 8000V (IOS XE 26.02.1); the policy has no NAT. Check Point output for
+> by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1), PAN-OS output on a VM-Series (PAN-OS 11.2.15), ASA output on an ASAv (9.24.10), Junos output on a vSRX (23.4R2-S8.9), IOS output on a Catalyst 8000V (IOS XE 26.02.1), pfSense output on pfSense Plus 26.07 and OPNsense output on OPNsense 26.1.5; the policy has no NAT. Check Point output for
 > the same policy was loaded on a management server by hand (R82.20): published and verified, not installed on a
 > gateway. Output for
-> Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall, Sophos Firewall, pfSense, OPNsense, SonicWall, WatchGuard, Barracuda, NSX, RouterOS and Forcepoint has
+> Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall, Sophos Firewall, SonicWall, WatchGuard, Barracuda, NSX, RouterOS and Forcepoint has
 > not been loaded on a device yet, and the Terraform output has not been applied with Terraform; the Check Point input format follows the
 > API documentation, the FTD syntax Cisco's command references, the
 > Sophos format the documentation of its XML API and the templates of
@@ -116,8 +116,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.36.3.pyz --version
-python3 fwshift-0.36.3.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.36.4.pyz --version
+python3 fwshift-0.36.4.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -5076,9 +5076,13 @@ access rule or a NAT rule per line.
 
 ### pfSense
 
-> **The file has never been restored on a pfSense.** Its format and what a
-> restore does with it are taken from the source code of pfSense
-> (`diag_backup.php`, `backup.inc`, `restore_config_section()`).
+> **Loaded on one pfSense** (Netgate's pfSense Plus 26.07 on AWS, by the lab):
+> its areas were put into the firewall's `config.xml` as a restore of each
+> area does, and after a reboot all 128 connections of the lab policy went as
+> the source decides. The restore in the web console itself has not been
+> tried; its format and what it does are taken from the source code of
+> pfSense (`diag_backup.php`, `backup.inc`, `restore_config_section()`).
+> NAT was not in the policy.
 
 The output is a pfSense configuration file that holds three areas:
 `<aliases>`, `<nat>` and `<filter>` (an area is left out when it would be
@@ -5124,9 +5128,14 @@ empty). It is restored with the restore of one area at a time, which
 
 ### OPNsense
 
-> **The file has never been restored on an OPNsense.** Its format and what a
-> restore does with it are taken from the source code of OPNsense
-> (`diag_backup.php`, `restore_config_section()`, the models it restores).
+> **Loaded on one OPNsense** (OPNsense 26.1.5 on AWS, by the lab, with the
+> output for the default series 26.7): its areas were put into the
+> firewall's `config.xml` as a restore of each area does, and after a reboot
+> all 128 connections of the lab policy went as the source decides. The
+> restore in the web console itself has not been tried; its format and what
+> it does are taken from the source code of OPNsense (`diag_backup.php`,
+> `restore_config_section()`, the models it restores). NAT was not in the
+> policy.
 
 The output is an OPNsense configuration file for the series given with
 `--target-version` (26.7 when not given). It holds the areas **Aliases**

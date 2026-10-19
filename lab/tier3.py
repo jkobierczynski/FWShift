@@ -16,11 +16,13 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+import xml.etree.ElementTree as ET
 
 import labplan
 import labrun
 import tier1
+import tier2
 from labrun import LabError, Runner
 
 ORDER = ["inside", "dmz", "outside"]  # the firewall's data interfaces, in this order
@@ -76,6 +78,16 @@ class Vendor:
     # The CLI's prompt, for a firewall whose lines are typed one at a time, each after its prompt (the ASAv: given them
     # all ahead, it closed the session after one letter of its greeting, and nothing was configured).
     prompt: str = ""
+    # A firewall with a shell, not a CLI: each command is given to ssh to run (pfSense's admin gets a menu when logged in
+    # with a terminal), with sudo where the user is not root (OPNsense's ec2-user); and its own way to load the policy,
+    # in place of typed lines (pfSense and OPNsense: their config.xml with the areas of the conversion put in).
+    as_command: bool = False
+    sudo: str = ""
+    # A login by password, the instance id (SonicWall NSv: no key; SSH_ASKPASS gives it), and questions the CLI may ask
+    # before its prompt, with their answers ({password}: the same id): SonicOS asks for its own user and password.
+    password_login: bool = False
+    answers: Tuple[Tuple[str, str], ...] = ()
+    load: Optional[Callable[["Runner", "Vendor", Path, str, Path], None]] = None
 
 
 # -- FortiGate ---------------------------------------------------------------------------------------------------
@@ -242,6 +254,135 @@ def _c8000v_diagnose() -> List[str]:
             "show ip arp", "show running-config", "exit"]  # fmt: skip
 
 
+# -- SonicWall NSv (SonicOS 7) ------------------------------------------------------------------------------------
+
+# AWS's first card is X1 (WAN: management, by DHCP) and the second X0 (LAN), as SonicWall's AWS guide says; the third
+# and fourth are taken to be X2 and X3 (not documented: the first run will tell). The zones are made in SonicOS, of
+# security type trusted (a WAN zone would add NAT policies of its own), and the interfaces put in them.
+_SW_PORTS = {"inside": "X0", "dmz": "X2", "outside": "X3"}
+
+
+def _sonicwall_session(out: Path) -> List[str]:
+    base = ["configure terminal"]
+    for zone in ORDER:
+        base += [f"zone {zone}", "security-type trusted", "exit"]
+    for zone, port in _SW_PORTS.items():
+        base += [f"interface {port}", f"ip-assignment {zone} static", f"ip {_addr(zone)} netmask 255.255.255.0", "exit",
+                 "management ping", "exit"]  # fmt: skip
+    base += ["commit", "exit"]
+    return [*base, *_lines(out, "#"), "exit"]
+
+
+def _sonicwall_diagnose() -> List[str]:
+    """The interfaces, zones, access rules and connections as SonicOS shows them."""
+    return ["no cli pager session", "show interfaces ip", "show zones", "show access-rules", "show connections", "show route", "exit"]
+
+
+# -- pfSense Plus and OPNsense (config.xml over SSH) -------------------------------------------------------------
+
+# The first network card is the image's WAN (DHCP: management); the zones are OPT1 to OPT3 on the second to fourth,
+# named ena1 to ena3 on an instance with the ENA driver (c5, m5).
+_PF_AWS_ZONES = {"inside": "opt1", "dmz": "opt2", "outside": "opt3"}
+_PF_AWS_PORTS = {"inside": "ena1", "dmz": "ena2", "outside": "ena3"}
+_PF_AWS_OPTIONS = [*(x for z, i in _PF_AWS_ZONES.items() for x in ("--zone-map", f"{z}={i}")), *labplan.zone_options(_PF_AWS_ZONES)]
+
+
+def assign_zone_interfaces(xml: str, flavour: str) -> str:
+    """The zones on the data interfaces: OPT1 to OPT3 on ena1 to ena3, enabled, with the lab's address (.4/24), private
+    networks and bogons not blocked. An interface the image had on one of those cards (LAN, say) is taken out; WAN, the
+    management interface, stays as it is."""
+    parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
+    root = ET.fromstring(xml, parser=parser)
+    interfaces = root.find("interfaces")
+    if interfaces is None:
+        interfaces = ET.SubElement(root, "interfaces")
+    ports = set(_PF_AWS_PORTS.values())
+    for child in list(interfaces):
+        name = child.findtext("if") or ""
+        if child.tag in _PF_AWS_ZONES.values() or (name in ports and child.tag != "wan"):
+            interfaces.remove(child)
+    on = "" if flavour == "pfsense" else "1"
+    for zone, key in _PF_AWS_ZONES.items():
+        entry = ET.SubElement(interfaces, key)
+        for tag, text in (("enable", on), ("if", _PF_AWS_PORTS[zone]), ("descr", zone), ("ipaddr", _addr(zone)),
+                          ("subnet", "24"), ("spoofmac", "")):  # fmt: skip
+            ET.SubElement(entry, tag).text = text
+    return '<?xml version="1.0"?>\n' + ET.tostring(root, encoding="unicode") + "\n"
+
+
+_WEB_SERVER_IN_PF = tier2.WEB_SERVER_IN_PF
+
+
+def keep_management_rules(base_xml: str, merged_xml: str) -> str:
+    """The image's own rules for its WAN, the management interface, kept in front of the converted rules. The merge
+    replaces the rules as a restore does; the first pfSense run lost the image's "Default SSH rule" on WAN that way, and
+    after the reboot SSH timed out for good. Both the rule list of pfSense and OPNsense's legacy one (filter/rule), and
+    OPNsense's own (OPNsense/Firewall/Filter/rules/rule), keep their WAN rules."""
+    parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
+    base = ET.fromstring(base_xml)
+    merged = ET.fromstring(merged_xml, parser=parser)
+    for path in ("filter", "OPNsense/Firewall/Filter/rules"):
+        old = base.find(path)
+        if old is None:
+            continue
+        keep = [rule for rule in old.findall("rule") if (rule.findtext("interface") or "").strip() == "wan"]
+        if not keep:
+            continue
+        target = merged
+        for part in path.split("/"):
+            found = target.find(part)
+            target = found if found is not None else ET.SubElement(target, part)
+        for position, rule in enumerate(keep):
+            target.insert(position, rule)
+    return '<?xml version="1.0"?>\n' + ET.tostring(merged, encoding="unicode") + "\n"
+
+
+def _scp_prefix(runner: Runner, key: Path, options: Sequence[str]) -> List[str]:
+    extra = [word for option in options for word in ("-o", option)]
+    return ["scp", "-q", "-i", str(key), "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=accept-new",
+            "-o", f"UserKnownHostsFile={runner.work / 'known_hosts'}", "-o", "ConnectTimeout=10", *extra]  # fmt: skip
+
+
+def load_pf_config(runner: Runner, vendor: "Vendor", key: Path, host: str, out: Path) -> None:
+    """pfSense and OPNsense: the image's config.xml with the areas of the conversion put in (as a restore of each area
+    does) and the zones on the data interfaces, written back; then a reboot, so that interfaces and rules start
+    together. Ready again when the last zone's address is on its card; loaded when pf has a rule for the lab's web
+    server (load.txt)."""
+    flavour = vendor.target
+    prefix = labrun.ssh_prefix(key, vendor.user, host, runner.work / "known_hosts", options=vendor.ssh_options)
+    sample = (labrun.REPO / "tests" / "data" / f"{flavour}_sample.xml").read_text(encoding="utf-8")
+    base = runner.run(prefix + [f"{vendor.sudo}cat /conf/config.xml"], quiet=True, fake=sample)
+    if "<interfaces>" not in base:
+        raise LabError(f"/conf/config.xml of the firewall could not be read: {base[-300:]!r}")
+    (runner.work / "config.base.xml").write_text(base, encoding="utf-8")
+    merged = assign_zone_interfaces(keep_management_rules(base, tier2.merge_areas(base, out.read_text(encoding="utf-8"), flavour)), flavour)
+    merged_file = runner.work / "config.merged.xml"
+    merged_file.write_text(merged, encoding="utf-8")
+    runner.run(_scp_prefix(runner, key, vendor.ssh_options) + [str(merged_file), f"{vendor.user}@{host}:fwlab-config.xml"], timeout=300)
+    write = f"{vendor.sudo}cp fwlab-config.xml /conf/config.xml && {vendor.sudo}rm -f /tmp/config.cache && echo FWLAB-WRITTEN"
+    answer = runner.run(prefix + [write], fake="FWLAB-WRITTEN")
+    if "FWLAB-WRITTEN" not in answer:
+        raise LabError(f"the merged config.xml was not written: {answer[-300:]!r}")
+    runner.run(prefix + [f"{vendor.sudo}shutdown -r now"], check=False, quiet=True, timeout=60)  # (the connection drops)
+    if not runner.dry_run:
+        time.sleep(60)
+        wait_cli(runner, key, vendor.user, host, f"ifconfig {_PF_AWS_PORTS['outside']}", _addr("outside").replace(".", r"\."),
+                 15, vendor.ssh_options, as_command=True)  # fmt: skip
+    cards = runner.run(prefix + ["ifconfig"], quiet=True, fake="".join(f"{p}: inet {_addr(z)}\n" for z, p in _PF_AWS_PORTS.items()))
+    rules = runner.run(prefix + [f"{vendor.sudo}pfctl -sr"], quiet=True, fake="pass in quick on ena1 inet proto tcp from 10.20.1.0/24 to 10.20.2.10")
+    (runner.work / "load.txt").write_text(f"{answer}\n--- ifconfig\n{cards}\n--- pfctl -sr\n{rules}", encoding="utf-8")
+    missing = [z for z in ORDER if _addr(z) not in cards]
+    if missing:
+        raise LabError(f"after the reboot, the zones {', '.join(missing)} have no address on their card (load.txt)")
+    if not re.search(_WEB_SERVER_IN_PF, rules):  # (the web server of the lab policy: its rules are in pf, or the configuration did not take)
+        raise LabError("after the reboot, pf has no rule for the lab's web server (load.txt)")
+
+
+def _pf_diagnose() -> List[str]:
+    """pf's rules with their counters, its states and statistics, the interfaces and the routes."""
+    return ["pfctl -vsr", "pfctl -ss", "pfctl -si", "ifconfig", "netstat -rn"]
+
+
 # -- Check Point (All-In-One: gateway and management on one instance) --------------------------------------------
 
 # The data interfaces by zone: the second to fourth network card are eth1 to eth3 (Check Point's templates: device
@@ -364,14 +505,15 @@ VENDORS: Dict[str, Vendor] = {
     # Ready once the data interfaces exist: the CLI answers minutes before the forwarding engine makes them (the second
     # vSRX run loaded and probed 10 seconds after `show version` answered, and found no ge-0/0/x). (`| no-more`: the
     # first run stopped at the pager's ---(more)---, which took the `exit` after it for a filter, and every try hung.)
-    "vsrx": Vendor("vsrx", "Juniper vSRX (pay as you go)", "junos", "junos-vsrx3-x86-64-*", "c5.xlarge", "ec2-user",
+    "vsrx": Vendor("vsrx", "Juniper vSRX (pay as you go)", "junos", "junos-vsrx3-x86-64-*,*vSRX*", "c5.xlarge", "ec2-user",
                    "show interfaces terse | match ge-0/0 | no-more", r"syntax error|^error:|\nerror:|missing mandatory|unknown command", [], "",
                    _vsrx_session, ready_answer=_VSRX_READY,
                    success=r"commit complete", diagnose=_vsrx_diagnose,
                    status="run: passed (vSRX 23.4R2-S8.9, appsec PAYG, 0.36.1)"),
-    # The All-In-One image (gateway and management) has no name pattern Check Point's templates use: --ami, the id the
+    # The All-In-One image (gateway and management): Check Point's templates find it by a map of ids, not a name; the
+    # lab takes the subscribed product among the images named Check Point or CloudGuard (find_ami), or --ami, the id the
     # subscription's launch page shows. 16 GB: the management API may not start below 8.
-    "checkpoint": Vendor("checkpoint", "Check Point All-In-One, gateway and management (pay as you go)", "checkpoint", "", "m5.xlarge", "admin",
+    "checkpoint": Vendor("checkpoint", "Check Point All-In-One, gateway and management (pay as you go)", "checkpoint", "Check Point*,*CloudGuard*", "m5.xlarge", "admin",
                          "api status", r"FWLAB-FAILED|FAILED: mgmt_cli", [], _checkpoint_user_data(), _checkpoint_session,
                          ready_answer=r"API readiness test SUCCESSFUL", success=r"FWLAB-LOADED-42", diagnose=_checkpoint_diagnose,
                          uploads=_checkpoint_uploads, boot_minutes=60,
@@ -386,7 +528,25 @@ VENDORS: Dict[str, Vendor] = {
                       for x in ("--interface-map", f"{p}={i}")], _c8000v_user_data(), _c8000v_session, ready_answer=_C8000V_READY,
                      key_bits=2048, diagnose=_c8000v_diagnose, prompt=r"[>#] ?$", ssh_options=("PubkeyAcceptedAlgorithms=+ssh-rsa",),
                      status="run: passed (Catalyst 8000V, IOS XE 26.02.1, PAYG DNA Essentials, 0.36.3)"),  # fmt: skip
-    "asav": Vendor("asav", "Cisco ASAv (pay as you go)", "asa", "asav*", "c5.xlarge", "admin", "show version | include up",
+    # Netgate's pfSense Plus ("Netgate pfSense Plus Firewall/VPN/Router", named pfSense-plus-ec2-26.07-RELEASE-amd64...,
+    # the x86 AMI, not the CloudFormation offer) and Deciso's OPNsense (its image name not seen yet: the subscribed one
+    # among those named OPNsense, find_ami): hourly images.
+    # The image's WAN on the first card is management, by DHCP.
+    "pfsense": Vendor("pfsense", "Netgate pfSense Plus (hourly)", "pfsense", "pfSense-plus-ec2-*-RELEASE-amd64*", "c5.xlarge", "admin", "ifconfig ena3", r"$^",
+                      _PF_AWS_OPTIONS, ready_answer=r"ena3:", as_command=True, load=load_pf_config, diagnose=_pf_diagnose,
+                      status="run: passed (pfSense Plus 26.07, 0.36.4)"),  # fmt: skip
+    "opnsense": Vendor("opnsense", "OPNsense, Deciso's image (hourly)", "opnsense", "*OPNsense*,*opnsense*", "c5.xlarge", "ec2-user", "ifconfig ena3", r"$^",
+                       _PF_AWS_OPTIONS, ready_answer=r"ena3:", as_command=True, sudo="sudo ", load=load_pf_config, diagnose=_pf_diagnose,
+                       status="run: passed (OPNsense 26.1.5, 0.36.4)"),  # fmt: skip
+    # SonicWall NSv, pay as you go (its image name not seen yet: the subscribed one among those named SonicWall or NSv,
+    # find_ami): admin, the instance id as the password
+    # (SonicWall's AWS guide), by SSH and then by SonicOS's own login, both answered.
+    "sonicwall": Vendor("sonicwall", "SonicWall NSv (pay as you go)", "sonicwall", "*SonicWall*,*Sonicwall*,*sonicwall*,*NSv*", "c5.xlarge", "admin", "show version",
+                        r"^% |% Error|Error:|Unknown command|Invalid input|not allowed", list(_ZONE_NETWORKS), "", _sonicwall_session,
+                        ready_answer=r"(?i)sonicos|firmware", prompt=r"[>#] ?$", password_login=True,
+                        answers=((r"(?i)user(name)?: ?$", "admin"), (r"(?i)password: ?$", "{password}")), diagnose=_sonicwall_diagnose,
+                        status="scripted from SonicWall's AWS guide and knowledge base, never run"),  # fmt: skip
+    "asav": Vendor("asav", "Cisco ASAv (pay as you go)", "asa", "asav*,*ASAv*", "c5.xlarge", "admin", "show version | include up",
                    r"ERROR:|% Invalid input|% Incomplete command", list(_ZONE_NETWORKS), _asav_user_data(), _asav_session,
                    "run: passed (ASAv 9.24.10, 0.36.1)",
                    ready_answer=r" up ", key_bits=2048, ssh_options=("HostKeyAlgorithms=+ssh-rsa", "PubkeyAcceptedAlgorithms=+ssh-rsa"),
@@ -394,7 +554,6 @@ VENDORS: Dict[str, Vendor] = {
 }
 
 NOT_SCRIPTED = {
-    "sonicwall": "SonicWall NSv: the command line is pasted into an SSH session that asks questions on first login",
     "stormshield": "Stormshield EVA: the licence of a pay-as-you-go image and snscli's login are not checked yet",
     "sophos": "Sophos Firewall: the XML API must first be switched on and opened to an address in the web console",
     "barracuda": "Barracuda CloudGen: the REST API needs a token made in Firewall Admin first",
@@ -404,23 +563,103 @@ NOT_SCRIPTED = {
 }
 
 
-def find_ami(runner: Runner, region: str, pattern: str, product_codes: Tuple[str, ...] = ()) -> str:
-    """The newest x86 Marketplace image of the name, and of the pay-as-you-go product where the vendor names it (the name
-    alone does not tell it from the image for a licence of your own): the one found is printed, and --ami (the id your
-    subscription's launch page shows) settles it."""
+def find_ami(runner: Runner, region: str, pattern: str, product_codes: Tuple[str, ...] = (), instance_type: str = "c5.xlarge") -> str:
+    """The image to start: of the x86 Marketplace images whose name matches one of the vendor's patterns (comma between
+    them), and of its pay-as-you-go product where the vendor names it, the newest of a product this account is
+    subscribed to. A launch tried with --dry-run tells: AWS answers OptInRequired for a product not subscribed to. One
+    product only: no try. Every product found, and what the try said, is kept in amis.txt; --ami settles it."""
     if not pattern and not runner.dry_run:
         raise LabError("this image has no name to look for: give --ami, the id your subscription's launch page shows for the region")
+    names = ",".join(part.strip() for part in pattern.split(",") if part.strip())
     codes = ["Name=product-code,Values=" + ",".join(product_codes)] if product_codes else []
-    out = runner.run(["aws", "ec2", "describe-images", "--region", region, "--owners", "aws-marketplace", "--filters", f"Name=name,Values={pattern}",
-                      *codes, "Name=architecture,Values=x86_64", "--query", "sort_by(Images,&CreationDate)[-1].[ImageId,Name,join(',',ProductCodes[].ProductCodeId)]",
+    out = runner.run(["aws", "ec2", "describe-images", "--region", region, "--owners", "aws-marketplace", "--filters", f"Name=name,Values={names}",
+                      *codes, "Name=architecture,Values=x86_64", "--query",
+                      "reverse(sort_by(Images,&CreationDate))[].[ImageId,Name,join(',',ProductCodes[].ProductCodeId)]",
                       "--output", "text"], fake="ami-0dryrun\tdry run\t")  # fmt: skip
-    fields = out.strip().split("\t")
-    if not fields or not fields[0].startswith("ami-"):
-        raise LabError(f"no Marketplace image named {pattern} in {region}: subscribe to it first, or give --ami (the id the subscription shows)")
-    print(f"image {fields[0]}: {' '.join(fields[1:2])} (product code {fields[2] if len(fields) > 2 else '?'}); give --ami if this is not "
-          "the pay-as-you-go image you subscribed to", file=sys.stderr)  # fmt: skip
-    labrun.save_state(runner.work, image=fields[0], image_name=" ".join(fields[1:2]), product_code=fields[2] if len(fields) > 2 else "")
-    return fields[0]
+    rows = [line.split("\t") for line in out.splitlines() if line.startswith("ami-")]
+    if not rows:
+        raise LabError(f"no Marketplace image named {names} in {region}: subscribe to it first, or give --ami (the id the subscription shows)")
+    products: List[List[str]] = []
+    for row in rows:  # (newest first: the first image of each product is its newest)
+        code = row[2] if len(row) > 2 else ""
+        if all((p[2] if len(p) > 2 else "") != code for p in products):
+            products.append(row)
+    notes, chosen, unsure = [], None, []
+    if len(products) == 1:
+        chosen = products[0]
+        notes.append(f"{chosen[0]}  {chosen[1]}  product {chosen[2] if len(chosen) > 2 else '?'}: the only product of the name")
+    else:
+        for row in products[:12]:
+            verdict = subscribed(runner, region, row[0], instance_type)
+            said = {True: "subscribed", False: "not subscribed (OptInRequired)", None: "not told"}[verdict]
+            notes.append(f"{row[0]}  {row[1]}  product {row[2] if len(row) > 2 else '?'}: {said}")
+            if verdict:
+                chosen = row
+                break
+            if verdict is None:
+                unsure.append(row)
+    (runner.work / "amis.txt").write_text("\n".join(notes) + "\n", encoding="utf-8")
+    if chosen is None:
+        if not unsure:
+            raise LabError(f"this account is subscribed to none of the {len(products)} products named {names} in {region} (amis.txt): "
+                           "subscribe to the pay-as-you-go one, or give --ami")  # fmt: skip
+        chosen = unsure[0]
+        print("the dry-run launch did not tell which product is subscribed to (amis.txt): the newest is taken", file=sys.stderr)
+    code = chosen[2] if len(chosen) > 2 else ""
+    print(f"image {chosen[0]}: {chosen[1] if len(chosen) > 1 else ''} (product code {code or '?'}; {len(products)} products of the name, "
+          "amis.txt); give --ami if this is not the image you subscribed to", file=sys.stderr)  # fmt: skip
+    labrun.save_state(runner.work, image=chosen[0], image_name=chosen[1] if len(chosen) > 1 else "", product_code=code)
+    return chosen[0]
+
+
+def try_launch(runner: Runner, region: str, ami: str, instance_type: str) -> str:
+    """A launch tried with --dry-run (nothing is started): "ok" (DryRunOperation), "not subscribed" (OptInRequired),
+    "type not supported" (UnsupportedOperation: the product does not take that instance type), or "not told" (no
+    default VPC, and the like)."""
+    out = runner.run(["aws", "ec2", "run-instances", "--dry-run", "--region", region, "--image-id", ami, "--instance-type", instance_type,
+                      "--count", "1"], check=False, quiet=True, timeout=60)  # fmt: skip
+    said = out + runner.last_stderr
+    for code, verdict in (("DryRunOperation", "ok"), ("OptInRequired", "not subscribed"), ("UnsupportedOperation", "type not supported")):
+        if code in said:
+            return verdict
+    return "not told"
+
+
+def subscribed(runner: Runner, region: str, ami: str, instance_type: str) -> Optional[bool]:
+    """Whether this account may start the image: True, False (OptInRequired), or None when the try does not tell."""
+    verdict = try_launch(runner, region, ami, instance_type)
+    return {"ok": True, "not subscribed": False}.get(verdict)
+
+
+# Instance types the lab can use: x86, the ENA driver (the FreeBSD images name its cards ena0, ena1, ...), four network
+# cards or more. The vendor's own comes first; a product takes only some (OPNsense: not c5.xlarge, not m5.xlarge).
+INSTANCE_TYPES = ("c5.xlarge", "m5.xlarge", "t3.xlarge", "c6i.xlarge", "m6i.xlarge", "r5.xlarge", "c5n.xlarge", "m5a.xlarge",
+                  "c5.2xlarge", "m5.2xlarge")  # fmt: skip
+
+
+def pick_instance_type(runner: Runner, region: str, ami: str, first: str) -> str:
+    """The vendor's instance type, or the first of the others the product takes: each is tried with a dry-run launch,
+    which answers UnsupportedOperation for a type the product does not take (the first OPNsense runs). A try that does
+    not tell (no default VPC) ends the search with the vendor's own; what each try said goes to instance-types.txt."""
+    if runner.dry_run:
+        return first
+    notes = []
+    chosen = first
+    for instance_type in dict.fromkeys((first, *INSTANCE_TYPES)):
+        verdict = try_launch(runner, region, ami, instance_type)
+        notes.append(f"{instance_type}: {verdict}")
+        if verdict == "type not supported":
+            continue
+        chosen = instance_type
+        break
+    else:
+        (runner.work / "instance-types.txt").write_text("\n".join(notes) + "\n", encoding="utf-8")
+        raise LabError(f"the image takes none of the instance types {', '.join(dict.fromkeys((first, *INSTANCE_TYPES)))} "
+                       "(instance-types.txt): give one it takes with --instance-type (four network cards or more)")  # fmt: skip
+    (runner.work / "instance-types.txt").write_text("\n".join(notes) + "\n", encoding="utf-8")
+    if chosen != first:
+        print(f"instance type {chosen}: the image does not take {first} (instance-types.txt)", file=sys.stderr)
+    return chosen
 
 
 def describe_ami(runner: Runner, region: str, ami: str) -> None:
@@ -436,17 +675,17 @@ def describe_ami(runner: Runner, region: str, ami: str) -> None:
 
 
 def session(runner: Runner, key: Path, user: str, host: str, lines: List[str], errors: str, name: str, success: str = "",
-            options: Sequence[str] = (), prompt: str = "") -> str:  # fmt: skip
+            options: Sequence[str] = (), prompt: str = "", answers: Sequence[Tuple[str, str]] = (), batch: bool = True) -> str:  # fmt: skip
     """Types the lines into the CLI over SSH (with a terminal: the CLIs want one) and checks what it answered: no line
     refused, and the success line where the CLI writes one. A session that hangs (a failed commit asks before it lets
     the CLI exit) ends after 20 minutes."""
-    prefix = labrun.ssh_prefix(key, user, host, runner.work / "known_hosts", options=options)
+    prefix = labrun.ssh_prefix(key, user, host, runner.work / "known_hosts", options=options, batch=batch)
     (runner.work / f"{name}.commands.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
     args = prefix[:1] + ["-tt"] + prefix[1:]
     ended = None
     if prompt:
         try:
-            out = runner.run_paced(args, lines, prompt, timeout=1200, fake=f"(dry run) {success}")
+            out = runner.run_paced(args, lines, prompt, timeout=1200, fake=f"(dry run) {success}", answers=answers)
         except labrun.SessionEnded as error:  # (what it wrote till then: the refused lines are the likelier reason)
             out, ended = error.output, error
     else:
@@ -474,18 +713,27 @@ _SSH_AUTH_LINES = r"Offering|Server accepts|Authentications that can continue|se
 
 
 def wait_cli(runner: Runner, key: Path, user: str, host: str, command: str, answer: str, minutes: float,
-             options: Sequence[str] = ()) -> None:  # fmt: skip
+             options: Sequence[str] = (), as_command: bool = False, prompt: str = "", answers: Sequence[Tuple[str, str]] = (),
+             batch: bool = True) -> None:  # fmt: skip
     """Until the CLI answers the ready command as it should (PAN-OS: chassis ready, after its first commit). Every try is
     kept in boot.txt: when the CLI never answers, it says whether SSH was refused, the key not taken, or what came back.
     A try that finds no algorithm in common with the firewall ends the wait at once."""
     deadline = time.time() + minutes * 60
-    prefix = labrun.ssh_prefix(key, user, host, runner.work / "known_hosts", options=options)
+    prefix = labrun.ssh_prefix(key, user, host, runner.work / "known_hosts", options=options, batch=batch)
     tries = runner.work / "boot.txt"
     last = ""
     verbose_done = False
     while True:
         try:
-            out = runner.run(prefix[:1] + ["-tt"] + prefix[1:], stdin=command + "\nexit\n", quiet=True, timeout=120)
+            if as_command:  # (a shell: the command given to ssh, no terminal)
+                out = runner.run(prefix + [command], quiet=True, timeout=120)
+            elif answers:  # (a CLI with a login of its own: the questions answered, then the command typed after the prompt)
+                try:
+                    out = runner.run_paced(prefix[:1] + ["-tt"] + prefix[1:], [command, "exit"], prompt, timeout=150, step=60, answers=answers)
+                except labrun.SessionEnded as error:
+                    out = error.output
+            else:
+                out = runner.run(prefix[:1] + ["-tt"] + prefix[1:], stdin=command + "\nexit\n", quiet=True, timeout=120)
             if re.search(answer, out):
                 (runner.work / "ready.txt").write_text(out, encoding="utf-8")  # (the version the firewall runs, for the record)
                 return
@@ -569,39 +817,53 @@ def run_vendor(runner: Runner, args: Any) -> bool:
     labplan.save(runner.work / "plan.json", data)
     tf = tier1.Terraform(runner, labrun.ROOT / "tier3" / "aws", tier1.terraform_binary(args.terraform))
     try:
-        ami = args.ami or find_ami(runner, region, vendor.ami_pattern, vendor.product_codes)
+        ami = args.ami or find_ami(runner, region, vendor.ami_pattern, vendor.product_codes, args.instance_type or vendor.instance_type)
         if args.ami:
             describe_ami(runner, region, args.ami)
+        instance_type = args.instance_type or pick_instance_type(runner, region, ami, vendor.instance_type)
+        labrun.save_state(runner.work, instance_type=instance_type)
         tf.apply({"region": region, "run_id": runner.work.name, "zone_order": ORDER, "firewall_ami": ami,
-                  "firewall_instance_type": args.instance_type or vendor.instance_type, "firewall_user_data": user_data(vendor, key, run_password(runner.work) if "{enable_password}" in vendor.user_data else "",
+                  "firewall_instance_type": instance_type, "firewall_user_data": user_data(vendor, key, run_password(runner.work) if "{enable_password}" in vendor.user_data else "",
                                                                                   str(labrun.load_state(runner.work).get("image_name", ""))),
                   **tier1.common_variables(runner, args, key), "hosts": tier1.host_variables(gateway="firewall")})  # fmt: skip
         outputs = tf.output({"firewall_ip": "192.0.2.4", "firewall_instance": "i-0dryrun", "user": "ec2-user", "hosts": tier1.fake_hosts()})
+        if vendor.password_login:
+            labrun.askpass(runner.work, outputs["firewall_instance"])
+        login = {"answers": tuple((q, a.replace("{password}", outputs["firewall_instance"])) for q, a in vendor.answers),
+                 "batch": not vendor.password_login}  # fmt: skip
         if not runner.dry_run:
             try:
                 wait_cli(runner, key, vendor.user, outputs["firewall_ip"], vendor.ready, vendor.ready_answer,
-                         args.boot_minutes or vendor.boot_minutes, vendor.ssh_options)
+                         args.boot_minutes or vendor.boot_minutes, vendor.ssh_options, as_command=vendor.as_command, prompt=vendor.prompt,
+                         **login)  # fmt: skip
             except LabError:
                 save_console(runner, region, outputs["firewall_instance"])
                 raise
-        if vendor.prepare():  # (answers that do not count, kept in prepare.txt)
+        if vendor.load is not None:
+            try:
+                vendor.load(runner, vendor, key, outputs["firewall_ip"], out)
+            except LabError:
+                save_console(runner, region, outputs["firewall_instance"])  # (a firewall that did not come back: its boot)
+                raise
+        elif vendor.prepare():  # (answers that do not count, kept in prepare.txt)
             session(runner, key, vendor.user, outputs["firewall_ip"], vendor.prepare(), "", "prepare", options=vendor.ssh_options,
-                    prompt=vendor.prompt)
-        files = vendor.uploads(out)
-        if files:
-            upload(runner, key, vendor.user, outputs["firewall_ip"], files, vendor.ssh_options)
-        lines = vendor.session(out)
-        if vendor.ports_command:
-            ports = _ASA_DRY_PORTS if runner.dry_run else asa_data_ports(
-                session(runner, key, vendor.user, outputs["firewall_ip"], ["terminal pager 0", vendor.ports_command, "exit"], "", "ports",
-                        options=vendor.ssh_options, prompt=vendor.prompt))  # fmt: skip
-            lines = fill_ports(lines, ports)
-        session(runner, key, vendor.user, outputs["firewall_ip"], lines, vendor.errors, "load", vendor.success, vendor.ssh_options,
-                vendor.prompt)
+                    prompt=vendor.prompt, **login)
+        if vendor.load is None:
+            files = vendor.uploads(out)
+            if files:
+                upload(runner, key, vendor.user, outputs["firewall_ip"], files, vendor.ssh_options)
+            lines = vendor.session(out)
+            if vendor.ports_command:
+                ports = _ASA_DRY_PORTS if runner.dry_run else asa_data_ports(
+                    session(runner, key, vendor.user, outputs["firewall_ip"], ["terminal pager 0", vendor.ports_command, "exit"], "",
+                            "ports", options=vendor.ssh_options, prompt=vendor.prompt))  # fmt: skip
+                lines = fill_ports(lines, ports)
+            session(runner, key, vendor.user, outputs["firewall_ip"], lines, vendor.errors, "load", vendor.success, vendor.ssh_options,
+                    vendor.prompt, **login)
         try:
             return tier1.probe_hosts(runner, key, outputs, data)
         finally:
-            diagnose(runner, vendor, key, outputs["firewall_ip"])
+            diagnose(runner, vendor, key, outputs["firewall_ip"], login)
     finally:
         if not args.keep:
             with labrun.shielded():
@@ -616,14 +878,22 @@ def upload(runner: Runner, key: Path, user: str, host: str, files: Sequence[Path
                 f"{user}@{host}:"], timeout=300)  # fmt: skip
 
 
-def diagnose(runner: Runner, vendor: Vendor, key: Path, host: str) -> None:
+def diagnose(runner: Runner, vendor: Vendor, key: Path, host: str, login: Optional[Dict[str, Any]] = None) -> None:
     """The firewall's own view after the probes (diagnose.txt), where the vendor has show commands for it; a failure here
     is noted and does not change the result."""
     lines = vendor.diagnose()
     if not lines:
         return
+    if vendor.as_command:
+        prefix = labrun.ssh_prefix(key, vendor.user, host, runner.work / "known_hosts", options=vendor.ssh_options)
+        parts = []
+        for line in lines:
+            answer = runner.run(prefix + [vendor.sudo + line], check=False, quiet=True, timeout=120, fake="(dry run)")
+            parts.append(f"$ {line}\n{answer}{runner.last_stderr if not answer else ''}")
+        (runner.work / "diagnose.txt").write_text("\n".join(parts), encoding="utf-8")
+        return
     try:
-        session(runner, key, vendor.user, host, lines, "", "diagnose", options=vendor.ssh_options, prompt=vendor.prompt)
+        session(runner, key, vendor.user, host, lines, "", "diagnose", options=vendor.ssh_options, prompt=vendor.prompt, **(login or {}))
     except LabError as error:
         (runner.work / "diagnose.txt").write_text(f"(the diagnosis did not finish: {error})\n", encoding="utf-8")
 

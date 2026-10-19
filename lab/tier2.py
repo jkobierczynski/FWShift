@@ -260,6 +260,11 @@ def load_routeros(runner: Runner, prefix: List[str], scp: List[str], remote: str
         raise LabError(f"RouterOS has no enabled rules in the fwshift chains after the import ({rules.strip()[:80]})")
 
 
+# The lab's web server in pf's rules: by its address, or by its alias, which pf holds as a table (the third pfSense run:
+# every converted rule loaded, and none with 10.20.2.10 in it, only <web_server>).
+WEB_SERVER_IN_PF = r"10\.20\.2\.10\b|<web_server>"
+
+
 def load_config_xml(runner: Runner, prefix: List[str], scp: List[str], remote: str, out: Path, flavour: str) -> None:
     path = "/conf/config.xml"
     base_file = runner.work / "config.base.xml"
@@ -274,7 +279,7 @@ def load_config_xml(runner: Runner, prefix: List[str], scp: List[str], remote: s
     answer = runner.run(prefix + [reload], fake="OK")
     rules = runner.run(prefix + ["pfctl -sr"], fake="pass in quick on vtnet1 inet proto tcp from 10.20.1.0/24 to 10.20.2.10")
     (runner.work / "load.txt").write_text(answer + "\n--- pfctl -sr\n" + rules, encoding="utf-8")
-    if "10.20.2.10" not in rules:  # (the web server of the lab policy: its rules are in pf, or the reload did not take)
+    if not re.search(WEB_SERVER_IN_PF, rules):  # (the web server of the lab policy: its rules are in pf, or the reload did not take)
         raise LabError("the firewall's pf has no rule for the lab's web server after the reload (load.txt)")
 
 

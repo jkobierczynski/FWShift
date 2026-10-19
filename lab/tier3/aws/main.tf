@@ -171,10 +171,12 @@ resource "aws_network_interface" "fw_zone" {
   tags              = { Name = "${var.run_id}-fw-${each.key}" }
 }
 
+# Attached once the instance runs: attached to its interface while the instance was still being made, AWS refused it
+# (IncorrectInstanceState, "pending-instance-creation", the first pfSense run); Terraform waits for "running".
 resource "aws_eip" "fw" {
   domain            = "vpc"
   network_interface = aws_network_interface.fw_mgmt.id
-  depends_on        = [aws_internet_gateway.lab]
+  depends_on        = [aws_internet_gateway.lab, aws_instance.firewall]
 }
 
 # The VPC delivers by destination, whatever next hop a host chose: each zone subnet sends the other zones to the

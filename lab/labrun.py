@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import base64
 import ipaddress
+import gzip
 import json
 import os
 import re
@@ -29,7 +30,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple
 
 import labplan
 
@@ -96,11 +97,12 @@ class Runner:
         return out
 
     def run_paced(self, args: Sequence[str], lines: Sequence[str], prompt: str, *, fake: str = "", timeout: float = 1200,
-                  step: float = 120) -> str:  # fmt: skip
+                  step: float = 120, answers: Sequence[Tuple[str, str]] = ()) -> str:  # fmt: skip
         """Types the lines one at a time, each once the command line shows its prompt again, and keeps the input open
         until the command ends: for a CLI that drops a session given its lines ahead of its prompt (the ASA: a single
         "U" of its greeting, and the session closed). Returns all it wrote; fails when a prompt does not come within
-        `step` seconds, or the whole within `timeout`."""
+        `step` seconds, or the whole within `timeout`. answers: (pattern, text) for questions the command line may ask
+        while a prompt is awaited (SonicOS's own "User:" and "Password:"), each answered once."""
         shown = " ".join(shlex.quote(a) for a in args) + "  (typed line by line)"
         self.log.append(shown)
         if self.echo:
@@ -127,11 +129,20 @@ class Runner:
         reader = threading.Thread(target=read, daemon=True)
         reader.start()
         pattern, deadline, mark = re.compile(prompt), time.time() + timeout, 0
+        pending = [(re.compile(question), reply) for question, reply in answers]
         try:
             assert proc.stdin is not None
             for line in lines:
                 limit = min(deadline, time.time() + step)
                 while not pattern.search(text()[mark:]):
+                    asked = next((pair for pair in pending if pair[0].search(text()[mark:])), None)
+                    if asked is not None:  # (a question first: answered, and the prompt awaited again)
+                        pending.remove(asked)
+                        mark = len(text())
+                        proc.stdin.write((asked[1] + "\n").encode("utf-8"))
+                        proc.stdin.flush()
+                        limit = min(deadline, time.time() + step)
+                        continue
                     if proc.poll() is not None:
                         raise SessionEnded(f"{args[0]} ended before the prompt came back, before: {line!r}; what it wrote:\n{text().strip()[-1500:]}",
                                            text())  # fmt: skip
@@ -275,7 +286,9 @@ def host_init(test_ip: str, test_gw: str, test_net: str, subnet_via_gateway: boo
     """The first-boot script of a test host (the same on every cloud): the probe, routing of the test address through
     its own interface, and the probe's answers on it."""
     template = (ROOT / "hostinit.sh.tpl").read_text(encoding="utf-8")
-    probe = base64.b64encode((ROOT / "probe.py").read_bytes()).decode()
+    # Compressed: AWS takes at most 16 KB of user data, and the probe in plain base64 made 17.5 KB of it (the fifth
+    # pfSense run: Terraform refused every test host).
+    probe = base64.b64encode(gzip.compress((ROOT / "probe.py").read_bytes(), mtime=0)).decode()
     values = {"test_ip": test_ip, "test_gw": test_gw, "test_net": test_net, "probe_b64": probe,
               "subnet_via_gw": "yes" if subnet_via_gateway else "no",
               "tcp_ports": ",".join(map(str, labplan.TCP_PORTS)), "udp_ports": ",".join(map(str, labplan.UDP_PORTS))}  # fmt: skip
@@ -293,14 +306,29 @@ class Target:
     via: List[str]  # the command prefix that runs a command there: ssh ..., or ip netns exec NAME
 
 
-def ssh_prefix(key: Path, user: str, host: str, known: Path, port: int = 22, options: Sequence[str] = ()) -> List[str]:
+def ssh_prefix(key: Path, user: str, host: str, known: Path, port: int = 22, options: Sequence[str] = (), batch: bool = True) -> List[str]:
     """The ssh command that reaches a host; options: more -o settings, for a host that needs them (an old host key type).
     Only the run's key is offered (IdentitiesOnly): the keys of an ssh agent go first otherwise, and a router that allows
     three tries (IOS XE) can refuse the login before the run's key is tried (the second 8000V run: "Permission denied
-    (publickey...)" for the whole boot)."""
+    (publickey...)" for the whole boot). batch=False: a password may be asked as well (SonicWall NSv: the instance id),
+    and SSH_ASKPASS gives it (ssh takes the first value of an option, so BatchMode is left out, not overridden)."""
     extra = [word for option in options for word in ("-o", option)]
-    return ["ssh", "-i", str(key), "-p", str(port), "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=accept-new", "-o",
+    mode = ["-o", "BatchMode=yes"] if batch else ["-o", "NumberOfPasswordPrompts=1", "-o", "PreferredAuthentications=publickey,keyboard-interactive,password"]
+    return ["ssh", "-i", str(key), "-p", str(port), *mode, "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=accept-new", "-o",
             f"UserKnownHostsFile={known}", "-o", "ConnectTimeout=10", "-o", "ServerAliveInterval=15", *extra, f"{user}@{host}"]  # fmt: skip
+
+
+def askpass(work: Path, password: str) -> None:
+    """ssh asks this script for a password (SSH_ASKPASS, forced, OpenSSH 8.4 and later); only a session without BatchMode
+    asks at all. The password is kept in the run's folder, readable by its owner only."""
+    secret = work / "askpass.secret"
+    secret.write_text(password, encoding="utf-8")
+    script = work / "askpass.sh"
+    script.write_text(f"#!/bin/sh\ncat {shlex.quote(str(secret))}\n", encoding="utf-8")
+    if os.name == "posix":
+        secret.chmod(0o600)
+        script.chmod(0o700)
+    os.environ.update({"SSH_ASKPASS": str(script), "SSH_ASKPASS_REQUIRE": "force", "DISPLAY": os.environ.get("DISPLAY", ":0")})
 
 
 def wait_ready(runner: Runner, targets: Sequence[Target], minutes: float = 15, probe_path: str = "/opt/fwlab/probe.py",

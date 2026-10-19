@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import errno
+import gzip
 import ipaddress
 import json
 import os
@@ -187,9 +188,12 @@ def test_a_host_that_fails_its_self_check_says_why(tmp_path: Path) -> None:
 def test_the_first_boot_script() -> None:
     script = labrun.host_init("10.20.1.10", "10.20.1.1", "10.20.1.0/24")
     assert "${" not in script and "TEST_IP='10.20.1.10'" in script and "--tcp 22,80,443,8005,8011" in script
-    encoded = re.search(r"echo '([A-Za-z0-9+/=]+)' \| base64 -d", script)
+    encoded = re.search(r"echo '([A-Za-z0-9+/=]+)' \| base64 -d \| gunzip", script)
     assert encoded is not None
-    assert base64.b64decode(encoded.group(1)) == (LAB / "probe.py").read_bytes()
+    assert gzip.decompress(base64.b64decode(encoded.group(1))) == (LAB / "probe.py").read_bytes()
+    # AWS takes at most 16 KB of user data (the fifth pfSense run: 17.5 KB, every test host refused); keep room to grow.
+    for host in tier1.host_variables(gateway="firewall").values():
+        assert len(host["user_data"].encode("utf-8")) < 12 * 1024
     # The own subnet: on the link (AWS, Azure answer ARP for every address), or through the gateway (Google Cloud gives an
     # interface a /32 and answers ARP for its gateway only).
     assert "SUBNET_VIA_GW='no'" in script
@@ -249,6 +253,9 @@ def test_the_sessions_of_tier_3(tmp_path: Path, name: str) -> None:
     vendor = tier3.VENDORS[name]
     done = lab_conversion(tmp_path, vendor.target, vendor.options)
     assert done["report"]["summary"]  # (converted)
+    if vendor.load is not None:  # (pfSense, OPNsense: no lines typed; their config.xml is merged, test_the_pf_family_*)
+        assert vendor.as_command and not vendor.session(done["out"])
+        return
     session = vendor.session(done["out"])
     assert session and all("\n" not in line for line in session)
     assert session[-1] == "exit"  # (the session ends, or it would wait for the CLI's idle timeout)
@@ -572,7 +579,7 @@ def test_the_asav_run_keeps_the_firewalls_own_view_after_the_probes(tmp_path: Pa
     assert lines[0] == "terminal pager 0" and lines[-1] == "exit"
     assert "show interface ip brief" in lines and "show asp drop" in lines and "show access-list" in lines
     assert "packet-tracer input inside tcp 10.20.1.10 40000 10.20.2.10 22 detailed" in lines  # (admin-ssh passes it)
-    assert all(not v.diagnose() for name, v in tier3.VENDORS.items() if name not in ("asav", "vsrx", "checkpoint", "c8000v"))
+    assert all(not v.diagnose() for name, v in tier3.VENDORS.items() if name not in ("asav", "vsrx", "checkpoint", "c8000v", "pfsense", "opnsense", "sonicwall"))
     assert "show policy-map type inspect zone-pair sessions" in tier3.VENDORS["c8000v"].diagnose()
     assert "show security policies hit-count" in tier3.VENDORS["vsrx"].diagnose()
     runner = labrun.Runner(tmp_path, echo=False)
@@ -613,7 +620,7 @@ def test_a_session_that_answers_almost_nothing_fails(tmp_path: Path, monkeypatch
     with pytest.raises(labrun.LabError, match="answered almost nothing"):
         tier3.session(runner, tmp_path / "id_lab", "admin", "192.0.2.4", ["terminal pager 0"], "ERROR:", "load", prompt=r"[>#] ?$")
     paced = {name for name, v in tier3.VENDORS.items() if v.prompt}
-    assert paced == {"asav", "c8000v"}, paced  # (the 8000V paced too, before its first run: an IOS CLI like the ASA's)
+    assert paced == {"asav", "c8000v", "sonicwall"}, paced  # (the 8000V paced too, before its first run: an IOS CLI like the ASA's)
 
 
 def test_the_asav_interface_names_are_read_from_the_firewall() -> None:
@@ -659,7 +666,7 @@ def test_no_ready_check_stops_at_a_pager() -> None:
     try hung until the boot time ran out. A ready check whose answer is long turns the pager off."""
     assert tier3.VENDORS["vsrx"].ready.endswith("| no-more")
     for name, vendor in tier3.VENDORS.items():
-        assert "|" in vendor.ready or name in ("fortigate", "panos", "checkpoint"), (name, vendor.ready)  # (checkpoint: bash, no pager)
+        assert "|" in vendor.ready or name in ("fortigate", "panos", "checkpoint", "sonicwall") or vendor.as_command, (name, vendor.ready)  # (a shell: no pager; SonicOS's show version is short)
 
 
 def test_the_vsrx_is_ready_once_its_data_interfaces_exist() -> None:
@@ -685,7 +692,7 @@ def test_the_check_point_standalone_is_set_up_as_check_points_templates_do(tmp_p
         assert part in data, part
     assert tier3.checkpoint_version("") == "R82" and tier3.checkpoint_version("x R81.20-628 y") == "R81.20"
     assert vendor.boot_minutes == 60 and vendor.instance_type == "m5.xlarge" and vendor.ready == "api status"
-    assert not vendor.ami_pattern  # (no name Check Point's templates look for: --ami)
+    assert "Check Point*" in vendor.ami_pattern  # (Check Point's templates use a map of ids: the subscribed product of the name, find_ami)
 
 
 def test_the_check_point_load_names_every_interface_in_one_call_and_installs(tmp_path: Path) -> None:
@@ -739,9 +746,10 @@ def test_an_image_id_of_another_region_stops_the_run_at_once(tmp_path: Path, mon
 def test_only_the_runs_key_is_offered() -> None:
     """The second 8000V run: "Permission denied (publickey...)" for the whole boot. An ssh agent's keys are offered before
     -i unless IdentitiesOnly says otherwise, and IOS XE allows three tries: only the run's key is offered."""
-    prefix = labrun.ssh_prefix(Path("k"), "ec2-user", "192.0.2.4", Path("kh"))
-    assert prefix[prefix.index("IdentitiesOnly=yes") - 1] == "-o"
-    for name in ("labrun.py", "tier1.py", "tier2.py", "tier3.py"):
+    for batch in (True, False):
+        prefix = labrun.ssh_prefix(Path("k"), "ec2-user", "192.0.2.4", Path("kh"), batch=batch)
+        assert prefix[prefix.index("IdentitiesOnly=yes") - 1] == "-o"
+    for name in ("tier1.py", "tier2.py", "tier3.py"):  # (the scp commands; ssh_prefix above)
         text = (Path(labrun.__file__).parent / name).read_text(encoding="utf-8")
         assert text.count('"BatchMode=yes"') == text.count('"BatchMode=yes", "-o", "IdentitiesOnly=yes"'), name
 
@@ -786,3 +794,239 @@ def test_a_refused_key_is_traced_once_with_ssh_v(tmp_path: Path, monkeypatch: py
     text = (tmp_path / "boot.txt").read_text()
     assert text.count("ssh -v, once") == 1 and "server-sig-algs=" in text and "Offering public key" in text and "noise" not in text
     assert sum("-v" in c for c in calls) == 1
+
+
+@pytest.mark.parametrize("flavour", ["pfsense", "opnsense"])
+def test_the_pf_family_gets_its_zones_on_the_data_cards(tmp_path: Path, flavour: str) -> None:
+    """pfSense and OPNsense on AWS: the image's WAN (the first card, DHCP) is management; the zones are OPT1 to OPT3 on
+    ena1 to ena3 with the lab's addresses, and the converted rules name those interfaces."""
+    vendor = tier3.VENDORS[flavour]
+    done = lab_conversion(tmp_path, flavour, vendor.options)
+    base = (Path(__file__).parent / "data" / f"{flavour}_sample.xml").read_text(encoding="utf-8")
+    merged = tier3.assign_zone_interfaces(tier2.merge_areas(base, done["out"].read_text(encoding="utf-8"), flavour), flavour)
+    root = ET.fromstring(merged)
+    interfaces = root.find("interfaces")
+    assert interfaces is not None
+    seen = {child.tag: (child.findtext("if"), child.findtext("ipaddr"), child.findtext("subnet")) for child in interfaces}
+    assert seen["opt1"] == ("ena1", "10.20.1.4", "24") and seen["opt2"] == ("ena2", "10.20.2.4", "24") and seen["opt3"] == ("ena3", "10.20.3.4", "24")
+    assert seen["wan"][0] == base.split("<wan>")[1].split("<if>")[1].split("</if>")[0]  # (management stays as it was)
+    assert interfaces.find("opt3/blockpriv") is None and interfaces.find("opt3/enable") is not None
+    assert (interfaces.find("opt1/enable").text or "") == ("" if flavour == "pfsense" else "1")  # type: ignore[union-attr]
+    named = set(re.findall(r"<interface>([^<]+)</interface>", done["out"].read_text(encoding="utf-8")))
+    assert named and named <= {"opt1", "opt2", "opt3"}
+
+
+def test_a_card_the_image_gave_another_interface_is_taken_back() -> None:
+    """An image that put LAN on the second card: LAN is taken out, so that the card is OPT1's alone."""
+    base = "<pfsense><interfaces><wan><if>ena0</if><ipaddr>dhcp</ipaddr></wan><lan><if>ena1</if><ipaddr>192.168.1.1</ipaddr></lan></interfaces></pfsense>"
+    root = ET.fromstring(tier3.assign_zone_interfaces(base, "pfsense"))
+    tags = [child.tag for child in root.find("interfaces")]  # type: ignore[union-attr]
+    assert tags == ["wan", "opt1", "opt2", "opt3"]
+
+
+def test_the_pf_family_is_loaded_and_checked_after_a_reboot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The load reads /conf/config.xml (with sudo for OPNsense's ec2-user), writes the merged file back, reboots, and
+    stops when a zone has no address or pf no rule for the web server."""
+    vendor = tier3.VENDORS["opnsense"]
+    done = lab_conversion(tmp_path, "opnsense", vendor.options)
+    runner = labrun.Runner(tmp_path, echo=False)
+    calls: List[List[str]] = []
+    sample = (Path(__file__).parent / "data" / "opnsense_sample.xml").read_text(encoding="utf-8")
+
+    def fake_run(args: List[str], **kwargs: object) -> str:
+        calls.append(list(args))
+        last = args[-1]
+        if last.endswith("cat /conf/config.xml"):
+            return sample
+        if "FWLAB-WRITTEN" in last:
+            return "FWLAB-WRITTEN"
+        if last == "ifconfig":
+            return "ena1: inet 10.20.1.4\nena2: inet 10.20.2.4\n"  # (no address for outside)
+        if last.endswith("pfctl -sr"):
+            return "pass in quick on ena1 inet proto tcp from 10.20.1.0/24 to 10.20.2.10"
+        return ""
+
+    monkeypatch.setattr(runner, "run", fake_run)
+    monkeypatch.setattr(tier3.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(tier3, "wait_cli", lambda *args, **kwargs: None)
+    with pytest.raises(labrun.LabError, match="outside have no address"):
+        tier3.load_pf_config(runner, vendor, tmp_path / "id_lab", "192.0.2.4", done["out"])
+    commands = [c[-1] for c in calls if c[0] == "ssh"]
+    assert commands[0] == "sudo cat /conf/config.xml" and any(c.startswith("sudo cp fwlab-config.xml /conf/config.xml") for c in commands)
+    assert "sudo shutdown -r now" in commands
+    assert any(c[0] == "scp" and c[-1].endswith(":fwlab-config.xml") for c in calls)
+    assert "<if>ena3</if>" in (tmp_path / "config.merged.xml").read_text(encoding="utf-8")
+
+
+def test_a_question_before_the_prompt_is_answered_once(tmp_path: Path) -> None:
+    """SonicOS asks for its own user and password in the SSH session before its prompt: the paced typing answers each
+    question once, then types the lines after the prompt."""
+    cli = (
+        "import sys\n"
+        "sys.stdout.write('User: '); sys.stdout.flush(); user = sys.stdin.readline().strip()\n"
+        "sys.stdout.write('Password: '); sys.stdout.flush(); word = sys.stdin.readline().strip()\n"
+        "ok = user == 'admin' and word == 'i-0abc'\n"
+        "sys.stdout.write(('admin@NSV> ' if ok else 'Access denied\\n')); sys.stdout.flush()\n"
+        "for line in sys.stdin:\n"
+        "    if line.strip() == 'exit': break\n"
+        "    sys.stdout.write(line.strip() + '\\nok\\nadmin@NSV> '); sys.stdout.flush()\n"
+    )
+    runner = labrun.Runner(tmp_path, echo=False)
+    out = runner.run_paced([sys.executable, "-c", cli], ["show version", "exit"], r"[>#] ?$", step=10,
+                           answers=((r"(?i)user(name)?: ?$", "admin"), (r"(?i)password: ?$", "i-0abc")))
+    assert "Access denied" not in out and out.count("ok") == 1
+
+
+def test_the_sonicwall_logs_in_by_password_and_makes_its_zones(tmp_path: Path) -> None:
+    """The NSv: no key, the instance id as the password (SSH_ASKPASS, without BatchMode, which ssh would keep as the
+    first value); the zones made, trusted, and X0, X2 and X3 put in them before FWShift's commands."""
+    vendor = tier3.VENDORS["sonicwall"]
+    assert vendor.password_login and any("{password}" in answer for _, answer in vendor.answers)
+    prefix = labrun.ssh_prefix(Path("k"), "admin", "192.0.2.4", Path("kh"), batch=False)
+    assert "BatchMode=yes" not in prefix and "NumberOfPasswordPrompts=1" in prefix
+    done = lab_conversion(tmp_path, "sonicwall", vendor.options)
+    lines = vendor.session(done["out"])
+    for zone, port in (("inside", "X0"), ("dmz", "X2"), ("outside", "X3")):
+        assert lines.index(f"zone {zone}") < lines.index(f"interface {port}") < lines.index(f"ip-assignment {zone} static")
+    assert lines.index("commit") < lines.index("configure terminal", 1) and lines[-1] == "exit"
+    keep = dict(os.environ)
+    try:
+        labrun.askpass(tmp_path, "i-0abc")
+        script = Path(os.environ["SSH_ASKPASS"])
+        assert os.environ["SSH_ASKPASS_REQUIRE"] == "force"
+        if os.name == "posix":
+            assert subprocess.run([str(script)], capture_output=True, text=True).stdout == "i-0abc"
+            assert (tmp_path / "askpass.secret").stat().st_mode & 0o077 == 0
+    finally:
+        os.environ.clear()
+        os.environ.update(keep)
+
+
+def test_the_image_is_the_newest_of_a_subscribed_product(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """vSRX bundles, VM-Series BYOL and bundles, third-party OPNsense images: one name, several products. Of the images
+    named, the newest of a product this account is subscribed to is taken: a dry-run launch answers OptInRequired for
+    a product not subscribed to."""
+    runner = labrun.Runner(tmp_path, echo=False)
+    listing = ("ami-0new\tjunos-vsrx3-x86-64-24.2-byol\tbyolcode\n"
+               "ami-0mid\tjunos-vsrx3-x86-64-24.2-payg\tpaygcode\n"
+               "ami-0old\tjunos-vsrx3-x86-64-23.4-payg\tpaygcode\n")  # fmt: skip
+    tried: List[str] = []
+
+    def fake_run(args: List[str], **kwargs: object) -> str:
+        if "describe-images" in args:
+            assert "Name=name,Values=junos-vsrx3-x86-64-*,*vSRX*" in args
+            return listing
+        ami = args[args.index("--image-id") + 1]
+        tried.append(ami)
+        runner.last_stderr = ("An error occurred (OptInRequired) when calling the RunInstances operation" if ami == "ami-0new"
+                              else "An error occurred (DryRunOperation) when calling the RunInstances operation: Request would have succeeded")
+        return ""
+
+    monkeypatch.setattr(runner, "run", fake_run)
+    assert tier3.find_ami(runner, "us-east-1", "junos-vsrx3-x86-64-*, *vSRX*") == "ami-0mid"
+    assert tried == ["ami-0new", "ami-0mid"]  # (one try per product, the newest image of each)
+    kept = (tmp_path / "amis.txt").read_text()
+    assert "byolcode: not subscribed (OptInRequired)" in kept and "paygcode: subscribed" in kept
+    assert json.loads((tmp_path / "run.json").read_text())["product_code"] == "paygcode"
+
+    runner.last_stderr = ""
+    monkeypatch.setattr(runner, "run", lambda args, **kw: listing if "describe-images" in args else
+                        setattr(runner, "last_stderr", "(OptInRequired)") or "")  # type: ignore[func-returns-value]
+    with pytest.raises(labrun.LabError, match="subscribed to none of the 2 products"):
+        tier3.find_ami(runner, "us-east-1", "junos-vsrx3-x86-64-*")
+
+
+def test_a_product_alone_is_taken_without_a_try_and_every_vendor_has_names(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = labrun.Runner(tmp_path, echo=False)
+    calls: List[List[str]] = []
+    monkeypatch.setattr(runner, "run", lambda args, **kw: calls.append(list(args)) or "ami-0one\tpfSense-plus-ec2-26.07-RELEASE-amd64\tcphb\n")
+    assert tier3.find_ami(runner, "us-east-1", "pfSense-plus-ec2-*-RELEASE-amd64*") == "ami-0one" and len(calls) == 1
+    assert all(vendor.ami_pattern for vendor in tier3.VENDORS.values())  # (--ami no longer needed for any of them)
+
+
+def test_the_elastic_ip_waits_for_the_firewall_to_run() -> None:
+    """The first pfSense run: the address attached to the interface of an instance still being made, refused."""
+    text = (Path(labrun.__file__).parent / "tier3" / "aws" / "main.tf").read_text(encoding="utf-8")
+    block = text[text.index('resource "aws_eip" "fw"'):]
+    block = block[:block.index("\n}")]
+    assert "aws_instance.firewall" in block
+
+
+@pytest.mark.parametrize("flavour", ["pfsense", "opnsense"])
+def test_the_images_own_management_rules_survive_the_merge(tmp_path: Path, flavour: str) -> None:
+    """The first pfSense run: the merge replaced the rules, the image's "Default SSH rule" on WAN went with them, and
+    after the reboot SSH timed out for good. The image's WAN rules stay, in front of the converted ones."""
+    vendor = tier3.VENDORS[flavour]
+    done = lab_conversion(tmp_path, flavour, vendor.options)
+    wan_rule = ("<rule><type>pass</type><interface>wan</interface><protocol>tcp</protocol><source><any/></source>"
+                "<destination><network>wanip</network><port>22</port></destination><descr>Default SSH rule</descr></rule>")
+    base = (Path(__file__).parent / "data" / f"{flavour}_sample.xml").read_text(encoding="utf-8")
+    base = base.replace("<filter>", "<filter>" + wan_rule, 1) if "<filter>" in base else base.replace("</interfaces>", "</interfaces><filter>" + wan_rule + "</filter>", 1)
+    merged = tier3.keep_management_rules(base, tier2.merge_areas(base, done["out"].read_text(encoding="utf-8"), flavour))
+    root = ET.fromstring(merged)
+    legacy = root.find("filter")
+    assert legacy is not None
+    rules = legacy.findall("rule")
+    assert rules and rules[0].findtext("descr") == "Default SSH rule"
+    if flavour == "pfsense":  # (the image's WAN rules first, all of them; then the converted rules, on the zones' interfaces)
+        names = [r.findtext("interface") for r in rules]
+        first_zone = next(i for i, name in enumerate(names) if name != "wan")
+        assert set(names[:first_zone]) == {"wan"} and set(names[first_zone:]) <= {"opt1", "opt2", "opt3"}
+
+
+def test_the_web_servers_rule_is_found_by_its_alias_too() -> None:
+    """The third pfSense run: every converted rule in pf, the web server as the table <web_server>, not its address."""
+    rules = 'pass in log quick on ena1 inet proto tcp from <inside_net> to <web_server> port = http flags S/SA keep state (if-bound) label "descr=web-to-dmz"'
+    assert re.search(tier2.WEB_SERVER_IN_PF, rules) and re.search(tier2.WEB_SERVER_IN_PF, "pass in quick on vtnet1 inet proto tcp from 10.20.1.0/24 to 10.20.2.10")
+    assert not re.search(tier2.WEB_SERVER_IN_PF, "pass in quick on ena3 from any to 10.20.2.100")
+
+
+def test_the_probe_waits_for_an_address_its_host_does_not_have_yet(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The fourth pfSense run: in11's probe started before its test interface had 10.20.1.11; every bind failed with
+    "Cannot assign requested address", once, and the host answered on nothing for the whole run. The probe waits for
+    the address, and still gives up on other errors (a port taken, as sshd's 22)."""
+    attempts: List[int] = []
+
+    class FakeSocket:
+        def bind(self, where: Any) -> None:
+            attempts.append(where[1])
+            if len(attempts) < 3:
+                raise OSError(errno.EADDRNOTAVAIL, "Cannot assign requested address")
+
+    monkeypatch.setattr(labprobe.time, "sleep", lambda seconds: None)
+    labprobe._bind(FakeSocket(), "10.20.1.11", 80, "tcp", threading.Event())
+    assert attempts == [80, 80, 80]
+
+    class Taken:
+        def bind(self, where: Any) -> None:
+            raise OSError(errno.EADDRINUSE, "Address already in use")
+
+    with pytest.raises(OSError):
+        labprobe._bind(Taken(), "10.20.1.11", 22, "tcp", threading.Event())
+
+
+def test_an_instance_type_the_product_takes_is_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The first OPNsense runs: neither c5.xlarge nor m5.xlarge ("UnsupportedOperation: The instance configuration for
+    this AWS Marketplace product is not supported"). The lab tries the vendor's type, then the others, by dry-run."""
+    runner = labrun.Runner(tmp_path, echo=False)
+    tried: List[str] = []
+
+    def fake_run(args: List[str], **kwargs: object) -> str:
+        instance_type = args[args.index("--instance-type") + 1]
+        tried.append(instance_type)
+        runner.last_stderr = ("(UnsupportedOperation) The instance configuration for this AWS Marketplace product is not supported"
+                              if instance_type in ("c5.xlarge", "m5.xlarge") else "(DryRunOperation) Request would have succeeded")
+        return ""
+
+    monkeypatch.setattr(runner, "run", fake_run)
+    assert tier3.pick_instance_type(runner, "us-east-1", "ami-0opn", "c5.xlarge") == "t3.xlarge"
+    assert tried == ["c5.xlarge", "m5.xlarge", "t3.xlarge"]
+    assert "c5.xlarge: type not supported" in (tmp_path / "instance-types.txt").read_text()
+    # A try that does not tell (no default VPC): the vendor's own, as before.
+    monkeypatch.setattr(runner, "run", lambda args, **kw: setattr(runner, "last_stderr", "(VPCIdNotSpecified)") or "")  # type: ignore[func-returns-value]
+    assert tier3.pick_instance_type(runner, "us-east-1", "ami-0opn", "m5.xlarge") == "m5.xlarge"
+    # None taken: said so.
+    monkeypatch.setattr(runner, "run", lambda args, **kw: setattr(runner, "last_stderr", "(UnsupportedOperation)") or "")  # type: ignore[func-returns-value]
+    with pytest.raises(labrun.LabError, match="takes none of the instance types"):
+        tier3.pick_instance_type(runner, "us-east-1", "ami-0opn", "c5.xlarge")
+    assert all(t.endswith("xlarge") for t in tier3.INSTANCE_TYPES)

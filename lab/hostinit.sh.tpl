@@ -9,7 +9,7 @@ TEST_NET='${test_net}'
 SUBNET_VIA_GW='${subnet_via_gw}'
 LAB_NET='10.20.0.0/16'
 mkdir -p /opt/fwlab
-echo '${probe_b64}' | base64 -d > /opt/fwlab/probe.py
+echo '${probe_b64}' | base64 -d | gunzip > /opt/fwlab/probe.py
 chmod 755 /opt/fwlab/probe.py
 
 # The test interface may be attached after boot (AWS): wait for its address. The cloud gives it by DHCP; if that has not

@@ -8,7 +8,7 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.36.3 (alpha) |
+| Version | 0.36.4 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Meraki MX (read the answers of the Dashboard API for one network: VLANs, objects, the outbound and layer 7 rules, port forwarding, 1:1 and 1:many NAT, the inbound table with NAT exceptions; write a curl script that puts the outbound and NAT tables); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
 | Tests | 6118, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables and nftables**: rulesets loaded into a Linux kernel and real packets forwarded through it (below; and the lab of 0.32.0, also on the author's machine). **AWS, Azure and Google Cloud**: the lab policy's conversion loaded into a real account by the lab, and real connections between instances checked (0.32.1, below). **FortiOS**: the lab policy's conversion loaded on a FortiGate-VM (FortiOS 8.0.1, AWS Marketplace) and real connections through it checked (0.32.1, below). **PAN-OS**: the same on a VM-Series (PAN-OS 11.2.15, AWS Marketplace). Nothing has been loaded on an ASA, an IOS router, a Huawei USG, a Stormshield firewall, a Meraki MX, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
@@ -2165,6 +2165,79 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-19: version 0.36.4
+
+**The pfSense and OPNsense output loaded on pfSense Plus and OPNsense.** The lab's tier 3 runs pfSense Plus, OPNsense
+and the SonicWall NSv from the AWS Marketplace and finds every image and instance type by itself; pfSense Plus passed on
+its sixth run and OPNsense on its first full one, the seventh and eighth firewalls of tier 3 to pass. The runs before
+them found faults of the lab only, none in FWShift's output.
+
+**Built**
+
+* Three more images in tier 3. **pfSense Plus** (Netgate) and **OPNsense**
+  (Deciso's image): the image's `/conf/config.xml` is read over SSH, the areas of the conversion put in (tier 2's
+  merge) and the zones put on the data cards (OPT1 to OPT3 on ena1 to ena3, the lab's addresses, no blocking of private
+  networks; an interface the image had on one of those cards is taken out; WAN, the first card, by DHCP, stays for
+  management), written back, and the firewall rebooted; ready again once ena3 has its address, loaded once pf has a
+  rule for the lab's web server. Commands are given to ssh (pfSense's `admin` gets the console menu with a terminal);
+  OPNsense's `ec2-user` uses sudo. **SonicWall NSv**: `admin` with the instance id as the password (SonicWall's AWS
+  guide), given by SSH_ASKPASS (OpenSSH 8.4 and later; without BatchMode, which ssh would keep as the first value), and
+  SonicOS's own `User:` and `Password:` answered in the session (paced typing now answers questions before a prompt);
+  the zones `inside`, `dmz` and `outside` made, trusted (a WAN zone adds NAT policies), and X0, X2 and X3 put in them
+  (AWS's first card is X1 and the second X0, per SonicWall's guide; X2 and X3 are assumed), then FWShift's commands.
+  pfSense's image is found by its name (`pfSense-plus-ec2-*-RELEASE-amd64*`, 26.07). Sophos Firewall is left out for
+  now: its XML API is switched on in the web console only.
+* Every image of tier 3 is found without `--ami`: names for each vendor (several, with a comma; Check
+  Point and CloudGuard, OPNsense, SonicWall and NSv, `*vSRX*` and `*ASAv*` beside the old patterns), and of the
+  products those names cover, the newest image of one the account is subscribed to. Each product (the newest image of
+  each) is tried with `run-instances --dry-run`: `DryRunOperation` is subscribed, `OptInRequired` is not, anything else
+  does not tell, and then the newest is taken; one product alone is not tried. The finds and the answers go to
+  amis.txt.
+* The instance type is found the same way, unless `--instance-type` says: the vendor's type, then others of four ENA
+  cards (t3.xlarge, c6i.xlarge, m6i.xlarge, r5.xlarge, ...), each tried with the dry-run launch, which answers
+  `UnsupportedOperation` for a type the product does not take; the first it takes is started (instance-types.txt). A
+  try that does not tell keeps the vendor's own.
+* The lab's own fixes from the pfSense runs: the Elastic IP attached once the instance runs; the image's WAN rules
+  kept in the merge; pf's rules recognised by the alias table as well as the address (tier 2 too); the console saved
+  when a load fails; the test hosts' probe waiting for its address, and sent compressed in their user data.
+
+**Tested**
+
+* The first pfSense run found its image by the name (26.07, product code `cphb99lr7icr3n9x6kc3102s5`) and
+  stopped in Terraform: the Elastic IP was attached to the management interface while the instance was still being
+  made (`IncorrectInstanceState`, "pending-instance-creation"); the earlier runs had won that race. The address now
+  waits for the instance (`depends_on`), which Terraform makes once it runs. The second pfSense run got in (the key
+  refused once, early in the first boot, then taken), read the image's configuration (pfSense Plus 26.07, config
+  version 24.6, WAN on ena0 by DHCP and nothing else), wrote the merged one and rebooted; then SSH timed out for the 15
+  minutes. The image lets SSH and HTTPS in on WAN by rules of its own ("Default SSH rule", "Default HTTPS rule"), and
+  the merge replaces the rules as a restore does: the lab locked itself out. The image's WAN rules are now kept in
+  front of the converted ones (pfSense's rules and OPNsense's legacy and own rule lists), and a load that fails saves
+  the firewall's console as the boot does. The third pfSense run came back after the reboot with ena1 to ena3 on
+  10.20.1.4, 10.20.2.4 and 10.20.3.4, and pf held the image's WAN rules and then every converted rule, in order, on
+  ena1 to ena3; the run still stopped: the check looked for 10.20.2.10 in `pfctl -sr`, and pfSense holds aliases as
+  tables (`<web_server>`). The check (tier 2's as well, which had never run for real) takes the address or the table.
+  The fourth pfSense run loaded the policy and stopped before the probes: test host in11's probe had started before its
+  test interface (attached after the host boots) had 10.20.1.11, every bind failed once with "Cannot assign requested
+  address", and the host answered on nothing for 15 minutes. A race of the lab's own hosts, won by every run before.
+  The probe now waits for the address (other bind errors, such as sshd's port 22, still end that listener). That
+  made the probe 11 KB, and its base64 in the test hosts' first-boot script 17.5 KB of user data: AWS takes 16 KB, and
+  the fifth pfSense run stopped in Terraform at every test host. The probe goes in compressed now (gzip, then base64,
+  about 7.7 KB in all), and a test keeps the user data under 12 KB. The sixth run, by the author: **PASSED** (local
+  32, ok 96, ok-unasserted 32), the seventh firewall of tier 3 to pass and the first device loaded with FWShift's
+  pfSense output (the areas put into config.xml as a restore does, the image's WAN rules kept, then a reboot). What it
+  took: the Elastic IP after the instance, the image's own management rules kept, the check by alias table, and test
+  hosts that wait for their address.
+* The first OPNsense runs found the image by its name (OPNsense 26.1.5, sold by OPNsense, product code
+  `1a8db4k5vqv7gye9gt947sk94`); AWS refused c5.xlarge and then m5.xlarge for the product (`UnsupportedOperation`)
+  before anything was started, which the instance type search now finds by itself. The next run, by the author, with
+  an instance type the product takes: **PASSED** (local 32, ok 96, ok-unasserted 32) on its first full run, the eighth
+  firewall of tier 3 to pass: the same load as pfSense (the image's WAN rules kept, the zones on ena1 to ena3, a
+  reboot), with `ec2-user` and sudo.
+* The suite (6,669 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: NAT on any device (the lab policy has none); a Check Point policy installed on a gateway; the
+  SonicWall NSv of tier 3, the Check Point vendor of tier 3 and the VMs of tier 2, never run; the restore of
+  pfSense or OPNsense areas in their web consoles.
 
 ### 2026-10-18: version 0.36.3
 

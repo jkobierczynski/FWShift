@@ -16,7 +16,7 @@ Everything a run makes is destroyed at the end, also when a step fails.
 |---|---|---|---|---|
 | 1 | the cloud's own firewall, no image | `aws` (security groups), `azure` (NSGs), `gcp` (network firewall policy) | an account, Terraform or OpenTofu, the cloud's CLI | five small test hosts for the length of a run |
 | 2 | images that are free, on your own Linux host | `nftables`, `iptables` (the kernel, no image), `routeros`, `opnsense`, `pfsense` (KVM) | root; QEMU/KVM and a base image for the last three | nothing |
-| 3 | AWS Marketplace images, pay per hour | `fortigate`, `panos`, `vsrx`, `c8000v`, `asav`, `checkpoint` | an AWS account subscribed to the image | the image's hourly price and five small test hosts |
+| 3 | AWS Marketplace images, pay per hour | `fortigate`, `panos`, `vsrx`, `c8000v`, `asav`, `checkpoint`, `pfsense`, `opnsense`, `sonicwall` | an AWS account subscribed to the image | the image's hourly price and five small test hosts |
 
 `python3 lab/lab.py list` shows the same, with the images of tier 3 that are not scripted and why.
 
@@ -176,10 +176,25 @@ booting.
 | Juniper vSRX (PAYG) | `junos` | ge-0/0/0-2 (the default zones are deleted first); ready once the forwarding engine has made them | `ec2-user` |
 | Cisco Catalyst 8000V (IOS XE; the PAYG image with DNA Essentials, `Cisco-C8K-PAYG-ESS-*`) | `ios`, interfaces mapped to Gi2-4 | GigabitEthernet2-4, zone members from the output's comments | `ec2-user`; Day 0 in the user data gives the run's key as a `key-string` and allows the RSA signatures (IOS XE 26.02 takes no ssh-rsa by default) |
 | Cisco ASAv | `asa` | the three data interfaces, by the names the ASAv gives them (read with `show interface ip brief`; on c5 not GigabitEthernet0/0-0/2), `inspect icmp` added; a Day 0 configuration turns on SSH on Management0/0 with the run's key (RSA 2048: the ASA's lines hold 511 characters); ssh allows its `ssh-rsa` host key | `admin` (privileged at login, by the Day 0 configuration, which also sets an enable password made for the run: `enable_password.txt` in the work folder) |
-| Check Point All-In-One (PAYG: gateway and management on one instance; `--ami`, which Check Point's templates find by no name; m5.xlarge, 16 GB for the management API) | `checkpoint` | eth1-eth3, addresses set with `clish`; one `set simple-gateway` names every interface (eth0 too: it replaces the list), each data interface in its security zone, anti-spoofing off | `admin`, the run's key; bash, by the first-time setup (the image's `/etc/cloud_config.py`, as Check Point's Terraform module for a standalone calls it); ready when `api status` says the API is; FWShift's `mgmt_cli` script and the lab's `fwlab_load.sh` are copied over and run, then publish and install of `Standard`; boot allowed 60 minutes |
+| Check Point All-In-One (PAYG: gateway and management on one instance; the subscribed product among the images named Check Point or CloudGuard; m5.xlarge, 16 GB for the management API) | `checkpoint` | eth1-eth3, addresses set with `clish`; one `set simple-gateway` names every interface (eth0 too: it replaces the list), each data interface in its security zone, anti-spoofing off | `admin`, the run's key; bash, by the first-time setup (the image's `/etc/cloud_config.py`, as Check Point's Terraform module for a standalone calls it); ready when `api status` says the API is; FWShift's `mgmt_cli` script and the lab's `fwlab_load.sh` are copied over and run, then publish and install of `Standard`; boot allowed 60 minutes |
+| Netgate pfSense Plus Firewall/VPN/Router (hourly; the x86 AMI, `pfSense-plus-ec2-*-RELEASE-amd64*`) | `pfsense`, zones mapped to OPT1-OPT3 | ena1-ena3 as OPT1-OPT3 with the lab's addresses, put into the image's `/conf/config.xml` with the areas of the conversion (the merge of tier 2), then a reboot; ready once ena3 has its address and pf a rule for the lab's web server. WAN (the first card, DHCP) is management | `admin`, the run's key; commands given to ssh (`admin` gets a menu with a terminal) |
+| OPNsense, Deciso's image (hourly; the subscribed product among the images named OPNsense) | `opnsense`, zones mapped to OPT1-OPT3 | as pfSense | `ec2-user`, the run's key, `sudo` for root |
+| SonicWall NSv (PAYG; the subscribed product among the images named SonicWall or NSv) | `sonicwall` | X0, X2, X3 (AWS's second to fourth card: X0 is SonicWall's documented LAN; X2 and X3 assumed), in zones `inside`, `dmz`, `outside` made in the same session, security type trusted | `admin`, the instance id as the password (SSH_ASKPASS), and SonicOS's own `User:` and `Password:` answered in the session; lines typed after the prompt |
 
-Not scripted, with the reason, in `python3 lab/lab.py list`: SonicWall, Stormshield, Sophos, Barracuda,
-WatchGuard, Forcepoint, Meraki.
+**Which image.** Each image is looked up by its names in the run's region: of the x86 Marketplace images whose name
+matches, the newest of a product the account is subscribed to (VM-Series: of PAYG Bundle 1, by its product code). One
+name often covers several products (the vSRX bundles, BYOL and pay as you go, other sellers' OPNsense images): for each
+product the lab tries a launch with `--dry-run`, which starts nothing, and AWS answers `OptInRequired` for a product not
+subscribed to. What it found and what each try said is in `amis.txt`; `--ami` settles it where the choice is wrong or
+the try does not tell (an account without a default VPC). An image id belongs to one region.
+
+**Which instance type.** A product takes only some instance types (OPNsense took neither c5.xlarge nor m5.xlarge). Unless
+`--instance-type` says, the lab tries the vendor's type and then others of four ENA network cards (t3.xlarge, c6i.xlarge,
+m6i.xlarge, r5.xlarge, ...) with the same dry-run launch, which answers `UnsupportedOperation` for a type the product
+does not take, and starts the first it takes (`instance-types.txt`).
+
+pfSense and OPNsense passed on AWS (0.36.4); SonicWall is scripted from its vendor's documentation and has never run. Not scripted, with the reason, in `python3 lab/lab.py list`: Stormshield, Sophos, Barracuda, WatchGuard,
+Forcepoint, Meraki.
 
 ## In GitHub Actions
 
@@ -210,9 +225,9 @@ Terraform state (to destroy by hand if even that failed) and without the run's p
   gateway, Google Cloud passed with all 160 flows as the source decides. Tier 3: the FortiGate-VM (PAYG, FortiOS
   8.0.1) and the VM-Series (PAYG Bundle 1, PAN-OS 11.2.15) took every line of the converted policy and passed with 128
   flows through each as the source decides; so did the ASAv (PAYG, 9.24.10, 0.36.1), on its ninth run, and the
-  vSRX (PAYG, the appsec bundle, Junos 23.4R2-S8.9, 0.36.1), on its fourth, and the Catalyst 8000V (PAYG, DNA
-  Essentials, IOS XE 26.02.1, 0.36.3), on its third: the runs before them found what each needs of the lab
-  (DEVELOPMENT.md, 0.36.1 and 0.36.3). `nftables` and `iptables` of
+  vSRX (PAYG, the appsec bundle, Junos 23.4R2-S8.9, 0.36.1), on its fourth, the Catalyst 8000V (PAYG, DNA
+  Essentials, IOS XE 26.02.1, 0.36.3), on its third, pfSense Plus (26.07, 0.36.4), on its sixth, and OPNsense (26.1.5, 0.36.4), on its first full run: the runs before them found what each needs of the lab
+  (DEVELOPMENT.md, 0.36.1, 0.36.3 and 0.36.4). `nftables` and `iptables` of
   tier 2 also passed on the author's own Debian.
 * **Verified**: `nftables` and `iptables` of tier 2, for real: the converted policy in a network namespace, 128 flows
   through the kernel all as the source decides and 32 local ones; a ruleset that lets everything through fails the run;
@@ -220,7 +235,7 @@ Terraform state (to destroy by hand if even that failed) and without the run's p
   host allows). Every other run is made dry in the tests and in the
   workflow: the conversion, the plan, the order of the commands, the variables against the Terraform modules, the
   first-boot script (`sh -n`), the merging of pfSense and OPNsense areas, the CLI sessions of tier 3.
-* **Not verified**: no run of the VMs of tier 2 or of the last image of tier 3 (Check Point) has been
+* **Not verified**: no run of the VMs of tier 2 or of two images of tier 3 (Check Point, SonicWall) has been
   made, nor a run of the workflow in GitHub. Their image names, logins and first boot, and the reload
   commands of OPNsense and pfSense, are taken from documentation. The first real run of each will find what is wrong.
   The Check Point script itself (FWShift's output for the lab policy) was loaded by hand on an R82.20 management
