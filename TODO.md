@@ -354,8 +354,10 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Cataly
   next run of each image of tier 3 and VM of tier 2 checks it there;
 * the security rules that a target looking them up after NAT reports for the lab policy (`NAT_PORT_TRANSLATION`,
   `NAT_ADDRESS_EXPOSED`): written for the translated port and address, they would be exact, and their flows asserted;
-* a run of the conversion *from* each platform: export the lab policy as the target holds it after loading, read it
-  back with FWShift and compare it with the source (`fwshift compare`).
+* the read-back (0.38.0: the policy exported from the firewall after the probes, read by FWShift, compared with what
+  was loaded and with the source) on the devices: through the kernel for nftables and iptables so far; tier 1 (the
+  clouds' own exports, as the manual gives them) not read back yet; SonicWall's settings export only from the web
+  console; IOS, pfSense and OPNsense output not read back by FWShift itself (so compared with the source only).
 
 1. Load `tests/data/expected/fortios_to_panos.set` on a PAN-OS VM,
    `panos_to_fortios.conf` on a FortiGate VM and `panos_to_asa.cfg` on an

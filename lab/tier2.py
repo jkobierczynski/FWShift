@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import labplan
+import readback
 import labrun
 from labrun import LabError, Runner, Target
 
@@ -287,6 +288,33 @@ def load_config_xml(runner: Runner, prefix: List[str], scp: List[str], remote: s
         raise LabError("the firewall's pf has no rule for the lab's web server after the reload (load.txt)")
 
 
+# -- the read-back (0.38.0) ----------------------------------------------------------------------------------------
+
+EXPORTS = {
+    "nftables": readback.Export("nftables", ("nft list ruleset",), suffix="nft"),
+    "iptables": readback.Export("iptables", ("iptables-save",), suffix="rules"),
+    "routeros": readback.Export("routeros", ("/export",), readback.between(r"^(# .*by RouterOS|/)", r"\S"), "rsc"),
+    "pfsense": readback.Export("pfsense", ("cat /conf/config.xml",), readback.between(r"<\?xml|<pfsense", r"</pfsense>"), "xml"),
+    "opnsense": readback.Export("opnsense", ("cat /conf/config.xml",), readback.between(r"<\?xml|<opnsense", r"</opnsense>"), "xml"),
+}
+
+
+def read_back(runner: Runner, image: Any, out: Path, prefix: Optional[List[str]]) -> None:
+    """The policy as the firewall holds it after the probes, exported and compared (readback.py)."""
+    export = EXPORTS[image.name]
+
+    def step() -> Dict[str, Any]:
+        merged = runner.work / "config.merged.xml"
+        fake = (merged if merged.exists() else out).read_text(encoding="utf-8")
+        if image.kind == "netns":
+            raw = runner.run(["ip", "netns", "exec", FIREWALL_NS, *export.lines[0].split()], quiet=True, fake=fake)
+        else:
+            raw = runner.run((prefix or []) + [export.lines[0]], quiet=True, fake=fake, timeout=300)
+        return readback.check(runner, image.target, out, export.extract(raw), export, conversion(image.name, None)[1])
+
+    readback.safely(runner, step)
+
+
 # -- the runs ------------------------------------------------------------------------------------------------------
 
 
@@ -374,7 +402,9 @@ def run_image(runner: Runner, args: Any) -> bool:
             else:
                 load_config_xml(runner, prefix, scp, f"{user}@127.0.0.1", out, image.name)
         servers = _serve(runner)
-        return _probe_and_check(runner, data)
+        passed = _probe_and_check(runner, data)
+        read_back(runner, image, out, locals().get("prefix"))
+        return passed
     finally:
         if not args.keep:
             with labrun.shielded():

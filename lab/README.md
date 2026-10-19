@@ -56,6 +56,32 @@ Everything a run makes is destroyed at the end, also when a step fails.
   that should be blocked (a run that only ever saw one kind shows nothing). A dry run says `DRY RUN`: its results are
   what the plan expects. Exit status 0 passed, 1 failed, 2 the run could not be made (or was interrupted).
 
+* **The read-back** (0.38.0, tiers 2 and 3): after the probes the lab exports the policy as the firewall holds it
+  and reads it with FWShift (`readback.py`), then compares it with `fwshift compare`: with what was loaded (the
+  converted output, where FWShift reads its own output back: FortiOS, PAN-OS, Junos, ASA, nftables, iptables), and
+  with the source. Only differences between two of the lab's zones count: what an image keeps for its management
+  interface lies outside them, and flows inside a zone do not pass the firewall. Certain differences are counted apart
+  from possible ones (something one side holds is not read exactly). Against the output, the run should show none:
+  the firewall took what was written, and nothing of its own is in the way. Against the source, what the report
+  announced shows here (today the published port, `NAT_PORT_TRANSLATION`, on a target that looks rules up after NAT).
+  Its line in the summary (`read-back ...`) does not change the result; `readback.txt` holds both comparisons and
+  `export.*` the export. The exports:
+
+  | Target | Export | Read as |
+  |---|---|---|
+  | `nftables`, `iptables` | `nft list ruleset`, `iptables-save` in the firewall's namespace | nftables, iptables |
+  | `routeros` | `/export` | RouterOS (against the source only: its script holds its jumps disabled) |
+  | `pfsense`, `opnsense` (both tiers) | `/conf/config.xml` | pfSense, OPNsense (against the source only: the output holds areas) |
+  | `fortigate` | `show` of the zones, objects, VIPs, IP pools, central SNAT and policies | FortiOS |
+  | `panos` | `show` in configure mode, in `set` format | PAN-OS |
+  | `vsrx` | `show configuration \| display inheritance no-comments \| display set \| no-more` | Junos |
+  | `c8000v` | `show running-config` | IOS (against the source only) |
+  | `asav` | `show running-config` | ASA |
+  | `checkpoint` | the Management API: every access layer's rulebase, the NAT rulebase, the layers (as the manual's export) | Check Point |
+  | `sonicwall` | not read: SonicOS exports its settings (the file FWShift reads) from the web console only | |
+
+  Tier 1 is not read back yet. In a dry run the export is what was loaded (Check Point: none).
+
 Every run keeps its files in `lab-work/RUN` (or `--work`, or `FWLAB_WORK`): the conversion and its report, the plan,
 the results, the summary, `commands.log` (every command that made or changed something), the Terraform state, and for
 tier 3 what the firewall answered (`load.txt`).
@@ -251,6 +277,9 @@ Terraform state (to destroy by hand if even that failed) and without the run's p
   host allows). Every other run is made dry in the tests and in the
   workflow: the conversion, the plan, the order of the commands, the variables against the Terraform modules, the
   first-boot script (`sh -n`), the merging of pfSense and OPNsense areas, the CLI sessions of tier 3.
+* **The read-back**: through the kernel for nftables and iptables, for real: the ruleset as loaded, and as the source
+  decides but the published port; a ruleset with a rule taken out is seen (`tests/test_lab.py`). On the devices, at
+  their next run.
 * **NAT on the devices**: the runs above were made before the lab policy had NAT (0.37.0). The NAT of tier 3
   (FortiGate, VM-Series, ASAv, vSRX, Catalyst 8000V, pfSense Plus, OPNsense, Check Point, SonicWall) is what the next
   run of each will test.

@@ -35,6 +35,7 @@ import labplan  # noqa: E402
 import labrun  # noqa: E402
 import lab as labcli  # noqa: E402
 import probe as labprobe  # noqa: E402
+import readback  # noqa: E402
 import tier1  # noqa: E402
 import tier2  # noqa: E402
 import tier3  # noqa: E402
@@ -159,6 +160,50 @@ def test_nat_expectations() -> None:
     # No firewall of its own (tier 1): nothing published, and no translation expected.
     flows = {f["id"]: f for f in labplan.build_plan("t", skipped)["flows"]}
     assert not any(f.get("published") for f in flows.values()) and flows["in10>dmz10:tcp/80"]["seen_from"] == "10.20.1.10"
+
+
+# -- the read-back ---------------------------------------------------------------------------------------------------
+
+
+def test_readback_extracts() -> None:
+    session = "FGVM # show firewall address\nconfig firewall address\n    edit \"a\"\n        set subnet 10.0.0.1 255.255.255.255\n    next\nend\n\nFGVM # exit\n"
+    assert readback.fortios_sections(session) == 'config firewall address\n    edit "a"\n        set subnet 10.0.0.1 255.255.255.255\n    next\nend\n'
+    assert readback.only(r"set ")("admin> show\nset a b\n\x1b[1mset c d\x1b[0m\nadmin> exit\n") == "set a b\nset c d\n"
+    asa = "asa# show running-config\n: Saved\nASA Version 9.24\nhostname x\n: end\nasa# exit\n"
+    assert readback.between(r"^(: Saved|ASA Version)", r"^: end")(asa) == ": Saved\nASA Version 9.24\nhostname x\n: end\n"
+    assert readback.between("^x", "^y")("nothing") == ""
+    assert json.loads(readback.json_array('[Expert]# mgmt_cli ...\n{"a": 1}\n{"b": {"c": 2}}\nbye')) == [{"a": 1}, {"b": {"c": 2}}]
+    assert readback.json_array("no json") == ""
+    assert readback.aligned({"inside": "inside", "outside": "outside"}, ["WAN", "LAN", "inside", "dmz", "outside"]) == {}
+    assert readback.aligned({"inside": "port2", "dmz": "port3", "outside": "port4"}, ["port2", "port3", "port4"]) == \
+        {"inside": "port2", "dmz": "port3", "outside": "port4"}  # fmt: skip
+    assert readback.zone_map_of(["--zone-map", "inside=opt1", "--zone-network", "x=y"]) == {"inside": "opt1"}
+    assert readback.line({"status": "not read", "why": "no export"}) == "  read-back: not read (no export)"
+    assert readback.line({"status": "read", "format": "nftables", "against_output": {"certain": 0, "possible": 2},
+                          "against_source": {"certain": 1, "possible": 0}}) == \
+        "  read-back (nftables): the firewall holds the policy as converted (2 possible); 1 certain difference from the source " \
+        "(announced in the report, or not) (readback.txt)"  # fmt: skip
+
+
+def test_readback_sees_a_changed_policy(tmp_path: Path) -> None:
+    """A firewall that holds less than was loaded (a rule gone): the read-back says so, against the output."""
+    runner = labrun.Runner(tmp_path, dry_run=True, echo=False)
+    target, options = tier2.conversion("nftables", None)
+    out = tmp_path / "policy.nftables"
+    labrun.fwshift(runner, target, out, options)
+    labplan.save(tmp_path / "summary.json", {"passed": True})
+    (tmp_path / "summary.txt").write_text("FWShift lab: nftables\n  result: PASSED\n")
+    text = out.read_text()
+    assert "dmz-high-ports" in text
+    changed = "\n".join(line for line in text.splitlines() if "dmz-high-ports" not in line) + "\n"
+    found = readback.check(runner, target, out, changed, tier2.EXPORTS["nftables"], options)
+    assert found["status"] == "read" and found["against_output"]["certain"] >= 1, found
+    assert "certain difference" in (tmp_path / "summary.txt").read_text() and "dmz -> outside" in (tmp_path / "readback.txt").read_text()
+    assert json.loads((tmp_path / "summary.json").read_text())["readback"] == found
+    # An export FWShift reads no rule from, or cannot read at all: not read, and the run goes on.
+    assert readback.check(runner, target, out, "table inet x {\n}\n", tier2.EXPORTS["nftables"], options)["status"] == "not read"
+    assert readback.check(runner, target, out, "", tier2.EXPORTS["nftables"], options)["status"] == "not read"
+    assert readback.safely(runner, lambda: (_ for _ in ()).throw(labrun.LabError("gone")))["why"].endswith("gone")
 
 
 # -- the probe -----------------------------------------------------------------------------------------------------
@@ -372,6 +417,20 @@ def test_every_run_dry(tmp_path: Path, run: List[str], capsys: pytest.CaptureFix
     joined = "\n".join(log)
     if run[0] == "tier2":
         assert "ip netns exec fwl-out10 ip route add 10.20.3.100/32 via 10.20.3.1" in joined
+    # The read-back (0.38.0): its line in the summary; in a dry run the export is what was loaded.
+    text = (work / "summary.txt").read_text()
+    if run[0] == "tier1":
+        assert "read-back" not in text
+    elif run[1] in ("checkpoint", "sonicwall", "c8000v", "routeros"):
+        assert "read-back: not read" in text, text
+    else:
+        assert summary.get("readback") is None or True
+        found = json.loads((work / "summary.json").read_text())["readback"]
+        assert found["status"] == "read", found
+        if run[1] in ("nftables", "iptables", "fortigate", "panos", "vsrx", "asav"):
+            assert found["against_output"]["certain"] == 0 and "holds the policy as converted" in text, (found, text)
+        assert found["against_source"]["certain"] <= 1, found  # (at most the published port: NAT_PORT_TRANSLATION)
+        assert (work / "readback.txt").exists() and text.index("read-back") < text.index("result: ")
     if run[0] in ("tier1", "tier3"):
         apply = next(i for i, line in enumerate(log) if " apply " in line)
         destroy = next(i for i, line in enumerate(log) if " destroy " in line)
@@ -501,6 +560,9 @@ def test_a_real_run_through_the_kernel(tmp_path: Path, name: str, tool: str) -> 
     assert rows["in10>dmz10:tcp/80"]["nat_seen"] == {"seen_from": "10.20.1.10"}
     assert rows["out10>10.20.3.100:tcp/8080"]["nat_seen"] == {"seen_from": "10.20.3.10", "answered_by": "10.20.2.10"}
     assert rows["out10>10.20.3.100:tcp/8080"]["nat"] == "ok"
+    # Read back from the kernel: the ruleset as loaded, and as the source decides but the published port.
+    assert summary["readback"]["status"] == "read" and summary["readback"]["against_output"] == {"certain": 0, "possible": 0}, summary["readback"]
+    assert summary["readback"]["against_source"]["certain"] == 1 and "holds the policy as converted" in (work / "summary.txt").read_text()
     assert not subprocess.run(["ip", "netns", "list"], capture_output=True, text=True).stdout.count("fwl-")  # (all taken down)
     if before:
         assert Path("/proc/sys/net/bridge/bridge-nf-call-iptables").read_text() == before  # (the host's setting was not touched)

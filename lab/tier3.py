@@ -20,6 +20,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 import xml.etree.ElementTree as ET
 
 import labplan
+import readback
 import labrun
 import tier1
 import tier2
@@ -840,6 +841,58 @@ def run_password(work: Path) -> str:
     return password
 
 
+# -- the read-back (0.38.0): the policy as the firewall holds it after the probes --------------------------------------
+
+_CP_OPTS = "details-level full use-object-dictionary true dereference-group-members true limit 500 --format json -s rb.sid"
+EXPORTS: Dict[str, readback.Export] = {
+    "fortigate": readback.Export("fortios", ("config system console", "set output standard", "end", "show system settings", "show system zone",
+                                             "show firewall address", "show firewall addrgrp", "show firewall service custom",
+                                             "show firewall service group", "show firewall vip", "show firewall ippool",
+                                             "show firewall central-snat-map", "show firewall policy", "exit"), readback.fortios_sections, "conf"),
+    "panos": readback.Export("panos", ("set cli pager off", "set cli config-output-format set", "configure", "show", "exit", "exit"), suffix="set"),
+    "vsrx": readback.Export("junos", ("set cli screen-length 0", "show configuration | display inheritance no-comments | display set | no-more", "exit"),
+                            readback.only(r"set "), "set"),
+    "c8000v": readback.Export("ios", ("terminal length 0", "show running-config", "exit"),
+                              readback.between(r"^(Building configuration|Current configuration|version \d)", r"^end\s*$"), "cfg"),
+    "asav": readback.Export("asa", ("terminal pager 0", "show running-config", "exit"), readback.between(r"^(: Saved|: Serial|ASA Version)", r"^: end"), "cfg"),
+    "pfsense": readback.Export("pfsense", ("cat /conf/config.xml",), readback.between(r"<\?xml|<pfsense", r"</pfsense>"), "xml"),
+    "opnsense": readback.Export("opnsense", ("cat /conf/config.xml",), readback.between(r"<\?xml|<opnsense", r"</opnsense>"), "xml"),
+    # (every access layer, the inline ones of the converted policy among them, and the NAT rules: the manual's export)
+    "checkpoint": readback.Export("checkpoint", ("mgmt_cli login -r true > rb.sid", f"mgmt_cli show nat-rulebase package Standard offset 0 {_CP_OPTS}",
+                                                 "mgmt_cli show access-layers details-level full limit 500 --format json -s rb.sid",
+                                                 'python3 -c \'import json,subprocess,sys; o=["details-level","full","use-object-dictionary","true","dereference-group-members","true","limit","500","--format","json","-s","rb.sid"]; layers=json.loads(subprocess.check_output(["mgmt_cli","show","access-layers","limit","500","--format","json","-s","rb.sid"])).get("access-layers",[]); [sys.stdout.write(subprocess.check_output(["mgmt_cli","show","access-rulebase","name",l["name"],"offset","0"]+o).decode()+"\\n") for l in layers]\'', "mgmt_cli logout -s rb.sid", "exit"),
+                                  readback.json_array, "json"),
+}
+
+
+def read_back(runner: Runner, vendor: Vendor, key: Path, host: str, out: Path, login: Optional[Dict[str, Any]] = None) -> None:
+    """Exports the policy from the firewall and compares it (readback.py); in a dry run, the export is what was
+    loaded."""
+    export = EXPORTS.get(vendor.name)
+    if export is None:
+        readback.not_read(runner, readback.NOT_READ.get(vendor.name, f"no export for {vendor.name} yet"))
+        return
+
+    def step() -> Dict[str, Any]:
+        merged = runner.work / "config.merged.xml"
+        if runner.dry_run:
+            text = (merged if merged.exists() else out).read_text(encoding="utf-8")
+            raw = text if vendor.name != "checkpoint" else "{}"
+        elif vendor.as_command:
+            prefix = labrun.ssh_prefix(key, vendor.user, host, runner.work / "known_hosts", options=vendor.ssh_options)
+            raw = runner.run(prefix + [vendor.sudo + export.lines[0]], quiet=True, timeout=300)
+            text = export.extract(raw)
+        else:
+            raw = session(runner, key, vendor.user, host, list(export.lines), "", "export", options=vendor.ssh_options, prompt=vendor.prompt,
+                          **(login or {}))  # fmt: skip
+            text = export.extract(raw)
+        if runner.dry_run and vendor.name == "checkpoint":
+            return readback.not_read(runner, "a dry run has no Management API to export from")
+        return readback.check(runner, vendor.target, out, text, export, vendor.options)
+
+    readback.safely(runner, step)
+
+
 def published_addresses() -> Dict[str, List[str]]:
     """The addresses the lab policy publishes, by zone: secondary addresses of the firewall's interface there, so that
     the VPC delivers them to it (0.37.0)."""
@@ -917,6 +970,7 @@ def run_vendor(runner: Runner, args: Any) -> bool:
             return tier1.probe_hosts(runner, key, outputs, data)
         finally:
             diagnose(runner, vendor, key, outputs["firewall_ip"], login)
+            read_back(runner, vendor, key, outputs["firewall_ip"], out, login)
     finally:
         if not args.keep:
             with labrun.shielded():

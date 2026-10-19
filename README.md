@@ -55,7 +55,7 @@ ticketing system) or one **HTML** page to read and sign (`--format`, and
 
 Pure Python, standard library only, Python 3.9 or newer.
 
-> **Status: alpha (0.37).** The converter is tested against synthetic
+> **Status: alpha (0.38).** The converter is tested against synthetic
 > configurations and went through several rounds of adversarial review.
 >
 > * **iptables** and **nftables** are checked against the real thing:
@@ -74,7 +74,9 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   26.02.1, the zone-based firewall), the AWS Marketplace images, by the lab,
 >   for the same policy: all 128 connections through each as the source decides. The policy then had security rules
 >   only; since 0.37.0 it has NAT as well (a hide NAT and a published web server), which the lab checks: through the
->   Linux kernel for nftables and iptables so far, on these devices at their next run.
+>   Linux kernel for nftables and iptables so far, on these devices at their next run. Since 0.38.0 every run of tiers
+>   2 and 3 also exports the policy from the firewall afterwards, reads it with FWShift and compares it with what was
+>   loaded and with the source (the read-back).
 > * **pfSense** and **OPNsense** output passed the same way on Netgate's pfSense Plus 26.07 and on OPNsense 26.1.5 (AWS
 >   Marketplace), the areas put into each firewall's `config.xml` by the lab as a restore of each area does (not through
 >   the web console's restore).
@@ -198,8 +200,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.37.0.pyz --version
-python3 fwshift-0.37.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.38.0.pyz --version
+python3 fwshift-0.38.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start

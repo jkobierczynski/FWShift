@@ -8,7 +8,7 @@ rule by rule, how faithful the result is. It can also audit a policy: rules that
 rules that never match, loose ends; show what each zone may reach in each
 other zone; check a policy against a zone and conduit model kept as a file;
 and say which connections two policies decide differently.
-This manual covers version 0.37.
+This manual covers version 0.38.
 
 **Contents**
 
@@ -62,7 +62,7 @@ may reach (section 14), check a policy against a zone and conduit model kept
 as a file (section 16), and name every connection two policies decide
 differently, including a source and its conversion read back (section 17).
 
-> **Status.** Version 0.37 is tested against synthetic configurations. iptables
+> **Status.** Version 0.38 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). AWS, Azure and Google Cloud output was loaded into a real account
 > by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1), PAN-OS output on a VM-Series (PAN-OS 11.2.15), ASA output on an ASAv (9.24.10), Junos output on a vSRX (23.4R2-S8.9), IOS output on a Catalyst 8000V (IOS XE 26.02.1), pfSense output on pfSense Plus 26.07 and OPNsense output on OPNsense 26.1.5; the policy then had no NAT (it has since 0.37.0, and the lab checks it: so far through the kernel for nftables and iptables). Check Point output for
@@ -116,8 +116,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.37.0.pyz --version
-python3 fwshift-0.37.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.38.0.pyz --version
+python3 fwshift-0.38.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
