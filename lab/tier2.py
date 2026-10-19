@@ -165,6 +165,10 @@ def network_up(runner: Runner, taps: bool) -> None:
         for command in (["ip", "link", "set", "lo", "up"], ["ip", "addr", "add", f"{host.ip}/{prefix}", "dev", inner],
                         ["ip", "link", "set", inner, "up"], ["ip", "route", "add", "default", "via", labplan.gateway(host.zone)]):  # fmt: skip
             runner.run(["ip", "netns", "exec", ns, *command])
+        # An address the firewall publishes in the host's own zone is not on any host: reached through the firewall.
+        for pub in labplan.published():
+            if pub["zone"] == host.zone:
+                runner.run(["ip", "netns", "exec", ns, "ip", "route", "add", f"{pub['address']}/32", "via", labplan.gateway(host.zone)])
 
 
 def firewall_ns_up(runner: Runner) -> None:
@@ -312,7 +316,7 @@ def _plan(runner: Runner, name: str, args: Any) -> Tuple[Path, Dict[str, Any]]:
     target, options = conversion(name, getattr(args, "target_version", None))
     out = runner.work / f"policy.{target}"
     report = labrun.fwshift(runner, target, out, options)
-    data = labplan.build_plan(target, report, through_target_inside_zone=False, refused_means="blocked")
+    data = labplan.build_plan(target, report, through_target_inside_zone=False, refused_means="blocked", nat_address=labplan.gateway)
     labplan.save(runner.work / "plan.json", data)
     return out, data
 

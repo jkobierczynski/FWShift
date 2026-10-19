@@ -20,6 +20,7 @@
             <entry name="guest-host"><ip-netmask>10.20.1.11/32</ip-netmask></entry>
             <entry name="web-server"><ip-netmask>10.20.2.10/32</ip-netmask></entry>
             <entry name="resolver"><ip-netmask>10.20.3.10/32</ip-netmask></entry>
+            <entry name="web-public"><ip-netmask>10.20.3.100/32</ip-netmask></entry>
           </address>
           <service>
             <entry name="tcp-ssh"><protocol><tcp><port>22</port></tcp></protocol></entry>
@@ -27,6 +28,7 @@
             <entry name="tcp-http"><protocol><tcp><port>80</port></tcp></protocol></entry>
             <entry name="tcp-high"><protocol><tcp><port>8000-8010</port></tcp></protocol></entry>
             <entry name="udp-dns"><protocol><udp><port>53</port></udp></protocol></entry>
+            <entry name="tcp-8080"><protocol><tcp><port>8080</port></tcp></protocol></entry>
           </service>
           <rulebase>
             <security>
@@ -56,6 +58,13 @@
                   <application><member>any</member></application><service><member>tcp-http</member></service>
                   <action>allow</action>
                 </entry>
+                <entry name="outside-web-published">
+                  <from><member>outside</member></from><to><member>dmz</member></to>
+                  <source><member>any</member></source><destination><member>web-public</member></destination>
+                  <application><member>any</member></application><service><member>tcp-8080</member></service>
+                  <action>allow</action>
+                  <description>The published web server: the address before NAT, the zone after it</description>
+                </entry>
                 <entry name="no-dns-out">
                   <from><member>inside</member></from><to><member>outside</member></to>
                   <source><member>any</member></source><destination><member>resolver</member></destination>
@@ -76,6 +85,24 @@
                 </entry>
               </rules>
             </security>
+            <nat>
+              <rules>
+                <entry name="web-publish">
+                  <from><member>outside</member></from><to><member>outside</member></to>
+                  <source><member>any</member></source><destination><member>web-public</member></destination>
+                  <service>tcp-8080</service>
+                  <destination-translation><translated-address>web-server</translated-address><translated-port>80</translated-port></destination-translation>
+                  <description>The web server published on the outside as 10.20.3.100, port 8080</description>
+                </entry>
+                <entry name="inside-hide">
+                  <from><member>inside</member></from><to><member>outside</member></to>
+                  <source><member>inside-net</member></source><destination><member>any</member></destination>
+                  <service>any</service>
+                  <source-translation><dynamic-ip-and-port><interface-address><interface>ethernet1/1</interface></interface-address></dynamic-ip-and-port></source-translation>
+                  <description>The inside hidden behind the firewall's outside address</description>
+                </entry>
+              </rules>
+            </nat>
           </rulebase>
         </entry>
       </vsys>

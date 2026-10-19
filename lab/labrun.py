@@ -42,6 +42,22 @@ class LabError(Exception):
     pass
 
 
+_ESCAPE = re.compile(r"\x1b\[(\d*)C|\x1b\[[0-9;?]*[A-Za-z]|\x1b[=>]|\x1b[()][0-9A-Za-z]")
+
+
+def screen_text(raw: str, noise: str = "") -> str:
+    """What a full-screen console wrote, as plain text: a cursor move to the right as that many spaces (the NSv writes
+    its spaces so), other escape codes left out, and the noise (a status bar redrawn after every output) taken out."""
+
+    def plain(found: "re.Match[str]") -> str:
+        if found.group(1) is not None:  # (only the cursor move to the right has the group)
+            return " " * int(found.group(1) or 1)
+        return ""
+
+    text = _ESCAPE.sub(plain, raw)
+    return re.sub(noise, "", text) if noise else text
+
+
 class SessionEnded(LabError):
     """A session typed line by line that stopped before its last line: with what the command line wrote till then."""
 
@@ -97,12 +113,18 @@ class Runner:
         return out
 
     def run_paced(self, args: Sequence[str], lines: Sequence[str], prompt: str, *, fake: str = "", timeout: float = 1200,
-                  step: float = 120, answers: Sequence[Tuple[str, str]] = ()) -> str:  # fmt: skip
+                  step: float = 120, answers: Sequence[Tuple[str, str]] = (), preamble: str = "", close_after: float = 0,
+                  noise: str = "") -> str:  # fmt: skip
         """Types the lines one at a time, each once the command line shows its prompt again, and keeps the input open
         until the command ends: for a CLI that drops a session given its lines ahead of its prompt (the ASA: a single
         "U" of its greeting, and the session closed). Returns all it wrote; fails when a prompt does not come within
         `step` seconds, or the whole within `timeout`. answers: (pattern, text) for questions the command line may ask
-        while a prompt is awaited (SonicOS's own "User:" and "Password:"), each answered once."""
+        while a prompt is awaited (SonicOS's own "User:" and "Password:"), each answered once. preamble: keys sent as
+        they are once the command line has written something (the NSv: Ctrl+S and a space switch its management console
+        to the SonicOS CLI); what came before them is not searched for the prompt. close_after: a session that does not
+        end by itself after its last line (the NSv's console stays) is closed after that many seconds. noise: for a
+        full-screen console, the prompt and the questions are looked for in its plain text (screen_text), without that
+        pattern (the NSv redraws its status bar after every output, so its prompt is never last in what it wrote)."""
         shown = " ".join(shlex.quote(a) for a in args) + "  (typed line by line)"
         self.log.append(shown)
         if self.echo:
@@ -130,17 +152,32 @@ class Runner:
         reader.start()
         pattern, deadline, mark = re.compile(prompt), time.time() + timeout, 0
         pending = [(re.compile(question), reply) for question, reply in answers]
+
+        def view() -> str:
+            seen = text()[mark:]
+            return screen_text(seen, noise).rstrip() if noise else seen
+
         try:
             assert proc.stdin is not None
+            if preamble:
+                limit = min(deadline, time.time() + step)
+                while not text():
+                    if proc.poll() is not None or time.time() > limit:
+                        raise SessionEnded(f"{args[0]} wrote nothing to send its first keys to; what it wrote:\n{text().strip()[-1500:]}", text())
+                    time.sleep(0.1)
+                time.sleep(3)  # (the console drawn whole)
+                if proc.poll() is not None:  # (what it wrote was ssh's own error: the firewall not up yet)
+                    raise SessionEnded(f"{args[0]} ended before its first keys; what it wrote:\n{text().strip()[-1500:]}", text())
+                mark = len(text())  # (from here on: what came after the keys, a login question among it)
+                self._send(proc, preamble, args[0], text)
             for line in lines:
                 limit = min(deadline, time.time() + step)
-                while not pattern.search(text()[mark:]):
-                    asked = next((pair for pair in pending if pair[0].search(text()[mark:])), None)
+                while not pattern.search(view()):
+                    asked = next((pair for pair in pending if pair[0].search(view())), None)
                     if asked is not None:  # (a question first: answered, and the prompt awaited again)
                         pending.remove(asked)
                         mark = len(text())
-                        proc.stdin.write((asked[1] + "\n").encode("utf-8"))
-                        proc.stdin.flush()
+                        self._send(proc, asked[1] + "\n", args[0], text)
                         limit = min(deadline, time.time() + step)
                         continue
                     if proc.poll() is not None:
@@ -151,18 +188,34 @@ class Runner:
                                            text())  # fmt: skip
                     time.sleep(0.1)
                 mark = len(text())
-                proc.stdin.write((line + "\n").encode("utf-8"))
-                proc.stdin.flush()
+                self._send(proc, line + "\n", args[0], text)
             try:
-                proc.wait(timeout=max(1.0, min(step, deadline - time.time())))
+                proc.wait(timeout=close_after or max(1.0, min(step, deadline - time.time())))
             except subprocess.TimeoutExpired:
-                raise LabError(f"{args[0]} did not end after the last line; what it wrote:\n{text().strip()[-1500:]}") from None
+                if not close_after:
+                    raise LabError(f"{args[0]} did not end after the last line; what it wrote:\n{text().strip()[-1500:]}") from None
         finally:
             if proc.poll() is None:
                 proc.kill()
                 proc.wait()
+            try:  # (a pipe to a session that has ended: closed quietly, not complained about at exit)
+                if proc.stdin is not None:
+                    proc.stdin.close()
+            except OSError:
+                pass
             reader.join(timeout=5)
         return text()
+
+    @staticmethod
+    def _send(proc: "subprocess.Popen[bytes]", data: str, name: str, text: Callable[[], str]) -> None:
+        """Writes to the session; one that has ended in the meantime ends the session as one that stopped early (the
+        second NSv run: the keys went to an ssh that had failed to connect, and BrokenPipeError ended the run)."""
+        assert proc.stdin is not None
+        try:
+            proc.stdin.write(data.encode("utf-8"))
+            proc.stdin.flush()
+        except OSError as error:
+            raise SessionEnded(f"{name} ended while it was being written to ({error}); what it wrote:\n{text().strip()[-1500:]}", text()) from None
 
     def save_log(self) -> None:
         (self.work / "commands.log").write_text("\n".join(self.log) + "\n", encoding="utf-8")
@@ -378,6 +431,17 @@ def diagnose(runner: Runner, target: Target, selfcheck: str, last_error: str) ->
     return path.name
 
 
+def _expected_result(flow: Dict[str, Any]) -> Dict[str, Any]:
+    """What the probe would report for a flow that goes as the plan expects (a dry run)."""
+    observed = flow["expected"] if flow["expected"] != "unknown" else "blocked"
+    result: Dict[str, Any] = {"id": flow["id"], "observed": observed}
+    if observed == "passed" and flow.get("seen_from"):
+        result["seen_as"] = flow["seen_from"]
+    if observed == "passed" and (flow.get("answered_by") or flow.get("seen_from")):
+        result["answered_by"] = flow.get("answered_by") or flow["dst"]
+    return result
+
+
 def probe(runner: Runner, targets: Sequence[Target], data: Dict[str, Any], copy: Callable[[Target, Path], "tuple[str, str]"],
           python: str = "python3") -> List[Dict[str, Any]]:  # fmt: skip
     """Sends the flows of the plan from every host at once; returns what each saw. ``copy`` puts the plan where the
@@ -386,8 +450,7 @@ def probe(runner: Runner, targets: Sequence[Target], data: Dict[str, Any], copy:
 
     def one(target: Target) -> List[Dict[str, Any]]:
         probe_path, plan_path = copy(target, plan_file)
-        fake = json.dumps([{"id": f["id"], "observed": f["expected"] if f["expected"] != "unknown" else "blocked"}
-                           for f in data["flows"] if f["src"] == target.test_ip])  # fmt: skip
+        fake = json.dumps([_expected_result(f) for f in data["flows"] if f["src"] == target.test_ip])
         out = runner.run(target.via + [f"{python} {probe_path} send --plan {plan_path} --source {target.test_ip}"], fake=fake, timeout=900)
         found: List[Dict[str, Any]] = json.loads(out.strip().splitlines()[-1]) if out.strip() else []
         return found

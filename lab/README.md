@@ -25,20 +25,33 @@ Everything a run makes is destroyed at the end, also when a step fails.
 * **The plan** (`plan.json`): every pair of test hosts, both ways, for TCP 22, 80, 443, 8005, 8011, UDP 53, 123 and
   ICMP echo: 160 flows. What each should get comes from the source policy, through FWShift's own first-match
   simulation (`src/fwshift/simulate.py`); the test suite checks the plan against its separate judge.
+* **NAT** (0.37.0): the policy hides the inside behind the firewall's outside address (`inside-hide`) and publishes
+  the web server dmz10 on the outside as 10.20.3.100, port 8080 to its port 80 (`web-publish`). The plan says, for
+  every flow that should pass on a TCP or UDP port the probe answers (not TCP 22, which sshd answers), which address
+  the receiving host should see it come from: the source's own, or the firewall's address in the zone it leaves by
+  (`.1` in tier 2, `.4` in tier 3) where the hide NAT applies. In tiers 2 and 3 one more flow goes from out10 to
+  10.20.3.100:8080, which dmz10 should answer: 161 flows. That address is the firewall's: tier 2 routes it from the
+  outside hosts to the firewall, tier 3 gives the firewall's outside interface it as a second address. What NAT does is
+  asserted when the NAT rule that decides it was converted exactly, or only widened (`NAT_INPUT_INTERFACE`,
+  `NAT_ZONES`: the translation of what it matched in the source is the same), and no widened rule could apply to the
+  flow instead; whether the flow passes stays the flow's own verdict. Tier 1 asserts no translation (the clouds'
+  security groups make none) and publishes nothing.
 * **Local flows**: in tiers 2 and 3 two hosts of one zone share a subnet and talk without the firewall: those 32 flows
-  are sent and shown as `local`, and never asserted. That leaves 128 flows through the firewall. In tier 1 the cloud's
+  are sent and shown as `local`, and never asserted. That leaves 128 flows between the hosts through the firewall (and the one to the published address). In tier 1 the cloud's
   firewall sits on every interface, so all 160 go through it.
 * **Asserted flows**: a flow counts only when the source decides it surely, **every rule that might match it was
   converted exactly** (the conversion report says so), and no note of the report about the target's default (between
   zones, or inside one) applies to it. The others are still sent and shown: a difference there is one the report
   announced (`differs-announced`), not a failure. `python3 lab/lab.py plan TIER FIREWALL` lists them with the reason.
-* **The probes** (`probe.py`, Python and ping only): each host answers on every test port of its test address and
-  tries every flow of the plan from it. A TCP handshake, a UDP answer or an echo reply is `passed`; nothing within 3
+* **The probes** (`probe.py`, Python and ping only): each host answers on every test port of its test address, with
+  its address and the address the connection came from as it saw it, and tries every flow of the plan from it. A TCP handshake, a UDP answer or an echo reply is `passed`; nothing within 3
   seconds is `blocked`; a TCP reset or an ICMP unreachable is `refused`. Security groups, NSGs and Google's firewall
   never reset, so in tier 1 a reset means the port was reached (it counts as passed); in tiers 2 and 3 a firewall
   rejects that way (it counts as blocked). A probe that cannot even bind its source address says `error`. Before the
   flows, each host checks itself (`probe.py selfcheck`): its answers listen, and it can bind its test address.
-* **The result** (`summary.txt`, `summary.json`): `ok`, `FAIL`, `differs-announced`, `local`, `error`; the run passes
+* **The result** (`summary.txt`, `summary.json`): `ok`, `FAIL`, `differs-announced`, `local`, `error`, and for NAT
+  (`NAT:` in the summary) `ok`, `FAIL` (the flow fails with it), `differs-announced`, or `unseen` (the probe did not
+  say: an older probe); the run passes
   when no asserted flow fails, every flow was tried, and the asserted flows hold both some that should pass and some
   that should be blocked (a run that only ever saw one kind shows nothing). A dry run says `DRY RUN`: its results are
   what the plan expects. Exit status 0 passed, 1 failed, 2 the run could not be made (or was interrupted).
@@ -179,7 +192,7 @@ booting.
 | Check Point All-In-One (PAYG: gateway and management on one instance; the subscribed product among the images named Check Point or CloudGuard; m5.xlarge, 16 GB for the management API) | `checkpoint` | eth1-eth3, addresses set with `clish`; one `set simple-gateway` names every interface (eth0 too: it replaces the list), each data interface in its security zone, anti-spoofing off | `admin`, the run's key; bash, by the first-time setup (the image's `/etc/cloud_config.py`, as Check Point's Terraform module for a standalone calls it); ready when `api status` says the API is; FWShift's `mgmt_cli` script and the lab's `fwlab_load.sh` are copied over and run, then publish and install of `Standard`; boot allowed 60 minutes |
 | Netgate pfSense Plus Firewall/VPN/Router (hourly; the x86 AMI, `pfSense-plus-ec2-*-RELEASE-amd64*`) | `pfsense`, zones mapped to OPT1-OPT3 | ena1-ena3 as OPT1-OPT3 with the lab's addresses, put into the image's `/conf/config.xml` with the areas of the conversion (the merge of tier 2), then a reboot; ready once ena3 has its address and pf a rule for the lab's web server. WAN (the first card, DHCP) is management | `admin`, the run's key; commands given to ssh (`admin` gets a menu with a terminal) |
 | OPNsense, Deciso's image (hourly; the subscribed product among the images named OPNsense) | `opnsense`, zones mapped to OPT1-OPT3 | as pfSense | `ec2-user`, the run's key, `sudo` for root |
-| SonicWall NSv (PAYG; the subscribed product among the images named SonicWall or NSv) | `sonicwall` | X0, X2, X3 (AWS's second to fourth card: X0 is SonicWall's documented LAN; X2 and X3 assumed), in zones `inside`, `dmz`, `outside` made in the same session, security type trusted | `admin`, the instance id as the password (SSH_ASKPASS), and SonicOS's own `User:` and `Password:` answered in the session; lines typed after the prompt |
+| SonicWall NSv (PAYG; the subscribed product among the images named SonicWall or NSv) | `sonicwall` | X0, X2, X3 (AWS's second to fourth card: X0 is SonicWall's documented LAN; X2 and X3 assumed), in zones `inside`, `dmz`, `outside` made in the same session, security type trusted | `management`, the run's key (SonicWall's AWS guide); Ctrl+S and a space switch its management console to the SonicOS CLI, whose own `User:` (`admin`) and `Password:` (the instance id) are answered; lines typed after the prompt; the session closed by the lab, as leaving the CLI goes back to the console |
 
 **Which image.** Each image is looked up by its names in the run's region: of the x86 Marketplace images whose name
 matches, the newest of a product the account is subscribed to (VM-Series: of PAYG Bundle 1, by its product code). One
@@ -229,12 +242,18 @@ Terraform state (to destroy by hand if even that failed) and without the run's p
   Essentials, IOS XE 26.02.1, 0.36.3), on its third, pfSense Plus (26.07, 0.36.4), on its sixth, and OPNsense (26.1.5, 0.36.4), on its first full run: the runs before them found what each needs of the lab
   (DEVELOPMENT.md, 0.36.1, 0.36.3 and 0.36.4). `nftables` and `iptables` of
   tier 2 also passed on the author's own Debian.
-* **Verified**: `nftables` and `iptables` of tier 2, for real: the converted policy in a network namespace, 128 flows
-  through the kernel all as the source decides and 32 local ones; a ruleset that lets everything through fails the run;
+* **Verified**: `nftables` and `iptables` of tier 2, for real: the converted policy in a network namespace, 127 flows
+  through the kernel as the source decides, two more that pass as well, unasserted (the target looks its rules up after
+  NAT, which the report says of the two rules that decide them), and 32 local ones; the hide NAT and the published web
+  server as the source has them (0.37.0); a ruleset that lets everything through fails the run, and so do one without
+  the hide NAT and one that hides the published server's clients;
   a SIGTERM in the middle of a run still tears everything down (all in `tests/test_lab.py`, which runs them where the
   host allows). Every other run is made dry in the tests and in the
   workflow: the conversion, the plan, the order of the commands, the variables against the Terraform modules, the
   first-boot script (`sh -n`), the merging of pfSense and OPNsense areas, the CLI sessions of tier 3.
+* **NAT on the devices**: the runs above were made before the lab policy had NAT (0.37.0). The NAT of tier 3
+  (FortiGate, VM-Series, ASAv, vSRX, Catalyst 8000V, pfSense Plus, OPNsense, Check Point, SonicWall) is what the next
+  run of each will test.
 * **Not verified**: no run of the VMs of tier 2 or of two images of tier 3 (Check Point, SonicWall) has been
   made, nor a run of the workflow in GitHub. Their image names, logins and first boot, and the reload
   commands of OPNsense and pfSense, are taken from documentation. The first real run of each will find what is wrong.

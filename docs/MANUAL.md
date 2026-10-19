@@ -8,7 +8,7 @@ rule by rule, how faithful the result is. It can also audit a policy: rules that
 rules that never match, loose ends; show what each zone may reach in each
 other zone; check a policy against a zone and conduit model kept as a file;
 and say which connections two policies decide differently.
-This manual covers version 0.36.
+This manual covers version 0.37.
 
 **Contents**
 
@@ -62,10 +62,10 @@ may reach (section 14), check a policy against a zone and conduit model kept
 as a file (section 16), and name every connection two policies decide
 differently, including a source and its conversion read back (section 17).
 
-> **Status.** Version 0.36 is tested against synthetic configurations. iptables
+> **Status.** Version 0.37 is tested against synthetic configurations. iptables
 > and nftables output and input are checked against a Linux kernel (filter
 > rules, one kernel, iptables 1.8.10 and nft 1.0.9). AWS, Azure and Google Cloud output was loaded into a real account
-> by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1), PAN-OS output on a VM-Series (PAN-OS 11.2.15), ASA output on an ASAv (9.24.10), Junos output on a vSRX (23.4R2-S8.9), IOS output on a Catalyst 8000V (IOS XE 26.02.1), pfSense output on pfSense Plus 26.07 and OPNsense output on OPNsense 26.1.5; the policy has no NAT. Check Point output for
+> by the lab (section 10), for its one synthetic policy, FortiOS output on a FortiGate-VM (FortiOS 8.0.1), PAN-OS output on a VM-Series (PAN-OS 11.2.15), ASA output on an ASAv (9.24.10), Junos output on a vSRX (23.4R2-S8.9), IOS output on a Catalyst 8000V (IOS XE 26.02.1), pfSense output on pfSense Plus 26.07 and OPNsense output on OPNsense 26.1.5; the policy then had no NAT (it has since 0.37.0, and the lab checks it: so far through the kernel for nftables and iptables). Check Point output for
 > the same policy was loaded on a management server by hand (R82.20): published and verified, not installed on a
 > gateway. Output for
 > Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall, Sophos Firewall, SonicWall, WatchGuard, Barracuda, NSX, RouterOS and Forcepoint has
@@ -116,8 +116,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.36.4.pyz --version
-python3 fwshift-0.36.4.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.37.0.pyz --version
+python3 fwshift-0.37.0.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -5282,7 +5282,7 @@ settings.
 ### Juniper SRX
 
 > **The commands have been loaded on one vSRX** (Junos 23.4R2-S8.9, by the lab,
-> for its one synthetic policy, without NAT: section 10). Their form follows
+> for its one synthetic policy, then without NAT: section 10). Their form follows
 > Juniper's documentation and a published reader of Junos; the report lists
 > under `JUNOS_LOAD` what is assumed (names of up to 63 characters, `match
 > from-zone`/`to-zone` in global policies, the predefined applications).
@@ -5513,14 +5513,16 @@ deliberate: see *IPv4 and IPv6* in section 8.
 
 * The emitted syntax follows the vendors' documented formats. iptables and
   nftables output has been loaded into the real thing (a Linux kernel with
-  iptables 1.8.10, nf_tables backend, and nft 1.0.9; filter rules, not NAT);
+  iptables 1.8.10, nf_tables backend, and nft 1.0.9; filter rules, and the lab
+  policy's hide NAT and published server since 0.37.0);
   FortiOS, PAN-OS, ASA and Junos output on a FortiGate-VM (FortiOS 8.0.1), a
   VM-Series (PAN-OS 11.2.15), an ASAv (9.24.10) and a vSRX (Junos 23.4R2-S8.9),
   and AWS, Azure and Google Cloud
-  output into real accounts, by the lab, for one synthetic policy with no NAT
-  (section 10). Nothing has been validated on Sophos, pfSense, OPNsense or
+  output into real accounts, by the lab, for one synthetic policy, then with no
+  NAT (section 10). Nothing has been validated on Sophos, pfSense, OPNsense or
   MikroTik devices, a Check Point management server, a Cisco Secure Firewall
-  Management Center or Device Manager, NAT on any device, or across versions.
+  Management Center or Device Manager, NAT on any device but the Linux kernel,
+  or across versions.
 * Statements about vendor behaviour that the conversion relies on (FortiOS
   policy lookup after destination NAT, `match-vip`, PAN-OS FQDN resolution, the
   commands each CLI accepts, the fields of the Check Point Management API, what

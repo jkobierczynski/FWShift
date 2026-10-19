@@ -87,6 +87,12 @@ class Vendor:
     # before its prompt, with their answers ({password}: the same id): SonicOS asks for its own user and password.
     password_login: bool = False
     answers: Tuple[Tuple[str, str], ...] = ()
+    # Keys sent once a session has written something, before any line (the NSv: Ctrl+S and a space take its management
+    # console to the SonicOS CLI), and a session closed by the lab after its last line, for a CLI that does not end it.
+    preamble: str = ""
+    close_after: float = 0
+    # A full-screen console: its answers read as plain text, without this pattern (the NSv's status bar).
+    screen_noise: str = ""
     load: Optional[Callable[["Runner", "Vendor", Path, str, Path], None]] = None
 
 
@@ -109,6 +115,10 @@ def _fortigate_session(out: Path) -> List[str]:
 # -- PAN-OS ------------------------------------------------------------------------------------------------------
 
 _PAN_PORTS = {"inside": "ethernet1/1", "dmz": "ethernet1/2", "outside": "ethernet1/3"}
+# The source's interfaces (outside ethernet1/1, inside 1/2, dmz 1/3) as the VM-Series has its zones: the hide NAT names
+# the interface whose address it takes (0.37.0).
+_PAN_INTERFACES = [w for source, zone in (("ethernet1/2", "inside"), ("ethernet1/3", "dmz"), ("ethernet1/1", "outside"))
+                   for w in ("--interface-map", f"{source}={_PAN_PORTS[zone]}")]  # fmt: skip
 
 
 def _panos_prepare() -> List[str]:
@@ -273,6 +283,23 @@ def _sonicwall_session(out: Path) -> List[str]:
     return [*base, *_lines(out, "#"), "exit"]
 
 
+# A login question at the end of what the session wrote, perhaps followed by a terminal's escape codes.
+_ESCAPES = r"(?:\x1b\[[0-9;?]*[A-Za-z]|\s)*$"
+_ASKS_USER = r"(?i)(?:user|login)(?:name)?: ?" + _ESCAPES
+_ASKS_PASSWORD = r"(?i)password: ?" + _ESCAPES
+
+
+# What only the SonicOS CLI's `show version` answers: its fields. The third NSv run took "Please wait for SonicOS to
+# startup ..." on the SonicCore console (which then said "CPU configuration updated, will reboot in 10 seconds") for an
+# answer, called the NSv ready, and its load met the reboot.
+# The CLI writes them lowercase with hyphens (firmware-version "SonicOS ..."); the console's boot text has "Firmware
+# Version : SonicOSX ..." and "Serial Number :", which must not count (the fourth run: the console seen, the CLI's
+# prompt `NSv >` reached, never recognised).
+_NSV_READY = r"firmware-version|rom-version|serial-number|system-uptime"
+# Its status bar, redrawn after every output: "SonicWall (c) 2026 |   [Ctrl-s spacebar] to switch console".
+_NSV_STATUS_BAR = r"SonicWall \(c\) \d{4} \|\s*\[Ctrl-s spacebar\] to switch console"
+
+
 def _sonicwall_diagnose() -> List[str]:
     """The interfaces, zones, access rules and connections as SonicOS shows them."""
     return ["no cli pager session", "show interfaces ip", "show zones", "show access-rules", "show connections", "show route", "exit"]
@@ -370,7 +397,8 @@ def load_pf_config(runner: Runner, vendor: "Vendor", key: Path, host: str, out: 
                  15, vendor.ssh_options, as_command=True)  # fmt: skip
     cards = runner.run(prefix + ["ifconfig"], quiet=True, fake="".join(f"{p}: inet {_addr(z)}\n" for z, p in _PF_AWS_PORTS.items()))
     rules = runner.run(prefix + [f"{vendor.sudo}pfctl -sr"], quiet=True, fake="pass in quick on ena1 inet proto tcp from 10.20.1.0/24 to 10.20.2.10")
-    (runner.work / "load.txt").write_text(f"{answer}\n--- ifconfig\n{cards}\n--- pfctl -sr\n{rules}", encoding="utf-8")
+    nat = runner.run(prefix + [f"{vendor.sudo}pfctl -sn"], quiet=True, check=False, fake="nat on ena3 inet from 10.20.1.0/24 to any -> 10.20.3.4")
+    (runner.work / "load.txt").write_text(f"{answer}\n--- ifconfig\n{cards}\n--- pfctl -sr\n{rules}\n--- pfctl -sn\n{nat}", encoding="utf-8")
     missing = [z for z in ORDER if _addr(z) not in cards]
     if missing:
         raise LabError(f"after the reboot, the zones {', '.join(missing)} have no address on their card (load.txt)")
@@ -432,6 +460,8 @@ def checkpoint_driver() -> str:
               '[ -n "$GW" ] || fail "no gateway object on the management (the objects are listed above)"',
               'echo "gateway object: $GW"',
               'step "the converted policy"',
+              # (hide NAT names the gateway object, converted with --target-gateway {_CP_HOSTNAME}: the object found)
+              f'[ "$GW" = "{_CP_HOSTNAME}" ] || sed -i "s/{_CP_HOSTNAME}/$GW/g" ./policy.checkpoint',
               'SID=fwshift.sid sh ./policy.checkpoint || fail "the converted policy (the call above)"',
               'step "topology and security zones"',
               "E0=$(ip -4 -o addr show dev eth0 | awk '{print $4}' | head -n 1)",
@@ -492,6 +522,9 @@ def _asav_diagnose() -> List[str]:
 
 
 _ZONE_NETWORKS = labplan.zone_options()
+# The SonicWall's interfaces for the PAN-OS ones (inside X0, dmz X2, outside X3; X1 is the management): the hide NAT
+# names the interface it leaves by.
+_SONICWALL_INTERFACES = ["--interface-map", "ethernet1/2=X0", "--interface-map", "ethernet1/3=X2", "--interface-map", "ethernet1/1=X3"]
 
 VENDORS: Dict[str, Vendor] = {
     "fortigate": Vendor("fortigate", "FortiGate-VM (pay as you go)", "fortios", "FortiGate-VM64-AWSONDEMAND*", "c5.xlarge", "admin",
@@ -499,7 +532,7 @@ VENDORS: Dict[str, Vendor] = {
                         [x for z, p in _FGT_PORTS.items() for x in ("--zone-map", f"{z}={p}")], _fortigate_user_data(), _fortigate_session,
                         ready_answer=r"Version:", status="run: passed (FortiOS 8.0.1, 0.32.1)"),  # fmt: skip
     "panos": Vendor("panos", "Palo Alto VM-Series (pay as you go bundle)", "panos", "PA-VM-AWS-*", "m5.xlarge", "admin", "show chassis-ready",
-                    r"Invalid syntax|Server error|Commit failed|Validation Error|is not a valid reference|Unknown command", [], "", _panos_session,
+                    r"Invalid syntax|Server error|Commit failed|Validation Error|is not a valid reference|Unknown command", _PAN_INTERFACES, "", _panos_session,
                     ready_answer=r"\byes\b", success=r"Configuration committed successfully",
                     product_codes=("e9yfvyj3uag5uo5j2hjikv74n",), prepare=_panos_prepare, status="run: passed (PAN-OS 11.2.15, 0.32.1)"),  # fmt: skip  (PAYG Bundle 1; Bundle 2 is hd44w1chf26uv4p52cdynb2o, by --ami)
     # Ready once the data interfaces exist: the CLI answers minutes before the forwarding engine makes them (the second
@@ -514,7 +547,7 @@ VENDORS: Dict[str, Vendor] = {
     # lab takes the subscribed product among the images named Check Point or CloudGuard (find_ami), or --ami, the id the
     # subscription's launch page shows. 16 GB: the management API may not start below 8.
     "checkpoint": Vendor("checkpoint", "Check Point All-In-One, gateway and management (pay as you go)", "checkpoint", "Check Point*,*CloudGuard*", "m5.xlarge", "admin",
-                         "api status", r"FWLAB-FAILED|FAILED: mgmt_cli", [], _checkpoint_user_data(), _checkpoint_session,
+                         "api status", r"FWLAB-FAILED|FAILED: mgmt_cli", ["--target-gateway", _CP_HOSTNAME], _checkpoint_user_data(), _checkpoint_session,
                          ready_answer=r"API readiness test SUCCESSFUL", success=r"FWLAB-LOADED-42", diagnose=_checkpoint_diagnose,
                          uploads=_checkpoint_uploads, boot_minutes=60,
                          status="scripted from Check Point's templates and API reference, never run"),  # fmt: skip
@@ -538,14 +571,15 @@ VENDORS: Dict[str, Vendor] = {
     "opnsense": Vendor("opnsense", "OPNsense, Deciso's image (hourly)", "opnsense", "*OPNsense*,*opnsense*", "c5.xlarge", "ec2-user", "ifconfig ena3", r"$^",
                        _PF_AWS_OPTIONS, ready_answer=r"ena3:", as_command=True, sudo="sudo ", load=load_pf_config, diagnose=_pf_diagnose,
                        status="run: passed (OPNsense 26.1.5, 0.36.4)"),  # fmt: skip
-    # SonicWall NSv, pay as you go (its image name not seen yet: the subscribed one among those named SonicWall or NSv,
-    # find_ami): admin, the instance id as the password
-    # (SonicWall's AWS guide), by SSH and then by SonicOS's own login, both answered.
-    "sonicwall": Vendor("sonicwall", "SonicWall NSv (pay as you go)", "sonicwall", "*SonicWall*,*Sonicwall*,*sonicwall*,*NSv*", "c5.xlarge", "admin", "show version",
-                        r"^% |% Error|Error:|Unknown command|Invalid input|not allowed", list(_ZONE_NETWORKS), "", _sonicwall_session,
-                        ready_answer=r"(?i)sonicos|firmware", prompt=r"[>#] ?$", password_login=True,
-                        answers=((r"(?i)user(name)?: ?$", "admin"), (r"(?i)password: ?$", "{password}")), diagnose=_sonicwall_diagnose,
-                        status="scripted from SonicWall's AWS guide and knowledge base, never run"),  # fmt: skip
+    # SonicWall NSv, pay as you go (the subscribed product among the images named SonicWall or NSv, find_ami). SonicWall's
+    # AWS guide: SSH as `management` with the key pair opens the NSv Management Console; Ctrl+S and a space switch to the
+    # SonicOS CLI, which asks for its own user (admin) and password (the instance id). The first run: `admin` refused,
+    # "Only 'management' user is allowed to login". Leaving the CLI goes back to the console: the lab closes the session.
+    "sonicwall": Vendor("sonicwall", "SonicWall NSv (pay as you go)", "sonicwall", "*SonicWall*,*Sonicwall*,*sonicwall*,*NSv*", "c5.xlarge", "management", "show version",
+                        r"^% |% Error|Error:|Unknown command|Invalid input|not allowed", [*_ZONE_NETWORKS, *_SONICWALL_INTERFACES], "", _sonicwall_session,
+                        ready_answer=_NSV_READY, prompt=r"[>#] ?$", preamble="\x13 ", close_after=15, boot_minutes=45, screen_noise=_NSV_STATUS_BAR,
+                        answers=((_ASKS_USER, "admin"), (_ASKS_PASSWORD, "{password}")), diagnose=_sonicwall_diagnose,
+                        status="scripted from SonicWall's AWS guide and knowledge base; first run: the login corrected"),  # fmt: skip
     "asav": Vendor("asav", "Cisco ASAv (pay as you go)", "asa", "asav*,*ASAv*", "c5.xlarge", "admin", "show version | include up",
                    r"ERROR:|% Invalid input|% Incomplete command", list(_ZONE_NETWORKS), _asav_user_data(), _asav_session,
                    "run: passed (ASAv 9.24.10, 0.36.1)",
@@ -675,7 +709,8 @@ def describe_ami(runner: Runner, region: str, ami: str) -> None:
 
 
 def session(runner: Runner, key: Path, user: str, host: str, lines: List[str], errors: str, name: str, success: str = "",
-            options: Sequence[str] = (), prompt: str = "", answers: Sequence[Tuple[str, str]] = (), batch: bool = True) -> str:  # fmt: skip
+            options: Sequence[str] = (), prompt: str = "", answers: Sequence[Tuple[str, str]] = (), batch: bool = True,
+            preamble: str = "", close_after: float = 0, noise: str = "") -> str:  # fmt: skip
     """Types the lines into the CLI over SSH (with a terminal: the CLIs want one) and checks what it answered: no line
     refused, and the success line where the CLI writes one. A session that hangs (a failed commit asks before it lets
     the CLI exit) ends after 20 minutes."""
@@ -685,11 +720,15 @@ def session(runner: Runner, key: Path, user: str, host: str, lines: List[str], e
     ended = None
     if prompt:
         try:
-            out = runner.run_paced(args, lines, prompt, timeout=1200, fake=f"(dry run) {success}", answers=answers)
+            out = runner.run_paced(args, lines, prompt, timeout=1200, fake=f"(dry run) {success}", answers=answers, preamble=preamble,
+                                   close_after=close_after, noise=noise)
         except labrun.SessionEnded as error:  # (what it wrote till then: the refused lines are the likelier reason)
             out, ended = error.output, error
     else:
         out = runner.run(args, stdin="\n".join(lines) + "\n", timeout=1200, fake=f"(dry run) {success}")
+    if noise:  # (the console's own text kept too, beside its plain text)
+        (runner.work / f"{name}.raw.txt").write_text(out, encoding="utf-8")
+        out = labrun.screen_text(out, noise)
     (runner.work / f"{name}.txt").write_text(out, encoding="utf-8")
     if not runner.dry_run and len(out.strip()) < 40:  # (the sixth ASAv run: "U", and nothing configured, and no line refused)
         raise LabError(f"the firewall answered almost nothing ({name}.txt: {out.strip()!r}): the lines were not run")
@@ -714,7 +753,7 @@ _SSH_AUTH_LINES = r"Offering|Server accepts|Authentications that can continue|se
 
 def wait_cli(runner: Runner, key: Path, user: str, host: str, command: str, answer: str, minutes: float,
              options: Sequence[str] = (), as_command: bool = False, prompt: str = "", answers: Sequence[Tuple[str, str]] = (),
-             batch: bool = True) -> None:  # fmt: skip
+             batch: bool = True, preamble: str = "", close_after: float = 0, noise: str = "") -> None:  # fmt: skip
     """Until the CLI answers the ready command as it should (PAN-OS: chassis ready, after its first commit). Every try is
     kept in boot.txt: when the CLI never answers, it says whether SSH was refused, the key not taken, or what came back.
     A try that finds no algorithm in common with the firewall ends the wait at once."""
@@ -729,9 +768,12 @@ def wait_cli(runner: Runner, key: Path, user: str, host: str, command: str, answ
                 out = runner.run(prefix + [command], quiet=True, timeout=120)
             elif answers:  # (a CLI with a login of its own: the questions answered, then the command typed after the prompt)
                 try:
-                    out = runner.run_paced(prefix[:1] + ["-tt"] + prefix[1:], [command, "exit"], prompt, timeout=150, step=60, answers=answers)
+                    out = runner.run_paced(prefix[:1] + ["-tt"] + prefix[1:], [command, "exit"], prompt, timeout=150, step=60, answers=answers,
+                                           preamble=preamble, close_after=close_after, noise=noise)
                 except labrun.SessionEnded as error:
                     out = error.output
+                if noise:
+                    out = labrun.screen_text(out, noise)
             else:
                 out = runner.run(prefix[:1] + ["-tt"] + prefix[1:], stdin=command + "\nexit\n", quiet=True, timeout=120)
             if re.search(answer, out):
@@ -798,6 +840,16 @@ def run_password(work: Path) -> str:
     return password
 
 
+def published_addresses() -> Dict[str, List[str]]:
+    """The addresses the lab policy publishes, by zone: secondary addresses of the firewall's interface there, so that
+    the VPC delivers them to it (0.37.0)."""
+    out: Dict[str, List[str]] = {}
+    for pub in labplan.published():
+        if pub["address"] not in out.setdefault(pub["zone"], []):
+            out[pub["zone"]].append(pub["address"])
+    return out
+
+
 def conversion(name: str) -> Tuple[str, List[str]]:
     vendor = VENDORS[name]
     return vendor.target, list(vendor.options)
@@ -813,7 +865,7 @@ def run_vendor(runner: Runner, args: Any) -> bool:
     out = runner.work / f"policy.{vendor.target}"
     report = labrun.fwshift(runner, vendor.target, out, vendor.options)
     # Two hosts of one zone talk over their subnet, not through the firewall; a reset can be the firewall's own.
-    data = labplan.build_plan(vendor.target, report, through_target_inside_zone=False, refused_means="blocked")
+    data = labplan.build_plan(vendor.target, report, through_target_inside_zone=False, refused_means="blocked", nat_address=_addr)
     labplan.save(runner.work / "plan.json", data)
     tf = tier1.Terraform(runner, labrun.ROOT / "tier3" / "aws", tier1.terraform_binary(args.terraform))
     try:
@@ -822,15 +874,16 @@ def run_vendor(runner: Runner, args: Any) -> bool:
             describe_ami(runner, region, args.ami)
         instance_type = args.instance_type or pick_instance_type(runner, region, ami, vendor.instance_type)
         labrun.save_state(runner.work, instance_type=instance_type)
-        tf.apply({"region": region, "run_id": runner.work.name, "zone_order": ORDER, "firewall_ami": ami,
+        tf.apply({"region": region, "run_id": runner.work.name, "zone_order": ORDER, "firewall_ami": ami, "published": published_addresses(),
                   "firewall_instance_type": instance_type, "firewall_user_data": user_data(vendor, key, run_password(runner.work) if "{enable_password}" in vendor.user_data else "",
                                                                                   str(labrun.load_state(runner.work).get("image_name", ""))),
                   **tier1.common_variables(runner, args, key), "hosts": tier1.host_variables(gateway="firewall")})  # fmt: skip
         outputs = tf.output({"firewall_ip": "192.0.2.4", "firewall_instance": "i-0dryrun", "user": "ec2-user", "hosts": tier1.fake_hosts()})
         if vendor.password_login:
             labrun.askpass(runner.work, outputs["firewall_instance"])
-        login = {"answers": tuple((q, a.replace("{password}", outputs["firewall_instance"])) for q, a in vendor.answers),
-                 "batch": not vendor.password_login}  # fmt: skip
+        login: Dict[str, Any] = {"answers": tuple((q, a.replace("{password}", outputs["firewall_instance"])) for q, a in vendor.answers),
+                 "batch": not vendor.password_login, "preamble": vendor.preamble, "close_after": vendor.close_after,
+                 "noise": vendor.screen_noise}  # fmt: skip
         if not runner.dry_run:
             try:
                 wait_cli(runner, key, vendor.user, outputs["firewall_ip"], vendor.ready, vendor.ready_answer,

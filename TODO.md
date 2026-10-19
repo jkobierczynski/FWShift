@@ -349,7 +349,11 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Cataly
 * Sophos Firewall in tier 3: its XML API is switched on in the web console only, so a run would wait for that step;
 * the images not scripted yet ( Stormshield EVA, Sophos,
   Barracuda; WatchGuard and Forcepoint need tools of their own, Meraki a Dashboard);
-* the conversion of the other sample configurations, not only the lab policy, and NAT in the plan;
+* the conversion of the other sample configurations, not only the lab policy;
+* NAT on the devices: the lab policy has NAT since 0.37.0, checked through the kernel for nftables and iptables; the
+  next run of each image of tier 3 and VM of tier 2 checks it there;
+* the security rules that a target looking them up after NAT reports for the lab policy (`NAT_PORT_TRANSLATION`,
+  `NAT_ADDRESS_EXPOSED`): written for the translated port and address, they would be exact, and their flows asserted;
 * a run of the conversion *from* each platform: export the lab policy as the target holds it after loading, read it
   back with FWShift and compare it with the source (`fwshift compare`).
 

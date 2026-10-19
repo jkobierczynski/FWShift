@@ -29,7 +29,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(1, str(Path(__file__).resolve().parent.parent / "src"))
@@ -116,6 +116,12 @@ def plan_options(tier: str, firewall: str, target_version: Optional[str]) -> "tu
     return target, options, False, "blocked"
 
 
+def nat_address(tier: str) -> Optional[Callable[[str], str]]:
+    """The firewall's own address in a zone, which a translation to the interface's address gives: .1 in tier 2, .4 in
+    tier 3; None in tier 1, where the clouds' security groups are no firewall of their own and translate nothing."""
+    return {"tier2": labplan.gateway, "tier3": tier3._addr}.get(tier)
+
+
 def destroy(work: Path, terraform: Optional[str], dry_run: bool = False) -> bool:
     """Tears a run down from what its work folder holds (run.json, the Terraform state)."""
     state = labrun.load_state(work)
@@ -168,13 +174,15 @@ def _main(args: argparse.Namespace) -> int:
         runner = labrun.Runner(work)
         target, options, inside, refused = plan_options(args.tier, args.firewall, args.target_version)
         report = labrun.fwshift(runner, target, work / f"policy.{target}", options)
-        data = labplan.build_plan(target, report, through_target_inside_zone=inside, refused_means=refused)
+        data = labplan.build_plan(target, report, through_target_inside_zone=inside, refused_means=refused, nat_address=nat_address(args.tier))
         labplan.save(work / "plan.json", data)
         asserted = sum(1 for f in data["flows"] if f["asserted"])
         print(f"{work / 'plan.json'}: {len(data['flows'])} flows, {asserted} asserted")
         for flow in data["flows"]:
             if not flow["asserted"]:
                 print(f"  not asserted: {flow['id']:<28} {flow['why_not_asserted']}")
+            elif flow.get("nat_why"):
+                print(f"  NAT not asserted: {flow['id']:<24} {flow['nat_why']}")
         return 0
     if args.command == "destroy":
         work = Path(args.run) if Path(args.run).is_dir() else Path(args.work or os.environ.get("FWLAB_WORK", "lab-work")) / args.run

@@ -8,9 +8,9 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.36.4 (alpha) |
+| Version | 0.37.0 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Meraki MX (read the answers of the Dashboard API for one network: VLANs, objects, the outbound and layer 7 rules, port forwarding, 1:1 and 1:many NAT, the inbound table with NAT exceptions; write a curl script that puts the outbound and NAT tables); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
-| Tests | 6118, all passing (8 of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Tests | 6679, all passing (a dozen of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables and nftables**: rulesets loaded into a Linux kernel and real packets forwarded through it (below; and the lab of 0.32.0, also on the author's machine). **AWS, Azure and Google Cloud**: the lab policy's conversion loaded into a real account by the lab, and real connections between instances checked (0.32.1, below). **FortiOS**: the lab policy's conversion loaded on a FortiGate-VM (FortiOS 8.0.1, AWS Marketplace) and real connections through it checked (0.32.1, below). **PAN-OS**: the same on a VM-Series (PAN-OS 11.2.15, AWS Marketplace). Nothing has been loaded on an ASA, an IOS router, a Huawei USG, a Stormshield firewall, a Meraki MX, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
 | Analysis | the audit, the zone matrix, rule usage from hit counters and logs, the zone and conduit model as a gate (`fwshift conduits`), the equivalence check (`fwshift compare`, `convert --compare`) |
 | Security | an outside review (ChatGPT, October 2026) and the measures taken: `docs/security/SECURITY_REVIEW.md` |
@@ -2166,6 +2166,71 @@ were not reviewed again; they have tests (the last section of
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
 
+### 2026-10-19: version 0.37.0
+
+**NAT in the lab.** The lab policy hides the inside behind the firewall's outside address and publishes the web server
+on the outside, and every run checks what NAT did as the hosts saw it: which address a connection came from, and which
+host answered the published address. Through the Linux kernel the hide NAT and the published server went as the source
+has them, for nftables and iptables; a ruleset without the hide NAT, or one that hides what it should not, fails.
+
+**Built**
+
+* The lab policy (`lab/policy/lab_panos.xml`): the NAT rules `web-publish` (from the outside, 10.20.3.100 port 8080
+  to the web server dmz10 port 80) and `inside-hide` (the inside network, to the outside, behind the address of the
+  outside interface), and the security rule `outside-web-published` that lets the published service in. Synthetic
+  addresses only, as before.
+* The probe answers with its own address and the address the connection came from as it saw it (TCP: a line after
+  the handshake; UDP: the answer); `probe.py send` reports them as `answered_by` and `seen_as` for a flow that passed.
+  sshd on port 22 says nothing, and a probe of before answers without them (`unseen`).
+* The plan (`labplan.build_plan`, with the firewall's own address per zone: `.1` in tier 2, `.4` in tier 3; none in
+  tier 1): for each flow that should pass on a port the probe answers, the address the receiving host should see
+  (`seen_from`): the source's, or the firewall's in the zone the flow leaves by where the first NAT rule that matches
+  it (zones, addresses through the policy's objects, service) hides it behind the interface. One flow more in tiers
+  2 and 3 for each address the source publishes, from the zones it is published to (out10 to 10.20.3.100:8080): its
+  security verdict from the rule for the translated address's zone, the host that should answer (`answered_by`). What
+  NAT does is asserted (`nat_asserted`) when the deciding NAT rule was converted exactly, or with findings that only
+  widen where it applies (`NAT_INPUT_INTERFACE`: whatever input interface; `NAT_ZONES`: whatever zones), and no rule
+  widened that way could match the flow instead; apart from whether the flow passes, which stays the flow's verdict.
+* The check: a NAT mismatch on an asserted flow is `FAIL` (and fails the flow), on another `differs-announced`; the
+  summary counts them (`NAT:`) and shows each mismatch with the NAT rule. A dry run fakes the answers the plan expects.
+* Routing to the published address: tier 2 routes it from the hosts of its zone to the firewall (`/32` via `.1`);
+  tier 3 gives the firewall's interface in that zone it as a second address (`published` of the AWS module, in
+  order after `.4`, which stays the primary one).
+* Conversion options for NAT in tier 3: Check Point `--target-gateway fwlab-cp` (the hide NAT names the gateway
+  object; the script puts in the name the run found), SonicWall `--interface-map` for the PAN-OS interfaces (X0 inside,
+  X2 dmz, X3 outside), and the VM-Series `--interface-map` too: its zones are on ethernet1/1 to 1/3 in the order of
+  AWS's cards (inside first), where the source has the outside on ethernet1/1, and the hide NAT takes the address of
+  the interface it names. pfSense and OPNsense keep pf's NAT rules in `load.txt` (`pfctl -sn`).
+* `lab.py plan` lists the flows whose NAT is not asserted, with the reason.
+
+**What the conversions say of the lab policy's NAT**
+
+* FortiOS, PAN-OS, Junos, IOS XE, ASA: both NAT rules exact.
+* nftables, iptables, pfSense, OPNsense, RouterOS: `inside-hide` approximated with `NAT_INPUT_INTERFACE` (written for
+  every input interface; the translation of the inside's connections is the same, and the dmz's connections leave
+  by the dmz, which the rule does not name: all asserted).
+* Check Point: `web-publish` approximated (`NAT_ZONES`); `inside-hide` behind the gateway with `--target-gateway`.
+* SonicWall: `web-publish` needs review (`NAT_ZONES`); `inside-hide` with `--interface-map`.
+* AWS, Azure, Google Cloud: not converted (`NAT_NOT_CONVERTED`): the clouds' NAT is the gateways'. Tier 1 asserts
+  that no address is translated and publishes nothing.
+* On targets that look rules up after NAT (nftables, iptables, and the others but PAN-OS), two security rules are
+  now reported: `outside-web-published` (`NAT_DESTINATION_REWRITTEN`, and `NAT_PORT_TRANSLATION`: its service still
+  names port 8080), and `outside-web` (`NAT_ADDRESS_EXPOSED`: after the translation, traffic to the published address
+  matches it too). The flows they decide (out10 to the published address, and out10>dmz10:tcp/80) are no longer
+  asserted there: 127 flows asserted through the firewall, from 128.
+
+**Verified**
+
+* Through the Linux kernel, for nftables and iptables (`tests/test_lab.py`): 127 asserted flows and the two
+  unasserted ones as the source decides; the inside seen by out10 as 10.20.3.1, the dmz's own addresses unchanged,
+  out10's connection to 10.20.3.100:8080 answered by dmz10 and seen from out10's own address. Without the hide NAT the
+  run fails (`in10>out10` seen from 10.20.1.10); with a hide NAT on the dmz instead, too (the published server's client
+  seen from 10.20.2.1).
+* Every run of every tier dry, with the NAT expectations, the published address in the AWS variables and the route
+  in tier 2.
+* The suite (6,679 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: the NAT on any device of tier 3 or VM of tier 2: the next run of each tests it.
+
 ### 2026-10-19: version 0.36.4
 
 **The pfSense and OPNsense output loaded on pfSense Plus and OPNsense.** The lab's tier 3 runs pfSense Plus, OPNsense
@@ -2238,6 +2303,30 @@ them found faults of the lab only, none in FWShift's output.
 * **Not verified**: NAT on any device (the lab policy has none); a Check Point policy installed on a gateway; the
   SonicWall NSv of tier 3, the Check Point vendor of tier 3 and the VMs of tier 2, never run; the restore of
   pfSense or OPNsense areas in their web consoles.
+* After the release, the first SonicWall NSv run: the image found among two products of the names by the subscription
+  (`SonicWall_NSv_PAYG_8x2x2_R9870-...`, product code `3qvj5r0px8dqjhz6yz1w14psz`); SSH answered after the first boot
+  and refused `admin`: "Only 'management' user is allowed to login". SonicWall's AWS guide says so: SSH as
+  `management` with the key pair opens the NSv Management Console, and Ctrl+S then the spacebar switch to the SonicOS
+  CLI, which asks for its own user and password (admin, the instance id). The lab now logs in as `management` with the
+  run's key, sends those keys once the console is drawn (paced typing takes keys to send first; what came before them
+  is not searched for the prompt), answers the CLI's login (escape codes after the question allowed), and closes a
+  session that does not end after its last line (leaving the CLI goes back to the console). The second NSv run ended
+  on its first ready try, the NSv still booting: ssh wrote its own error and exited, the keys for the console went to
+  it, and BrokenPipeError ended the whole run (the run's state then had no `torn_down`). A session that ends before or
+  while it is written to is now a try that failed, which the wait repeats, and its pipe is closed quietly. The third
+  run: SSH as `management` answered after about ten minutes with the SonicCore console ("[Ctrl-s spacebar] to switch
+  console"), which said "Please wait for SonicOS to startup ..." and "CPU configuration updated, will reboot in 10
+  seconds". The ready check (`sonicos|firmware`) matched the word SonicOS in that text; the lab loaded, and the load
+  met the reboot ("Connection timed out"). Ready now means fields only the CLI's `show version` answers
+  (firmware-version, rom-version, serial-number, system-uptime), and the NSv is given 45 minutes to boot. The fourth
+  run: after about 14 minutes the SonicCore console (SonicOSX 8.2.2-8015-R9870, "NSv M"), and after Ctrl+S and a space
+  the CLI's prompt `NSv >`, no login asked; the lab never saw it: the console redraws its status bar ("SonicWall (c)
+  2026 | [Ctrl-s spacebar] to switch console") after every output, with cursor codes, and writes its spaces as cursor
+  moves, so the prompt was never last in what it wrote. A full-screen console is now read as plain text (labrun's
+  screen_text: a cursor move right as spaces, the other escape codes left out, the vendor's noise pattern, the status
+  bar, taken out) for the prompt, the questions, the ready answer and the refused lines; the session's own text is
+  kept beside it (`load.raw.txt`). The ready answer is the CLI's form, lowercase and hyphenated (`firmware-version`),
+  as the console's boot text has "Firmware Version :" and "Serial Number :". Not yet run further.
 
 ### 2026-10-18: version 0.36.3
 

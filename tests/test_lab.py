@@ -22,7 +22,7 @@ import sys
 import threading
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import pytest
 from helpers import DATA
@@ -112,6 +112,53 @@ def test_the_check() -> None:
     # Nothing that should be blocked was seen blocked: no pass, however few the failures.
     vacuous = labplan.check({"target": "t", "flows": plan["flows"][:1]}, good[:1])
     assert not vacuous["passed"] and vacuous["vacuous"] and "shows nothing" in labplan.render(vacuous)
+
+
+def test_the_check_of_nat() -> None:
+    def flow(i: str, nat_asserted: bool, **expect: str) -> Dict[str, Any]:
+        return {"id": i, "dst": "10.20.3.10", "expected": "passed", "asserted": True, "decided_by": "r", "why_not_asserted": "",
+                "nat_asserted": nat_asserted, "nat_why": "" if nat_asserted else "NAT rule n not converted exactly (skipped)", **expect}  # fmt: skip
+    plan = {"target": "t", "flows": [flow("a", True, seen_from="10.20.3.4"), flow("b", True, seen_from="10.20.3.4"),
+                                     flow("c", False, seen_from="10.20.3.4"), flow("d", True, seen_from="10.20.3.4"),
+                                     flow("e", True, seen_from="10.20.3.10", answered_by="10.20.2.10"),
+                                     {"id": "z", "expected": "blocked", "asserted": True, "decided_by": "r", "why_not_asserted": ""}]}  # fmt: skip
+    summary = labplan.check(plan, [{"id": "a", "observed": "passed", "seen_as": "10.20.3.4", "answered_by": "10.20.3.10"},
+                                   {"id": "b", "observed": "passed", "seen_as": "10.20.1.10"},
+                                   {"id": "c", "observed": "passed", "seen_as": "10.20.1.10"},
+                                   {"id": "d", "observed": "passed"},
+                                   {"id": "e", "observed": "passed", "seen_as": "10.20.3.10", "answered_by": "10.20.2.11"},
+                                   {"id": "z", "observed": "blocked"}])  # fmt: skip
+    rows = {r["id"]: r for r in summary["rows"]}
+    assert {i: r.get("nat") for i, r in rows.items()} == {"a": "ok", "b": "FAIL", "c": "differs-announced", "d": "unseen", "e": "FAIL", "z": None}
+    assert rows["b"]["verdict"] == "FAIL" and rows["c"]["verdict"] == "ok" and rows["d"]["verdict"] == "ok" and not summary["passed"]
+    assert rows["e"]["nat_wrong"] == "answered by 10.20.2.11, not 10.20.2.10"
+    text = labplan.render(summary)
+    assert "NAT FAIL           b" in text and "seen from 10.20.1.10, not 10.20.3.4" in text and "NAT: " in text
+    assert "(NAT rule n not converted exactly (skipped))" in text  # (why c is not asserted)
+
+
+def test_nat_expectations() -> None:
+    assert labplan.published() == [{"zone": "outside", "address": "10.20.3.100", "protocol": "tcp", "port": 8080, "to": "10.20.2.10",
+                                    "to_port": 80, "from_zones": ["outside"], "rule": "web-publish"}]  # fmt: skip
+    exact = {"items": [{"kind": "nat", "name": n, "status": "exact", "findings": []} for n in ("web-publish", "inside-hide")]}
+    flows = {f["id"]: f for f in labplan.build_plan("t", exact, nat_address=lambda zone: labplan.ZONES[zone].replace(".0/24", ".4"))["flows"]}
+    assert flows["in10>out10:udp/123"]["seen_from"] == "10.20.3.4" and flows["in10>out10:udp/123"]["nat_rule"] == "inside-hide"
+    assert flows["in10>dmz10:tcp/80"]["seen_from"] == "10.20.1.10" and flows["in10>dmz10:tcp/80"]["nat_asserted"]
+    assert "seen_from" not in flows["in10>out10:tcp/22"]  # (sshd answers there, not the probe)
+    assert flows["out10>10.20.3.100:tcp/8080"]["answered_by"] == "10.20.2.10" and flows["out10>10.20.3.100:tcp/8080"]["asserted"]
+    # The hide NAT not converted: what the inside looks like outside is not asserted; widened to every input
+    # interface: the dmz's connections to the outside could be hidden too.
+    skipped = {"items": [exact["items"][0], {"kind": "nat", "name": "inside-hide", "status": "skipped", "findings": []}]}
+    flows = {f["id"]: f for f in labplan.build_plan("t", skipped, nat_address=labplan.gateway)["flows"]}
+    assert not flows["in10>out10:udp/123"]["nat_asserted"] and flows["in10>out10:udp/123"]["asserted"]
+    widened = {"items": [exact["items"][0], {"kind": "nat", "name": "inside-hide", "status": "approximated",
+                                             "findings": [{"code": "NAT_INPUT_INTERFACE"}]}]}  # fmt: skip
+    flows = {f["id"]: f for f in labplan.build_plan("t", widened, nat_address=labplan.gateway)["flows"]}
+    assert flows["in10>out10:udp/123"]["nat_asserted"] and flows["in10>out10:udp/123"]["seen_from"] == "10.20.3.1"
+    assert flows["in10>dmz10:tcp/80"]["nat_asserted"]  # (it leaves by the dmz: the hide NAT names the outside)
+    # No firewall of its own (tier 1): nothing published, and no translation expected.
+    flows = {f["id"]: f for f in labplan.build_plan("t", skipped)["flows"]}
+    assert not any(f.get("published") for f in flows.values()) and flows["in10>dmz10:tcp/80"]["seen_from"] == "10.20.1.10"
 
 
 # -- the probe -----------------------------------------------------------------------------------------------------
@@ -312,8 +359,19 @@ def test_every_run_dry(tmp_path: Path, run: List[str], capsys: pytest.CaptureFix
     assert "result: DRY RUN" in (work / "summary.txt").read_text()
     assert json.loads((work / "run.json").read_text())["torn_down"]
     plan = json.loads((work / "plan.json").read_text())
-    assert len(plan["flows"]) == 160
+    # 160 flows between the hosts, and one to the web server the policy publishes on the outside (not in tier 1: the
+    # clouds' security groups translate nothing).
+    published = [f for f in plan["flows"] if f.get("published")]
+    assert len(plan["flows"]) == 160 + len(published) and len(published) == (0 if run[0] == "tier1" else 1)
+    summary = json.loads((work / "summary.json").read_text())
+    if run[0] != "tier1":
+        assert published[0]["dst"] == "10.20.3.100" and published[0]["answered_by"] == "10.20.2.10", published
+        assert summary["nat_counts"].get("ok", 0) + summary["nat_counts"].get("ok-unasserted", 0) > 0, summary["nat_counts"]
+    hidden = [f for f in plan["flows"] if f["id"] == "in10>out10:tcp/80"][0]
+    assert hidden["seen_from"] == {"tier1": "", "tier2": "10.20.3.1", "tier3": "10.20.3.4"}[run[0]], hidden
     joined = "\n".join(log)
+    if run[0] == "tier2":
+        assert "ip netns exec fwl-out10 ip route add 10.20.3.100/32 via 10.20.3.1" in joined
     if run[0] in ("tier1", "tier3"):
         apply = next(i for i, line in enumerate(log) if " apply " in line)
         destroy = next(i for i, line in enumerate(log) if " destroy " in line)
@@ -323,6 +381,8 @@ def test_every_run_dry(tmp_path: Path, run: List[str], capsys: pytest.CaptureFix
         required = re.findall(r'^variable "(\w+)" \{ type = [^}]*\}$', (work / "terraform" / "main.tf").read_text(), re.M)
         assert set(variables) <= set(declared) and set(required) <= set(variables), (set(variables) ^ set(declared))
         assert all(line.count("--region") <= 1 for line in log)
+        if run[0] == "tier3":  # (the published address is the firewall's too: the VPC delivers it there)
+            assert variables["published"] == {"outside": ["10.20.3.100"]}, variables.get("published")
         # The run's key is of a type the cloud takes: Azure's VMs only RSA (its provider refuses the rest before
         # anything is made); the Marketplace images of tier 3 get RSA as well.
         rsa = run[1] == "azure" or run[0] == "tier3"
@@ -430,7 +490,17 @@ def test_a_real_run_through_the_kernel(tmp_path: Path, name: str, tool: str) -> 
     assert labcli.main(["run", "tier2", name, "--work", str(tmp_path)]) == 0
     work = next(tmp_path.iterdir())
     summary = json.loads((work / "summary.json").read_text())
-    assert summary["passed"] and summary["counts"].get("ok", 0) == 128 and summary["counts"].get("local", 0) == 32, summary["counts"]
+    # (128 flows asserted and seen right; the one to the published web server and out10>dmz10:tcp/80 pass, not
+    # asserted: the target looks its rules up after NAT, which the conversion reports for both rules that decide them)
+    assert summary["passed"] and summary["counts"].get("ok", 0) == 127 and summary["counts"].get("local", 0) == 32, summary["counts"]
+    assert summary["counts"].get("ok-unasserted", 0) == 2 and summary["nat_counts"].get("FAIL", 0) == 0, summary
+    # What NAT did, as the hosts saw it: the inside hidden behind the firewall's outside address, the web server
+    # answering for the published address.
+    rows = {row["id"]: row for row in summary["rows"]}
+    assert rows["in10>out10:tcp/80"]["nat_seen"] == {"seen_from": "10.20.3.1"} and rows["in10>out10:tcp/80"]["nat"] == "ok"
+    assert rows["in10>dmz10:tcp/80"]["nat_seen"] == {"seen_from": "10.20.1.10"}
+    assert rows["out10>10.20.3.100:tcp/8080"]["nat_seen"] == {"seen_from": "10.20.3.10", "answered_by": "10.20.2.10"}
+    assert rows["out10>10.20.3.100:tcp/8080"]["nat"] == "ok"
     assert not subprocess.run(["ip", "netns", "list"], capture_output=True, text=True).stdout.count("fwl-")  # (all taken down)
     if before:
         assert Path("/proc/sys/net/bridge/bridge-nf-call-iptables").read_text() == before  # (the host's setting was not touched)
@@ -452,6 +522,30 @@ def test_a_real_run_sees_a_wrong_policy(tmp_path: Path, monkeypatch: pytest.Monk
     work = next(tmp_path.iterdir())
     summary = json.loads((work / "summary.json").read_text())
     assert summary["counts"].get("FAIL", 0) > 50
+
+
+@pytest.mark.parametrize("change,flow", [(("counter masquerade", "counter accept"), "in10>out10:udp/123"),
+                                         (('oifname "outside" ip saddr 10.20.1.0/24', 'oifname "dmz"'), "out10>10.20.3.100:tcp/8080")])  # fmt: skip
+def test_a_real_run_sees_wrong_nat(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, change: Tuple[str, str], flow: str) -> None:
+    """The NAT is checked too: a ruleset without the hide NAT, or hiding what it should not (the published web server's
+    clients, behind the firewall's dmz address), fails."""
+    if not _kernel("nft"):
+        pytest.skip("needs Linux, root, ip, ping and nft")
+    original = labrun.fwshift
+
+    def wrong(runner: Any, target: str, out: Path, options: Any) -> Dict[str, Any]:
+        report = original(runner, target, out, options)
+        assert change[0] in out.read_text()
+        out.write_text(out.read_text().replace(change[0], change[1]))
+        return report
+
+    monkeypatch.setattr(labrun, "fwshift", wrong)
+    assert labcli.main(["run", "tier2", "nftables", "--work", str(tmp_path)]) == 1
+    work = next(tmp_path.iterdir())
+    summary = json.loads((work / "summary.json").read_text())
+    rows = {row["id"]: row for row in summary["rows"]}
+    assert rows[flow]["nat"] == "FAIL" and rows[flow]["verdict"] == "FAIL", rows[flow]
+    assert "NAT FAIL" in (work / "summary.txt").read_text()
 
 
 def test_a_run_ends_through_its_teardown_on_sigterm(tmp_path: Path) -> None:
@@ -877,18 +971,24 @@ def test_a_question_before_the_prompt_is_answered_once(tmp_path: Path) -> None:
     assert "Access denied" not in out and out.count("ok") == 1
 
 
-def test_the_sonicwall_logs_in_by_password_and_makes_its_zones(tmp_path: Path) -> None:
-    """The NSv: no key, the instance id as the password (SSH_ASKPASS, without BatchMode, which ssh would keep as the
-    first value); the zones made, trusted, and X0, X2 and X3 put in them before FWShift's commands."""
+def test_the_sonicwall_logs_in_as_management_and_makes_its_zones(tmp_path: Path) -> None:
+    """The NSv (SonicWall's AWS guide; the first run: `admin` refused, "Only 'management' user is allowed to login"):
+    SSH as management with the key, Ctrl+S and a space from the management console to the SonicOS CLI, its own login
+    answered (admin, the instance id); the zones made, trusted, and X0, X2 and X3 put in them before FWShift's commands."""
     vendor = tier3.VENDORS["sonicwall"]
-    assert vendor.password_login and any("{password}" in answer for _, answer in vendor.answers)
-    prefix = labrun.ssh_prefix(Path("k"), "admin", "192.0.2.4", Path("kh"), batch=False)
-    assert "BatchMode=yes" not in prefix and "NumberOfPasswordPrompts=1" in prefix
+    assert vendor.user == "management" and not vendor.password_login and vendor.preamble == "\x13 " and vendor.close_after > 0
+    asks = dict(vendor.answers)
+    assert asks[tier3._ASKS_PASSWORD] == "{password}" and asks[tier3._ASKS_USER] == "admin"
+    assert re.search(tier3._ASKS_USER, "SonicOS CLI\r\nUser: \x1b[0m") and re.search(tier3._ASKS_PASSWORD, "Password:")
+    assert not re.search(tier3._ASKS_USER, "User: admin\r\nPassword:")
     done = lab_conversion(tmp_path, "sonicwall", vendor.options)
     lines = vendor.session(done["out"])
     for zone, port in (("inside", "X0"), ("dmz", "X2"), ("outside", "X3")):
         assert lines.index(f"zone {zone}") < lines.index(f"interface {port}") < lines.index(f"ip-assignment {zone} static")
     assert lines.index("commit") < lines.index("configure terminal", 1) and lines[-1] == "exit"
+
+
+def test_the_askpass_script_gives_the_password(tmp_path: Path) -> None:
     keep = dict(os.environ)
     try:
         labrun.askpass(tmp_path, "i-0abc")
@@ -900,7 +1000,33 @@ def test_the_sonicwall_logs_in_by_password_and_makes_its_zones(tmp_path: Path) -
     finally:
         os.environ.clear()
         os.environ.update(keep)
+    prefix = labrun.ssh_prefix(Path("k"), "admin", "192.0.2.4", Path("kh"), batch=False)
+    assert "BatchMode=yes" not in prefix and "NumberOfPasswordPrompts=1" in prefix
 
+
+_FAKE_NSV = (
+    "import sys, os\n"
+    "sys.stdout.write('\\x1b[2J NSv Management Console '); sys.stdout.flush()\n"
+    "keys = os.read(0, 2)\n"
+    "if keys != b'\\x13 ': sys.stdout.write('not switched'); sys.exit(1)\n"
+    "sys.stdout.write('\\r\\nUser: '); sys.stdout.flush(); user = sys.stdin.readline().strip()\n"
+    "sys.stdout.write('Password: '); sys.stdout.flush(); word = sys.stdin.readline().strip()\n"
+    "sys.stdout.write('admin@NSV> ' if (user, word) == ('admin', 'i-0abc') else 'denied\\n'); sys.stdout.flush()\n"
+    "for line in sys.stdin:\n"
+    "    if line.strip() == 'exit':\n"
+    "        sys.stdout.write('\\r\\n NSv Management Console '); sys.stdout.flush(); continue  # (back to the console: no end)\n"
+    "    sys.stdout.write(line.strip() + '\\r\\nok\\r\\nadmin@NSV> '); sys.stdout.flush()\n"
+)
+
+
+def test_the_nsv_console_is_switched_to_the_cli_and_the_session_closed(tmp_path: Path) -> None:
+    """Ctrl+S and a space once the console is drawn, the CLI's login answered, the lines typed after its prompt; the
+    console that comes back after `exit` does not end the session, so the lab closes it."""
+    runner = labrun.Runner(tmp_path, echo=False)
+    vendor = tier3.VENDORS["sonicwall"]
+    out = runner.run_paced([sys.executable, "-u", "-c", _FAKE_NSV], ["show version", "exit"], vendor.prompt, step=20,
+                           answers=((tier3._ASKS_USER, "admin"), (tier3._ASKS_PASSWORD, "i-0abc")), preamble=vendor.preamble, close_after=2)
+    assert "denied" not in out and "not switched" not in out and out.count("ok") == 1
 
 def test_the_image_is_the_newest_of_a_subscribed_product(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """vSRX bundles, VM-Series BYOL and bundles, third-party OPNsense images: one name, several products. Of the images
@@ -1030,3 +1156,65 @@ def test_an_instance_type_the_product_takes_is_found(tmp_path: Path, monkeypatch
     with pytest.raises(labrun.LabError, match="takes none of the instance types"):
         tier3.pick_instance_type(runner, "us-east-1", "ami-0opn", "c5.xlarge")
     assert all(t.endswith("xlarge") for t in tier3.INSTANCE_TYPES)
+
+
+def test_keys_for_a_session_that_has_ended_end_the_try_not_the_run(tmp_path: Path) -> None:
+    """The second NSv run: while the NSv booted, ssh wrote its own error and exited; the keys for the console went to it,
+    and BrokenPipeError ended the whole run on its first try. A session that ends before or while it is written to is
+    a try that failed (SessionEnded), which the wait repeats."""
+    runner = labrun.Runner(tmp_path, echo=False)
+    gone = [sys.executable, "-c", "import sys; sys.stdout.write('ssh: connect to host 192.0.2.4 port 22: Connection refused'); sys.stdout.flush()"]
+    with pytest.raises(labrun.SessionEnded, match="ended before its first keys|ended while it was being written"):
+        runner.run_paced(gone, ["show version", "exit"], r"[>#] ?$", step=10, preamble="\x13 ")
+    quick = [sys.executable, "-c", "import sys, os; os.close(0); sys.stdout.write('admin@NSV> '); sys.stdout.flush(); import time; time.sleep(2)"]
+    with pytest.raises(labrun.SessionEnded):
+        runner.run_paced(quick, ["show version", "exit"], r"[>#] ?$", step=10)
+
+
+def test_the_nsv_is_ready_on_the_clis_answer_not_the_consoles_startup_text() -> None:
+    """The third NSv run: the SonicCore console's "Please wait for SonicOS to startup ..." matched the ready check, the
+    lab loaded, and the NSv rebooted ten seconds later ("CPU configuration updated")."""
+    vendor = tier3.VENDORS["sonicwall"]
+    console = ("SonicCore Console:\r\n\x1b[2J\x1b[HPlease\x1b[Cwait\x1b[Cfor\x1b[CSonicOS\x1b[Cto\x1b[Cstartup\x1b[C...\r\n"
+               "Please wait for SonicOS to startup ...\r\nCPU configuration updated, will reboot in 10 seconds\r\n"
+               "SonicWall (c) 2026 |   [Ctrl-s spacebar] to switch console")  # fmt: skip
+    assert not re.search(vendor.ready_answer, console)
+    cli = 'admin@0040ABCDEF12> show version\r\nfirmware-version "SonicOS 8.2.2-R9870"\r\nserial-number 0040ABCDEF12\r\nadmin@0040ABCDEF12> '
+    assert re.search(vendor.ready_answer, cli)
+
+
+# The end of what the fourth NSv run's ready try got (SonicOSX 8.2.2): the console's boot text, then Ctrl+S and a space,
+# the CLI's prompt, and the status bar redrawn after it.
+_NSV_SCREEN = ("\x1b[15;1HFirmware\x1b[CVersion\x1b[8C:\x1b[CSonicOSX\x1b[C8.2.2-8015-R9870\x1b[16;1HSerial\x1b[CNumber\x1b[11C:\x1b[C004010211E0D"
+               "\x1b[22;1HUser:delay\x1b[Cinterval:60\x1b[24;1H\x1b[7mSonicWall (c) 2026 |                         [Ctrl-s spacebar] to switch console"
+               "\x1b[23;1H\x1b[0m\x1b[H\x1b[2JNSv\x1b[C>\x1b[24;1H\x1b[7mSonicWall (c) 2026 |                         [Ctrl-s spacebar] to switch console"
+               "\x1b[1;7H\x1b[24;1H\x1b[0m\x1b[K\x1b[7mSonicWall (c) 2026 |                         [Ctrl-s spacebar] to switch console\x1b[1;7H\n")  # fmt: skip
+
+
+def test_the_nsv_screen_is_read_as_plain_text_without_its_status_bar() -> None:
+    """The fourth NSv run reached the CLI's prompt `NSv >` and never saw it: the status bar is redrawn after every output,
+    and spaces are cursor moves. Read as plain text without the status bar, the prompt is last; the console's boot text
+    ("Firmware Version : SonicOSX", "Serial Number :") is not the CLI's answer to show version."""
+    vendor = tier3.VENDORS["sonicwall"]
+    plain = labrun.screen_text(_NSV_SCREEN, vendor.screen_noise).rstrip()
+    assert plain.endswith("NSv >") and "Firmware Version" in plain and "\x1b" not in plain
+    assert re.search(vendor.prompt, plain) and not re.search(vendor.prompt, _NSV_SCREEN)
+    assert not re.search(vendor.ready_answer, plain)
+    assert not re.search(tier3._ASKS_USER, plain)  # ("User:delay" is the console's log, not a question)
+    assert re.search(vendor.ready_answer, 'NSv > show version\r\nfirmware-version "SonicOSX 8.2.2-8015-R9870"\r\nNSv >')
+
+
+def test_a_paced_session_finds_the_prompt_behind_a_redrawn_status_bar(tmp_path: Path) -> None:
+    cli = ("import sys, os\n"
+           "bar = '\\x1b[24;1H\\x1b[7mSonicWall (c) 2026 |   [Ctrl-s spacebar] to switch console\\x1b[1;7H'\n"
+           "sys.stdout.write('console' + bar); sys.stdout.flush()\n"
+           "keys = os.read(0, 2)\n"
+           "sys.stdout.write('\\x1b[H\\x1b[2JNSv\\x1b[C>' + bar); sys.stdout.flush()\n"
+           "for line in sys.stdin:\n"
+           "    if line.strip() == 'exit': break\n"
+           "    sys.stdout.write('\\r\\nfirmware-version \"SonicOSX 8.2.2\"\\r\\nNSv\\x1b[C>' + bar); sys.stdout.flush()\n")
+    runner = labrun.Runner(tmp_path, echo=False)
+    vendor = tier3.VENDORS["sonicwall"]
+    out = runner.run_paced([sys.executable, "-u", "-c", cli], ["show version", "exit"], vendor.prompt, step=10, preamble=vendor.preamble,
+                           close_after=2, noise=vendor.screen_noise)
+    assert re.search(vendor.ready_answer, labrun.screen_text(out, vendor.screen_noise))

@@ -25,6 +25,11 @@ variable "firewall_user_data" {
   type    = string
   default = ""
 }
+variable "published" {
+  type        = map(list(string))
+  description = "addresses the firewall publishes (destination NAT), by zone: secondary addresses of its interface there"
+  default     = {}
+}
 variable "firewall_ports" {
   type        = list(number)
   description = "TCP ports of the firewall's management interface open to admin_cidr"
@@ -162,10 +167,13 @@ resource "aws_network_interface" "fw_mgmt" {
   tags            = { Name = "${var.run_id}-fw-mgmt" }
 }
 
+# .4 first (the primary address, which the firewall takes by DHCP), then the addresses it publishes in the zone: the VPC
+# delivers those to this interface as well.
 resource "aws_network_interface" "fw_zone" {
-  for_each          = var.zones
-  subnet_id         = aws_subnet.zone[each.key].id
-  private_ips       = [cidrhost(each.value, 4)]
+  for_each                = var.zones
+  subnet_id               = aws_subnet.zone[each.key].id
+  private_ip_list_enabled = true
+  private_ip_list         = concat([cidrhost(each.value, 4)], lookup(var.published, each.key, []))
   security_groups   = [aws_security_group.open.id]
   source_dest_check = false
   tags              = { Name = "${var.run_id}-fw-${each.key}" }

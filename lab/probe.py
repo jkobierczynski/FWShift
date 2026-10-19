@@ -10,7 +10,9 @@
                                                                 and prints the results as JSON
 
 A TCP flow passed when the handshake completes, a UDP flow when the answer of the other side's probe comes back, an
-ICMP flow when ping gets an echo reply. What does not come back within the timeout was blocked; a TCP reset is
+ICMP flow when ping gets an echo reply. The other side's probe answers with its own address and the address the
+connection came from, as it saw it: what NAT did on the way ("answered_by" and "seen_as" in the results; not for a
+port another listener has, such as sshd on 22). What does not come back within the timeout was blocked; a TCP reset is
 "refused" (a firewall that rejects, or no listener). A flow that could not be tried at all (the source address is not
 this host's, no route, ping refused) is "error", never "blocked". It never sends anything but to the addresses of the
 plan.
@@ -64,13 +66,13 @@ def _serve_tcp(address, port, stop):
     sock.settimeout(1.0)
     while not stop.is_set():
         try:
-            conn, _ = sock.accept()
+            conn, peer = sock.accept()
         except socket.timeout:
             continue
         except OSError:
             break
         try:
-            conn.sendall(MAGIC + address.encode() + b"\n")
+            conn.sendall(MAGIC + address.encode() + b" " + peer[0].encode() + b"\n")
         except OSError:
             pass
         finally:
@@ -94,7 +96,7 @@ def _serve_udp(address, port, stop):
         except OSError:
             break
         if data.startswith(MAGIC):
-            sock.sendto(MAGIC + address.encode(), peer)
+            sock.sendto(MAGIC + address.encode() + b" " + peer[0].encode(), peer)
 
 
 def serve(address, tcp, udp, seconds=0):
@@ -126,7 +128,32 @@ def _udp_rejected(error):
     return error.errno in _UNREACHABLE or isinstance(error, (ConnectionRefusedError, ConnectionResetError))
 
 
-def try_tcp(source, destination, port, timeout):
+def _answer(data, reply):
+    """What the other side's probe said: its address, and the one the connection came from as it saw it."""
+    if reply is None or not data.startswith(MAGIC):
+        return
+    words = data[len(MAGIC):].decode("ascii", "replace").split()
+    if words:
+        reply["answered_by"] = words[0]
+    if len(words) > 1:
+        reply["seen_as"] = words[1]
+
+
+def _read_line(sock, timeout):
+    sock.settimeout(timeout)
+    data = b""
+    try:
+        while b"\n" not in data and len(data) < 512:
+            chunk = sock.recv(512)
+            if not chunk:
+                break
+            data += chunk
+    except OSError:
+        pass  # (no answer, or not a probe: sshd waits for the client to speak first)
+    return data
+
+
+def try_tcp(source, destination, port, timeout, reply=None):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(timeout)
     try:
@@ -136,6 +163,8 @@ def try_tcp(source, destination, port, timeout):
             return "error"  # (not an address of this host)
         try:
             sock.connect((destination, port))
+            if reply is not None:
+                _answer(_read_line(sock, min(timeout, 1.5)), reply)
             return "passed"
         except ConnectionRefusedError:
             return "refused"
@@ -147,7 +176,7 @@ def try_tcp(source, destination, port, timeout):
         sock.close()
 
 
-def try_udp(source, destination, port, timeout, tries=2):
+def try_udp(source, destination, port, timeout, tries=2, reply=None):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(timeout / tries)
     try:
@@ -166,6 +195,7 @@ def try_udp(source, destination, port, timeout, tries=2):
                     return "blocked"  # (an ICMP error: rejected on the way, or no answer from the port)
                 return "error"
             if data.startswith(MAGIC):
+                _answer(data, reply)
                 return "passed"
         return "blocked"
     finally:
@@ -213,12 +243,12 @@ def selfcheck(address, tcp, udp, timeout=2.0):
     return bad
 
 
-def attempt(flow, timeout):
+def attempt(flow, timeout, reply=None):
     protocol, port = flow["protocol"], flow.get("port")
     if protocol == "tcp":
-        return try_tcp(flow["src"], flow["dst"], port, timeout)
+        return try_tcp(flow["src"], flow["dst"], port, timeout, reply=reply)
     if protocol == "udp":
-        return try_udp(flow["src"], flow["dst"], port, timeout)
+        return try_udp(flow["src"], flow["dst"], port, timeout, reply=reply)
     if protocol == "icmp":
         return try_icmp(flow["src"], flow["dst"], timeout)
     return "error"
@@ -226,9 +256,16 @@ def attempt(flow, timeout):
 
 def send(plan, source, timeout, workers):
     flows = [f for f in plan["flows"] if f["src"] == source]
+    replies = [{} for _ in flows]
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        outcomes = list(pool.map(lambda f: attempt(f, timeout), flows))
-    return [{"id": f["id"], "observed": o} for f, o in zip(flows, outcomes)]
+        outcomes = list(pool.map(lambda i: attempt(flows[i], timeout, replies[i]), range(len(flows))))
+    out = []
+    for flow, outcome, reply in zip(flows, outcomes, replies):
+        result = {"id": flow["id"], "observed": outcome}
+        if outcome == "passed":
+            result.update(reply)
+        out.append(result)
+    return out
 
 
 def _ports(text):
