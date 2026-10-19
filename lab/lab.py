@@ -55,7 +55,7 @@ def describe() -> str:
         "  gcp          a global network firewall policy (--to gcp)",
         "tier2  free images on a local Linux host with KVM (root; base images prepared once)",
         *[f"  {i.name:<12} --to {i.target}" for i in tier2.IMAGES.values()],
-        "tier3  AWS Marketplace images, pay per hour (subscribe once in the console)",
+        "tier3  Marketplace images of AWS (subscribe once in the console), Azure and Google Cloud (--cloud), pay per hour",
         tier3.describe(),
     ]) + "\n"  # fmt: skip
 
@@ -98,6 +98,8 @@ def parser() -> argparse.ArgumentParser:
     r.add_argument("--ssh-user", help="tier2: the user (admin for RouterOS, root for OPNsense and pfSense when not given)")
     r.add_argument("--memory", type=int, default=2048, help="tier2: MiB for the firewall (2048)")
     r.add_argument("--target-version", help="tier2, OPNsense: the series of the base image (as --target-version of fwshift)")
+    r.add_argument("--cloud", choices=("aws", "azure", "gcp"), default="aws", help="tier3: the cloud whose Marketplace image runs (aws)")
+    r.add_argument("--cloud-image", help="tier3 on Azure: PUBLISHER:OFFER:SKU; on Google Cloud: the image or its family (projects/P/global/images/family/F)")
     r.add_argument("--ami", help="tier3: the image id, where the name the lab looks for does not find it")
     r.add_argument("--instance-type", help="tier3: the firewall's instance type")
     r.add_argument("--boot-minutes", type=float, default=None, help="how long to wait for the firewall's CLI (30; Check Point 60)")
@@ -138,7 +140,7 @@ def destroy(work: Path, terraform: Optional[str], dry_run: bool = False) -> bool
             tf = tier1.Terraform(runner, labrun.ROOT / tier1.MODULES[firewall], tier1.terraform_binary(terraform))
             tier1.TEARDOWNS[firewall](runner, tf)
         elif tier == "tier3":
-            tier3.teardown(runner, tier1.Terraform(runner, labrun.ROOT / "tier3" / "aws", tier1.terraform_binary(terraform)))
+            tier3.teardown(runner, tier1.Terraform(runner, labrun.ROOT / "tier3" / state.get("cloud", "aws"), tier1.terraform_binary(terraform)))
         elif tier == "tier2":
             tier2.teardown(runner, [])
     runner.save_log()

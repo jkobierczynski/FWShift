@@ -8,9 +8,9 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.38.0 (alpha) |
+| Version | 0.39.0 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Meraki MX (read the answers of the Dashboard API for one network: VLANs, objects, the outbound and layer 7 rules, port forwarding, 1:1 and 1:many NAT, the inbound table with NAT exceptions; write a curl script that puts the outbound and NAT tables); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
-| Tests | 6681, all passing (a dozen of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Tests | 6694, all passing (a dozen of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
 | Verified on devices | **iptables and nftables**: rulesets loaded into a Linux kernel and real packets forwarded through it (below; and the lab of 0.32.0, also on the author's machine). **AWS, Azure and Google Cloud**: the lab policy's conversion loaded into a real account by the lab, and real connections between instances checked (0.32.1, below). **FortiOS**: the lab policy's conversion loaded on a FortiGate-VM (FortiOS 8.0.1, AWS Marketplace) and real connections through it checked (0.32.1, below). **PAN-OS**: the same on a VM-Series (PAN-OS 11.2.15, AWS Marketplace). Nothing has been loaded on an ASA, an IOS router, a Huawei USG, a Stormshield firewall, a Meraki MX, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
 | Analysis | the audit, the zone matrix, rule usage from hit counters and logs, the zone and conduit model as a gate (`fwshift conduits`), the equivalence check (`fwshift compare`, `convert --compare`) |
 | Security | an outside review (ChatGPT, October 2026) and the measures taken: `docs/security/SECURITY_REVIEW.md` |
@@ -2165,6 +2165,50 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-19: version 0.39.0
+
+**Tier 3 on Azure and Google Cloud.** The lab's tier 3 runs on the Marketplace images of Azure and Google Cloud as
+well as AWS's (`--cloud azure`, `--cloud gcp`), with the same plan, load, probes, diagnosis and read-back. Of the nine
+vendors of tier 3, six are scripted on Azure and four on Google Cloud; the rest are not there, or not in a way the lab
+can use yet, and the lab says why. Scripted from the vendors' own Terraform modules and guides; no run has been made
+on either cloud.
+
+**Built**
+
+* Terraform modules `lab/tier3/azure` and `lab/tier3/gcp`: the firewall with a management NIC (public address, its
+  ports from your address) and a NIC in each zone at `.4`, the published address as a second address (Azure) or an
+  alias address (Google Cloud) of the outside NIC, and the five test hosts as in tier 1. Azure: one resource group per
+  run, a route table per zone subnet with the other zones through the firewall's NIC (a virtual appliance, IP
+  forwarding on its NICs), the Marketplace plan, boot diagnostics; Google Cloud: four VPC networks (management and one
+  per zone: each NIC of an instance in a network of its own), routes to the firewall's NIC in each, `can_ip_forward`,
+  the first-boot data in the metadata the image reads.
+* `run_cloud` in `tier3.py`: the image of the vendor on that cloud (`CloudImage`: Azure `PUBLISHER:OFFER:SKU`, its plan
+  the same; Google Cloud an image, a family, or the newest image of a publisher's project whose name starts as given,
+  for the publishers that name images by version), the vendor's differences there (the user, the first-boot data), the
+  terms accepted on Azure, the console kept for a firewall that does not come up (`az vm boot-diagnostics
+  get-boot-log`, `gcloud compute instances get-serial-port-output`), and a teardown that checks the cloud's own
+  leftovers. The steps after the firewall exists are one function for the three clouds.
+* The images: FortiGate (Azure PAYG 7.6 with the configuration as Fortinet's templates write the custom data, and the
+  run's key for the VM's user; Google Cloud the PAYG family of 7.2), VM-Series (Bundle 1 on both), vSRX (Azure PAYG),
+  Catalyst 8000V (Azure BYOL), ASAv (BYOL on both, Day 0 in the custom data or the startup script), Check Point (Azure
+  R82 PAYG, Google Cloud R82.10 PAYG standalone, with the first-boot data CloudGuardIaaS writes for each). Not on a
+  cloud, or not usable yet, with the reason (`NOT_ON`): the vSRX and the Catalyst 8000V on Google Cloud (image projects
+  not found), pfSense Plus and OPNsense on Azure (plans not found; several NICs), SonicWall on Azure (BYOL only), and
+  pfSense, OPNsense and SonicWall on Google Cloud (not offered).
+* `lab.py run tier3 ... --cloud`, `--cloud-image`; `lab.py list` and `lab/README.md` show every vendor on every cloud;
+  `lab.py destroy` tears a run down on its own cloud.
+* The Catalyst 8000V's Day 0 names the vendor's user ({user}), which on Azure is the VM's.
+
+**Verified**
+
+* Every scripted vendor on Azure and Google Cloud, dry (`tests/test_lab.py`): the conversion, the plan, the
+  variables against the module of that cloud, the order of the commands, the first-boot data, the read-back of the
+  dry run; a vendor that is not on a cloud is refused with the reason.
+* The suite (6,694 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: any run on Azure or Google Cloud (Terraform not run either: the modules are checked against their
+  variables, not planned); the images' names where the vendors' sources are old (the vSRX on Azure, 2022) or give only
+  an example (the 7.2 FortiGate family); the first-boot formats on those clouds.
 
 ### 2026-10-19: version 0.38.0
 

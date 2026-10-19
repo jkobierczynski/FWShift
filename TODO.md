@@ -347,6 +347,9 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Cataly
   name, the NSv's X2 and X3,
   its zone commands and its login;
 * Sophos Firewall in tier 3: its XML API is switched on in the web console only, so a run would wait for that step;
+* the first run of each image of tier 3 on Azure and Google Cloud (0.39.0, scripted from the vendors' Terraform and
+  guides, never run), and the plans and image projects not found yet: the PAYG plans of the Catalyst 8000V and ASAv on
+  Azure, pfSense Plus and OPNsense on Azure, the vSRX and the Catalyst 8000V on Google Cloud, SonicWall's BYOL offer;
 * the images not scripted yet ( Stormshield EVA, Sophos,
   Barracuda; WatchGuard and Forcepoint need tools of their own, Meraki a Dashboard);
 * the conversion of the other sample configurations, not only the lab policy;

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import os
+import dataclasses
 import re
 import secrets
 import sys
@@ -95,6 +96,25 @@ class Vendor:
     # A full-screen console: its answers read as plain text, without this pattern (the NSv's status bar).
     screen_noise: str = ""
     load: Optional[Callable[["Runner", "Vendor", Path, str, Path], None]] = None
+    # The cards of the zones, for a firewall the lab puts its zones on itself (pfSense, OPNsense: ena1 to ena3 on AWS).
+    ports: Dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class CloudImage:
+    """A vendor's image on Azure or Google Cloud (0.39.0). Azure: PUBLISHER:OFFER:SKU (its plan the same three, unless
+    plan is False); Google Cloud: the image or its family, as projects/PROJECT/global/images/family/FAMILY. What of the
+    vendor differs there (its user, the names of its cards, the ready answer, the first-boot data) in changes."""
+
+    image: str
+    size: str
+    plan: bool = True
+    changes: Tuple[Tuple[str, Any], ...] = ()
+    metadata_key: str = "user-data"  # (Google Cloud: the metadata the first-boot data goes in)
+    key_metadata: str = ""  # (Google Cloud: a metadata the image reads the run's key from, beside ssh-keys)
+    vm_user: str = "fwlab"  # (Azure: the VM's user, which Azure makes; never admin)
+    status: str = "scripted from the vendor's documentation, never run"
+    source: str = ""  # (where the image's name was found)
 
 
 # -- FortiGate ---------------------------------------------------------------------------------------------------
@@ -250,7 +270,7 @@ def _c8000v_user_data() -> str:
     ssh-rsa for a client that is not told which the router takes. {ssh_key_lines}: the key's base64 part, wrapped."""
     return "\n".join(["Section: IOS configuration", "hostname fwlab-c8k",
                       "ip ssh server algorithm publickey rsa-sha2-512 rsa-sha2-256 ssh-rsa",
-                      "ip ssh pubkey-chain", " username ec2-user", "  key-string", "{ssh_key_lines}", "  exit", " exit", " exit", ""])  # fmt: skip
+                      "ip ssh pubkey-chain", " username {user}", "  key-string", "{ssh_key_lines}", "  exit", " exit", " exit", ""])  # fmt: skip
 
 
 # All three data interfaces listed by `show ip interface brief` (an interface line: the name at the start of a line;
@@ -315,7 +335,7 @@ _PF_AWS_PORTS = {"inside": "ena1", "dmz": "ena2", "outside": "ena3"}
 _PF_AWS_OPTIONS = [*(x for z, i in _PF_AWS_ZONES.items() for x in ("--zone-map", f"{z}={i}")), *labplan.zone_options(_PF_AWS_ZONES)]
 
 
-def assign_zone_interfaces(xml: str, flavour: str) -> str:
+def assign_zone_interfaces(xml: str, flavour: str, cards: Optional[Dict[str, str]] = None) -> str:
     """The zones on the data interfaces: OPT1 to OPT3 on ena1 to ena3, enabled, with the lab's address (.4/24), private
     networks and bogons not blocked. An interface the image had on one of those cards (LAN, say) is taken out; WAN, the
     management interface, stays as it is."""
@@ -324,7 +344,8 @@ def assign_zone_interfaces(xml: str, flavour: str) -> str:
     interfaces = root.find("interfaces")
     if interfaces is None:
         interfaces = ET.SubElement(root, "interfaces")
-    ports = set(_PF_AWS_PORTS.values())
+    cards = cards or _PF_AWS_PORTS
+    ports = set(cards.values())
     for child in list(interfaces):
         name = child.findtext("if") or ""
         if child.tag in _PF_AWS_ZONES.values() or (name in ports and child.tag != "wan"):
@@ -332,7 +353,7 @@ def assign_zone_interfaces(xml: str, flavour: str) -> str:
     on = "" if flavour == "pfsense" else "1"
     for zone, key in _PF_AWS_ZONES.items():
         entry = ET.SubElement(interfaces, key)
-        for tag, text in (("enable", on), ("if", _PF_AWS_PORTS[zone]), ("descr", zone), ("ipaddr", _addr(zone)),
+        for tag, text in (("enable", on), ("if", cards[zone]), ("descr", zone), ("ipaddr", _addr(zone)),
                           ("subnet", "24"), ("spoofmac", "")):  # fmt: skip
             ET.SubElement(entry, tag).text = text
     return '<?xml version="1.0"?>\n' + ET.tostring(root, encoding="unicode") + "\n"
@@ -383,7 +404,8 @@ def load_pf_config(runner: Runner, vendor: "Vendor", key: Path, host: str, out: 
     if "<interfaces>" not in base:
         raise LabError(f"/conf/config.xml of the firewall could not be read: {base[-300:]!r}")
     (runner.work / "config.base.xml").write_text(base, encoding="utf-8")
-    merged = assign_zone_interfaces(keep_management_rules(base, tier2.merge_areas(base, out.read_text(encoding="utf-8"), flavour)), flavour)
+    cards = vendor.ports or _PF_AWS_PORTS
+    merged = assign_zone_interfaces(keep_management_rules(base, tier2.merge_areas(base, out.read_text(encoding="utf-8"), flavour)), flavour, cards)
     merged_file = runner.work / "config.merged.xml"
     merged_file.write_text(merged, encoding="utf-8")
     runner.run(_scp_prefix(runner, key, vendor.ssh_options) + [str(merged_file), f"{vendor.user}@{host}:fwlab-config.xml"], timeout=300)
@@ -394,13 +416,13 @@ def load_pf_config(runner: Runner, vendor: "Vendor", key: Path, host: str, out: 
     runner.run(prefix + [f"{vendor.sudo}shutdown -r now"], check=False, quiet=True, timeout=60)  # (the connection drops)
     if not runner.dry_run:
         time.sleep(60)
-        wait_cli(runner, key, vendor.user, host, f"ifconfig {_PF_AWS_PORTS['outside']}", _addr("outside").replace(".", r"\."),
+        wait_cli(runner, key, vendor.user, host, f"ifconfig {cards['outside']}", _addr("outside").replace(".", r"\."),
                  15, vendor.ssh_options, as_command=True)  # fmt: skip
-    cards = runner.run(prefix + ["ifconfig"], quiet=True, fake="".join(f"{p}: inet {_addr(z)}\n" for z, p in _PF_AWS_PORTS.items()))
+    shown = runner.run(prefix + ["ifconfig"], quiet=True, fake="".join(f"{p}: inet {_addr(z)}\n" for z, p in cards.items()))
     rules = runner.run(prefix + [f"{vendor.sudo}pfctl -sr"], quiet=True, fake="pass in quick on ena1 inet proto tcp from 10.20.1.0/24 to 10.20.2.10")
     nat = runner.run(prefix + [f"{vendor.sudo}pfctl -sn"], quiet=True, check=False, fake="nat on ena3 inet from 10.20.1.0/24 to any -> 10.20.3.4")
-    (runner.work / "load.txt").write_text(f"{answer}\n--- ifconfig\n{cards}\n--- pfctl -sr\n{rules}\n--- pfctl -sn\n{nat}", encoding="utf-8")
-    missing = [z for z in ORDER if _addr(z) not in cards]
+    (runner.work / "load.txt").write_text(f"{answer}\n--- ifconfig\n{shown}\n--- pfctl -sr\n{rules}\n--- pfctl -sn\n{nat}", encoding="utf-8")
+    missing = [z for z in ORDER if _addr(z) not in shown]
     if missing:
         raise LabError(f"after the reboot, the zones {', '.join(missing)} have no address on their card (load.txt)")
     if not re.search(_WEB_SERVER_IN_PF, rules):  # (the web server of the lab policy: its rules are in pf, or the configuration did not take)
@@ -587,6 +609,97 @@ VENDORS: Dict[str, Vendor] = {
                    ready_answer=r" up ", key_bits=2048, ssh_options=("HostKeyAlgorithms=+ssh-rsa", "PubkeyAcceptedAlgorithms=+ssh-rsa"),
                    diagnose=_asav_diagnose, prompt=r"[>#] ?$", ports_command="show interface ip brief"),
 }
+
+def _fortigate_azure_data() -> str:
+    """FortiGate on Azure: its custom data as Fortinet's own Azure templates write it (MIME, the configuration as
+    text/x-shellscript), with the run's key for the VM's user, whom Azure makes (it takes no user named admin)."""
+    config = _fortigate_user_data() + "\n".join(["config system admin", '    edit "{user}"', '        set ssh-public-key1 "ssh-rsa {ssh_key}"',
+                                                  "    next", "end", ""])  # fmt: skip
+    return ('Content-Type: multipart/mixed; boundary="==FWLAB=="\nMIME-Version: 1.0\n\n--==FWLAB==\n'
+            'Content-Type: text/x-shellscript; charset="us-ascii"\nMIME-Version: 1.0\n\n' + config + "\n--==FWLAB==--\n")
+
+
+def _checkpoint_azure_data() -> str:
+    """Check Point on Azure: /etc/cloud_config.py as the interpreter of the custom data, one value a line, as the
+    CloudGuardIaaS templates for Azure write it (cloud-init.sh): a standalone, bash as the admin shell, the API on."""
+    values = {"installationType": "standalone", "allowUploadDownload": "true", "osVersion": "{os_version}", "templateName": "standalone",
+              "templateVersion": "20240101", "templateType": "terraform", "isBlink": "false", "bootstrapScript64": "", "location": "",
+              "managementGUIClientNetwork": "0.0.0.0/0", "enableApi": "all", "adminShell": "/bin/bash", "passwordHash": "",
+              "MaintenanceModePassword": ""}  # fmt: skip
+    return "#!/usr/bin/python3 /etc/cloud_config.py\n\n" + "".join(f'{name}="{value}"\n' for name, value in values.items())
+
+
+def _checkpoint_gcp_data() -> str:
+    """Check Point on Google Cloud: its startup script as the CloudGuardIaaS module for Google Cloud writes it (#cloud-config,
+    /etc/cloud_config.py with the values of a standalone; their own X...X quoting of values with spaces)."""
+    values = {"generatePassword": "false", "allowUploadDownload": "true", "templateName": "single_tf", "templateVersion": "20240101",
+              "mgmtNIC": "XEphemeral Public IP (eth0)X", "hasInternet": "true", "installationType": "XGateway and Management (Standalone)X",
+              "enableMonitoring": "false", "shell": "/bin/bash", "managementGUIClientNetwork": "0.0.0.0/0", "numAdditionalNICs": "3",
+              "osVersion": "{os_version}", "MaintenanceModePassword": ""}  # fmt: skip
+    command = "python3 /etc/cloud_config.py " + " ".join(f'{name}=\\"{value}\\"' if not value.startswith("X") else f'{name}="{value}"'
+                                                         for name, value in values.items())  # fmt: skip
+    return "#cloud-config\nruncmd:\n  - '" + command + "'\n"
+
+
+CLOUD_TITLES = {"aws": "AWS", "azure": "Azure", "gcp": "Google Cloud"}
+# Four NICs: on Azure a size with four (Standard_D3_v2 is the smallest: D4s_v5 and F4s_v2 have two); on Google Cloud a
+# machine with four vCPUs (as many NICs as vCPUs). The user of the VM on Azure is never admin, which Azure refuses.
+_AZ4 = "Standard_D3_v2"
+_GCP4 = "n2-standard-4"
+CLOUD_IMAGES: Dict[str, Dict[str, CloudImage]] = {
+    "fortigate": {
+        "azure": CloudImage("fortinet:fortinet_fortigate-vm:fortinet_fg-vm_payg_76_g2", _AZ4,
+                            changes=(("user", "fwlab"), ("user_data", _fortigate_azure_data())),
+                            source="fortinet/fortigate-terraform-deploy, azure/7.6/single"),
+        "gcp": CloudImage("projects/fortigcp-project-001/global/images/family/fortigate-72-payg", _GCP4,
+                          source="Fortinet's GCP administration guide (the image families; 7.2 the one confirmed)"),
+    },
+    "panos": {
+        # (no first-boot data: the management interface by DHCP, the rest by the session, as on AWS)
+        "azure": CloudImage("paloaltonetworks:vmseries-flex:bundle1", _AZ4, changes=(("user", "fwlab"),),
+                            source="PaloAltoNetworks/terraform-azurerm-swfw-modules, modules/vmseries"),
+        "gcp": CloudImage("projects/paloaltonetworksgcp-public/global/images/vmseries-flex-bundle1-*", _GCP4,
+                          source="PaloAltoNetworks/terraform-google-swfw-modules, and Palo Alto's list of image names"),
+    },
+    "vsrx": {
+        "azure": CloudImage("juniper-networks:vsrx-next-generation-firewall-payg:vsrx-azure-image-payg-b1", _AZ4, changes=(("user", "fwlab"),),
+                            source="Juniper/vSRX-Azure (2022: check the plan with az vm image list --publisher juniper-networks --all)"),
+    },
+    "c8000v": {
+        # (the PAYG plan's name was not found; unlicensed, the BYOL image forwards little, which the probes are)
+        "azure": CloudImage("cisco:cisco-c8000v-byol:17_12_01a-byol", _AZ4, changes=(("user", "fwlab"),),
+                            status="scripted from Cisco's Azure guide, never run; BYOL (unlicensed: throughput limited)",
+                            source="Cisco's Catalyst 8000V Azure guide; a Terraform example of the Marketplace image"),
+    },
+    "asav": {
+        "azure": CloudImage("cisco:cisco-asav:asav-azure-byol", _AZ4, changes=(("user", "fwlab"),),
+                            status="scripted from Cisco's Azure guide, never run; BYOL (unlicensed: throughput limited)",
+                            source="Cisco's ASAv Azure guide; a Terraform example of the Marketplace image"),
+        "gcp": CloudImage("projects/cisco-public/global/images/cisco-asav-9-*", _GCP4, metadata_key="startup-script",
+                          status="scripted from Cisco's ASAv Google Cloud guide, never run; BYOL (unlicensed: throughput limited)",
+                          source="gehoumi/terraform-google-ciscoasav-vm (Day 0 in the startup script)"),
+    },
+    "checkpoint": {
+        "azure": CloudImage("checkpoint:check-point-cg-r82:sg-ngtp", _AZ4, changes=(("user_data", _checkpoint_azure_data()),),
+                            vm_user="notused", source="CheckPointSW/CloudGuardIaaS, terraform/azure (cloud-init.sh)"),
+        "gcp": CloudImage("projects/checkpoint-public/global/images/check-point-r8210-gw-payg-single-*", _GCP4,
+                          changes=(("user_data", _checkpoint_gcp_data()),), metadata_key="startup-script", key_metadata="instanceSSHKey",
+                          source="CheckPointSW/CloudGuardIaaS, terraform/gcp/single"),
+    },
+}
+# Where a vendor's image is not on a cloud, or is there in a way the lab cannot use yet.
+NOT_ON: Dict[Tuple[str, str], str] = {
+    ("vsrx", "gcp"): "on the Marketplace, but its image project was not found (and it takes logins as gcp-user only)",
+    ("c8000v", "gcp"): "BYOL only on Google Cloud, and its image project was not found",
+    ("pfsense", "azure"): "Netgate's image is there (netgate:pfsense-plus-public-cloud-fw-vpn-router), but its plan was not found and "
+                          "Netgate says several NICs cannot be set up from the portal; no first-boot data to put the zones on",
+    ("pfsense", "gcp"): "not offered on Google Cloud (Netgate: AWS and Azure)",
+    ("opnsense", "azure"): "Deciso's image is there (decisosalesbv:opnsense), with one NIC in its guide; its plan was not found",
+    ("opnsense", "gcp"): "no image on Google Cloud",
+    ("sonicwall", "azure"): "on Azure as BYOL only (a licence of your own); the offer's id was not found",
+    ("sonicwall", "gcp"): "not offered on Google Cloud",
+}
+
 
 NOT_SCRIPTED = {
     "stormshield": "Stormshield EVA: the licence of a pay-as-you-go image and snscli's login are not checked yet",
@@ -818,7 +931,7 @@ def save_console(runner: Runner, region: str, instance: str) -> None:
 def user_data(vendor: Vendor, key: Path, password: str = "", image_name: str = "") -> str:
     """The firewall's first-boot data, with the run's public key where it asks for one ({ssh_key}: its base64 part),
     the run's password where it asks for one ({enable_password}) and the image's version ({os_version})."""
-    data = vendor.user_data.replace("{os_version}", checkpoint_version(image_name))
+    data = vendor.user_data.replace("{os_version}", checkpoint_version(image_name)).replace("{user}", vendor.user)
     if "{ssh_key}" in data or "{ssh_key_lines}" in data:
         parts = key.with_suffix(".pub").read_text(encoding="utf-8").split()
         blob = parts[1] if len(parts) > 1 else parts[0]
@@ -910,6 +1023,9 @@ def conversion(name: str) -> Tuple[str, List[str]]:
 
 def run_vendor(runner: Runner, args: Any) -> bool:
     vendor = VENDORS[args.firewall]
+    cloud = getattr(args, "cloud", None) or "aws"
+    if cloud != "aws":
+        return run_cloud(runner, args, vendor, cloud)
     region = args.region or "eu-west-1"
     labrun.save_state(runner.work, tier="tier3", firewall=vendor.name, region=region)
     if not runner.dry_run:
@@ -932,49 +1048,57 @@ def run_vendor(runner: Runner, args: Any) -> bool:
                                                                                   str(labrun.load_state(runner.work).get("image_name", ""))),
                   **tier1.common_variables(runner, args, key), "hosts": tier1.host_variables(gateway="firewall")})  # fmt: skip
         outputs = tf.output({"firewall_ip": "192.0.2.4", "firewall_instance": "i-0dryrun", "user": "ec2-user", "hosts": tier1.fake_hosts()})
-        if vendor.password_login:
-            labrun.askpass(runner.work, outputs["firewall_instance"])
-        login: Dict[str, Any] = {"answers": tuple((q, a.replace("{password}", outputs["firewall_instance"])) for q, a in vendor.answers),
-                 "batch": not vendor.password_login, "preamble": vendor.preamble, "close_after": vendor.close_after,
-                 "noise": vendor.screen_noise}  # fmt: skip
-        if not runner.dry_run:
-            try:
-                wait_cli(runner, key, vendor.user, outputs["firewall_ip"], vendor.ready, vendor.ready_answer,
-                         args.boot_minutes or vendor.boot_minutes, vendor.ssh_options, as_command=vendor.as_command, prompt=vendor.prompt,
-                         **login)  # fmt: skip
-            except LabError:
-                save_console(runner, region, outputs["firewall_instance"])
-                raise
-        if vendor.load is not None:
-            try:
-                vendor.load(runner, vendor, key, outputs["firewall_ip"], out)
-            except LabError:
-                save_console(runner, region, outputs["firewall_instance"])  # (a firewall that did not come back: its boot)
-                raise
-        elif vendor.prepare():  # (answers that do not count, kept in prepare.txt)
-            session(runner, key, vendor.user, outputs["firewall_ip"], vendor.prepare(), "", "prepare", options=vendor.ssh_options,
-                    prompt=vendor.prompt, **login)
-        if vendor.load is None:
-            files = vendor.uploads(out)
-            if files:
-                upload(runner, key, vendor.user, outputs["firewall_ip"], files, vendor.ssh_options)
-            lines = vendor.session(out)
-            if vendor.ports_command:
-                ports = _ASA_DRY_PORTS if runner.dry_run else asa_data_ports(
-                    session(runner, key, vendor.user, outputs["firewall_ip"], ["terminal pager 0", vendor.ports_command, "exit"], "",
-                            "ports", options=vendor.ssh_options, prompt=vendor.prompt))  # fmt: skip
-                lines = fill_ports(lines, ports)
-            session(runner, key, vendor.user, outputs["firewall_ip"], lines, vendor.errors, "load", vendor.success, vendor.ssh_options,
-                    vendor.prompt, **login)
-        try:
-            return tier1.probe_hosts(runner, key, outputs, data)
-        finally:
-            diagnose(runner, vendor, key, outputs["firewall_ip"], login)
-            read_back(runner, vendor, key, outputs["firewall_ip"], out, login)
+        return _boot_load_probe(runner, vendor, key, outputs, out, data, args,
+                                lambda: save_console(runner, region, outputs["firewall_instance"]))
     finally:
         if not args.keep:
             with labrun.shielded():
                 teardown(runner, tf)
+
+
+def _boot_load_probe(runner: Runner, vendor: Vendor, key: Path, outputs: Dict[str, Any], out: Path, data: Dict[str, Any], args: Any,
+                     console: Callable[[], None]) -> bool:  # fmt: skip
+    """Once the firewall exists, on any cloud: wait for its CLI, load the policy, probe, and look at it afterwards
+    (diagnose.txt, the read-back). console: keeps its boot messages, for a firewall that did not come up."""
+    if vendor.password_login:
+        labrun.askpass(runner.work, outputs["firewall_instance"])
+    login: Dict[str, Any] = {"answers": tuple((q, a.replace("{password}", outputs["firewall_instance"])) for q, a in vendor.answers),
+             "batch": not vendor.password_login, "preamble": vendor.preamble, "close_after": vendor.close_after,
+             "noise": vendor.screen_noise}  # fmt: skip
+    if not runner.dry_run:
+        try:
+            wait_cli(runner, key, vendor.user, outputs["firewall_ip"], vendor.ready, vendor.ready_answer,
+                     args.boot_minutes or vendor.boot_minutes, vendor.ssh_options, as_command=vendor.as_command, prompt=vendor.prompt,
+                     **login)  # fmt: skip
+        except LabError:
+            console()
+            raise
+    if vendor.load is not None:
+        try:
+            vendor.load(runner, vendor, key, outputs["firewall_ip"], out)
+        except LabError:
+            console()  # (a firewall that did not come back: its boot)
+            raise
+    elif vendor.prepare():  # (answers that do not count, kept in prepare.txt)
+        session(runner, key, vendor.user, outputs["firewall_ip"], vendor.prepare(), "", "prepare", options=vendor.ssh_options,
+                prompt=vendor.prompt, **login)
+    if vendor.load is None:
+        files = vendor.uploads(out)
+        if files:
+            upload(runner, key, vendor.user, outputs["firewall_ip"], files, vendor.ssh_options)
+        lines = vendor.session(out)
+        if vendor.ports_command:
+            ports = _ASA_DRY_PORTS if runner.dry_run else asa_data_ports(
+                session(runner, key, vendor.user, outputs["firewall_ip"], ["terminal pager 0", vendor.ports_command, "exit"], "",
+                        "ports", options=vendor.ssh_options, prompt=vendor.prompt))  # fmt: skip
+            lines = fill_ports(lines, ports)
+        session(runner, key, vendor.user, outputs["firewall_ip"], lines, vendor.errors, "load", vendor.success, vendor.ssh_options,
+                vendor.prompt, **login)
+    try:
+        return tier1.probe_hosts(runner, key, outputs, data)
+    finally:
+        diagnose(runner, vendor, key, outputs["firewall_ip"], login)
+        read_back(runner, vendor, key, outputs["firewall_ip"], out, login)
 
 
 def upload(runner: Runner, key: Path, user: str, host: str, files: Sequence[Path], options: Sequence[str] = ()) -> None:
@@ -1005,21 +1129,133 @@ def diagnose(runner: Runner, vendor: Vendor, key: Path, host: str, login: Option
         (runner.work / "diagnose.txt").write_text(f"(the diagnosis did not finish: {error})\n", encoding="utf-8")
 
 
+CLOUD_REGIONS = {"azure": "westeurope", "gcp": "europe-west1"}
+
+
+def find_gcp_image(runner: Runner, pattern: str, project: str) -> str:
+    """The newest image of a publisher's project whose name starts as the pattern says (projects/P/global/images/NAME-*):
+    the publishers name their images by version and give no family (Palo Alto, Cisco, Check Point)."""
+    found = re.match(r"^projects/([^/]+)/global/images/([^*]+)\*$", pattern)
+    if not found:
+        raise LabError(f"not an image pattern: {pattern} (projects/PROJECT/global/images/NAME-*)")
+    owner, prefix = found.groups()
+    out = runner.run(["gcloud", "compute", "images", "list", "--project", owner, "--no-standard-images", f"--filter=name~^{prefix}",
+                      "--sort-by=~creationTimestamp", "--limit=1", "--format=value(name)", "--quiet"], check=False, fake=f"{prefix}dry-run")  # fmt: skip
+    name = out.strip().splitlines()[0].strip() if out.strip() else ""
+    if not name:
+        raise LabError(f"no image named {prefix}... in project {owner}: give one with --cloud-image")
+    labrun.save_state(runner.work, image=f"projects/{owner}/global/images/{name}", image_name=name)
+    return f"projects/{owner}/global/images/{name}"
+
+
+def cloud_vendor(vendor: Vendor, image: CloudImage) -> Vendor:
+    """The vendor as it is on another cloud: its changes put in."""
+    return dataclasses.replace(vendor, **dict(image.changes)) if image.changes else vendor
+
+
+def run_cloud(runner: Runner, args: Any, vendor: Vendor, cloud: str) -> bool:
+    """Tier 3 on Azure or Google Cloud (0.39.0): the vendor's Marketplace image there, the same plan, load and probes."""
+    image = CLOUD_IMAGES.get(vendor.name, {}).get(cloud)
+    if image is None:
+        why = NOT_ON.get((vendor.name, cloud), "not scripted there yet")
+        raise LabError(f"{vendor.title} on {CLOUD_TITLES[cloud]}: {why}")
+    vendor = cloud_vendor(vendor, image)
+    region = args.region or CLOUD_REGIONS[cloud]
+    project = getattr(args, "project", None) or ("dry-run-project" if runner.dry_run else "")
+    if cloud == "gcp" and not project:
+        raise LabError("--project is needed for Google Cloud")
+    zone = getattr(args, "zone", None) or f"{region}-b"
+    labrun.save_state(runner.work, tier="tier3", firewall=vendor.name, cloud=cloud, region=region, project=project,
+                      image=getattr(args, "cloud_image", None) or image.image)  # fmt: skip
+    if not runner.dry_run:
+        labrun.need("ssh", "ssh-keygen", "scp", "az" if cloud == "azure" else "gcloud")
+    key = labrun.ssh_key(runner, "rsa", vendor.key_bits)  # (Azure takes RSA keys only)
+    out = runner.work / f"policy.{vendor.target}"
+    report = labrun.fwshift(runner, vendor.target, out, vendor.options)
+    data = labplan.build_plan(vendor.target, report, through_target_inside_zone=False, refused_means="blocked", nat_address=_addr)
+    labplan.save(runner.work / "plan.json", data)
+    tf = tier1.Terraform(runner, labrun.ROOT / "tier3" / cloud, tier1.terraform_binary(args.terraform))
+    name = getattr(args, "cloud_image", None) or image.image
+    first_boot = user_data(vendor, key, run_password(runner.work) if "{enable_password}" in vendor.user_data else "")
+    common = tier1.common_variables(runner, args, key)
+    try:
+        if cloud == "azure":
+            publisher, offer, sku = (name.split(":") + ["", "", ""])[:3]
+            if image.plan and not runner.dry_run:  # (the terms of a Marketplace image are accepted once per subscription)
+                runner.run(["az", "vm", "image", "terms", "accept", "--urn", f"{publisher}:{offer}:{sku}:latest", "-o", "none"], check=False)
+            tf.apply({**common, "location": region, "zone_order": ORDER, "published": published_addresses(),
+                      "firewall_image": {"publisher": publisher, "offer": offer, "sku": sku, "version": "latest"}, "firewall_plan": image.plan,
+                      "firewall_size": args.instance_type or image.size, "firewall_user": image.vm_user, "firewall_custom_data": first_boot,
+                      "hosts": tier1.host_variables(gateway="first")})  # fmt: skip
+            outputs = tf.output({"firewall_ip": "192.0.2.4", "firewall_instance": "00000000-dry-run", "resource_group": runner.work.name,
+                                 "user": "azureuser", "hosts": tier1.fake_hosts()})  # fmt: skip
+
+            def console() -> None:
+                with labrun.shielded():
+                    text = runner.run(["az", "vm", "boot-diagnostics", "get-boot-log", "-g", runner.work.name, "-n", f"{runner.work.name}-firewall"],
+                                      check=False, quiet=True, fake="(dry run)")  # fmt: skip
+                    (runner.work / "console.txt").write_text(text or "(the console gave nothing)\n", encoding="utf-8")
+        else:
+            if "*" in name:
+                name = find_gcp_image(runner, name, project)
+            metadata = {image.metadata_key: first_boot} if first_boot else {}
+            if image.key_metadata:
+                metadata[image.key_metadata] = key.with_suffix(".pub").read_text(encoding="utf-8").strip()
+            tf.apply({**common, "project": project, "region": region, "zone": zone, "zone_order": ORDER, "published": published_addresses(),
+                      "firewall_image": name, "firewall_machine_type": args.instance_type or image.size, "firewall_user": vendor.user,
+                      "firewall_metadata": metadata,
+                      "hosts": tier1.host_variables(gateway="first", subnet_via_gateway=True)})  # fmt: skip
+            outputs = tf.output({"firewall_ip": "192.0.2.4", "firewall_instance": "1234567890", "user": "lab", "hosts": tier1.fake_hosts()})
+
+            def console() -> None:
+                with labrun.shielded():
+                    text = runner.run(["gcloud", "compute", "instances", "get-serial-port-output", f"{runner.work.name}-firewall", "--zone", zone,
+                                       "--project", project], check=False, quiet=True, fake="(dry run)")  # fmt: skip
+                    (runner.work / "console.txt").write_text(text or "(the console gave nothing)\n", encoding="utf-8")
+        return _boot_load_probe(runner, vendor, key, outputs, out, data, args, console)
+    finally:
+        if not args.keep:
+            with labrun.shielded():
+                teardown(runner, tf)
+
+
 def teardown(runner: Runner, tf: "tier1.Terraform") -> None:
-    region = labrun.load_state(runner.work).get("region", "eu-west-1")
+    state = labrun.load_state(runner.work)
+    region, cloud = state.get("region", "eu-west-1"), state.get("cloud", "aws")
     problems = []
     try:
         tf.destroy()
     except LabError as error:
         problems.append(str(error))
-    found = [] if runner.dry_run else tier1.leftovers_aws(runner, region)
+        if cloud == "azure":  # (the resource group holds everything of the run)
+            runner.run(["az", "group", "delete", "-n", runner.work.name, "--yes"], check=False, timeout=3600)
+    if runner.dry_run:
+        found: List[str] = []
+    elif cloud == "azure":
+        found = tier1.leftovers_azure(runner)
+    elif cloud == "gcp":
+        found = tier1.leftovers_gcp(runner, str(state.get("project", "")))
+    else:
+        found = tier1.leftovers_aws(runner, region)
     if not found and not problems:
         labrun.save_state(runner.work, torn_down=True)
     tier1.report_leftovers(found + problems, runner.work.name)
 
 
+def coverage() -> List[Tuple[str, str, str]]:
+    """(vendor, cloud, what the lab has there): every vendor of tier 3 on every cloud."""
+    rows = []
+    for name, vendor in VENDORS.items():
+        rows.append((name, "aws", vendor.status))
+        for cloud in ("azure", "gcp"):
+            image = CLOUD_IMAGES.get(name, {}).get(cloud)
+            rows.append((name, cloud, f"{image.status} ({image.image})" if image else "not scripted: " + NOT_ON.get((name, cloud), "not scripted there yet")))
+    return rows
+
+
 def describe() -> str:
     rows = [f"  {v.name:<12} {v.title}: {v.status}" for v in VENDORS.values()]
+    rows += [f"  {name:<12} on {CLOUD_TITLES[cloud]}: {status}" for name, cloud, status in coverage() if cloud != "aws"]
     rows += [f"  {name:<12} not scripted: {why}" for name, why in NOT_SCRIPTED.items()]
     return "\n".join(rows)
 

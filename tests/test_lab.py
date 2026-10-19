@@ -162,6 +162,52 @@ def test_nat_expectations() -> None:
     assert not any(f.get("published") for f in flows.values()) and flows["in10>dmz10:tcp/80"]["seen_from"] == "10.20.1.10"
 
 
+# -- tier 3 on Azure and Google Cloud --------------------------------------------------------------------------------
+
+
+def test_tier3_coverage() -> None:
+    """Every vendor of tier 3 on every cloud: scripted there, or why not (0.39.0)."""
+    rows = tier3.coverage()
+    assert {(name, cloud) for name, cloud, _ in rows} == {(name, cloud) for name in tier3.VENDORS for cloud in ("aws", "azure", "gcp")}
+    for name, cloud, status in rows:
+        if cloud != "aws" and cloud not in tier3.CLOUD_IMAGES.get(name, {}):
+            assert status.startswith("not scripted: ") and (name, cloud) in tier3.NOT_ON, (name, cloud, status)
+    for name, clouds in tier3.CLOUD_IMAGES.items():
+        for cloud, image in clouds.items():
+            assert image.source and image.size, (name, cloud)
+            if cloud == "azure":
+                assert image.image.count(":") == 2 and image.size == "Standard_D3_v2" and image.vm_user not in ("admin", "root", "administrator")
+                assert tier3.cloud_vendor(tier3.VENDORS[name], image).user != "admin" or name == "checkpoint"
+            else:
+                assert image.image.startswith("projects/") and image.size == "n2-standard-4"
+    assert "on Google Cloud: not scripted" in tier3.describe()
+
+
+def test_tier3_cloud_refuses_what_is_not_there(tmp_path: Path) -> None:
+    assert labcli.main(["run", "tier3", "pfsense", "--cloud", "gcp", "--project", "p", "--dry-run", "--work", str(tmp_path)]) == 2
+    with pytest.raises(SystemExit):
+        labcli.main(["run", "tier3", "fortigate", "--cloud", "oracle", "--dry-run", "--work", str(tmp_path)])
+
+
+def test_tier3_cloud_first_boot(tmp_path: Path) -> None:
+    key = tmp_path / "id_lab"
+    key.with_suffix(".pub").write_text("ssh-rsa AAAAB3NzaC1yc2EAAAAfwlab fwlab\n", encoding="utf-8")
+    forti = tier3.cloud_vendor(tier3.VENDORS["fortigate"], tier3.CLOUD_IMAGES["fortigate"]["azure"])
+    data = tier3.user_data(forti, key)
+    assert data.startswith("Content-Type: multipart/mixed") and 'edit "fwlab"' in data and 'set ssh-public-key1 "ssh-rsa AAAAB3NzaC1yc2EAAAAfwlab"' in data
+    assert "set ip 10.20.3.4 255.255.255.0" in data and "{" not in data
+    cp = tier3.user_data(tier3.cloud_vendor(tier3.VENDORS["checkpoint"], tier3.CLOUD_IMAGES["checkpoint"]["azure"]), key)
+    assert cp.startswith("#!/usr/bin/python3 /etc/cloud_config.py\n") and 'installationType="standalone"' in cp and 'adminShell="/bin/bash"' in cp
+    gcp = tier3.user_data(tier3.cloud_vendor(tier3.VENDORS["checkpoint"], tier3.CLOUD_IMAGES["checkpoint"]["gcp"]), key)
+    assert gcp.startswith("#cloud-config\nruncmd:") and 'installationType="XGateway and Management (Standalone)X"' in gcp
+    c8k = tier3.user_data(tier3.cloud_vendor(tier3.VENDORS["c8000v"], tier3.CLOUD_IMAGES["c8000v"]["azure"]), key)
+    assert " username fwlab" in c8k  # (the VM's user on Azure, whom the Day 0 gives the key)
+    runner = labrun.Runner(tmp_path, dry_run=True, echo=False)
+    assert tier3.find_gcp_image(runner, "projects/cisco-public/global/images/cisco-asav-9-*", "p") == "projects/cisco-public/global/images/cisco-asav-9-dry-run"
+    with pytest.raises(labrun.LabError):
+        tier3.find_gcp_image(runner, "projects/x/global/images/family/y", "p")
+
+
 # -- the read-back ---------------------------------------------------------------------------------------------------
 
 
@@ -390,10 +436,16 @@ def test_the_areas_of_pfsense_and_opnsense() -> None:
 # -- every run, dry -------------------------------------------------------------------------------------------------
 
 DRY = [["tier1", "aws"], ["tier1", "azure"], ["tier1", "gcp", "--project", "p"], ["tier2", "nftables"], ["tier2", "iptables"],
-       *[["tier2", n, "--image", "IMAGE", "--ssh-key", "KEY"] for n in ("routeros", "opnsense", "pfsense")], *[["tier3", n] for n in sorted(tier3.VENDORS)]]  # fmt: skip
+       *[["tier2", n, "--image", "IMAGE", "--ssh-key", "KEY"] for n in ("routeros", "opnsense", "pfsense")], *[["tier3", n] for n in sorted(tier3.VENDORS)],
+       *[["tier3", n, "--cloud", c, *(["--project", "p"] if c == "gcp" else [])] for n in sorted(tier3.CLOUD_IMAGES) for c in sorted(tier3.CLOUD_IMAGES[n])]]  # fmt: skip
+CLOUD = {"azure", "gcp"}
 
 
-@pytest.mark.parametrize("run", DRY, ids=lambda r: f"{r[0]}-{r[1]}")
+def _cloud(run: List[str]) -> str:
+    return run[run.index("--cloud") + 1] if "--cloud" in run else ("aws" if run[0] == "tier3" else run[1])
+
+
+@pytest.mark.parametrize("run", DRY, ids=lambda r: f"{r[0]}-{r[1]}" + (f"-{_cloud(r)}" if "--cloud" in r else ""))
 def test_every_run_dry(tmp_path: Path, run: List[str], capsys: pytest.CaptureFixture[str]) -> None:
     run = [str(tmp_path / a) if a in ("IMAGE", "KEY") else a for a in run]
     for name in ("IMAGE", "KEY"):
@@ -444,12 +496,20 @@ def test_every_run_dry(tmp_path: Path, run: List[str], capsys: pytest.CaptureFix
             assert variables["published"] == {"outside": ["10.20.3.100"]}, variables.get("published")
         # The run's key is of a type the cloud takes: Azure's VMs only RSA (its provider refuses the rest before
         # anything is made); the Marketplace images of tier 3 get RSA as well.
-        rsa = run[1] == "azure" or run[0] == "tier3"
+        rsa = _cloud(run) == "azure" or run[0] == "tier3"
         assert variables["ssh_public_key"].startswith("ssh-rsa " if rsa else "ssh-ed25519 "), variables["ssh_public_key"]
         # Google Cloud delivers through the gateway, also inside a subnet: its hosts route their own subnet there.
         via = {name: "SUBNET_VIA_GW='yes'" in host["user_data"] for name, host in variables["hosts"].items()}
-        assert set(via.values()) == {run[1] == "gcp"}, via
-        if run[0] == "tier3":  # (which image, and so which version, the firewall ran: in run.json)
+        assert set(via.values()) == {_cloud(run) == "gcp"}, via
+        if run[0] == "tier3" and _cloud(run) in CLOUD:  # (the image as the cloud names it, in run.json; the module of that cloud)
+            state = json.loads((work / "run.json").read_text())
+            assert state["cloud"] == _cloud(run) and state["image"].startswith(tier3.CLOUD_IMAGES[run[1]][_cloud(run)].image.rstrip("*")), state
+            assert ("azurerm_linux_virtual_machine" if _cloud(run) == "azure" else "google_compute_instance") in (work / "terraform" / "main.tf").read_text()
+            if _cloud(run) == "azure":
+                assert variables["firewall_image"]["publisher"] and variables["firewall_user"] not in ("admin", "root", "administrator")
+            else:
+                assert variables["firewall_image"].startswith("projects/") and variables["project"] == "p"
+        elif run[0] == "tier3":  # (which image, and so which version, the firewall ran: in run.json)
             state = json.loads((work / "run.json").read_text())
             assert state["image"].startswith("ami-") and "image_name" in state and "product_code" in state
             # VM-Series: BYOL and the bundles share their name; the image is chosen by the product code of PAYG Bundle 1.

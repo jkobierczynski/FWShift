@@ -16,7 +16,7 @@ Everything a run makes is destroyed at the end, also when a step fails.
 |---|---|---|---|---|
 | 1 | the cloud's own firewall, no image | `aws` (security groups), `azure` (NSGs), `gcp` (network firewall policy) | an account, Terraform or OpenTofu, the cloud's CLI | five small test hosts for the length of a run |
 | 2 | images that are free, on your own Linux host | `nftables`, `iptables` (the kernel, no image), `routeros`, `opnsense`, `pfsense` (KVM) | root; QEMU/KVM and a base image for the last three | nothing |
-| 3 | AWS Marketplace images, pay per hour | `fortigate`, `panos`, `vsrx`, `c8000v`, `asav`, `checkpoint`, `pfsense`, `opnsense`, `sonicwall` | an AWS account subscribed to the image | the image's hourly price and five small test hosts |
+| 3 | Marketplace images of AWS (and, since 0.39.0, Azure and Google Cloud), pay per hour | `fortigate`, `panos`, `vsrx`, `c8000v`, `asav`, `checkpoint`, `pfsense`, `opnsense`, `sonicwall` | an AWS account subscribed to the image | the image's hourly price and five small test hosts |
 
 `python3 lab/lab.py list` shows the same, with the images of tier 3 that are not scripted and why.
 
@@ -235,6 +235,46 @@ does not take, and starts the first it takes (`instance-types.txt`).
 pfSense and OPNsense passed on AWS (0.36.4); SonicWall is scripted from its vendor's documentation and has never run. Not scripted, with the reason, in `python3 lab/lab.py list`: Stormshield, Sophos, Barracuda, WatchGuard,
 Forcepoint, Meraki.
 
+### Tier 3 on Azure and Google Cloud (0.39.0)
+
+```sh
+python3 lab/lab.py run tier3 fortigate --cloud azure --region westeurope
+python3 lab/lab.py run tier3 panos --cloud gcp --project my-project --region europe-west1
+```
+
+The same plan, load, probes, diagnosis and read-back, on the vendor's Marketplace image of that cloud (`--cloud`, `aws`
+when not given). The firewall has a management NIC (a public address; SSH and HTTPS from your address) and a NIC in
+each zone at `.4`, which Azure leaves free in a subnet as AWS does; the published address is a second address of its
+outside NIC (Azure) or an alias address (Google Cloud). **Azure**: one resource group named after the run; each zone
+subnet's route table sends the other zones to the firewall's NIC there (a virtual appliance; IP forwarding on its NICs);
+the image's terms are accepted with `az vm image terms accept` (once per subscription); the VM's user is never `admin`,
+which Azure refuses (`fwlab`; Check Point's own templates use `notused` and log in as admin); size `Standard_D3_v2`,
+the smallest with four NICs. **Google Cloud**: four VPC networks, management and one per zone (Google Cloud puts each
+NIC of an instance in a network of its own), each zone's other zones routed to the firewall's NIC (`can_ip_forward`);
+`n2-standard-4` (as many NICs as vCPUs); an image named by version without a family is found as the newest of its
+publisher's project (`gcloud compute images list`); `--cloud-image` names another. The test hosts route their own
+subnet through the gateway there, as in tier 1.
+
+Every vendor of tier 3 on every cloud (`python3 lab/lab.py list` shows the same):
+
+| Vendor | AWS | Azure | Google Cloud |
+|---|---|---|---|
+| FortiGate-VM | passed (PAYG) | scripted: `fortinet:fortinet_fortigate-vm:fortinet_fg-vm_payg_76_g2` (PAYG); custom data as Fortinet's templates write it (MIME, the configuration), the run's key for the VM's user | scripted: family `fortigate-72-payg` of `fortigcp-project-001` (PAYG; the 7.4 and 7.6 families not confirmed); the configuration in `user-data` |
+| VM-Series | passed (PAYG Bundle 1) | scripted: `paloaltonetworks:vmseries-flex:bundle1` | scripted: the newest `vmseries-flex-bundle1-*` of `paloaltonetworksgcp-public` |
+| vSRX | passed (PAYG) | scripted: `juniper-networks:vsrx-next-generation-firewall-payg:vsrx-azure-image-payg-b1` (from Juniper's 2022 templates: check it with `az vm image list --publisher juniper-networks --all`) | not scripted: on the Marketplace, its image project not found (logins as `gcp-user` only) |
+| Catalyst 8000V | passed (PAYG, DNA Essentials) | scripted: `cisco:cisco-c8000v-byol:17_12_01a-byol` (BYOL: the PAYG plan not found; unlicensed it forwards little, which the probes are) | not scripted: BYOL only, its image project not found |
+| ASAv | passed (PAYG) | scripted: `cisco:cisco-asav:asav-azure-byol` (BYOL, as the 8000V); Day 0 in the custom data | scripted: the newest `cisco-asav-9-*` of `cisco-public` (BYOL); Day 0 in the startup script |
+| Check Point | scripted (published and verified by hand) | scripted: `checkpoint:check-point-cg-r82:sg-ngtp` (PAYG); `/etc/cloud_config.py` as the custom data's interpreter, a standalone, as CloudGuardIaaS writes it | scripted: the newest `check-point-r8210-gw-payg-single-*` of `checkpoint-public`; the startup script and `instanceSSHKey` as CloudGuardIaaS writes them |
+| pfSense Plus | passed | not scripted: the image is there (`netgate:pfsense-plus-public-cloud-fw-vpn-router`), its plan not found; Netgate: several NICs cannot be set up from the portal | not offered |
+| OPNsense | passed | not scripted: Deciso's image is there (`decisosalesbv:opnsense`), one NIC in its guide, its plan not found | no image |
+| SonicWall NSv | scripted | not scripted: BYOL only, the offer's id not found | not offered |
+
+The other images of the README's list (Sophos, Stormshield, Barracuda, WatchGuard, Forcepoint) are on Azure, and
+Barracuda and Forcepoint on Google Cloud as well; they are not scripted on any cloud (`lab.py list` says why). The
+image names come from the vendors' own Terraform modules and guides (`source` of each image in `tier3.py`); none of the
+runs on Azure or Google Cloud has been made: the first run of each will find what is wrong. A run there costs the
+image's hourly price, which on Azure and Google Cloud is billed through the Marketplace.
+
 ## In GitHub Actions
 
 `.github/workflows/lab.yml` validates the Terraform modules and makes every run dry on each push that changes `lab/`.
@@ -283,7 +323,7 @@ Terraform state (to destroy by hand if even that failed) and without the run's p
 * **NAT on the devices**: the runs above were made before the lab policy had NAT (0.37.0). The NAT of tier 3
   (FortiGate, VM-Series, ASAv, vSRX, Catalyst 8000V, pfSense Plus, OPNsense, Check Point, SonicWall) is what the next
   run of each will test.
-* **Not verified**: no run of the VMs of tier 2 or of two images of tier 3 (Check Point, SonicWall) has been
+* **Not verified**: no run of tier 3 on Azure or Google Cloud (0.39.0), nor of the VMs of tier 2 or of two images of tier 3 (Check Point, SonicWall) has been
   made, nor a run of the workflow in GitHub. Their image names, logins and first boot, and the reload
   commands of OPNsense and pfSense, are taken from documentation. The first real run of each will find what is wrong.
   The Check Point script itself (FWShift's output for the lab policy) was loaded by hand on an R82.20 management
