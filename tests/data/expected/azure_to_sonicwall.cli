@@ -13,6 +13,10 @@ address-object ipv4 "n 192.0.2.128_25" network 192.0.2.128 255.255.255.128 zone 
 address-object ipv4 "n 10.30.1.0_24" network 10.30.1.0 255.255.255.0 zone nsg-app
 address-object ipv6 "n 2001:db8:ff::_48" network 2001:db8:ff:: /48 zone nsg-app
 address-object ipv4 "n 203.0.113.0_24" network 203.0.113.0 255.255.255.0 zone nsg-app
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone nsg-app
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone nsg-app
+address-object ipv6 "n ::_1" network :: /1 zone nsg-app
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone nsg-app
 address-object ipv4 "n 10.30.2.0_24" network 10.30.2.0 255.255.255.0 zone nsg-app
 address-object ipv4 "h 198.51.100.40" host 198.51.100.40 zone nsg-app
 address-object ipv4 "h 10.30.2.10" host 10.30.2.10 zone nsg-app
@@ -43,6 +47,14 @@ address-group ipv4 "src nsg-web:Allow-SSH-Admins"
     address-object ipv4 "n 198.51.100.0_24"
     address-object ipv4 "n 192.0.2.128_25"
     exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
+    exit
 address-group ipv4 "src nsg-web:AllowVnetOutBound+ns"
     address-object ipv4 "n 198.51.100.0_24"
     address-object ipv4 "n 192.0.2.128_25"
@@ -69,16 +81,8 @@ access-rule ipv4 from outside to nsg-web action allow source address any service
     name "nsg-web:Allow-HTTPS"
     priority manual 1
     exit
-access-rule ipv6 from outside to nsg-web action allow source address any service group "tcp-443,80" destination address group "asg-web v6"
-    name "nsg-web:Allow-HTTPS 2"
-    priority manual 1
-    exit
 access-rule ipv4 from outside to nsg-web action allow source address group "src nsg-web:Allow-SSH-Admins" service name "tcp-22" destination address name "n 10.30.1.0_24"
     name "nsg-web:Allow-SSH-Admins"
-    priority manual 2
-    exit
-access-rule ipv6 from outside to nsg-web action allow source address name "n 2001:db8:ff::_48" service name "tcp-443" destination address any
-    name "nsg-web:Allow-HTTPS-v6"
     priority manual 2
     exit
 access-rule ipv4 from outside to nsg-web action deny source address name "n 203.0.113.0_24" service any destination address any
@@ -101,854 +105,797 @@ access-rule ipv4 from outside to nsg-web action allow source address group "Azur
     priority manual 6
     no enable
     exit
-access-rule ipv4 from outside to nsg-web action deny source address any service any destination address any
+access-rule ipv4 from outside to nsg-web action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-web:DenyAllInBound"
     priority manual 7
     no enable
     exit
-access-rule ipv6 from outside to nsg-web action deny source address any service any destination address any
-    name "nsg-web:DenyAllInBound 2"
-    priority manual 3
-    no enable
-    exit
 access-rule ipv4 from nsg-web to outside action allow source address any service name "tcp-8443" destination address name "n 10.30.2.0_24"
     name "nsg-web:Allow-App-Out"
-    priority manual 1
+    priority manual 8
     exit
 access-rule ipv4 from nsg-web to outside action allow source address any service name "tcp-443" destination address group "Storage.WestEurope"
     name "nsg-web:Allow-Storage"
-    priority manual 2
-    exit
-access-rule ipv6 from nsg-web to outside action allow source address any service name "tcp-443" destination address group "Storage.WestEurope v6"
-    name "nsg-web:Allow-Storage 2"
-    priority manual 1
+    priority manual 9
     exit
 access-rule ipv4 from nsg-web to outside action deny source address any service any destination address group "Internet"
     name "nsg-web:Deny-Internet"
-    priority manual 3
+    priority manual 10
     no enable
     exit
 access-rule ipv4 from nsg-web to outside action allow source address any service any destination address group "VirtualNetwork"
     name "nsg-web:AllowVnetOutBound"
-    priority manual 4
+    priority manual 11
     no enable
     exit
 access-rule ipv4 from nsg-web to outside action allow source address any service any destination address group "Internet"
     name "nsg-web:AllowInternetOutBound"
-    priority manual 5
+    priority manual 12
     no enable
     exit
-access-rule ipv4 from nsg-web to outside action deny source address any service any destination address any
+access-rule ipv4 from nsg-web to outside action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-web:DenyAllOutBound"
-    priority manual 6
-    no enable
-    exit
-access-rule ipv6 from nsg-web to outside action deny source address any service any destination address any
-    name "nsg-web:DenyAllOutBound 2"
-    priority manual 2
+    priority manual 13
     no enable
     exit
 access-rule ipv4 from outside to nsg-app action allow source address name "n 10.30.1.0_24" service name "tcp-8443" destination address any
     name "nsg-app:Allow-From-Web"
-    priority manual 1
+    priority manual 14
     exit
 access-rule ipv4 from outside to nsg-app action allow source address name "h 198.51.100.40" service any destination address name "h 10.30.2.10"
     name "nsg-app:Allow-Esp-Partner"
-    priority manual 2
+    priority manual 15
     no enable
     exit
 access-rule ipv4 from outside to nsg-app action allow source address group "AzureLoadBalancer" service name "tcp-8443" destination address any
     name "nsg-app:Allow-Probe"
-    priority manual 3
+    priority manual 16
     exit
 access-rule ipv4 from outside to nsg-app action deny source address group "VirtualNetwork" service any destination address any
     name "nsg-app:Deny-VNet"
-    priority manual 4
+    priority manual 17
     no enable
     exit
 access-rule ipv4 from outside to nsg-app action allow source address group "VirtualNetwork" service any destination address any
     name "nsg-app:AllowVnetInBound"
-    priority manual 5
+    priority manual 18
     no enable
     exit
 access-rule ipv4 from outside to nsg-app action allow source address group "AzureLoadBalancer" service any destination address any
     name "nsg-app:AllowAzureLoadBalancerIn"
-    priority manual 6
+    priority manual 19
     no enable
     exit
-access-rule ipv4 from outside to nsg-app action deny source address any service any destination address any
+access-rule ipv4 from outside to nsg-app action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-app:DenyAllInBound"
-    priority manual 7
-    no enable
-    exit
-access-rule ipv6 from outside to nsg-app action deny source address any service any destination address any
-    name "nsg-app:DenyAllInBound 2"
-    priority manual 1
+    priority manual 20
     no enable
     exit
 access-rule ipv4 from nsg-app to outside action allow source address any service name "tcp-1433" destination address group "asg-db"
     name "nsg-app:Allow-Db"
-    priority manual 1
+    priority manual 21
     exit
 access-rule ipv4 from nsg-app to outside action allow source address any service name "tcp-1433" destination address group "Sql.WestEurope"
     name "nsg-app:Allow-Sql"
-    priority manual 2
+    priority manual 22
     exit
 access-rule ipv4 from nsg-app to outside action allow source address any service any destination address name "h 10.30.0.4"
     name "nsg-app:Allow-Dns"
-    priority manual 3
+    priority manual 23
     no enable
     exit
-access-rule ipv4 from nsg-app to outside action deny source address any service any destination address any
+access-rule ipv4 from nsg-app to outside action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-app:Deny-Out"
-    priority manual 4
-    no enable
-    exit
-access-rule ipv6 from nsg-app to outside action deny source address any service any destination address any
-    name "nsg-app:Deny-Out 2"
-    priority manual 1
+    priority manual 24
     no enable
     exit
 access-rule ipv4 from nsg-app to outside action allow source address any service any destination address group "VirtualNetwork"
     name "nsg-app:AllowVnetOutBound"
-    priority manual 5
+    priority manual 25
     no enable
     exit
 access-rule ipv4 from nsg-app to outside action allow source address any service any destination address group "Internet"
     name "nsg-app:AllowInternetOutBound"
-    priority manual 6
+    priority manual 26
     no enable
     exit
-access-rule ipv4 from nsg-app to outside action deny source address any service any destination address any
+access-rule ipv4 from nsg-app to outside action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-app:DenyAllOutBound"
-    priority manual 7
-    no enable
-    exit
-access-rule ipv6 from nsg-app to outside action deny source address any service any destination address any
-    name "nsg-app:DenyAllOutBound 2"
-    priority manual 2
+    priority manual 27
     no enable
     exit
 access-rule ipv4 from outside to nsg-db action allow source address name "n 10.30.2.0_24" service name "tcp-1433" destination address group "asg-db"
     name "nsg-db:Allow-Sql-From-App"
-    priority manual 1
+    priority manual 28
     exit
 access-rule ipv4 from outside to nsg-db action allow source address name "n 10.30.9.0_24" service any destination address any
     name "nsg-db:Allow-Old-Gre"
-    priority manual 2
+    priority manual 29
     no enable
     exit
 access-rule ipv4 from outside to nsg-db action allow source address group "VirtualNetwork" service any destination address any
     name "nsg-db:AllowVnetInBound"
-    priority manual 3
+    priority manual 30
     no enable
     exit
 access-rule ipv4 from outside to nsg-db action allow source address group "AzureLoadBalancer" service any destination address any
     name "nsg-db:AllowAzureLoadBalancerInB"
-    priority manual 4
+    priority manual 31
     no enable
     exit
-access-rule ipv4 from outside to nsg-db action deny source address any service any destination address any
+access-rule ipv4 from outside to nsg-db action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-db:DenyAllInBound"
-    priority manual 5
-    no enable
-    exit
-access-rule ipv6 from outside to nsg-db action deny source address any service any destination address any
-    name "nsg-db:DenyAllInBound 2"
-    priority manual 1
+    priority manual 32
     no enable
     exit
 access-rule ipv4 from nsg-db to outside action allow source address any service any destination address group "VirtualNetwork"
     name "nsg-db:AllowVnetOutBound"
-    priority manual 1
+    priority manual 33
     no enable
     exit
 access-rule ipv4 from nsg-db to outside action allow source address any service any destination address group "Internet"
     name "nsg-db:AllowInternetOutBound"
-    priority manual 2
+    priority manual 34
     no enable
     exit
-access-rule ipv4 from nsg-db to outside action deny source address any service any destination address any
+access-rule ipv4 from nsg-db to outside action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-db:DenyAllOutBound"
-    priority manual 3
-    no enable
-    exit
-access-rule ipv6 from nsg-db to outside action deny source address any service any destination address any
-    name "nsg-db:DenyAllOutBound 2"
-    priority manual 1
+    priority manual 35
     no enable
     exit
 access-rule ipv4 from nsg-web to nsg-web action deny source address name "n 203.0.113.0_24" service name "tcp-8443" destination address name "n 10.30.2.0_24"
     name "nsg-web:Allow-App-Out+nsg-web:De"
-    priority manual 1
+    priority manual 36
     exit
 access-rule ipv4 from nsg-web to nsg-web action allow source address any service name "tcp-8443" destination address name "n 10.30.2.0_24"
     name "nsg-web:Allow-App-Out+nsg-web:Al"
-    priority manual 2
+    priority manual 37
     exit
 access-rule ipv4 from nsg-web to nsg-web action deny source address any service name "tcp-8443" destination address name "n 10.30.2.0_24"
     name "nsg-web:Allow-App-Out+nsg-web: 2"
-    priority manual 3
+    priority manual 38
     exit
 access-rule ipv4 from nsg-web to nsg-web action allow source address any service group "tcp-443,80" destination address group "asg-web"
     name "nsg-web:AllowVnetOutBound+nsg-we"
-    priority manual 4
-    exit
-access-rule ipv6 from nsg-web to nsg-web action allow source address any service group "tcp-443,80" destination address group "asg-web v6"
-    name "nsg-web:AllowVnetOutBound+nsg 13"
-    priority manual 1
+    priority manual 39
     exit
 access-rule ipv4 from nsg-web to nsg-web action allow source address group "src nsg-web:AllowVnetOutBound+ns" service name "tcp-22" destination address name "n 10.30.1.0_24"
     name "nsg-web:AllowVnetOutBound+nsg- 2"
-    priority manual 5
-    exit
-access-rule ipv6 from nsg-web to nsg-web action allow source address name "n 2001:db8:ff::_48" service name "tcp-443" destination address any
-    name "nsg-web:AllowVnetOutBound+nsg- 3"
-    priority manual 2
+    priority manual 40
     exit
 access-rule ipv4 from nsg-web to nsg-web action deny source address name "n 203.0.113.0_24" service any destination address any
     name "nsg-web:AllowVnetOutBound+nsg- 4"
-    priority manual 6
+    priority manual 41
     no enable
     exit
-access-rule ipv4 from nsg-web to nsg-web action allow source address any service any destination address any
+access-rule ipv4 from nsg-web to nsg-web action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-web:AllowVnetOutBound+nsg- 5"
-    priority manual 7
+    priority manual 42
     no enable
     exit
-access-rule ipv4 from nsg-web to nsg-web action allow source address any service any destination address any
+access-rule ipv4 from nsg-web to nsg-web action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-web:AllowVnetOutBound+nsg- 6"
-    priority manual 8
+    priority manual 43
     no enable
     exit
-access-rule ipv6 from nsg-web to nsg-web action allow source address any service any destination address any
-    name "nsg-web:AllowVnetOutBound+nsg 14"
-    priority manual 3
-    no enable
-    exit
-access-rule ipv4 from nsg-web to nsg-web action deny source address any service any destination address any
+access-rule ipv4 from nsg-web to nsg-web action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-web:AllowVnetOutBound+nsg- 7"
-    priority manual 9
+    priority manual 44
     no enable
     exit
-access-rule ipv6 from nsg-web to nsg-web action deny source address any service any destination address any
-    name "nsg-web:AllowVnetOutBound+nsg 15"
-    priority manual 4
-    no enable
-    exit
-access-rule ipv4 from nsg-web to nsg-web action deny source address any service any destination address any
+access-rule ipv4 from nsg-web to nsg-web action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-web:DenyAllOutBound to nsg-w"
-    priority manual 10
-    no enable
-    exit
-access-rule ipv6 from nsg-web to nsg-web action deny source address any service any destination address any
-    name "nsg-web:DenyAllOutBound to nsg 2"
-    priority manual 5
+    priority manual 45
     no enable
     exit
 access-rule ipv4 from nsg-web to nsg-app action allow source address name "n 10.30.1.0_24" service name "tcp-8443" destination address name "n 10.30.2.0_24"
     name "nsg-web:Allow-App-Out+nsg-app:Al"
-    priority manual 1
+    priority manual 46
     exit
 access-rule ipv4 from nsg-web to nsg-app action deny source address any service name "tcp-8443" destination address name "n 10.30.2.0_24"
     name "nsg-web:Allow-App-Out+nsg-app:De"
-    priority manual 2
+    priority manual 47
     exit
 access-rule ipv4 from nsg-web to nsg-app action allow source address any service name "tcp-8443" destination address name "n 10.30.2.0_24"
     name "nsg-web:Allow-App-Out+nsg-app: 2"
-    priority manual 3
+    priority manual 48
     exit
 access-rule ipv4 from nsg-web to nsg-app action deny source address any service name "tcp-8443" destination address name "n 10.30.2.0_24"
     name "nsg-web:Allow-App-Out+nsg-app: 3"
-    priority manual 4
+    priority manual 49
     exit
 access-rule ipv4 from nsg-web to nsg-app action allow source address name "n 10.30.1.0_24" service name "tcp-8443" destination address any
     name "nsg-web:AllowVnetOutBound+nsg-ap"
-    priority manual 5
+    priority manual 50
     exit
-access-rule ipv4 from nsg-web to nsg-app action deny source address any service any destination address any
+access-rule ipv4 from nsg-web to nsg-app action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-web:AllowVnetOutBound+nsg- 8"
-    priority manual 6
+    priority manual 51
     no enable
     exit
-access-rule ipv6 from nsg-web to nsg-app action deny source address any service any destination address any
-    name "nsg-web:AllowVnetOutBound+nsg 16"
-    priority manual 1
-    no enable
-    exit
-access-rule ipv4 from nsg-web to nsg-app action allow source address any service any destination address any
+access-rule ipv4 from nsg-web to nsg-app action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-web:AllowVnetOutBound+nsg- 9"
-    priority manual 7
+    priority manual 52
     no enable
     exit
-access-rule ipv6 from nsg-web to nsg-app action allow source address any service any destination address any
-    name "nsg-web:AllowVnetOutBound+nsg 17"
-    priority manual 2
-    no enable
-    exit
-access-rule ipv4 from nsg-web to nsg-app action deny source address any service any destination address any
+access-rule ipv4 from nsg-web to nsg-app action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-web:AllowVnetOutBound+nsg 10"
-    priority manual 8
+    priority manual 53
     no enable
     exit
-access-rule ipv6 from nsg-web to nsg-app action deny source address any service any destination address any
-    name "nsg-web:AllowVnetOutBound+nsg 2"
-    priority manual 3
-    no enable
-    exit
-access-rule ipv4 from nsg-web to nsg-app action deny source address any service any destination address any
+access-rule ipv4 from nsg-web to nsg-app action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-web:DenyAllOutBound to nsg-a"
-    priority manual 9
-    no enable
-    exit
-access-rule ipv6 from nsg-web to nsg-app action deny source address any service any destination address any
-    name "nsg-web:DenyAllOutBound to nsg 3"
-    priority manual 4
+    priority manual 54
     no enable
     exit
 access-rule ipv4 from nsg-web to nsg-db action allow source address any service name "tcp-8443" destination address name "n 10.30.2.0_24"
     name "nsg-web:Allow-App-Out+nsg-db:All"
-    priority manual 1
+    priority manual 55
     exit
 access-rule ipv4 from nsg-web to nsg-db action deny source address any service name "tcp-8443" destination address name "n 10.30.2.0_24"
     name "nsg-web:Allow-App-Out+nsg-db:Den"
-    priority manual 2
+    priority manual 56
     exit
 access-rule ipv4 from nsg-web to nsg-db action allow source address name "n 10.30.2.0_24" service name "tcp-1433" destination address group "asg-db"
     name "nsg-web:AllowVnetOutBound+nsg-db"
-    priority manual 3
+    priority manual 57
     exit
-access-rule ipv4 from nsg-web to nsg-db action allow source address any service any destination address any
+access-rule ipv4 from nsg-web to nsg-db action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-web:AllowVnetOutBound+nsg 11"
-    priority manual 4
+    priority manual 58
     no enable
     exit
-access-rule ipv6 from nsg-web to nsg-db action allow source address any service any destination address any
-    name "nsg-web:AllowVnetOutBound+nsg 3"
-    priority manual 1
-    no enable
-    exit
-access-rule ipv4 from nsg-web to nsg-db action deny source address any service any destination address any
+access-rule ipv4 from nsg-web to nsg-db action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-web:AllowVnetOutBound+nsg 12"
-    priority manual 5
+    priority manual 59
     no enable
     exit
-access-rule ipv6 from nsg-web to nsg-db action deny source address any service any destination address any
-    name "nsg-web:AllowVnetOutBound+nsg 4"
-    priority manual 2
-    no enable
-    exit
-access-rule ipv4 from nsg-web to nsg-db action deny source address any service any destination address any
+access-rule ipv4 from nsg-web to nsg-db action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-web:DenyAllOutBound to nsg-d"
-    priority manual 6
-    no enable
-    exit
-access-rule ipv6 from nsg-web to nsg-db action deny source address any service any destination address any
-    name "nsg-web:DenyAllOutBound to nsg 4"
-    priority manual 3
+    priority manual 60
     no enable
     exit
 access-rule ipv4 from nsg-app to nsg-web action deny source address name "n 203.0.113.0_24" service name "tcp-1433" destination address group "asg-db"
     name "nsg-app:Allow-Db+nsg-web:Deny-Pa"
-    priority manual 1
+    priority manual 61
     exit
 access-rule ipv4 from nsg-app to nsg-web action allow source address any service name "tcp-1433" destination address group "asg-db"
     name "nsg-app:Allow-Db+nsg-web:AllowVn"
-    priority manual 2
+    priority manual 62
     exit
 access-rule ipv4 from nsg-app to nsg-web action deny source address any service name "tcp-1433" destination address group "asg-db"
     name "nsg-app:Allow-Db+nsg-web:DenyAll"
-    priority manual 3
+    priority manual 63
     exit
 access-rule ipv4 from nsg-app to nsg-web action deny source address name "n 203.0.113.0_24" service any destination address name "h 10.30.0.4"
     name "nsg-app:Allow-Dns+nsg-web:Deny-P"
-    priority manual 4
+    priority manual 64
     no enable
     exit
 access-rule ipv4 from nsg-app to nsg-web action allow source address any service any destination address name "h 10.30.0.4"
     name "nsg-app:Allow-Dns+nsg-web:AllowV"
-    priority manual 5
+    priority manual 65
     no enable
     exit
 access-rule ipv4 from nsg-app to nsg-web action deny source address any service any destination address name "h 10.30.0.4"
     name "nsg-app:Allow-Dns+nsg-web:DenyAl"
-    priority manual 6
+    priority manual 66
     no enable
     exit
-access-rule ipv4 from nsg-app to nsg-web action deny source address any service any destination address any
+access-rule ipv4 from nsg-app to nsg-web action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-app:Deny-Out to nsg-web"
-    priority manual 7
-    no enable
-    exit
-access-rule ipv6 from nsg-app to nsg-web action deny source address any service any destination address any
-    name "nsg-app:Deny-Out to nsg-web 2"
-    priority manual 1
+    priority manual 67
     no enable
     exit
 access-rule ipv4 from nsg-app to nsg-web action allow source address any service group "tcp-443,80" destination address group "asg-web"
     name "nsg-app:AllowVnetOutBound+nsg-we"
-    priority manual 8
-    exit
-access-rule ipv6 from nsg-app to nsg-web action allow source address any service group "tcp-443,80" destination address group "asg-web v6"
-    name "nsg-app:AllowVnetOutBound+nsg 13"
-    priority manual 2
+    priority manual 68
     exit
 access-rule ipv4 from nsg-app to nsg-web action allow source address group "src nsg-app:AllowVnetOutBound+ns" service name "tcp-22" destination address name "n 10.30.1.0_24"
     name "nsg-app:AllowVnetOutBound+nsg- 2"
-    priority manual 9
-    exit
-access-rule ipv6 from nsg-app to nsg-web action allow source address name "n 2001:db8:ff::_48" service name "tcp-443" destination address any
-    name "nsg-app:AllowVnetOutBound+nsg- 3"
-    priority manual 3
+    priority manual 69
     exit
 access-rule ipv4 from nsg-app to nsg-web action deny source address name "n 203.0.113.0_24" service any destination address any
     name "nsg-app:AllowVnetOutBound+nsg- 4"
-    priority manual 10
+    priority manual 70
     no enable
     exit
-access-rule ipv4 from nsg-app to nsg-web action allow source address any service any destination address any
+access-rule ipv4 from nsg-app to nsg-web action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-app:AllowVnetOutBound+nsg- 5"
-    priority manual 11
+    priority manual 71
     no enable
     exit
-access-rule ipv4 from nsg-app to nsg-web action allow source address any service any destination address any
+access-rule ipv4 from nsg-app to nsg-web action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-app:AllowVnetOutBound+nsg- 6"
-    priority manual 12
+    priority manual 72
     no enable
     exit
-access-rule ipv6 from nsg-app to nsg-web action allow source address any service any destination address any
-    name "nsg-app:AllowVnetOutBound+nsg 14"
-    priority manual 4
-    no enable
-    exit
-access-rule ipv4 from nsg-app to nsg-web action deny source address any service any destination address any
+access-rule ipv4 from nsg-app to nsg-web action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-app:AllowVnetOutBound+nsg- 7"
-    priority manual 13
+    priority manual 73
     no enable
     exit
-access-rule ipv6 from nsg-app to nsg-web action deny source address any service any destination address any
-    name "nsg-app:AllowVnetOutBound+nsg 15"
-    priority manual 5
-    no enable
-    exit
-access-rule ipv4 from nsg-app to nsg-web action deny source address any service any destination address any
+access-rule ipv4 from nsg-app to nsg-web action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-app:DenyAllOutBound to nsg-w"
-    priority manual 14
-    no enable
-    exit
-access-rule ipv6 from nsg-app to nsg-web action deny source address any service any destination address any
-    name "nsg-app:DenyAllOutBound to nsg 2"
-    priority manual 6
+    priority manual 74
     no enable
     exit
 access-rule ipv4 from nsg-app to nsg-app action deny source address any service name "tcp-1433" destination address group "asg-db"
     name "nsg-app:Allow-Db+nsg-app:Deny-VN"
-    priority manual 1
+    priority manual 75
     exit
 access-rule ipv4 from nsg-app to nsg-app action allow source address any service name "tcp-1433" destination address group "asg-db"
     name "nsg-app:Allow-Db+nsg-app:AllowVn"
-    priority manual 2
+    priority manual 76
     exit
 access-rule ipv4 from nsg-app to nsg-app action deny source address any service name "tcp-1433" destination address group "asg-db"
     name "nsg-app:Allow-Db+nsg-app:DenyAll"
-    priority manual 3
+    priority manual 77
     exit
 access-rule ipv4 from nsg-app to nsg-app action deny source address any service any destination address name "h 10.30.0.4"
     name "nsg-app:Allow-Dns+nsg-app:Deny-V"
-    priority manual 4
+    priority manual 78
     no enable
     exit
 access-rule ipv4 from nsg-app to nsg-app action allow source address any service any destination address name "h 10.30.0.4"
     name "nsg-app:Allow-Dns+nsg-app:AllowV"
-    priority manual 5
+    priority manual 79
     no enable
     exit
 access-rule ipv4 from nsg-app to nsg-app action deny source address any service any destination address name "h 10.30.0.4"
     name "nsg-app:Allow-Dns+nsg-app:DenyAl"
-    priority manual 6
+    priority manual 80
     no enable
     exit
-access-rule ipv4 from nsg-app to nsg-app action deny source address any service any destination address any
+access-rule ipv4 from nsg-app to nsg-app action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-app:Deny-Out to nsg-app"
-    priority manual 7
-    no enable
-    exit
-access-rule ipv6 from nsg-app to nsg-app action deny source address any service any destination address any
-    name "nsg-app:Deny-Out to nsg-app 2"
-    priority manual 1
+    priority manual 81
     no enable
     exit
 access-rule ipv4 from nsg-app to nsg-app action allow source address name "n 10.30.1.0_24" service name "tcp-8443" destination address any
     name "nsg-app:AllowVnetOutBound+nsg-ap"
-    priority manual 8
+    priority manual 82
     exit
-access-rule ipv4 from nsg-app to nsg-app action deny source address any service any destination address any
+access-rule ipv4 from nsg-app to nsg-app action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-app:AllowVnetOutBound+nsg- 8"
-    priority manual 9
+    priority manual 83
     no enable
     exit
-access-rule ipv6 from nsg-app to nsg-app action deny source address any service any destination address any
-    name "nsg-app:AllowVnetOutBound+nsg 16"
-    priority manual 2
-    no enable
-    exit
-access-rule ipv4 from nsg-app to nsg-app action allow source address any service any destination address any
+access-rule ipv4 from nsg-app to nsg-app action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-app:AllowVnetOutBound+nsg- 9"
-    priority manual 10
+    priority manual 84
     no enable
     exit
-access-rule ipv6 from nsg-app to nsg-app action allow source address any service any destination address any
-    name "nsg-app:AllowVnetOutBound+nsg 17"
-    priority manual 3
-    no enable
-    exit
-access-rule ipv4 from nsg-app to nsg-app action deny source address any service any destination address any
+access-rule ipv4 from nsg-app to nsg-app action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-app:AllowVnetOutBound+nsg 10"
-    priority manual 11
+    priority manual 85
     no enable
     exit
-access-rule ipv6 from nsg-app to nsg-app action deny source address any service any destination address any
-    name "nsg-app:AllowVnetOutBound+nsg 2"
-    priority manual 4
-    no enable
-    exit
-access-rule ipv4 from nsg-app to nsg-app action deny source address any service any destination address any
+access-rule ipv4 from nsg-app to nsg-app action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-app:DenyAllOutBound to nsg-a"
-    priority manual 12
-    no enable
-    exit
-access-rule ipv6 from nsg-app to nsg-app action deny source address any service any destination address any
-    name "nsg-app:DenyAllOutBound to nsg 3"
-    priority manual 5
+    priority manual 86
     no enable
     exit
 access-rule ipv4 from nsg-app to nsg-db action allow source address name "n 10.30.2.0_24" service name "tcp-1433" destination address group "asg-db"
     name "nsg-app:Allow-Db+nsg-db:Allow-Sq"
-    priority manual 1
+    priority manual 87
     exit
 access-rule ipv4 from nsg-app to nsg-db action allow source address any service name "tcp-1433" destination address group "asg-db"
     name "nsg-app:Allow-Db+nsg-db:AllowVne"
-    priority manual 2
+    priority manual 88
     exit
 access-rule ipv4 from nsg-app to nsg-db action deny source address any service name "tcp-1433" destination address group "asg-db"
     name "nsg-app:Allow-Db+nsg-db:DenyAllI"
-    priority manual 3
+    priority manual 89
     exit
 access-rule ipv4 from nsg-app to nsg-db action allow source address any service any destination address name "h 10.30.0.4"
     name "nsg-app:Allow-Dns+nsg-db:AllowVn"
-    priority manual 4
+    priority manual 90
     no enable
     exit
 access-rule ipv4 from nsg-app to nsg-db action deny source address any service any destination address name "h 10.30.0.4"
     name "nsg-app:Allow-Dns+nsg-db:DenyAll"
-    priority manual 5
+    priority manual 91
     no enable
     exit
-access-rule ipv4 from nsg-app to nsg-db action deny source address any service any destination address any
+access-rule ipv4 from nsg-app to nsg-db action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-app:Deny-Out to nsg-db"
-    priority manual 6
-    no enable
-    exit
-access-rule ipv6 from nsg-app to nsg-db action deny source address any service any destination address any
-    name "nsg-app:Deny-Out to nsg-db 2"
-    priority manual 1
+    priority manual 92
     no enable
     exit
 access-rule ipv4 from nsg-app to nsg-db action allow source address name "n 10.30.2.0_24" service name "tcp-1433" destination address group "asg-db"
     name "nsg-app:AllowVnetOutBound+nsg-db"
-    priority manual 7
+    priority manual 93
     exit
-access-rule ipv4 from nsg-app to nsg-db action allow source address any service any destination address any
+access-rule ipv4 from nsg-app to nsg-db action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-app:AllowVnetOutBound+nsg 11"
-    priority manual 8
+    priority manual 94
     no enable
     exit
-access-rule ipv6 from nsg-app to nsg-db action allow source address any service any destination address any
-    name "nsg-app:AllowVnetOutBound+nsg 3"
-    priority manual 2
-    no enable
-    exit
-access-rule ipv4 from nsg-app to nsg-db action deny source address any service any destination address any
+access-rule ipv4 from nsg-app to nsg-db action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-app:AllowVnetOutBound+nsg 12"
-    priority manual 9
+    priority manual 95
     no enable
     exit
-access-rule ipv6 from nsg-app to nsg-db action deny source address any service any destination address any
-    name "nsg-app:AllowVnetOutBound+nsg 4"
-    priority manual 3
-    no enable
-    exit
-access-rule ipv4 from nsg-app to nsg-db action deny source address any service any destination address any
+access-rule ipv4 from nsg-app to nsg-db action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-app:DenyAllOutBound to nsg-d"
-    priority manual 10
-    no enable
-    exit
-access-rule ipv6 from nsg-app to nsg-db action deny source address any service any destination address any
-    name "nsg-app:DenyAllOutBound to nsg 4"
-    priority manual 4
+    priority manual 96
     no enable
     exit
 access-rule ipv4 from nsg-db to nsg-web action allow source address any service group "tcp-443,80" destination address group "asg-web"
     name "nsg-db:AllowVnetOutBound+nsg-web"
-    priority manual 1
-    exit
-access-rule ipv6 from nsg-db to nsg-web action allow source address any service group "tcp-443,80" destination address group "asg-web v6"
-    name "nsg-db:AllowVnetOutBound+nsg-w 8"
-    priority manual 1
+    priority manual 97
     exit
 access-rule ipv4 from nsg-db to nsg-web action allow source address group "src nsg-db:AllowVnetOutBound+nsg" service name "tcp-22" destination address name "n 10.30.1.0_24"
     name "nsg-db:AllowVnetOutBound+nsg-w 2"
-    priority manual 2
-    exit
-access-rule ipv6 from nsg-db to nsg-web action allow source address name "n 2001:db8:ff::_48" service name "tcp-443" destination address any
-    name "nsg-db:AllowVnetOutBound+nsg-w 3"
-    priority manual 2
+    priority manual 98
     exit
 access-rule ipv4 from nsg-db to nsg-web action deny source address name "n 203.0.113.0_24" service any destination address any
     name "nsg-db:AllowVnetOutBound+nsg-w 4"
-    priority manual 3
+    priority manual 99
     no enable
     exit
-access-rule ipv4 from nsg-db to nsg-web action allow source address any service any destination address any
+access-rule ipv4 from nsg-db to nsg-web action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-db:AllowVnetOutBound+nsg-w 5"
-    priority manual 4
+    priority manual 100
     no enable
     exit
-access-rule ipv4 from nsg-db to nsg-web action allow source address any service any destination address any
+access-rule ipv4 from nsg-db to nsg-web action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-db:AllowVnetOutBound+nsg-w 6"
-    priority manual 5
+    priority manual 101
     no enable
     exit
-access-rule ipv6 from nsg-db to nsg-web action allow source address any service any destination address any
-    name "nsg-db:AllowVnetOutBound+nsg-w 9"
-    priority manual 3
-    no enable
-    exit
-access-rule ipv4 from nsg-db to nsg-web action deny source address any service any destination address any
+access-rule ipv4 from nsg-db to nsg-web action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-db:AllowVnetOutBound+nsg-w 7"
-    priority manual 6
+    priority manual 102
     no enable
     exit
-access-rule ipv6 from nsg-db to nsg-web action deny source address any service any destination address any
-    name "nsg-db:AllowVnetOutBound+nsg- 10"
-    priority manual 4
-    no enable
-    exit
-access-rule ipv4 from nsg-db to nsg-web action deny source address any service any destination address any
+access-rule ipv4 from nsg-db to nsg-web action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-db:DenyAllOutBound to nsg-we"
-    priority manual 7
-    no enable
-    exit
-access-rule ipv6 from nsg-db to nsg-web action deny source address any service any destination address any
-    name "nsg-db:DenyAllOutBound to nsg- 2"
-    priority manual 5
+    priority manual 103
     no enable
     exit
 access-rule ipv4 from nsg-db to nsg-app action allow source address name "n 10.30.1.0_24" service name "tcp-8443" destination address any
     name "nsg-db:AllowVnetOutBound+nsg-app"
-    priority manual 1
+    priority manual 104
     exit
-access-rule ipv4 from nsg-db to nsg-app action deny source address any service any destination address any
+access-rule ipv4 from nsg-db to nsg-app action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-db:AllowVnetOutBound+nsg-a 2"
-    priority manual 2
+    priority manual 105
     no enable
     exit
-access-rule ipv6 from nsg-db to nsg-app action deny source address any service any destination address any
-    name "nsg-db:AllowVnetOutBound+nsg-a 5"
-    priority manual 1
-    no enable
-    exit
-access-rule ipv4 from nsg-db to nsg-app action allow source address any service any destination address any
+access-rule ipv4 from nsg-db to nsg-app action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-db:AllowVnetOutBound+nsg-a 3"
-    priority manual 3
+    priority manual 106
     no enable
     exit
-access-rule ipv6 from nsg-db to nsg-app action allow source address any service any destination address any
-    name "nsg-db:AllowVnetOutBound+nsg-a 6"
-    priority manual 2
-    no enable
-    exit
-access-rule ipv4 from nsg-db to nsg-app action deny source address any service any destination address any
+access-rule ipv4 from nsg-db to nsg-app action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-db:AllowVnetOutBound+nsg-a 4"
-    priority manual 4
+    priority manual 107
     no enable
     exit
-access-rule ipv6 from nsg-db to nsg-app action deny source address any service any destination address any
-    name "nsg-db:AllowVnetOutBound+nsg-a 7"
-    priority manual 3
-    no enable
-    exit
-access-rule ipv4 from nsg-db to nsg-app action deny source address any service any destination address any
+access-rule ipv4 from nsg-db to nsg-app action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-db:DenyAllOutBound to nsg-ap"
-    priority manual 5
-    no enable
-    exit
-access-rule ipv6 from nsg-db to nsg-app action deny source address any service any destination address any
-    name "nsg-db:DenyAllOutBound to nsg- 3"
-    priority manual 4
+    priority manual 108
     no enable
     exit
 access-rule ipv4 from nsg-db to nsg-db action allow source address name "n 10.30.2.0_24" service name "tcp-1433" destination address group "asg-db"
     name "nsg-db:AllowVnetOutBound+nsg-db:"
-    priority manual 1
+    priority manual 109
     exit
-access-rule ipv4 from nsg-db to nsg-db action allow source address any service any destination address any
+access-rule ipv4 from nsg-db to nsg-db action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-db:AllowVnetOutBound+nsg-d 2"
-    priority manual 2
+    priority manual 110
     no enable
     exit
-access-rule ipv6 from nsg-db to nsg-db action allow source address any service any destination address any
-    name "nsg-db:AllowVnetOutBound+nsg-d 4"
-    priority manual 1
-    no enable
-    exit
-access-rule ipv4 from nsg-db to nsg-db action deny source address any service any destination address any
+access-rule ipv4 from nsg-db to nsg-db action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-db:AllowVnetOutBound+nsg-d 3"
-    priority manual 3
+    priority manual 111
     no enable
     exit
-access-rule ipv6 from nsg-db to nsg-db action deny source address any service any destination address any
-    name "nsg-db:AllowVnetOutBound+nsg-d 5"
-    priority manual 2
-    no enable
-    exit
-access-rule ipv4 from nsg-db to nsg-db action deny source address any service any destination address any
+access-rule ipv4 from nsg-db to nsg-db action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "nsg-db:DenyAllOutBound to nsg-db"
-    priority manual 4
+    priority manual 112
     no enable
     exit
-access-rule ipv6 from nsg-db to nsg-db action deny source address any service any destination address any
-    name "nsg-db:DenyAllOutBound to nsg- 4"
-    priority manual 3
-    no enable
-    exit
-access-rule ipv4 from nsg-app to nsg-app action deny source address any service any destination address any
+access-rule ipv4 from nsg-app to nsg-app action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT nsg-app to nsg-app"
-    priority manual 13
+    priority manual 113
     exit
-access-rule ipv6 from nsg-app to nsg-app action deny source address any service any destination address any
-    name "FWSHIFT nsg-app to nsg-app v6"
-    priority manual 6
-    exit
-access-rule ipv4 from nsg-app to nsg-db action deny source address any service any destination address any
+access-rule ipv4 from nsg-app to nsg-db action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT nsg-app to nsg-db"
-    priority manual 11
+    priority manual 114
     exit
-access-rule ipv6 from nsg-app to nsg-db action deny source address any service any destination address any
-    name "FWSHIFT nsg-app to nsg-db v6"
-    priority manual 5
-    exit
-access-rule ipv4 from nsg-app to nsg-web action deny source address any service any destination address any
+access-rule ipv4 from nsg-app to nsg-web action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT nsg-app to nsg-web"
-    priority manual 15
+    priority manual 115
     exit
-access-rule ipv6 from nsg-app to nsg-web action deny source address any service any destination address any
-    name "FWSHIFT nsg-app to nsg-web v6"
-    priority manual 7
-    exit
-access-rule ipv4 from nsg-app to outside action deny source address any service any destination address any
+access-rule ipv4 from nsg-app to outside action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT nsg-app to outside"
-    priority manual 8
+    priority manual 116
     exit
-access-rule ipv6 from nsg-app to outside action deny source address any service any destination address any
-    name "FWSHIFT nsg-app to outside v6"
-    priority manual 3
-    exit
-access-rule ipv4 from nsg-db to nsg-app action deny source address any service any destination address any
+access-rule ipv4 from nsg-db to nsg-app action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT nsg-db to nsg-app"
-    priority manual 6
+    priority manual 117
     exit
-access-rule ipv6 from nsg-db to nsg-app action deny source address any service any destination address any
-    name "FWSHIFT nsg-db to nsg-app v6"
-    priority manual 5
-    exit
-access-rule ipv4 from nsg-db to nsg-db action deny source address any service any destination address any
+access-rule ipv4 from nsg-db to nsg-db action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT nsg-db to nsg-db"
-    priority manual 5
+    priority manual 118
     exit
-access-rule ipv6 from nsg-db to nsg-db action deny source address any service any destination address any
-    name "FWSHIFT nsg-db to nsg-db v6"
-    priority manual 4
-    exit
-access-rule ipv4 from nsg-db to nsg-web action deny source address any service any destination address any
+access-rule ipv4 from nsg-db to nsg-web action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT nsg-db to nsg-web"
-    priority manual 8
+    priority manual 119
     exit
-access-rule ipv6 from nsg-db to nsg-web action deny source address any service any destination address any
-    name "FWSHIFT nsg-db to nsg-web v6"
-    priority manual 6
-    exit
-access-rule ipv4 from nsg-db to outside action deny source address any service any destination address any
+access-rule ipv4 from nsg-db to outside action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT nsg-db to outside"
-    priority manual 4
+    priority manual 120
     exit
-access-rule ipv6 from nsg-db to outside action deny source address any service any destination address any
-    name "FWSHIFT nsg-db to outside v6"
-    priority manual 2
-    exit
-access-rule ipv4 from nsg-web to nsg-app action deny source address any service any destination address any
+access-rule ipv4 from nsg-web to nsg-app action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT nsg-web to nsg-app"
-    priority manual 10
+    priority manual 121
     exit
-access-rule ipv6 from nsg-web to nsg-app action deny source address any service any destination address any
-    name "FWSHIFT nsg-web to nsg-app v6"
-    priority manual 5
-    exit
-access-rule ipv4 from nsg-web to nsg-db action deny source address any service any destination address any
+access-rule ipv4 from nsg-web to nsg-db action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT nsg-web to nsg-db"
-    priority manual 7
+    priority manual 122
     exit
-access-rule ipv6 from nsg-web to nsg-db action deny source address any service any destination address any
-    name "FWSHIFT nsg-web to nsg-db v6"
-    priority manual 4
-    exit
-access-rule ipv4 from nsg-web to nsg-web action deny source address any service any destination address any
+access-rule ipv4 from nsg-web to nsg-web action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT nsg-web to nsg-web"
-    priority manual 11
+    priority manual 123
     exit
-access-rule ipv6 from nsg-web to nsg-web action deny source address any service any destination address any
-    name "FWSHIFT nsg-web to nsg-web v6"
-    priority manual 6
-    exit
-access-rule ipv4 from nsg-web to outside action deny source address any service any destination address any
+access-rule ipv4 from nsg-web to outside action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT nsg-web to outside"
-    priority manual 7
+    priority manual 124
     exit
-access-rule ipv6 from nsg-web to outside action deny source address any service any destination address any
-    name "FWSHIFT nsg-web to outside v6"
-    priority manual 3
-    exit
-access-rule ipv4 from outside to nsg-app action deny source address any service any destination address any
+access-rule ipv4 from outside to nsg-app action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT outside to nsg-app"
-    priority manual 8
+    priority manual 125
     exit
-access-rule ipv6 from outside to nsg-app action deny source address any service any destination address any
-    name "FWSHIFT outside to nsg-app v6"
-    priority manual 2
-    exit
-access-rule ipv4 from outside to nsg-db action deny source address any service any destination address any
+access-rule ipv4 from outside to nsg-db action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT outside to nsg-db"
-    priority manual 6
+    priority manual 126
     exit
-access-rule ipv6 from outside to nsg-db action deny source address any service any destination address any
-    name "FWSHIFT outside to nsg-db v6"
-    priority manual 2
-    exit
-access-rule ipv4 from outside to nsg-web action deny source address any service any destination address any
+access-rule ipv4 from outside to nsg-web action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT outside to nsg-web"
-    priority manual 8
+    priority manual 127
     exit
-access-rule ipv6 from outside to nsg-web action deny source address any service any destination address any
-    name "FWSHIFT outside to nsg-web v6"
-    priority manual 4
-    exit
-access-rule ipv4 from outside to outside action deny source address any service any destination address any
+access-rule ipv4 from outside to outside action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT outside to outside"
-    priority manual 1
+    priority manual 128
     exit
-access-rule ipv6 from outside to outside action deny source address any service any destination address any
+access-rule ipv6 from outside to nsg-web action allow source address any service group "tcp-443,80" destination address group "asg-web v6"
+    name "nsg-web:Allow-HTTPS 2"
+    exit
+access-rule ipv6 from outside to nsg-web action allow source address name "n 2001:db8:ff::_48" service name "tcp-443" destination address any
+    name "nsg-web:Allow-HTTPS-v6"
+    exit
+access-rule ipv6 from outside to nsg-web action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-web:DenyAllInBound 2"
+    no enable
+    exit
+access-rule ipv6 from nsg-web to outside action allow source address any service name "tcp-443" destination address group "Storage.WestEurope v6"
+    name "nsg-web:Allow-Storage 2"
+    exit
+access-rule ipv6 from nsg-web to outside action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-web:DenyAllOutBound 2"
+    no enable
+    exit
+access-rule ipv6 from outside to nsg-app action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-app:DenyAllInBound 2"
+    no enable
+    exit
+access-rule ipv6 from nsg-app to outside action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-app:Deny-Out 2"
+    no enable
+    exit
+access-rule ipv6 from nsg-app to outside action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-app:DenyAllOutBound 2"
+    no enable
+    exit
+access-rule ipv6 from outside to nsg-db action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-db:DenyAllInBound 2"
+    no enable
+    exit
+access-rule ipv6 from nsg-db to outside action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-db:DenyAllOutBound 2"
+    no enable
+    exit
+access-rule ipv6 from nsg-web to nsg-web action allow source address any service group "tcp-443,80" destination address group "asg-web v6"
+    name "nsg-web:AllowVnetOutBound+nsg 13"
+    exit
+access-rule ipv6 from nsg-web to nsg-web action allow source address name "n 2001:db8:ff::_48" service name "tcp-443" destination address any
+    name "nsg-web:AllowVnetOutBound+nsg- 3"
+    exit
+access-rule ipv6 from nsg-web to nsg-web action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-web:AllowVnetOutBound+nsg 14"
+    no enable
+    exit
+access-rule ipv6 from nsg-web to nsg-web action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-web:AllowVnetOutBound+nsg 15"
+    no enable
+    exit
+access-rule ipv6 from nsg-web to nsg-web action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-web:DenyAllOutBound to nsg 2"
+    no enable
+    exit
+access-rule ipv6 from nsg-web to nsg-app action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-web:AllowVnetOutBound+nsg 16"
+    no enable
+    exit
+access-rule ipv6 from nsg-web to nsg-app action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-web:AllowVnetOutBound+nsg 17"
+    no enable
+    exit
+access-rule ipv6 from nsg-web to nsg-app action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-web:AllowVnetOutBound+nsg 2"
+    no enable
+    exit
+access-rule ipv6 from nsg-web to nsg-app action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-web:DenyAllOutBound to nsg 3"
+    no enable
+    exit
+access-rule ipv6 from nsg-web to nsg-db action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-web:AllowVnetOutBound+nsg 3"
+    no enable
+    exit
+access-rule ipv6 from nsg-web to nsg-db action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-web:AllowVnetOutBound+nsg 4"
+    no enable
+    exit
+access-rule ipv6 from nsg-web to nsg-db action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-web:DenyAllOutBound to nsg 4"
+    no enable
+    exit
+access-rule ipv6 from nsg-app to nsg-web action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-app:Deny-Out to nsg-web 2"
+    no enable
+    exit
+access-rule ipv6 from nsg-app to nsg-web action allow source address any service group "tcp-443,80" destination address group "asg-web v6"
+    name "nsg-app:AllowVnetOutBound+nsg 13"
+    exit
+access-rule ipv6 from nsg-app to nsg-web action allow source address name "n 2001:db8:ff::_48" service name "tcp-443" destination address any
+    name "nsg-app:AllowVnetOutBound+nsg- 3"
+    exit
+access-rule ipv6 from nsg-app to nsg-web action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-app:AllowVnetOutBound+nsg 14"
+    no enable
+    exit
+access-rule ipv6 from nsg-app to nsg-web action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-app:AllowVnetOutBound+nsg 15"
+    no enable
+    exit
+access-rule ipv6 from nsg-app to nsg-web action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-app:DenyAllOutBound to nsg 2"
+    no enable
+    exit
+access-rule ipv6 from nsg-app to nsg-app action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-app:Deny-Out to nsg-app 2"
+    no enable
+    exit
+access-rule ipv6 from nsg-app to nsg-app action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-app:AllowVnetOutBound+nsg 16"
+    no enable
+    exit
+access-rule ipv6 from nsg-app to nsg-app action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-app:AllowVnetOutBound+nsg 17"
+    no enable
+    exit
+access-rule ipv6 from nsg-app to nsg-app action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-app:AllowVnetOutBound+nsg 2"
+    no enable
+    exit
+access-rule ipv6 from nsg-app to nsg-app action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-app:DenyAllOutBound to nsg 3"
+    no enable
+    exit
+access-rule ipv6 from nsg-app to nsg-db action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-app:Deny-Out to nsg-db 2"
+    no enable
+    exit
+access-rule ipv6 from nsg-app to nsg-db action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-app:AllowVnetOutBound+nsg 3"
+    no enable
+    exit
+access-rule ipv6 from nsg-app to nsg-db action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-app:AllowVnetOutBound+nsg 4"
+    no enable
+    exit
+access-rule ipv6 from nsg-app to nsg-db action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-app:DenyAllOutBound to nsg 4"
+    no enable
+    exit
+access-rule ipv6 from nsg-db to nsg-web action allow source address any service group "tcp-443,80" destination address group "asg-web v6"
+    name "nsg-db:AllowVnetOutBound+nsg-w 8"
+    exit
+access-rule ipv6 from nsg-db to nsg-web action allow source address name "n 2001:db8:ff::_48" service name "tcp-443" destination address any
+    name "nsg-db:AllowVnetOutBound+nsg-w 3"
+    exit
+access-rule ipv6 from nsg-db to nsg-web action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-db:AllowVnetOutBound+nsg-w 9"
+    no enable
+    exit
+access-rule ipv6 from nsg-db to nsg-web action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-db:AllowVnetOutBound+nsg- 10"
+    no enable
+    exit
+access-rule ipv6 from nsg-db to nsg-web action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-db:DenyAllOutBound to nsg- 2"
+    no enable
+    exit
+access-rule ipv6 from nsg-db to nsg-app action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-db:AllowVnetOutBound+nsg-a 5"
+    no enable
+    exit
+access-rule ipv6 from nsg-db to nsg-app action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-db:AllowVnetOutBound+nsg-a 6"
+    no enable
+    exit
+access-rule ipv6 from nsg-db to nsg-app action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-db:AllowVnetOutBound+nsg-a 7"
+    no enable
+    exit
+access-rule ipv6 from nsg-db to nsg-app action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-db:DenyAllOutBound to nsg- 3"
+    no enable
+    exit
+access-rule ipv6 from nsg-db to nsg-db action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-db:AllowVnetOutBound+nsg-d 4"
+    no enable
+    exit
+access-rule ipv6 from nsg-db to nsg-db action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-db:AllowVnetOutBound+nsg-d 5"
+    no enable
+    exit
+access-rule ipv6 from nsg-db to nsg-db action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "nsg-db:DenyAllOutBound to nsg- 4"
+    no enable
+    exit
+access-rule ipv6 from nsg-app to nsg-app action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT nsg-app to nsg-app v6"
+    exit
+access-rule ipv6 from nsg-app to nsg-db action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT nsg-app to nsg-db v6"
+    exit
+access-rule ipv6 from nsg-app to nsg-web action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT nsg-app to nsg-web v6"
+    exit
+access-rule ipv6 from nsg-app to outside action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT nsg-app to outside v6"
+    exit
+access-rule ipv6 from nsg-db to nsg-app action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT nsg-db to nsg-app v6"
+    exit
+access-rule ipv6 from nsg-db to nsg-db action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT nsg-db to nsg-db v6"
+    exit
+access-rule ipv6 from nsg-db to nsg-web action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT nsg-db to nsg-web v6"
+    exit
+access-rule ipv6 from nsg-db to outside action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT nsg-db to outside v6"
+    exit
+access-rule ipv6 from nsg-web to nsg-app action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT nsg-web to nsg-app v6"
+    exit
+access-rule ipv6 from nsg-web to nsg-db action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT nsg-web to nsg-db v6"
+    exit
+access-rule ipv6 from nsg-web to nsg-web action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT nsg-web to nsg-web v6"
+    exit
+access-rule ipv6 from nsg-web to outside action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT nsg-web to outside v6"
+    exit
+access-rule ipv6 from outside to nsg-app action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT outside to nsg-app v6"
+    exit
+access-rule ipv6 from outside to nsg-db action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT outside to nsg-db v6"
+    exit
+access-rule ipv6 from outside to nsg-web action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT outside to nsg-web v6"
+    exit
+access-rule ipv6 from outside to outside action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT outside to outside v6"
-    priority manual 1
     exit
 commit
 exit

@@ -7,6 +7,8 @@ address-object ipv4 "n 198.51.100.0_24" network 198.51.100.0 255.255.255.0 zone 
 address-object ipv4 "h 192.0.2.80" host 192.0.2.80 zone LAN
 address-object ipv6 "n 2001:db8:99::_48" network 2001:db8:99:: /48 zone LAN
 address-object ipv6 "n 2001:db8:10::_64" network 2001:db8:10:: /64 zone LAN
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone LAN
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone LAN
 address-object ipv4 "h 203.0.113.3" host 203.0.113.3 zone LAN
 address-object ipv4 "r 0.0.0.0-192.168.10.49" range 0.0.0.0 192.168.10.49 zone LAN
 address-object ipv4 "r 192.168.10.60-255.255.255.255" range 192.168.10.60 255.255.255.255 zone LAN
@@ -15,6 +17,8 @@ address-object ipv4 "r 0.0.0.0-172.16.19.255" range 0.0.0.0 172.16.19.255 zone L
 address-object ipv4 "r 172.16.20.128-255.255.255.255" range 172.16.20.128 255.255.255.255 zone LAN
 address-object ipv4 "n 192.168.10.0_25" network 192.168.10.0 255.255.255.128 zone LAN
 address-object ipv4 "h 203.0.113.4" host 203.0.113.4 zone LAN
+address-object ipv6 "n ::_1" network :: /1 zone LAN
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone LAN
 address-group ipv4 "admins"
     address-object ipv4 "r 192.168.10.50-192.168.10.59"
     exit
@@ -34,6 +38,10 @@ address-group ipv6 "partners-ipv6"
     exit
 address-group ipv6 "lan6"
     address-object ipv6 "n 2001:db8:10::_64"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
     exit
 address-group ipv4 "dst web for everyone"
     address-group ipv4 "dmz-web"
@@ -75,6 +83,10 @@ address-group ipv4 "dst rest of the DMZ-3"
     address-object ipv4 "r 0.0.0.0-172.16.19.255"
     address-object ipv4 "r 172.16.20.128-255.255.255.255"
     exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
+    exit
 service-object "tcp-22" TCP 22 22
 service-object "tcp-80,443,8000-8080 tcp 80" TCP 80 80
 service-object "tcp-80,443,8000-8080 tcp 443" TCP 443 443
@@ -102,707 +114,665 @@ service-object "tcp-8443" TCP 8443 8443
 service-object "tcp-25" TCP 25 25
 service-object "tcp-443" TCP 443 443
 service-object "tcp 443" TCP 443 443
-nat-policy inbound any outbound any source any translated-source original destination name "h 203.0.113.3" translated-destination name "h 172.16.20.10" service name "tcp-8443" translated-service name "tcp 443"
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "h 203.0.113.3" translated-destination name "h 172.16.20.10" service name "tcp-8443" translated-service name "tcp 443"
     name "publish web"
     comment "publish web"
+    priority manual 1
     exit
-nat-policy inbound any outbound any source any translated-source original destination name "h 203.0.113.4" translated-destination name "h 172.16.20.11" service name "tcp-25" translated-service original
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "h 203.0.113.4" translated-destination name "h 172.16.20.11" service name "tcp-25" translated-service original
     name "publish mail"
     comment "publish mail"
+    priority manual 2
     exit
-access-rule ipv4 from DMZ to DMZ action allow source address any service any destination address any
+access-rule ipv4 from DMZ to DMZ action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: accept in ipsec policy"
     priority manual 1
     no enable
     exit
-access-rule ipv4 from DMZ to GUEST action allow source address any service any destination address any
+access-rule ipv4 from DMZ to GUEST action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: accept in ipsec polic 2"
-    priority manual 1
+    priority manual 2
     no enable
     exit
-access-rule ipv4 from DMZ to LAN action allow source address any service any destination address any
+access-rule ipv4 from DMZ to LAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: accept in ipsec polic 3"
-    priority manual 1
+    priority manual 3
     no enable
     exit
-access-rule ipv4 from DMZ to WAN action allow source address any service any destination address any
+access-rule ipv4 from DMZ to WAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: accept in ipsec polic 4"
-    priority manual 1
+    priority manual 4
     no enable
     exit
-access-rule ipv4 from GUEST to DMZ action allow source address any service any destination address any
+access-rule ipv4 from GUEST to DMZ action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: accept in ipsec polic 5"
-    priority manual 1
+    priority manual 5
     no enable
     exit
-access-rule ipv4 from GUEST to GUEST action allow source address any service any destination address any
+access-rule ipv4 from GUEST to GUEST action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: accept in ipsec polic 6"
-    priority manual 1
+    priority manual 6
     no enable
     exit
-access-rule ipv4 from GUEST to LAN action allow source address any service any destination address any
+access-rule ipv4 from GUEST to LAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: accept in ipsec polic 7"
-    priority manual 1
+    priority manual 7
     no enable
     exit
-access-rule ipv4 from GUEST to WAN action allow source address any service any destination address any
+access-rule ipv4 from GUEST to WAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: accept in ipsec polic 8"
-    priority manual 1
+    priority manual 8
     no enable
     exit
-access-rule ipv4 from LAN to DMZ action allow source address any service any destination address any
+access-rule ipv4 from LAN to DMZ action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: accept in ipsec polic 9"
-    priority manual 1
+    priority manual 9
     no enable
     exit
-access-rule ipv4 from LAN to GUEST action allow source address any service any destination address any
+access-rule ipv4 from LAN to GUEST action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: accept in ipsec poli 10"
-    priority manual 1
+    priority manual 10
     no enable
     exit
-access-rule ipv4 from LAN to LAN action allow source address any service any destination address any
+access-rule ipv4 from LAN to LAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: accept in ipsec poli 11"
-    priority manual 1
+    priority manual 11
     no enable
     exit
-access-rule ipv4 from LAN to WAN action allow source address any service any destination address any
+access-rule ipv4 from LAN to WAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: accept in ipsec poli 12"
-    priority manual 1
+    priority manual 12
     no enable
     exit
-access-rule ipv4 from WAN to DMZ action allow source address any service any destination address any
+access-rule ipv4 from WAN to DMZ action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: accept in ipsec poli 13"
-    priority manual 1
+    priority manual 13
     no enable
     exit
-access-rule ipv4 from WAN to GUEST action allow source address any service any destination address any
+access-rule ipv4 from WAN to GUEST action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: accept in ipsec poli 14"
-    priority manual 1
+    priority manual 14
     no enable
     exit
-access-rule ipv4 from WAN to LAN action allow source address any service any destination address any
+access-rule ipv4 from WAN to LAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: accept in ipsec poli 15"
-    priority manual 1
+    priority manual 15
     no enable
     exit
-access-rule ipv4 from WAN to WAN action allow source address any service any destination address any
+access-rule ipv4 from WAN to WAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: accept in ipsec poli 16"
-    priority manual 1
+    priority manual 16
     no enable
     exit
-access-rule ipv4 from DMZ to DMZ action discard source address any service any destination address any
+access-rule ipv4 from DMZ to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "banned scanners"
-    priority manual 2
+    priority manual 17
     no enable
     exit
-access-rule ipv4 from DMZ to GUEST action discard source address any service any destination address any
+access-rule ipv4 from DMZ to GUEST action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "banned scanners 2"
-    priority manual 2
+    priority manual 18
     no enable
     exit
-access-rule ipv4 from DMZ to LAN action discard source address any service any destination address any
+access-rule ipv4 from DMZ to LAN action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "banned scanners 3"
-    priority manual 2
+    priority manual 19
     no enable
     exit
-access-rule ipv4 from DMZ to WAN action discard source address any service any destination address any
+access-rule ipv4 from DMZ to WAN action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "banned scanners 4"
-    priority manual 2
+    priority manual 20
     no enable
     exit
-access-rule ipv4 from GUEST to DMZ action discard source address any service any destination address any
+access-rule ipv4 from GUEST to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "banned scanners 5"
-    priority manual 2
+    priority manual 21
     no enable
     exit
-access-rule ipv4 from GUEST to GUEST action discard source address any service any destination address any
+access-rule ipv4 from GUEST to GUEST action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "banned scanners 6"
-    priority manual 2
+    priority manual 22
     no enable
     exit
-access-rule ipv4 from GUEST to LAN action discard source address any service any destination address any
+access-rule ipv4 from GUEST to LAN action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "banned scanners 7"
-    priority manual 2
+    priority manual 23
     no enable
     exit
-access-rule ipv4 from GUEST to WAN action discard source address any service any destination address any
+access-rule ipv4 from GUEST to WAN action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "banned scanners 8"
-    priority manual 2
+    priority manual 24
     no enable
     exit
-access-rule ipv4 from LAN to DMZ action discard source address any service any destination address any
+access-rule ipv4 from LAN to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "banned scanners 9"
-    priority manual 2
+    priority manual 25
     no enable
     exit
-access-rule ipv4 from LAN to GUEST action discard source address any service any destination address any
+access-rule ipv4 from LAN to GUEST action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "banned scanners 10"
-    priority manual 2
+    priority manual 26
     no enable
     exit
-access-rule ipv4 from LAN to LAN action discard source address any service any destination address any
+access-rule ipv4 from LAN to LAN action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "banned scanners 11"
-    priority manual 2
+    priority manual 27
     no enable
     exit
-access-rule ipv4 from LAN to WAN action discard source address any service any destination address any
+access-rule ipv4 from LAN to WAN action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "banned scanners 12"
-    priority manual 2
+    priority manual 28
     no enable
     exit
-access-rule ipv4 from WAN to DMZ action discard source address any service any destination address any
+access-rule ipv4 from WAN to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "banned scanners 13"
-    priority manual 2
+    priority manual 29
     no enable
     exit
-access-rule ipv4 from WAN to GUEST action discard source address any service any destination address any
+access-rule ipv4 from WAN to GUEST action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "banned scanners 14"
-    priority manual 2
+    priority manual 30
     no enable
     exit
-access-rule ipv4 from WAN to LAN action discard source address any service any destination address any
+access-rule ipv4 from WAN to LAN action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "banned scanners 15"
-    priority manual 2
+    priority manual 31
     no enable
     exit
-access-rule ipv4 from WAN to WAN action discard source address any service any destination address any
+access-rule ipv4 from WAN to WAN action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "banned scanners 16"
-    priority manual 2
+    priority manual 32
     no enable
     exit
 access-rule ipv4 from DMZ to DMZ action allow source address group "admins" service name "tcp-22" destination address group "dmz-web"
     name "ssh from the admins"
-    priority manual 3
+    priority manual 33
     exit
 access-rule ipv4 from GUEST to DMZ action allow source address group "admins" service name "tcp-22" destination address group "dmz-web"
     name "ssh from the admins 2"
-    priority manual 3
+    priority manual 34
     exit
 access-rule ipv4 from LAN to DMZ action allow source address group "admins" service name "tcp-22" destination address group "dmz-web"
     name "ssh from the admins 3"
-    priority manual 3
+    priority manual 35
     exit
 access-rule ipv4 from WAN to DMZ action allow source address group "admins" service name "tcp-22" destination address group "dmz-web"
     name "ssh from the admins 4"
-    priority manual 3
+    priority manual 36
     exit
 access-rule ipv4 from DMZ to DMZ action allow source address group "admins" service group "tcp-80,443,8000-8080" destination address group "dst web for everyone"
     name "web for everyone"
-    priority manual 4
+    priority manual 37
     exit
 access-rule ipv4 from GUEST to DMZ action allow source address group "admins" service group "tcp-80,443,8000-8080" destination address group "dst web for everyone"
     name "web for everyone 2"
-    priority manual 4
+    priority manual 38
     exit
 access-rule ipv4 from LAN to DMZ action allow source address group "admins" service group "tcp-80,443,8000-8080" destination address group "dst web for everyone"
     name "web for everyone 3"
-    priority manual 4
+    priority manual 39
     exit
 access-rule ipv4 from WAN to DMZ action allow source address group "admins" service group "tcp-80,443,8000-8080" destination address group "dst web for everyone"
     name "web for everyone 4"
-    priority manual 4
+    priority manual 40
     exit
 access-rule ipv4 from DMZ to DMZ action allow source address group "src web for everyone-2" service group "tcp-80,443,8000-8080" destination address group "dst web for everyone-2"
     name "web for everyone-2"
-    priority manual 5
+    priority manual 41
     exit
 access-rule ipv4 from GUEST to DMZ action allow source address group "src web for everyone-2" service group "tcp-80,443,8000-8080" destination address group "dst web for everyone-2"
     name "web for everyone-2 2"
-    priority manual 5
+    priority manual 42
     exit
 access-rule ipv4 from LAN to DMZ action allow source address group "src web for everyone-2" service group "tcp-80,443,8000-8080" destination address group "dst web for everyone-2"
     name "web for everyone-2 3"
-    priority manual 5
+    priority manual 43
     exit
 access-rule ipv4 from WAN to DMZ action allow source address group "src web for everyone-2" service group "tcp-80,443,8000-8080" destination address group "dst web for everyone-2"
     name "web for everyone-2 4"
-    priority manual 5
+    priority manual 44
     exit
 access-rule ipv4 from DMZ to DMZ action allow source address group "admins" service any destination address any
     name "ping _echo_ only"
-    priority manual 6
+    priority manual 45
     no enable
     exit
 access-rule ipv4 from GUEST to DMZ action allow source address group "admins" service any destination address any
     name "ping _echo_ only 2"
-    priority manual 6
+    priority manual 46
     no enable
     exit
 access-rule ipv4 from LAN to DMZ action allow source address group "admins" service any destination address any
     name "ping _echo_ only 3"
-    priority manual 6
+    priority manual 47
     no enable
     exit
 access-rule ipv4 from WAN to DMZ action allow source address group "admins" service any destination address any
     name "ping _echo_ only 4"
-    priority manual 6
+    priority manual 48
     no enable
     exit
 access-rule ipv4 from DMZ to DMZ action allow source address group "src ping _echo_ only-2" service any destination address any
     name "ping _echo_ only-2"
-    priority manual 7
+    priority manual 49
     no enable
     exit
 access-rule ipv4 from GUEST to DMZ action allow source address group "src ping _echo_ only-2" service any destination address any
     name "ping _echo_ only-2 2"
-    priority manual 7
+    priority manual 50
     no enable
     exit
 access-rule ipv4 from LAN to DMZ action allow source address group "src ping _echo_ only-2" service any destination address any
     name "ping _echo_ only-2 3"
-    priority manual 7
+    priority manual 51
     no enable
     exit
 access-rule ipv4 from WAN to DMZ action allow source address group "src ping _echo_ only-2" service any destination address any
     name "ping _echo_ only-2 4"
-    priority manual 7
+    priority manual 52
     no enable
     exit
 access-rule ipv4 from DMZ to DMZ action allow source address group "partners" service name "tcp-any" destination address any
     name "old partner access"
-    priority manual 8
+    priority manual 53
     no enable
     exit
 access-rule ipv4 from GUEST to DMZ action allow source address group "partners" service name "tcp-any" destination address any
     name "old partner access 2"
-    priority manual 8
+    priority manual 54
     no enable
     exit
 access-rule ipv4 from LAN to DMZ action allow source address group "partners" service name "tcp-any" destination address any
     name "old partner access 3"
-    priority manual 8
+    priority manual 55
     no enable
     exit
 access-rule ipv4 from WAN to DMZ action allow source address group "partners" service name "tcp-any" destination address any
     name "old partner access 4"
-    priority manual 8
+    priority manual 56
     no enable
     exit
 access-rule ipv4 from DMZ to DMZ action allow source address group "partners" service group "tcp-0-21,23-65535" destination address any
     name "old partner access-2"
-    priority manual 9
+    priority manual 57
     no enable
     exit
 access-rule ipv4 from GUEST to DMZ action allow source address group "partners" service group "tcp-0-21,23-65535" destination address any
     name "old partner access-2 2"
-    priority manual 9
+    priority manual 58
     no enable
     exit
 access-rule ipv4 from LAN to DMZ action allow source address group "partners" service group "tcp-0-21,23-65535" destination address any
     name "old partner access-2 3"
-    priority manual 9
+    priority manual 59
     no enable
     exit
 access-rule ipv4 from WAN to DMZ action allow source address group "partners" service group "tcp-0-21,23-65535" destination address any
     name "old partner access-2 4"
-    priority manual 9
+    priority manual 60
     no enable
     exit
 access-rule ipv4 from DMZ to DMZ action deny source address group "admins" service name "tcp-any" destination address any
     name "nothing but TCP"
-    priority manual 10
+    priority manual 61
     no enable
     exit
 access-rule ipv4 from GUEST to DMZ action deny source address group "admins" service name "tcp-any" destination address any
     name "nothing but TCP 2"
-    priority manual 10
+    priority manual 62
     no enable
     exit
 access-rule ipv4 from LAN to DMZ action deny source address group "admins" service name "tcp-any" destination address any
     name "nothing but TCP 3"
-    priority manual 10
+    priority manual 63
     no enable
     exit
 access-rule ipv4 from WAN to DMZ action deny source address group "admins" service name "tcp-any" destination address any
     name "nothing but TCP 4"
-    priority manual 10
+    priority manual 64
     no enable
     exit
 access-rule ipv4 from DMZ to DMZ action deny source address group "src nothing but TCP-2" service name "tcp-any" destination address any
     name "nothing but TCP-2"
-    priority manual 11
+    priority manual 65
     no enable
     exit
 access-rule ipv4 from GUEST to DMZ action deny source address group "src nothing but TCP-2" service name "tcp-any" destination address any
     name "nothing but TCP-2 2"
-    priority manual 11
+    priority manual 66
     no enable
     exit
 access-rule ipv4 from LAN to DMZ action deny source address group "src nothing but TCP-2" service name "tcp-any" destination address any
     name "nothing but TCP-2 3"
-    priority manual 11
+    priority manual 67
     no enable
     exit
 access-rule ipv4 from WAN to DMZ action deny source address group "src nothing but TCP-2" service name "tcp-any" destination address any
     name "nothing but TCP-2 4"
-    priority manual 11
+    priority manual 68
     no enable
     exit
 access-rule ipv4 from DMZ to DMZ action discard source address group "admins" service any destination address group "dst rest of the DMZ"
     name "rest of the DMZ"
-    priority manual 12
+    priority manual 69
     no enable
     exit
 access-rule ipv4 from GUEST to DMZ action discard source address group "admins" service any destination address group "dst rest of the DMZ"
     name "rest of the DMZ 2"
-    priority manual 12
+    priority manual 70
     no enable
     exit
 access-rule ipv4 from LAN to DMZ action discard source address group "admins" service any destination address group "dst rest of the DMZ"
     name "rest of the DMZ 3"
-    priority manual 12
+    priority manual 71
     no enable
     exit
 access-rule ipv4 from WAN to DMZ action discard source address group "admins" service any destination address group "dst rest of the DMZ"
     name "rest of the DMZ 4"
-    priority manual 12
+    priority manual 72
     no enable
     exit
 access-rule ipv4 from DMZ to DMZ action discard source address group "src rest of the DMZ-2" service name "tcp-any" destination address group "dst rest of the DMZ-2"
     name "rest of the DMZ-2"
-    priority manual 13
+    priority manual 73
     no enable
     exit
 access-rule ipv4 from GUEST to DMZ action discard source address group "src rest of the DMZ-2" service name "tcp-any" destination address group "dst rest of the DMZ-2"
     name "rest of the DMZ-2 2"
-    priority manual 13
+    priority manual 74
     no enable
     exit
 access-rule ipv4 from LAN to DMZ action discard source address group "src rest of the DMZ-2" service name "tcp-any" destination address group "dst rest of the DMZ-2"
     name "rest of the DMZ-2 3"
-    priority manual 13
+    priority manual 75
     no enable
     exit
 access-rule ipv4 from WAN to DMZ action discard source address group "src rest of the DMZ-2" service name "tcp-any" destination address group "dst rest of the DMZ-2"
     name "rest of the DMZ-2 4"
-    priority manual 13
+    priority manual 76
     no enable
     exit
 access-rule ipv4 from DMZ to DMZ action discard source address group "src rest of the DMZ-3" service group "tcp-0-21,23-65535" destination address group "dst rest of the DMZ-3"
     name "rest of the DMZ-3"
-    priority manual 14
+    priority manual 77
     no enable
     exit
 access-rule ipv4 from GUEST to DMZ action discard source address group "src rest of the DMZ-3" service group "tcp-0-21,23-65535" destination address group "dst rest of the DMZ-3"
     name "rest of the DMZ-3 2"
-    priority manual 14
+    priority manual 78
     no enable
     exit
 access-rule ipv4 from LAN to DMZ action discard source address group "src rest of the DMZ-3" service group "tcp-0-21,23-65535" destination address group "dst rest of the DMZ-3"
     name "rest of the DMZ-3 3"
-    priority manual 14
+    priority manual 79
     no enable
     exit
 access-rule ipv4 from WAN to DMZ action discard source address group "src rest of the DMZ-3" service group "tcp-0-21,23-65535" destination address group "dst rest of the DMZ-3"
     name "rest of the DMZ-3 4"
-    priority manual 14
+    priority manual 80
     no enable
     exit
 access-rule ipv4 from LAN to DMZ action allow source address any service group "tcp-80,443" destination address group "mirrors"
     name "LAN to the package mirrors"
-    priority manual 15
+    priority manual 81
     exit
 access-rule ipv4 from LAN to GUEST action allow source address any service group "tcp-80,443" destination address group "mirrors"
     name "LAN to the package mirrors 2"
-    priority manual 3
+    priority manual 82
     exit
 access-rule ipv4 from LAN to LAN action allow source address any service group "tcp-80,443" destination address group "mirrors"
     name "LAN to the package mirrors 3"
-    priority manual 3
+    priority manual 83
     exit
 access-rule ipv4 from LAN to WAN action allow source address any service group "tcp-80,443" destination address group "mirrors"
     name "LAN to the package mirrors 4"
-    priority manual 3
+    priority manual 84
     exit
 access-rule ipv4 from GUEST to DMZ action deny source address any service group "tcp-80,443" destination address any
     name "no other web from guests"
-    priority manual 15
+    priority manual 85
     exit
 access-rule ipv4 from GUEST to GUEST action deny source address any service group "tcp-80,443" destination address any
     name "no other web from guests 2"
-    priority manual 3
+    priority manual 86
     exit
 access-rule ipv4 from GUEST to LAN action deny source address any service group "tcp-80,443" destination address any
     name "no other web from guests 3"
-    priority manual 3
+    priority manual 87
     exit
 access-rule ipv4 from GUEST to WAN action deny source address any service group "tcp-80,443" destination address any
     name "no other web from guests 4"
-    priority manual 3
+    priority manual 88
     exit
 access-rule ipv4 from GUEST to WAN action allow source address any service name "udp-53" destination address any
     name "guest DNS, either port"
-    priority manual 4
+    priority manual 89
     exit
-access-rule ipv4 from GUEST to WAN action allow source address any service any destination address any
+access-rule ipv4 from GUEST to WAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "guest DNS, either port-2"
-    priority manual 5
+    priority manual 90
     no enable
     exit
-access-rule ipv4 from GUEST to WAN action allow source address any service any destination address any
+access-rule ipv4 from GUEST to WAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "guests to the internet"
-    priority manual 6
+    priority manual 91
     exit
 access-rule ipv4 from LAN to WAN action allow source address name "n 192.168.10.0_25" service any destination address any
     name "office hours for staff"
-    priority manual 4
+    priority manual 92
     no enable
     exit
-access-rule ipv4 from GUEST to DMZ action discard source address any service any destination address any
+access-rule ipv4 from GUEST to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "no guests elsewhere"
-    priority manual 16
+    priority manual 93
     exit
-access-rule ipv4 from GUEST to GUEST action discard source address any service any destination address any
+access-rule ipv4 from GUEST to GUEST action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "no guests elsewhere 2"
-    priority manual 4
+    priority manual 94
     exit
-access-rule ipv4 from GUEST to LAN action discard source address any service any destination address any
+access-rule ipv4 from GUEST to LAN action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "no guests elsewhere 3"
-    priority manual 4
+    priority manual 95
     exit
-access-rule ipv4 from GUEST to WAN action discard source address any service any destination address any
+access-rule ipv4 from GUEST to WAN action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "no guests elsewhere 4"
-    priority manual 7
+    priority manual 96
     exit
 access-rule ipv4 from WAN to DMZ action allow source address any service name "tcp-8443" destination address name "h 203.0.113.3"
     name "defconf: drop all from WAN not D"
-    priority manual 15
+    priority manual 97
     exit
 access-rule ipv4 from WAN to GUEST action allow source address any service name "tcp-8443" destination address name "h 203.0.113.3"
     name "defconf: drop all from WAN not 4"
-    priority manual 3
+    priority manual 98
     exit
 access-rule ipv4 from WAN to LAN action allow source address any service name "tcp-8443" destination address name "h 203.0.113.3"
     name "defconf: drop all from WAN not 5"
-    priority manual 3
+    priority manual 99
     exit
 access-rule ipv4 from WAN to WAN action allow source address any service name "tcp-8443" destination address name "h 203.0.113.3"
     name "defconf: drop all from WAN not 6"
-    priority manual 3
+    priority manual 100
     exit
 access-rule ipv4 from WAN to DMZ action allow source address any service name "tcp-25" destination address name "h 203.0.113.4"
     name "defconf: drop all from WAN not 2"
-    priority manual 16
+    priority manual 101
     exit
 access-rule ipv4 from WAN to GUEST action allow source address any service name "tcp-25" destination address name "h 203.0.113.4"
     name "defconf: drop all from WAN not 7"
-    priority manual 4
+    priority manual 102
     exit
 access-rule ipv4 from WAN to LAN action allow source address any service name "tcp-25" destination address name "h 203.0.113.4"
     name "defconf: drop all from WAN not 8"
-    priority manual 4
+    priority manual 103
     exit
 access-rule ipv4 from WAN to WAN action allow source address any service name "tcp-25" destination address name "h 203.0.113.4"
     name "defconf: drop all from WAN not 9"
-    priority manual 4
+    priority manual 104
     exit
-access-rule ipv4 from WAN to DMZ action discard source address any service any destination address any
+access-rule ipv4 from WAN to DMZ action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: drop all from WAN not 3"
-    priority manual 17
+    priority manual 105
     exit
-access-rule ipv4 from WAN to GUEST action discard source address any service any destination address any
+access-rule ipv4 from WAN to GUEST action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: drop all from WAN no 10"
-    priority manual 5
+    priority manual 106
     exit
-access-rule ipv4 from WAN to LAN action discard source address any service any destination address any
+access-rule ipv4 from WAN to LAN action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: drop all from WAN no 11"
-    priority manual 5
+    priority manual 107
     exit
-access-rule ipv4 from WAN to WAN action discard source address any service any destination address any
+access-rule ipv4 from WAN to WAN action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "defconf: drop all from WAN no 12"
-    priority manual 5
+    priority manual 108
     exit
-access-rule ipv6 from DMZ to DMZ action allow source address any service any destination address any
+access-rule ipv6 from DMZ to DMZ action allow source address group "FWSHIFT all IPv6" service any destination address any
     name "ICMPv6 echo"
-    priority manual 1
     no enable
     exit
-access-rule ipv6 from DMZ to GUEST action allow source address any service any destination address any
+access-rule ipv6 from DMZ to GUEST action allow source address group "FWSHIFT all IPv6" service any destination address any
     name "ICMPv6 echo 2"
-    priority manual 1
     no enable
     exit
-access-rule ipv6 from DMZ to LAN action allow source address any service any destination address any
+access-rule ipv6 from DMZ to LAN action allow source address group "FWSHIFT all IPv6" service any destination address any
     name "ICMPv6 echo 3"
-    priority manual 1
     no enable
     exit
-access-rule ipv6 from DMZ to WAN action allow source address any service any destination address any
+access-rule ipv6 from DMZ to WAN action allow source address group "FWSHIFT all IPv6" service any destination address any
     name "ICMPv6 echo 4"
-    priority manual 1
     no enable
     exit
-access-rule ipv6 from GUEST to DMZ action allow source address any service any destination address any
+access-rule ipv6 from GUEST to DMZ action allow source address group "FWSHIFT all IPv6" service any destination address any
     name "ICMPv6 echo 5"
-    priority manual 1
     no enable
     exit
-access-rule ipv6 from GUEST to GUEST action allow source address any service any destination address any
+access-rule ipv6 from GUEST to GUEST action allow source address group "FWSHIFT all IPv6" service any destination address any
     name "ICMPv6 echo 6"
-    priority manual 1
     no enable
     exit
-access-rule ipv6 from GUEST to LAN action allow source address any service any destination address any
+access-rule ipv6 from GUEST to LAN action allow source address group "FWSHIFT all IPv6" service any destination address any
     name "ICMPv6 echo 7"
-    priority manual 1
     no enable
     exit
-access-rule ipv6 from GUEST to WAN action allow source address any service any destination address any
+access-rule ipv6 from GUEST to WAN action allow source address group "FWSHIFT all IPv6" service any destination address any
     name "ICMPv6 echo 8"
-    priority manual 1
     no enable
     exit
-access-rule ipv6 from LAN to DMZ action allow source address any service any destination address any
+access-rule ipv6 from LAN to DMZ action allow source address group "FWSHIFT all IPv6" service any destination address any
     name "ICMPv6 echo 9"
-    priority manual 1
     no enable
     exit
-access-rule ipv6 from LAN to GUEST action allow source address any service any destination address any
+access-rule ipv6 from LAN to GUEST action allow source address group "FWSHIFT all IPv6" service any destination address any
     name "ICMPv6 echo 10"
-    priority manual 1
     no enable
     exit
-access-rule ipv6 from LAN to LAN action allow source address any service any destination address any
+access-rule ipv6 from LAN to LAN action allow source address group "FWSHIFT all IPv6" service any destination address any
     name "ICMPv6 echo 11"
-    priority manual 1
     no enable
     exit
-access-rule ipv6 from LAN to WAN action allow source address any service any destination address any
+access-rule ipv6 from LAN to WAN action allow source address group "FWSHIFT all IPv6" service any destination address any
     name "ICMPv6 echo 12"
-    priority manual 1
     no enable
     exit
-access-rule ipv6 from WAN to DMZ action allow source address any service any destination address any
+access-rule ipv6 from WAN to DMZ action allow source address group "FWSHIFT all IPv6" service any destination address any
     name "ICMPv6 echo 13"
-    priority manual 1
     no enable
     exit
-access-rule ipv6 from WAN to GUEST action allow source address any service any destination address any
+access-rule ipv6 from WAN to GUEST action allow source address group "FWSHIFT all IPv6" service any destination address any
     name "ICMPv6 echo 14"
-    priority manual 1
     no enable
     exit
-access-rule ipv6 from WAN to LAN action allow source address any service any destination address any
+access-rule ipv6 from WAN to LAN action allow source address group "FWSHIFT all IPv6" service any destination address any
     name "ICMPv6 echo 15"
-    priority manual 1
     no enable
     exit
-access-rule ipv6 from WAN to WAN action allow source address any service any destination address any
+access-rule ipv6 from WAN to WAN action allow source address group "FWSHIFT all IPv6" service any destination address any
     name "ICMPv6 echo 16"
-    priority manual 1
     no enable
     exit
 access-rule ipv6 from DMZ to DMZ action allow source address group "partners-ipv6" service name "tcp-443" destination address group "lan6"
     name "the partners reach the web serve"
-    priority manual 2
     exit
 access-rule ipv6 from DMZ to GUEST action allow source address group "partners-ipv6" service name "tcp-443" destination address group "lan6"
     name "the partners reach the web ser 2"
-    priority manual 2
     exit
 access-rule ipv6 from DMZ to LAN action allow source address group "partners-ipv6" service name "tcp-443" destination address group "lan6"
     name "the partners reach the web ser 3"
-    priority manual 2
     exit
 access-rule ipv6 from DMZ to WAN action allow source address group "partners-ipv6" service name "tcp-443" destination address group "lan6"
     name "the partners reach the web ser 4"
-    priority manual 2
     exit
 access-rule ipv6 from GUEST to DMZ action allow source address group "partners-ipv6" service name "tcp-443" destination address group "lan6"
     name "the partners reach the web ser 5"
-    priority manual 2
     exit
 access-rule ipv6 from GUEST to GUEST action allow source address group "partners-ipv6" service name "tcp-443" destination address group "lan6"
     name "the partners reach the web ser 6"
-    priority manual 2
     exit
 access-rule ipv6 from GUEST to LAN action allow source address group "partners-ipv6" service name "tcp-443" destination address group "lan6"
     name "the partners reach the web ser 7"
-    priority manual 2
     exit
 access-rule ipv6 from GUEST to WAN action allow source address group "partners-ipv6" service name "tcp-443" destination address group "lan6"
     name "the partners reach the web ser 8"
-    priority manual 2
     exit
 access-rule ipv6 from LAN to DMZ action allow source address group "partners-ipv6" service name "tcp-443" destination address group "lan6"
     name "the partners reach the web ser 9"
-    priority manual 2
     exit
 access-rule ipv6 from LAN to GUEST action allow source address group "partners-ipv6" service name "tcp-443" destination address group "lan6"
     name "the partners reach the web se 10"
-    priority manual 2
     exit
 access-rule ipv6 from LAN to LAN action allow source address group "partners-ipv6" service name "tcp-443" destination address group "lan6"
     name "the partners reach the web se 11"
-    priority manual 2
     exit
 access-rule ipv6 from LAN to WAN action allow source address group "partners-ipv6" service name "tcp-443" destination address group "lan6"
     name "the partners reach the web se 12"
-    priority manual 2
     exit
 access-rule ipv6 from WAN to DMZ action allow source address group "partners-ipv6" service name "tcp-443" destination address group "lan6"
     name "the partners reach the web se 13"
-    priority manual 2
     exit
 access-rule ipv6 from WAN to GUEST action allow source address group "partners-ipv6" service name "tcp-443" destination address group "lan6"
     name "the partners reach the web se 14"
-    priority manual 2
     exit
 access-rule ipv6 from WAN to LAN action allow source address group "partners-ipv6" service name "tcp-443" destination address group "lan6"
     name "the partners reach the web se 15"
-    priority manual 2
     exit
 access-rule ipv6 from WAN to WAN action allow source address group "partners-ipv6" service name "tcp-443" destination address group "lan6"
     name "the partners reach the web se 16"
-    priority manual 2
     exit
-access-rule ipv6 from DMZ to DMZ action discard source address any service any destination address any
+access-rule ipv6 from DMZ to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
     name "drop everything else not coming"
-    priority manual 3
     exit
-access-rule ipv6 from DMZ to GUEST action discard source address any service any destination address any
+access-rule ipv6 from DMZ to GUEST action discard source address group "FWSHIFT all IPv6" service any destination address any
     name "drop everything else not comin 2"
-    priority manual 3
     exit
-access-rule ipv6 from DMZ to LAN action discard source address any service any destination address any
+access-rule ipv6 from DMZ to LAN action discard source address group "FWSHIFT all IPv6" service any destination address any
     name "drop everything else not comin 3"
-    priority manual 3
     exit
-access-rule ipv6 from DMZ to WAN action discard source address any service any destination address any
+access-rule ipv6 from DMZ to WAN action discard source address group "FWSHIFT all IPv6" service any destination address any
     name "drop everything else not comin 4"
-    priority manual 3
     exit
-access-rule ipv6 from GUEST to DMZ action discard source address any service any destination address any
+access-rule ipv6 from GUEST to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
     name "drop everything else not comin 5"
-    priority manual 3
     exit
-access-rule ipv6 from GUEST to GUEST action discard source address any service any destination address any
+access-rule ipv6 from GUEST to GUEST action discard source address group "FWSHIFT all IPv6" service any destination address any
     name "drop everything else not comin 6"
-    priority manual 3
     exit
-access-rule ipv6 from GUEST to LAN action discard source address any service any destination address any
+access-rule ipv6 from GUEST to LAN action discard source address group "FWSHIFT all IPv6" service any destination address any
     name "drop everything else not comin 7"
-    priority manual 3
     exit
-access-rule ipv6 from GUEST to WAN action discard source address any service any destination address any
+access-rule ipv6 from GUEST to WAN action discard source address group "FWSHIFT all IPv6" service any destination address any
     name "drop everything else not comin 8"
-    priority manual 3
     exit
-access-rule ipv6 from WAN to DMZ action discard source address any service any destination address any
+access-rule ipv6 from WAN to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
     name "drop everything else not comin 9"
-    priority manual 3
     exit
-access-rule ipv6 from WAN to GUEST action discard source address any service any destination address any
+access-rule ipv6 from WAN to GUEST action discard source address group "FWSHIFT all IPv6" service any destination address any
     name "drop everything else not comi 10"
-    priority manual 3
     exit
-access-rule ipv6 from WAN to LAN action discard source address any service any destination address any
+access-rule ipv6 from WAN to LAN action discard source address group "FWSHIFT all IPv6" service any destination address any
     name "drop everything else not comi 11"
-    priority manual 3
     exit
-access-rule ipv6 from WAN to WAN action discard source address any service any destination address any
+access-rule ipv6 from WAN to WAN action discard source address group "FWSHIFT all IPv6" service any destination address any
     name "drop everything else not comi 12"
-    priority manual 3
     exit
 commit
 exit

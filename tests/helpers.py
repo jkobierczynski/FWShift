@@ -2029,17 +2029,27 @@ class SonicWallCli:
                         rule["name"] = shlex.split(entry)[1]
                 key = (match.group(2).strip('"'), match.group(3).strip('"'), rule["version"])
                 listed = self.rules.setdefault(key, [])
-                assert rule.get("priority") == len(listed) + 1, (line, rule.get("priority"), len(listed))
+                # (an IPv6 rule has no priority of its own and comes after every IPv4 rule: SonicOS places it; taken
+                # here to keep the order written)
+                if rule["version"] == 6:
+                    assert "priority" not in rule and not any(later.startswith("access-rule ipv4 ") for later in lines[index:]), line
+                else:  # (one list of all pairs' rules: numbered in the order written)
+                    placed = sum(1 for (_, _, v), rules in self.rules.items() if v == 4 for _ in rules)
+                    assert rule.get("priority") == placed + 1, (line, rule.get("priority"), placed)
                 listed.append(rule)
             elif words[0] == "nat-policy":
-                match = re.fullmatch(r"nat-policy inbound (\S+) outbound (\S+) source " + ref + r" translated-source (original|name \"[^\"]+\") "
+                match = re.fullmatch(r"nat-policy ipv4 inbound (\S+) outbound (\S+) source " + ref + r" translated-source (original|name \"[^\"]+\") "
                                      r"destination " + ref + r" translated-destination (original|name \"[^\"]+\") service " + ref
                                      + r" translated-service (original|name \"[^\"]+\")", line)  # fmt: skip
                 assert match, line
                 policy = dict(zip(("inbound", "outbound", "src", "tsrc", "dst", "tdst", "service", "tservice"), match.groups()))
                 policy["enabled"] = "no enable" not in block
                 for entry in block:
+                    if entry.startswith("priority manual "):  # (the place in the one list of NAT policies, in the order written)
+                        assert entry == f"priority manual {len(self.nat) + 1}", (line, entry)
+                        continue
                     assert entry == "no enable" or re.fullmatch(r"(name|comment) " + quoted, entry) or entry == 'comment ""', entry
+                assert any(entry.startswith("priority manual ") for entry in block), line
                 self.nat.append(policy)
             else:
                 raise AssertionError(f"unknown command: {line}")

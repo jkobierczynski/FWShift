@@ -10,8 +10,12 @@ address-object ipv4 "n 10.0.0.0_8" network 10.0.0.0 255.0.0.0 zone DMZ
 address-object ipv4 "n 192.168.0.0_16" network 192.168.0.0 255.255.0.0 zone DMZ
 address-object ipv4 "h 203.0.113.3" host 203.0.113.3 zone DMZ
 address-object ipv4 "h 203.0.113.2" host 203.0.113.2 zone DMZ
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone DMZ
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone DMZ
 address-object ipv4 "h 198.51.100.50" host 198.51.100.50 zone DMZ
 address-object ipv6 "h 2001:db8:20::10" host 2001:db8:20::10 zone DMZ
+address-object ipv6 "n ::_1" network :: /1 zone DMZ
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone DMZ
 address-object ipv4 "r 0.0.0.0-203.0.113.1" range 0.0.0.0 203.0.113.1 zone DMZ
 address-object ipv4 "r 203.0.113.3-255.255.255.255" range 203.0.113.3 255.255.255.255 zone DMZ
 address-object ipv4 "n 10.30.0.0_24" network 10.30.0.0 255.255.255.0 zone DMZ
@@ -34,6 +38,14 @@ address-group ipv4 "ALL-ADMIN"
     exit
 address-group ipv6 "SERVERS6"
     address-object ipv6 "n 2001:db8:20::_64"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
     exit
 address-group ipv4 "dst WAN-IN-70 + no outbound acce"
     address-object ipv4 "r 0.0.0.0-203.0.113.1"
@@ -105,7 +117,7 @@ address-group ipv4 "dst WAN-IN-140 + DMZ-OUT-50 (OUT"
     address-object ipv4 "r 0.0.0.0-203.0.113.1"
     address-object ipv4 "r 203.0.113.3-255.255.255.255"
     exit
-address-group ipv4 "nat sou 12"
+address-group ipv4 "nat sou 15"
     address-object ipv4 "r 10.10.0.0-10.10.98.255"
     address-object ipv4 "r 10.10.100.0-10.10.255.255"
     exit
@@ -137,17 +149,20 @@ service-group "tcp-53_udp-53"
     service-object "tcp-53_udp-53 udp 53"
     exit
 service-object "tcp-587" TCP 587 587
-nat-policy inbound any outbound any source name "h 10.20.0.10" translated-source name "h 203.0.113.3" destination any translated-destination original service any translated-service original
+nat-policy ipv4 inbound any outbound any source name "h 10.20.0.10" translated-source name "h 203.0.113.3" destination any translated-destination original service any translated-service original
     name "nat-176"
     comment "ip nat inside source static 10.2"
+    priority manual 1
     exit
-nat-policy inbound any outbound any source any translated-source original destination name "h 203.0.113.3" translated-destination name "h 10.20.0.10" service any translated-service original
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "h 203.0.113.3" translated-destination name "h 10.20.0.10" service any translated-service original
     name "nat-176 in"
     comment "inbound of nat-176"
+    priority manual 2
     exit
-nat-policy inbound any outbound any source any translated-source original destination name "h 203.0.113.2" translated-destination name "h 10.20.0.25" service name "tcp-25" translated-service original
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "h 203.0.113.2" translated-destination name "h 10.20.0.25" service name "tcp-25" translated-service original
     name "nat-177"
     comment "ip nat inside source static tcp"
+    priority manual 3
     exit
 access-rule ipv4 from OUTSIDE to OUTSIDE action deny source address name "n 10.0.0.0_8" service any destination address any
     name "WAN-IN-10 (OUTSIDE to OUTSIDE)"
@@ -169,17 +184,17 @@ access-rule ipv4 from OUTSIDE to OUTSIDE action allow source address any service
     name "WAN-IN-60 (OUTSIDE to OUTSIDE)"
     priority manual 5
     exit
-access-rule ipv4 from OUTSIDE to OUTSIDE action allow source address any service any destination address any
+access-rule ipv4 from OUTSIDE to OUTSIDE action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "WAN-IN-70 (OUTSIDE to OUTSIDE)"
     priority manual 6
     no enable
     exit
-access-rule ipv4 from OUTSIDE to OUTSIDE action allow source address any service any destination address any
+access-rule ipv4 from OUTSIDE to OUTSIDE action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "WAN-IN-80 (OUTSIDE to OUTSIDE)"
     priority manual 7
     no enable
     exit
-access-rule ipv4 from OUTSIDE to OUTSIDE action allow source address any service any destination address any
+access-rule ipv4 from OUTSIDE to OUTSIDE action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "WAN-IN-90 (OUTSIDE to OUTSIDE)"
     priority manual 8
     no enable
@@ -202,901 +217,838 @@ access-rule ipv4 from OUTSIDE to OUTSIDE action allow source address any service
     priority manual 12
     no enable
     exit
-access-rule ipv4 from OUTSIDE to OUTSIDE action allow source address any service any destination address any
+access-rule ipv4 from OUTSIDE to OUTSIDE action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "WAN-IN-140 (OUTSIDE to OUTSIDE)"
     priority manual 13
     exit
-access-rule ipv4 from OUTSIDE to OUTSIDE action deny source address any service any destination address any
+access-rule ipv4 from OUTSIDE to OUTSIDE action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "WAN-IN implicit deny (OUTSIDE to"
     priority manual 14
     exit
-access-rule ipv6 from OUTSIDE to OUTSIDE action allow source address any service name "tcp-80" destination address name "h 2001:db8:20::10"
-    name "WAN6-IN-10 (OUTSIDE to OUTSIDE)"
-    priority manual 1
-    exit
-access-rule ipv6 from OUTSIDE to OUTSIDE action allow source address any service name "tcp-443" destination address name "h 2001:db8:20::10"
-    name "WAN6-IN-20 (OUTSIDE to OUTSIDE)"
-    priority manual 2
-    exit
-access-rule ipv6 from OUTSIDE to OUTSIDE action allow source address any service any destination address any
-    name "WAN6-IN-30 (OUTSIDE to OUTSIDE)"
-    priority manual 3
-    no enable
-    exit
-access-rule ipv6 from OUTSIDE to OUTSIDE action allow source address any service any destination address any
-    name "WAN6-IN-40 (OUTSIDE to OUTSIDE)"
-    priority manual 4
-    no enable
-    exit
-access-rule ipv6 from OUTSIDE to OUTSIDE action deny source address any service any destination address any
-    name "WAN6-IN-50 (OUTSIDE to OUTSIDE)"
-    priority manual 5
-    exit
-access-rule ipv6 from OUTSIDE to OUTSIDE action deny source address any service any destination address any
-    name "WAN6-IN implicit deny (OUTSIDE t"
-    priority manual 6
-    exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address name "n 10.0.0.0_8" service any destination address any
     name "WAN-IN-10 (OUTSIDE to INSIDE)"
-    priority manual 1
+    priority manual 15
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address name "n 192.168.0.0_16" service any destination address any
     name "WAN-IN-20 (OUTSIDE to INSIDE)"
-    priority manual 2
+    priority manual 16
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address any service name "tcp-80" destination address name "h 203.0.113.3"
     name "WAN-IN-40 + no outbound access l"
-    priority manual 3
+    priority manual 17
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address any service name "tcp-443" destination address name "h 203.0.113.3"
     name "WAN-IN-50 + no outbound access l"
-    priority manual 4
+    priority manual 18
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address any service name "tcp-25" destination address name "h 203.0.113.2"
     name "WAN-IN-60 + no outbound access l"
-    priority manual 5
+    priority manual 19
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address any service any destination address group "dst WAN-IN-70 + no outbound acce"
     name "WAN-IN-70 + no outbound access l"
-    priority manual 6
+    priority manual 20
     no enable
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address any service any destination address name "h 203.0.113.2"
     name "WAN-IN-70 + no outbound access 2"
-    priority manual 7
+    priority manual 21
     no enable
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address any service any destination address group "dst WAN-IN-80 + no outbound acce"
     name "WAN-IN-80 + no outbound access l"
-    priority manual 8
+    priority manual 22
     no enable
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address any service any destination address name "h 203.0.113.2"
     name "WAN-IN-80 + no outbound access 2"
-    priority manual 9
+    priority manual 23
     no enable
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address any service any destination address group "dst WAN-IN-90 + no outbound acce"
     name "WAN-IN-90 + no outbound access l"
-    priority manual 10
+    priority manual 24
     no enable
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address any service any destination address name "h 203.0.113.2"
     name "WAN-IN-90 + no outbound access 2"
-    priority manual 11
+    priority manual 25
     no enable
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address group "ALL-ADMIN" service name "tcp-22" destination address name "h 203.0.113.3"
     name "WAN-IN-100 + no outbound access"
-    priority manual 12
+    priority manual 26
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address name "h 198.51.100.50" service any destination address group "dst WAN-IN-110 + no outbound acc"
     name "WAN-IN-110 + no outbound access"
-    priority manual 13
+    priority manual 27
     no enable
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address name "h 198.51.100.50" service any destination address name "h 203.0.113.2"
     name "WAN-IN-110 + no outbound acces 2"
-    priority manual 14
+    priority manual 28
     no enable
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address any service name "udp-53" destination address group "dst WAN-IN-120 + no outbound acc"
     name "WAN-IN-120 + no outbound access"
-    priority manual 15
+    priority manual 29
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address any service name "udp-53" destination address name "h 203.0.113.2"
     name "WAN-IN-120 + no outbound acces 2"
-    priority manual 16
+    priority manual 30
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action allow source address any service name "tcp-8000-8010" destination address any
     name "WAN-IN-130 (OUTSIDE to INSIDE)"
-    priority manual 17
+    priority manual 31
     no enable
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address any service any destination address group "dst WAN-IN-140 + no outbound acc"
     name "WAN-IN-140 + no outbound access"
-    priority manual 18
+    priority manual 32
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address any service name "tcp-25" destination address name "h 203.0.113.2"
     name "WAN-IN-140 + no outbound acces 2"
-    priority manual 19
+    priority manual 33
     no enable
     exit
 access-rule ipv4 from OUTSIDE to INSIDE action deny source address any service name "tcp-25" destination address name "h 203.0.113.2"
     name "WAN-IN-140 + no outbound acces 3"
-    priority manual 20
+    priority manual 34
     exit
-access-rule ipv4 from OUTSIDE to INSIDE action deny source address any service any destination address any
+access-rule ipv4 from OUTSIDE to INSIDE action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "WAN-IN implicit deny (OUTSIDE 2"
-    priority manual 21
-    exit
-access-rule ipv6 from OUTSIDE to INSIDE action deny source address any service name "tcp-80" destination address name "h 2001:db8:20::10"
-    name "WAN6-IN-10 + no outbound access"
-    priority manual 1
-    exit
-access-rule ipv6 from OUTSIDE to INSIDE action deny source address any service name "tcp-443" destination address name "h 2001:db8:20::10"
-    name "WAN6-IN-20 + no outbound access"
-    priority manual 2
-    exit
-access-rule ipv6 from OUTSIDE to INSIDE action deny source address any service any destination address any
-    name "WAN6-IN-30 + no outbound access"
-    priority manual 3
-    no enable
-    exit
-access-rule ipv6 from OUTSIDE to INSIDE action deny source address any service any destination address any
-    name "WAN6-IN-40 + no outbound access"
-    priority manual 4
-    no enable
-    exit
-access-rule ipv6 from OUTSIDE to INSIDE action deny source address any service any destination address any
-    name "WAN6-IN-50 (OUTSIDE to INSIDE)"
-    priority manual 5
-    exit
-access-rule ipv6 from OUTSIDE to INSIDE action deny source address any service any destination address any
-    name "WAN6-IN implicit deny (OUTSIDE 2"
-    priority manual 6
+    priority manual 35
     exit
 access-rule ipv4 from OUTSIDE to DMZ action deny source address name "n 10.0.0.0_8" service any destination address any
     name "WAN-IN-10 (OUTSIDE to DMZ)"
-    priority manual 1
+    priority manual 36
     exit
 access-rule ipv4 from OUTSIDE to DMZ action deny source address name "n 192.168.0.0_16" service any destination address any
     name "WAN-IN-20 (OUTSIDE to DMZ)"
-    priority manual 2
+    priority manual 37
     exit
 access-rule ipv4 from OUTSIDE to DMZ action allow source address any service name "tcp-80" destination address name "h 203.0.113.3"
     name "WAN-IN-40 + DMZ-OUT-10 + ZP-OUT-"
-    priority manual 3
+    priority manual 38
     exit
 access-rule ipv4 from OUTSIDE to DMZ action allow source address any service name "tcp-443" destination address name "h 203.0.113.3"
     name "WAN-IN-50 + DMZ-OUT-10 + ZP-OUT-"
-    priority manual 4
+    priority manual 39
     exit
 access-rule ipv4 from OUTSIDE to DMZ action allow source address any service name "tcp-25" destination address name "h 203.0.113.2"
     name "WAN-IN-60 + DMZ-OUT-20 + ZP-OUT-"
-    priority manual 5
+    priority manual 40
     exit
 access-rule ipv4 from OUTSIDE to DMZ action deny source address any service any destination address group "dst WAN-IN-70 + DMZ-OUT-50 (OUTS"
     name "WAN-IN-70 + DMZ-OUT-50 (OUTSIDE"
-    priority manual 6
+    priority manual 41
     no enable
     exit
 access-rule ipv4 from OUTSIDE to DMZ action deny source address any service any destination address name "h 203.0.113.2"
     name "WAN-IN-70 + DMZ-OUT-50 (OUTSID 2"
-    priority manual 7
+    priority manual 42
     no enable
     exit
 access-rule ipv4 from OUTSIDE to DMZ action deny source address any service any destination address group "dst WAN-IN-80 + DMZ-OUT-50 (OUTS"
     name "WAN-IN-80 + DMZ-OUT-50 (OUTSIDE"
-    priority manual 8
+    priority manual 43
     no enable
     exit
 access-rule ipv4 from OUTSIDE to DMZ action deny source address any service any destination address name "h 203.0.113.2"
     name "WAN-IN-80 + DMZ-OUT-50 (OUTSID 2"
-    priority manual 9
+    priority manual 44
     no enable
     exit
 access-rule ipv4 from OUTSIDE to DMZ action deny source address any service any destination address group "dst WAN-IN-90 + DMZ-OUT-50 (OUTS"
     name "WAN-IN-90 + DMZ-OUT-50 (OUTSIDE"
-    priority manual 10
+    priority manual 45
     no enable
     exit
 access-rule ipv4 from OUTSIDE to DMZ action deny source address any service any destination address name "h 203.0.113.2"
     name "WAN-IN-90 + DMZ-OUT-50 (OUTSID 2"
-    priority manual 11
+    priority manual 46
     no enable
     exit
 access-rule ipv4 from OUTSIDE to DMZ action discard source address group "ADMINS" service name "tcp-22" destination address name "h 203.0.113.3"
     name "WAN-IN-100 + DMZ-OUT-30 + ZP-OUT"
-    priority manual 12
+    priority manual 47
     exit
 access-rule ipv4 from OUTSIDE to DMZ action deny source address group "ALL-ADMIN" service name "tcp-22" destination address name "h 203.0.113.3"
     name "WAN-IN-100 + DMZ-OUT-50 (OUTSIDE"
-    priority manual 13
+    priority manual 48
     exit
 access-rule ipv4 from OUTSIDE to DMZ action deny source address name "h 198.51.100.50" service any destination address group "dst WAN-IN-110 + DMZ-OUT-50 (OUT"
     name "WAN-IN-110 + DMZ-OUT-50 (OUTSIDE"
-    priority manual 14
+    priority manual 49
     no enable
     exit
 access-rule ipv4 from OUTSIDE to DMZ action deny source address name "h 198.51.100.50" service any destination address name "h 203.0.113.2"
     name "WAN-IN-110 + DMZ-OUT-50 (OUTSI 2"
-    priority manual 15
+    priority manual 50
     no enable
     exit
 access-rule ipv4 from OUTSIDE to DMZ action deny source address any service name "udp-53" destination address group "dst WAN-IN-120 + DMZ-OUT-50 (OUT"
     name "WAN-IN-120 + DMZ-OUT-50 (OUTSIDE"
-    priority manual 16
+    priority manual 51
     exit
 access-rule ipv4 from OUTSIDE to DMZ action deny source address any service name "udp-53" destination address name "h 203.0.113.2"
     name "WAN-IN-120 + DMZ-OUT-50 (OUTSI 2"
-    priority manual 17
+    priority manual 52
     exit
 access-rule ipv4 from OUTSIDE to DMZ action allow source address any service name "tcp-8000-8010" destination address any
     name "WAN-IN-130 (OUTSIDE to DMZ)"
-    priority manual 18
+    priority manual 53
     no enable
     exit
 access-rule ipv4 from OUTSIDE to DMZ action allow source address any service group "WEB-SVC" destination address group "dst WAN-IN-140 + DMZ-OUT-10 + ZP"
     name "WAN-IN-140 + DMZ-OUT-10 + ZP-OUT"
-    priority manual 19
+    priority manual 54
     exit
 access-rule ipv4 from OUTSIDE to DMZ action allow source address any service name "tcp-25" destination address name "h 10.20.0.25"
     name "WAN-IN-140 + DMZ-OUT-20 + ZP-OUT"
-    priority manual 20
+    priority manual 55
     exit
 access-rule ipv4 from OUTSIDE to DMZ action allow source address any service name "tcp-25" destination address name "h 203.0.113.2"
     name "WAN-IN-140 + DMZ-OUT-20 + ZP-O 2"
-    priority manual 21
+    priority manual 56
     exit
 access-rule ipv4 from OUTSIDE to DMZ action discard source address group "ADMINS" service name "tcp-22" destination address group "dst WAN-IN-140 + DMZ-OUT-30 + ZP"
     name "WAN-IN-140 + DMZ-OUT-30 + ZP-OUT"
-    priority manual 22
+    priority manual 57
     exit
 access-rule ipv4 from OUTSIDE to DMZ action allow source address any service name "Ping" destination address group "dst WAN-IN-140 + DMZ-OUT-40 + ZP"
     name "WAN-IN-140 + DMZ-OUT-40 + ZP-OUT"
-    priority manual 23
+    priority manual 58
     exit
 access-rule ipv4 from OUTSIDE to DMZ action discard source address any service name "Ping" destination address group "dst WAN-IN-140 + DMZ-OUT-40 + 2"
     name "WAN-IN-140 + DMZ-OUT-40 + ZP-O 2"
-    priority manual 24
+    priority manual 59
     exit
 access-rule ipv4 from OUTSIDE to DMZ action discard source address any service name "Ping" destination address name "h 203.0.113.2"
     name "WAN-IN-140 + DMZ-OUT-40 + ZP-O 3"
-    priority manual 25
+    priority manual 60
     exit
 access-rule ipv4 from OUTSIDE to DMZ action deny source address any service any destination address group "dst WAN-IN-140 + DMZ-OUT-50 (OUT"
     name "WAN-IN-140 + DMZ-OUT-50 (OUTSIDE"
-    priority manual 26
+    priority manual 61
     exit
 access-rule ipv4 from OUTSIDE to DMZ action deny source address any service name "tcp-25" destination address name "h 203.0.113.2"
     name "WAN-IN-140 + DMZ-OUT-50 (OUTSI 2"
-    priority manual 27
+    priority manual 62
     no enable
     exit
 access-rule ipv4 from OUTSIDE to DMZ action deny source address any service name "tcp-25" destination address name "h 203.0.113.2"
     name "WAN-IN-140 + DMZ-OUT-50 (OUTSI 3"
-    priority manual 28
+    priority manual 63
     exit
-access-rule ipv4 from OUTSIDE to DMZ action deny source address any service any destination address any
+access-rule ipv4 from OUTSIDE to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "WAN-IN implicit deny (OUTSIDE 3"
-    priority manual 29
-    exit
-access-rule ipv6 from OUTSIDE to DMZ action allow source address any service name "tcp-80" destination address name "h 2001:db8:20::10"
-    name "WAN6-IN-10 + no outbound acces 2"
-    priority manual 1
-    exit
-access-rule ipv6 from OUTSIDE to DMZ action allow source address any service name "tcp-443" destination address name "h 2001:db8:20::10"
-    name "WAN6-IN-20 + no outbound acces 2"
-    priority manual 2
-    exit
-access-rule ipv6 from OUTSIDE to DMZ action discard source address any service any destination address any
-    name "WAN6-IN-30 + no outbound acces 2"
-    priority manual 3
-    no enable
-    exit
-access-rule ipv6 from OUTSIDE to DMZ action discard source address any service any destination address any
-    name "WAN6-IN-40 + no outbound acces 2"
-    priority manual 4
-    no enable
-    exit
-access-rule ipv6 from OUTSIDE to DMZ action deny source address any service any destination address any
-    name "WAN6-IN-50 (OUTSIDE to DMZ)"
-    priority manual 5
-    exit
-access-rule ipv6 from OUTSIDE to DMZ action deny source address any service any destination address any
-    name "WAN6-IN implicit deny (OUTSIDE 3"
-    priority manual 6
+    priority manual 64
     exit
 access-rule ipv4 from OUTSIDE to LAB action deny source address name "n 10.0.0.0_8" service any destination address any
     name "WAN-IN-10 (OUTSIDE to LAB)"
-    priority manual 1
+    priority manual 65
     exit
 access-rule ipv4 from OUTSIDE to LAB action deny source address name "n 192.168.0.0_16" service any destination address any
     name "WAN-IN-20 (OUTSIDE to LAB)"
-    priority manual 2
+    priority manual 66
     exit
 access-rule ipv4 from OUTSIDE to LAB action deny source address any service name "tcp-80" destination address name "h 203.0.113.3"
     name "WAN-IN-40 + no outbound access 2"
-    priority manual 3
+    priority manual 67
     exit
 access-rule ipv4 from OUTSIDE to LAB action deny source address any service name "tcp-443" destination address name "h 203.0.113.3"
     name "WAN-IN-50 + no outbound access 2"
-    priority manual 4
+    priority manual 68
     exit
 access-rule ipv4 from OUTSIDE to LAB action deny source address any service name "tcp-25" destination address name "h 203.0.113.2"
     name "WAN-IN-60 + no outbound access 2"
-    priority manual 5
+    priority manual 69
     exit
-access-rule ipv4 from OUTSIDE to LAB action deny source address any service any destination address any
+access-rule ipv4 from OUTSIDE to LAB action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "WAN-IN-70 + no outbound access 3"
-    priority manual 6
+    priority manual 70
     no enable
     exit
-access-rule ipv4 from OUTSIDE to LAB action deny source address any service any destination address any
+access-rule ipv4 from OUTSIDE to LAB action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "WAN-IN-80 + no outbound access 3"
-    priority manual 7
+    priority manual 71
     no enable
     exit
-access-rule ipv4 from OUTSIDE to LAB action deny source address any service any destination address any
+access-rule ipv4 from OUTSIDE to LAB action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "WAN-IN-90 + no outbound access 3"
-    priority manual 8
+    priority manual 72
     no enable
     exit
 access-rule ipv4 from OUTSIDE to LAB action deny source address group "ALL-ADMIN" service name "tcp-22" destination address name "h 203.0.113.3"
     name "WAN-IN-100 + no outbound acces 2"
-    priority manual 9
+    priority manual 73
     exit
 access-rule ipv4 from OUTSIDE to LAB action deny source address name "h 198.51.100.50" service any destination address any
     name "WAN-IN-110 + no outbound acces 3"
-    priority manual 10
+    priority manual 74
     no enable
     exit
 access-rule ipv4 from OUTSIDE to LAB action deny source address any service name "udp-53" destination address any
     name "WAN-IN-120 + no outbound acces 3"
-    priority manual 11
+    priority manual 75
     exit
 access-rule ipv4 from OUTSIDE to LAB action allow source address any service name "tcp-8000-8010" destination address any
     name "WAN-IN-130 (OUTSIDE to LAB)"
-    priority manual 12
+    priority manual 76
     no enable
     exit
-access-rule ipv4 from OUTSIDE to LAB action deny source address any service any destination address any
+access-rule ipv4 from OUTSIDE to LAB action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "WAN-IN-140 + no outbound acces 4"
-    priority manual 13
+    priority manual 77
     exit
-access-rule ipv4 from OUTSIDE to LAB action deny source address any service any destination address any
+access-rule ipv4 from OUTSIDE to LAB action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "WAN-IN implicit deny (OUTSIDE 4"
-    priority manual 14
-    exit
-access-rule ipv6 from OUTSIDE to LAB action deny source address any service name "tcp-80" destination address name "h 2001:db8:20::10"
-    name "WAN6-IN-10 + no outbound acces 3"
-    priority manual 1
-    exit
-access-rule ipv6 from OUTSIDE to LAB action deny source address any service name "tcp-443" destination address name "h 2001:db8:20::10"
-    name "WAN6-IN-20 + no outbound acces 3"
-    priority manual 2
-    exit
-access-rule ipv6 from OUTSIDE to LAB action deny source address any service any destination address any
-    name "WAN6-IN-30 + no outbound acces 3"
-    priority manual 3
-    no enable
-    exit
-access-rule ipv6 from OUTSIDE to LAB action deny source address any service any destination address any
-    name "WAN6-IN-40 + no outbound acces 3"
-    priority manual 4
-    no enable
-    exit
-access-rule ipv6 from OUTSIDE to LAB action deny source address any service any destination address any
-    name "WAN6-IN-50 (OUTSIDE to LAB)"
-    priority manual 5
-    exit
-access-rule ipv6 from OUTSIDE to LAB action deny source address any service any destination address any
-    name "WAN6-IN implicit deny (OUTSIDE 4"
-    priority manual 6
+    priority manual 78
     exit
 access-rule ipv4 from OUTSIDE to MGMT action deny source address name "n 10.0.0.0_8" service any destination address any
     name "WAN-IN-10 (OUTSIDE to MGMT)"
-    priority manual 1
+    priority manual 79
     exit
 access-rule ipv4 from OUTSIDE to MGMT action deny source address name "n 192.168.0.0_16" service any destination address any
     name "WAN-IN-20 (OUTSIDE to MGMT)"
-    priority manual 2
+    priority manual 80
     exit
 access-rule ipv4 from OUTSIDE to MGMT action deny source address any service name "tcp-80" destination address name "h 203.0.113.3"
     name "WAN-IN-40 + no outbound access 3"
-    priority manual 3
+    priority manual 81
     exit
 access-rule ipv4 from OUTSIDE to MGMT action deny source address any service name "tcp-443" destination address name "h 203.0.113.3"
     name "WAN-IN-50 + no outbound access 3"
-    priority manual 4
+    priority manual 82
     exit
 access-rule ipv4 from OUTSIDE to MGMT action deny source address any service name "tcp-25" destination address name "h 203.0.113.2"
     name "WAN-IN-60 + no outbound access 3"
-    priority manual 5
+    priority manual 83
     exit
-access-rule ipv4 from OUTSIDE to MGMT action deny source address any service any destination address any
+access-rule ipv4 from OUTSIDE to MGMT action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "WAN-IN-70 + no outbound access 4"
-    priority manual 6
+    priority manual 84
     no enable
     exit
-access-rule ipv4 from OUTSIDE to MGMT action deny source address any service any destination address any
+access-rule ipv4 from OUTSIDE to MGMT action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "WAN-IN-80 + no outbound access 4"
-    priority manual 7
+    priority manual 85
     no enable
     exit
-access-rule ipv4 from OUTSIDE to MGMT action deny source address any service any destination address any
+access-rule ipv4 from OUTSIDE to MGMT action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "WAN-IN-90 + no outbound access 4"
-    priority manual 8
+    priority manual 86
     no enable
     exit
 access-rule ipv4 from OUTSIDE to MGMT action deny source address group "ALL-ADMIN" service name "tcp-22" destination address name "h 203.0.113.3"
     name "WAN-IN-100 + no outbound acces 3"
-    priority manual 9
+    priority manual 87
     exit
 access-rule ipv4 from OUTSIDE to MGMT action deny source address name "h 198.51.100.50" service any destination address any
     name "WAN-IN-110 + no outbound acces 4"
-    priority manual 10
+    priority manual 88
     no enable
     exit
 access-rule ipv4 from OUTSIDE to MGMT action deny source address any service name "udp-53" destination address any
     name "WAN-IN-120 + no outbound acces 4"
-    priority manual 11
+    priority manual 89
     exit
 access-rule ipv4 from OUTSIDE to MGMT action allow source address any service name "tcp-8000-8010" destination address any
     name "WAN-IN-130 (OUTSIDE to MGMT)"
-    priority manual 12
+    priority manual 90
     no enable
     exit
-access-rule ipv4 from OUTSIDE to MGMT action deny source address any service any destination address any
+access-rule ipv4 from OUTSIDE to MGMT action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "WAN-IN-140 + no outbound acces 5"
-    priority manual 13
+    priority manual 91
     exit
-access-rule ipv4 from OUTSIDE to MGMT action deny source address any service any destination address any
+access-rule ipv4 from OUTSIDE to MGMT action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "WAN-IN implicit deny (OUTSIDE 5"
-    priority manual 14
-    exit
-access-rule ipv6 from OUTSIDE to MGMT action deny source address any service name "tcp-80" destination address name "h 2001:db8:20::10"
-    name "WAN6-IN-10 + no outbound acces 4"
-    priority manual 1
-    exit
-access-rule ipv6 from OUTSIDE to MGMT action deny source address any service name "tcp-443" destination address name "h 2001:db8:20::10"
-    name "WAN6-IN-20 + no outbound acces 4"
-    priority manual 2
-    exit
-access-rule ipv6 from OUTSIDE to MGMT action deny source address any service any destination address any
-    name "WAN6-IN-30 + no outbound acces 4"
-    priority manual 3
-    no enable
-    exit
-access-rule ipv6 from OUTSIDE to MGMT action deny source address any service any destination address any
-    name "WAN6-IN-40 + no outbound acces 4"
-    priority manual 4
-    no enable
-    exit
-access-rule ipv6 from OUTSIDE to MGMT action deny source address any service any destination address any
-    name "WAN6-IN-50 (OUTSIDE to MGMT)"
-    priority manual 5
-    exit
-access-rule ipv6 from OUTSIDE to MGMT action deny source address any service any destination address any
-    name "WAN6-IN implicit deny (OUTSIDE 5"
-    priority manual 6
+    priority manual 92
     exit
 access-rule ipv4 from INSIDE to OUTSIDE action allow source address any service name "tcp-80" destination address any
     name "INSIDE (in): no access list + no"
-    priority manual 1
-    exit
-access-rule ipv6 from INSIDE to OUTSIDE action allow source address any service name "tcp-80" destination address any
-    name "INSIDE (in): no access list + 18"
-    priority manual 1
+    priority manual 93
     exit
 access-rule ipv4 from INSIDE to OUTSIDE action allow source address any service name "tcp-443" destination address any
     name "INSIDE (in): no access list + 2"
-    priority manual 2
-    exit
-access-rule ipv6 from INSIDE to OUTSIDE action allow source address any service name "tcp-443" destination address any
-    name "INSIDE (in): no access list + 19"
-    priority manual 2
+    priority manual 94
     exit
 access-rule ipv4 from INSIDE to OUTSIDE action allow source address any service group "tcp-53_udp-53" destination address any
     name "INSIDE (in): no access list + 3"
-    priority manual 3
-    exit
-access-rule ipv6 from INSIDE to OUTSIDE action allow source address any service group "tcp-53_udp-53" destination address any
-    name "INSIDE (in): no access list + 20"
-    priority manual 3
+    priority manual 95
     exit
 access-rule ipv4 from INSIDE to OUTSIDE action allow source address any service name "tcp-587" destination address any
     name "INSIDE (in): no access list + 4"
-    priority manual 4
-    exit
-access-rule ipv6 from INSIDE to OUTSIDE action allow source address any service name "tcp-587" destination address any
-    name "INSIDE (in): no access list + 21"
-    priority manual 4
+    priority manual 96
     exit
 access-rule ipv4 from INSIDE to OUTSIDE action allow source address any service any destination address name "h 198.51.100.50"
     name "INSIDE (in): no access list + 5"
-    priority manual 5
+    priority manual 97
     no enable
     exit
-access-rule ipv4 from INSIDE to OUTSIDE action allow source address any service any destination address any
+access-rule ipv4 from INSIDE to OUTSIDE action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "INSIDE (in): no access list + 6"
-    priority manual 6
+    priority manual 98
     no enable
     exit
-access-rule ipv6 from INSIDE to OUTSIDE action allow source address any service any destination address any
-    name "INSIDE (in): no access list + 22"
-    priority manual 5
-    no enable
-    exit
-access-rule ipv4 from INSIDE to OUTSIDE action discard source address any service any destination address any
+access-rule ipv4 from INSIDE to OUTSIDE action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "INSIDE (in): no access list + 7"
-    priority manual 7
+    priority manual 99
     exit
-access-rule ipv6 from INSIDE to OUTSIDE action discard source address any service any destination address any
-    name "INSIDE (in): no access list + 23"
-    priority manual 6
-    exit
-access-rule ipv4 from INSIDE to INSIDE action allow source address any service any destination address any
+access-rule ipv4 from INSIDE to INSIDE action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "INSIDE (in): no access list (INS"
-    priority manual 1
-    exit
-access-rule ipv6 from INSIDE to INSIDE action allow source address any service any destination address any
-    name "INSIDE (in): no access list (I 2"
-    priority manual 1
+    priority manual 100
     exit
 access-rule ipv4 from INSIDE to DMZ action allow source address any service group "WEB-SVC" destination address group "SERVERS"
     name "INSIDE (in): no access list + DM"
-    priority manual 1
+    priority manual 101
     exit
 access-rule ipv4 from INSIDE to DMZ action allow source address any service name "tcp-25" destination address name "h 10.20.0.25"
     name "INSIDE (in): no access list + 8"
-    priority manual 2
+    priority manual 102
     exit
 access-rule ipv4 from INSIDE to DMZ action allow source address group "ADMINS" service name "tcp-22" destination address group "SERVERS"
     name "INSIDE (in): no access list + 9"
-    priority manual 3
+    priority manual 103
     exit
 access-rule ipv4 from INSIDE to DMZ action allow source address any service name "Ping" destination address group "SERVERS"
     name "INSIDE (in): no access list + 10"
-    priority manual 4
+    priority manual 104
     exit
 access-rule ipv4 from INSIDE to DMZ action discard source address any service name "Ping" destination address any
     name "INSIDE (in): no access list + 11"
-    priority manual 5
+    priority manual 105
     exit
-access-rule ipv4 from INSIDE to DMZ action deny source address any service any destination address any
+access-rule ipv4 from INSIDE to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "INSIDE (in): no access list + 12"
-    priority manual 6
+    priority manual 106
     exit
-access-rule ipv6 from INSIDE to DMZ action allow source address any service name "tcp-80" destination address group "SERVERS6"
-    name "INSIDE (in): no access list + 13"
-    priority manual 1
-    exit
-access-rule ipv6 from INSIDE to DMZ action allow source address any service name "tcp-443" destination address group "SERVERS6"
-    name "INSIDE (in): no access list + 14"
-    priority manual 2
-    exit
-access-rule ipv6 from INSIDE to DMZ action discard source address any service any destination address any
-    name "INSIDE (in): no access list + 15"
-    priority manual 3
-    exit
-access-rule ipv4 from INSIDE to LAB action deny source address any service any destination address any
+access-rule ipv4 from INSIDE to LAB action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "INSIDE (in): no access list + 16"
-    priority manual 1
+    priority manual 107
     exit
-access-rule ipv6 from INSIDE to LAB action deny source address any service any destination address any
-    name "INSIDE (in): no access list + 24"
-    priority manual 1
-    exit
-access-rule ipv4 from INSIDE to MGMT action deny source address any service any destination address any
+access-rule ipv4 from INSIDE to MGMT action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "INSIDE (in): no access list + 17"
-    priority manual 1
-    exit
-access-rule ipv6 from INSIDE to MGMT action deny source address any service any destination address any
-    name "INSIDE (in): no access list + 25"
-    priority manual 1
+    priority manual 108
     exit
 access-rule ipv4 from DMZ to OUTSIDE action allow source address any service group "tcp-53_udp-53" destination address any
     name "DMZ (in): no access list + no ou"
-    priority manual 1
-    exit
-access-rule ipv6 from DMZ to OUTSIDE action allow source address any service group "tcp-53_udp-53" destination address any
-    name "DMZ (in): no access list + no 9"
-    priority manual 1
+    priority manual 109
     exit
 access-rule ipv4 from DMZ to OUTSIDE action allow source address any service name "tcp-80" destination address any
     name "DMZ (in): no access list + no 2"
-    priority manual 2
-    exit
-access-rule ipv6 from DMZ to OUTSIDE action allow source address any service name "tcp-80" destination address any
-    name "DMZ (in): no access list + no 10"
-    priority manual 2
+    priority manual 110
     exit
 access-rule ipv4 from DMZ to OUTSIDE action allow source address any service name "tcp-443" destination address any
     name "DMZ (in): no access list + no 3"
-    priority manual 3
+    priority manual 111
     exit
-access-rule ipv6 from DMZ to OUTSIDE action allow source address any service name "tcp-443" destination address any
-    name "DMZ (in): no access list + no 11"
-    priority manual 3
-    exit
-access-rule ipv4 from DMZ to OUTSIDE action discard source address any service any destination address any
+access-rule ipv4 from DMZ to OUTSIDE action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "DMZ (in): no access list + no 4"
-    priority manual 4
+    priority manual 112
     exit
-access-rule ipv6 from DMZ to OUTSIDE action discard source address any service any destination address any
-    name "DMZ (in): no access list + no 12"
-    priority manual 4
-    exit
-access-rule ipv4 from DMZ to INSIDE action deny source address any service any destination address any
+access-rule ipv4 from DMZ to INSIDE action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "DMZ (in): no access list + no 5"
-    priority manual 1
-    exit
-access-rule ipv6 from DMZ to INSIDE action deny source address any service any destination address any
-    name "DMZ (in): no access list + no 13"
-    priority manual 1
+    priority manual 113
     exit
 access-rule ipv4 from DMZ to DMZ action allow source address any service group "WEB-SVC" destination address group "SERVERS"
     name "DMZ (in): no access list + DMZ-O"
-    priority manual 1
+    priority manual 114
     exit
 access-rule ipv4 from DMZ to DMZ action allow source address any service name "tcp-25" destination address name "h 10.20.0.25"
     name "DMZ (in): no access list + DMZ 2"
-    priority manual 2
+    priority manual 115
     exit
 access-rule ipv4 from DMZ to DMZ action allow source address group "ADMINS" service name "tcp-22" destination address group "SERVERS"
     name "DMZ (in): no access list + DMZ 3"
-    priority manual 3
+    priority manual 116
     exit
 access-rule ipv4 from DMZ to DMZ action allow source address any service name "Ping" destination address any
     name "DMZ (in): no access list + DMZ 4"
-    priority manual 4
+    priority manual 117
     exit
-access-rule ipv4 from DMZ to DMZ action deny source address any service any destination address any
+access-rule ipv4 from DMZ to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "DMZ (in): no access list + DMZ 5"
-    priority manual 5
+    priority manual 118
     exit
-access-rule ipv6 from DMZ to DMZ action allow source address any service any destination address any
-    name "DMZ (in): no access list + no 6"
-    priority manual 1
-    exit
-access-rule ipv4 from DMZ to LAB action deny source address any service any destination address any
+access-rule ipv4 from DMZ to LAB action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "DMZ (in): no access list + no 7"
-    priority manual 1
+    priority manual 119
     exit
-access-rule ipv6 from DMZ to LAB action deny source address any service any destination address any
-    name "DMZ (in): no access list + no 14"
-    priority manual 1
-    exit
-access-rule ipv4 from DMZ to MGMT action deny source address any service any destination address any
+access-rule ipv4 from DMZ to MGMT action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "DMZ (in): no access list + no 8"
-    priority manual 1
-    exit
-access-rule ipv6 from DMZ to MGMT action deny source address any service any destination address any
-    name "DMZ (in): no access list + no 15"
-    priority manual 1
+    priority manual 120
     exit
 access-rule ipv4 from LAB to OUTSIDE action allow source address name "n 10.30.0.0_24" service name "tcp-80" destination address any
     name "110-10 + no outbound access list"
-    priority manual 1
+    priority manual 121
     exit
 access-rule ipv4 from LAB to OUTSIDE action allow source address name "n 10.30.0.0_24" service name "tcp-443" destination address any
     name "110-20 + no outbound access list"
-    priority manual 2
+    priority manual 122
     exit
 access-rule ipv4 from LAB to OUTSIDE action allow source address name "n 10.30.0.0_24" service name "udp-53" destination address name "h 10.20.0.53"
     name "110-30 + no outbound access list"
-    priority manual 3
+    priority manual 123
     exit
-access-rule ipv4 from LAB to OUTSIDE action deny source address any service any destination address any
+access-rule ipv4 from LAB to OUTSIDE action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "110-40 (LAB to OUTSIDE)"
-    priority manual 4
+    priority manual 124
     no enable
     exit
-access-rule ipv4 from LAB to OUTSIDE action deny source address any service any destination address any
+access-rule ipv4 from LAB to OUTSIDE action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "110-50 (LAB to OUTSIDE)"
-    priority manual 5
+    priority manual 125
     exit
-access-rule ipv4 from LAB to OUTSIDE action deny source address any service any destination address any
+access-rule ipv4 from LAB to OUTSIDE action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "110 implicit deny (LAB to OUTSID"
-    priority manual 6
-    exit
-access-rule ipv6 from LAB to OUTSIDE action allow source address any service group "tcp-53_udp-53" destination address any
-    name "LAB (in): no access list + no ou"
-    priority manual 1
-    exit
-access-rule ipv6 from LAB to OUTSIDE action allow source address any service name "tcp-80" destination address any
-    name "LAB (in): no access list + no 2"
-    priority manual 2
-    exit
-access-rule ipv6 from LAB to OUTSIDE action allow source address any service name "tcp-443" destination address any
-    name "LAB (in): no access list + no 3"
-    priority manual 3
-    exit
-access-rule ipv6 from LAB to OUTSIDE action discard source address any service any destination address any
-    name "LAB (in): no access list + no 4"
-    priority manual 4
+    priority manual 126
     exit
 access-rule ipv4 from LAB to INSIDE action deny source address name "n 10.30.0.0_24" service name "tcp-80" destination address any
     name "110-10 + no outbound access li 2"
-    priority manual 1
+    priority manual 127
     exit
 access-rule ipv4 from LAB to INSIDE action deny source address name "n 10.30.0.0_24" service name "tcp-443" destination address any
     name "110-20 + no outbound access li 2"
-    priority manual 2
+    priority manual 128
     exit
 access-rule ipv4 from LAB to INSIDE action deny source address name "n 10.30.0.0_24" service name "udp-53" destination address name "h 10.20.0.53"
     name "110-30 + no outbound access li 2"
-    priority manual 3
+    priority manual 129
     exit
-access-rule ipv4 from LAB to INSIDE action deny source address any service any destination address any
+access-rule ipv4 from LAB to INSIDE action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "110-40 (LAB to INSIDE)"
-    priority manual 4
+    priority manual 130
     no enable
     exit
-access-rule ipv4 from LAB to INSIDE action deny source address any service any destination address any
+access-rule ipv4 from LAB to INSIDE action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "110-50 (LAB to INSIDE)"
-    priority manual 5
+    priority manual 131
     exit
-access-rule ipv4 from LAB to INSIDE action deny source address any service any destination address any
+access-rule ipv4 from LAB to INSIDE action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "110 implicit deny (LAB to INSIDE"
-    priority manual 6
-    exit
-access-rule ipv6 from LAB to INSIDE action deny source address any service any destination address any
-    name "LAB (in): no access list + no 5"
-    priority manual 1
+    priority manual 132
     exit
 access-rule ipv4 from LAB to DMZ action deny source address name "n 10.30.0.0_24" service name "tcp-80" destination address group "SERVERS"
     name "110-10 + DMZ-OUT-10 + no zone pa"
-    priority manual 1
+    priority manual 133
     exit
 access-rule ipv4 from LAB to DMZ action deny source address name "n 10.30.0.0_24" service name "tcp-80" destination address any
     name "110-10 + DMZ-OUT-50 (LAB to DMZ)"
-    priority manual 2
+    priority manual 134
     exit
 access-rule ipv4 from LAB to DMZ action deny source address name "n 10.30.0.0_24" service name "tcp-443" destination address group "SERVERS"
     name "110-20 + DMZ-OUT-10 + no zone pa"
-    priority manual 3
+    priority manual 135
     exit
 access-rule ipv4 from LAB to DMZ action deny source address name "n 10.30.0.0_24" service name "tcp-443" destination address any
     name "110-20 + DMZ-OUT-50 (LAB to DMZ)"
-    priority manual 4
+    priority manual 136
     exit
 access-rule ipv4 from LAB to DMZ action deny source address name "n 10.30.0.0_24" service name "udp-53" destination address name "h 10.20.0.53"
     name "110-30 + DMZ-OUT-50 (LAB to DMZ)"
-    priority manual 5
+    priority manual 137
     exit
-access-rule ipv4 from LAB to DMZ action deny source address any service any destination address any
+access-rule ipv4 from LAB to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "110-40 (LAB to DMZ)"
-    priority manual 6
+    priority manual 138
     no enable
     exit
-access-rule ipv4 from LAB to DMZ action deny source address any service any destination address any
+access-rule ipv4 from LAB to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "110-50 (LAB to DMZ)"
-    priority manual 7
+    priority manual 139
     exit
-access-rule ipv4 from LAB to DMZ action deny source address any service any destination address any
+access-rule ipv4 from LAB to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "110 implicit deny (LAB to DMZ)"
-    priority manual 8
-    exit
-access-rule ipv6 from LAB to DMZ action deny source address any service any destination address any
-    name "LAB (in): no access list + no 6"
-    priority manual 1
+    priority manual 140
     exit
 access-rule ipv4 from LAB to LAB action allow source address name "n 10.30.0.0_24" service name "tcp-80" destination address any
     name "110-10 (LAB to LAB)"
-    priority manual 1
+    priority manual 141
     exit
 access-rule ipv4 from LAB to LAB action allow source address name "n 10.30.0.0_24" service name "tcp-443" destination address any
     name "110-20 (LAB to LAB)"
-    priority manual 2
+    priority manual 142
     exit
 access-rule ipv4 from LAB to LAB action allow source address name "n 10.30.0.0_24" service name "udp-53" destination address name "h 10.20.0.53"
     name "110-30 (LAB to LAB)"
-    priority manual 3
+    priority manual 143
     exit
-access-rule ipv4 from LAB to LAB action deny source address any service any destination address any
+access-rule ipv4 from LAB to LAB action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "110-40 (LAB to LAB)"
-    priority manual 4
+    priority manual 144
     no enable
     exit
-access-rule ipv4 from LAB to LAB action deny source address any service any destination address any
+access-rule ipv4 from LAB to LAB action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "110-50 (LAB to LAB)"
-    priority manual 5
+    priority manual 145
     exit
-access-rule ipv4 from LAB to LAB action deny source address any service any destination address any
+access-rule ipv4 from LAB to LAB action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "110 implicit deny (LAB to LAB)"
-    priority manual 6
-    exit
-access-rule ipv6 from LAB to LAB action allow source address any service any destination address any
-    name "LAB (in): no access list (LAB to"
-    priority manual 1
+    priority manual 146
     exit
 access-rule ipv4 from LAB to MGMT action deny source address name "n 10.30.0.0_24" service name "tcp-80" destination address any
     name "110-10 + no outbound access li 3"
-    priority manual 1
+    priority manual 147
     exit
 access-rule ipv4 from LAB to MGMT action deny source address name "n 10.30.0.0_24" service name "tcp-443" destination address any
     name "110-20 + no outbound access li 3"
-    priority manual 2
+    priority manual 148
     exit
 access-rule ipv4 from LAB to MGMT action deny source address name "n 10.30.0.0_24" service name "udp-53" destination address name "h 10.20.0.53"
     name "110-30 + no outbound access li 3"
-    priority manual 3
+    priority manual 149
     exit
-access-rule ipv4 from LAB to MGMT action deny source address any service any destination address any
+access-rule ipv4 from LAB to MGMT action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "110-40 (LAB to MGMT)"
-    priority manual 4
+    priority manual 150
     no enable
     exit
-access-rule ipv4 from LAB to MGMT action deny source address any service any destination address any
+access-rule ipv4 from LAB to MGMT action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "110-50 (LAB to MGMT)"
-    priority manual 5
+    priority manual 151
     exit
-access-rule ipv4 from LAB to MGMT action deny source address any service any destination address any
+access-rule ipv4 from LAB to MGMT action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "110 implicit deny (LAB to MGMT)"
-    priority manual 6
+    priority manual 152
     exit
-access-rule ipv6 from LAB to MGMT action deny source address any service any destination address any
-    name "LAB (in): no access list + no 7"
-    priority manual 1
-    exit
-access-rule ipv4 from MGMT to OUTSIDE action deny source address any service any destination address any
+access-rule ipv4 from MGMT to OUTSIDE action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "MGMT (in): no access list + no o"
-    priority manual 1
+    priority manual 153
     exit
-access-rule ipv6 from MGMT to OUTSIDE action deny source address any service any destination address any
-    name "MGMT (in): no access list + no 5"
-    priority manual 1
-    exit
-access-rule ipv4 from MGMT to INSIDE action deny source address any service any destination address any
+access-rule ipv4 from MGMT to INSIDE action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "MGMT (in): no access list + no 2"
-    priority manual 1
-    exit
-access-rule ipv6 from MGMT to INSIDE action deny source address any service any destination address any
-    name "MGMT (in): no access list + no 6"
-    priority manual 1
+    priority manual 154
     exit
 access-rule ipv4 from MGMT to DMZ action deny source address any service group "WEB-SVC" destination address group "SERVERS"
     name "MGMT (in): no access list + DMZ-"
-    priority manual 1
+    priority manual 155
     exit
 access-rule ipv4 from MGMT to DMZ action deny source address any service name "tcp-25" destination address name "h 10.20.0.25"
     name "MGMT (in): no access list + DM 2"
-    priority manual 2
+    priority manual 156
     exit
 access-rule ipv4 from MGMT to DMZ action deny source address group "ADMINS" service name "tcp-22" destination address group "SERVERS"
     name "MGMT (in): no access list + DM 3"
-    priority manual 3
+    priority manual 157
     exit
 access-rule ipv4 from MGMT to DMZ action deny source address any service name "Ping" destination address any
     name "MGMT (in): no access list + DM 4"
-    priority manual 4
+    priority manual 158
     exit
-access-rule ipv4 from MGMT to DMZ action deny source address any service any destination address any
+access-rule ipv4 from MGMT to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "MGMT (in): no access list + DM 5"
-    priority manual 5
+    priority manual 159
     exit
-access-rule ipv6 from MGMT to DMZ action deny source address any service any destination address any
-    name "MGMT (in): no access list + no 3"
-    priority manual 1
-    exit
-access-rule ipv4 from MGMT to LAB action deny source address any service any destination address any
+access-rule ipv4 from MGMT to LAB action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "MGMT (in): no access list + no 4"
-    priority manual 1
+    priority manual 160
     exit
-access-rule ipv6 from MGMT to LAB action deny source address any service any destination address any
-    name "MGMT (in): no access list + no 7"
-    priority manual 1
-    exit
-access-rule ipv4 from MGMT to MGMT action allow source address any service any destination address any
+access-rule ipv4 from MGMT to MGMT action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "MGMT (in): no access list (MGMT"
-    priority manual 1
+    priority manual 161
     exit
-access-rule ipv6 from MGMT to MGMT action allow source address any service any destination address any
+access-rule ipv6 from OUTSIDE to OUTSIDE action allow source address any service name "tcp-80" destination address name "h 2001:db8:20::10"
+    name "WAN6-IN-10 (OUTSIDE to OUTSIDE)"
+    exit
+access-rule ipv6 from OUTSIDE to OUTSIDE action allow source address any service name "tcp-443" destination address name "h 2001:db8:20::10"
+    name "WAN6-IN-20 (OUTSIDE to OUTSIDE)"
+    exit
+access-rule ipv6 from OUTSIDE to OUTSIDE action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN-30 (OUTSIDE to OUTSIDE)"
+    no enable
+    exit
+access-rule ipv6 from OUTSIDE to OUTSIDE action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN-40 (OUTSIDE to OUTSIDE)"
+    no enable
+    exit
+access-rule ipv6 from OUTSIDE to OUTSIDE action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN-50 (OUTSIDE to OUTSIDE)"
+    exit
+access-rule ipv6 from OUTSIDE to OUTSIDE action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN implicit deny (OUTSIDE t"
+    exit
+access-rule ipv6 from OUTSIDE to INSIDE action deny source address any service name "tcp-80" destination address name "h 2001:db8:20::10"
+    name "WAN6-IN-10 + no outbound access"
+    exit
+access-rule ipv6 from OUTSIDE to INSIDE action deny source address any service name "tcp-443" destination address name "h 2001:db8:20::10"
+    name "WAN6-IN-20 + no outbound access"
+    exit
+access-rule ipv6 from OUTSIDE to INSIDE action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN-30 + no outbound access"
+    no enable
+    exit
+access-rule ipv6 from OUTSIDE to INSIDE action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN-40 + no outbound access"
+    no enable
+    exit
+access-rule ipv6 from OUTSIDE to INSIDE action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN-50 (OUTSIDE to INSIDE)"
+    exit
+access-rule ipv6 from OUTSIDE to INSIDE action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN implicit deny (OUTSIDE 2"
+    exit
+access-rule ipv6 from OUTSIDE to DMZ action allow source address any service name "tcp-80" destination address name "h 2001:db8:20::10"
+    name "WAN6-IN-10 + no outbound acces 2"
+    exit
+access-rule ipv6 from OUTSIDE to DMZ action allow source address any service name "tcp-443" destination address name "h 2001:db8:20::10"
+    name "WAN6-IN-20 + no outbound acces 2"
+    exit
+access-rule ipv6 from OUTSIDE to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN-30 + no outbound acces 2"
+    no enable
+    exit
+access-rule ipv6 from OUTSIDE to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN-40 + no outbound acces 2"
+    no enable
+    exit
+access-rule ipv6 from OUTSIDE to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN-50 (OUTSIDE to DMZ)"
+    exit
+access-rule ipv6 from OUTSIDE to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN implicit deny (OUTSIDE 3"
+    exit
+access-rule ipv6 from OUTSIDE to LAB action deny source address any service name "tcp-80" destination address name "h 2001:db8:20::10"
+    name "WAN6-IN-10 + no outbound acces 3"
+    exit
+access-rule ipv6 from OUTSIDE to LAB action deny source address any service name "tcp-443" destination address name "h 2001:db8:20::10"
+    name "WAN6-IN-20 + no outbound acces 3"
+    exit
+access-rule ipv6 from OUTSIDE to LAB action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN-30 + no outbound acces 3"
+    no enable
+    exit
+access-rule ipv6 from OUTSIDE to LAB action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN-40 + no outbound acces 3"
+    no enable
+    exit
+access-rule ipv6 from OUTSIDE to LAB action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN-50 (OUTSIDE to LAB)"
+    exit
+access-rule ipv6 from OUTSIDE to LAB action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN implicit deny (OUTSIDE 4"
+    exit
+access-rule ipv6 from OUTSIDE to MGMT action deny source address any service name "tcp-80" destination address name "h 2001:db8:20::10"
+    name "WAN6-IN-10 + no outbound acces 4"
+    exit
+access-rule ipv6 from OUTSIDE to MGMT action deny source address any service name "tcp-443" destination address name "h 2001:db8:20::10"
+    name "WAN6-IN-20 + no outbound acces 4"
+    exit
+access-rule ipv6 from OUTSIDE to MGMT action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN-30 + no outbound acces 4"
+    no enable
+    exit
+access-rule ipv6 from OUTSIDE to MGMT action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN-40 + no outbound acces 4"
+    no enable
+    exit
+access-rule ipv6 from OUTSIDE to MGMT action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN-50 (OUTSIDE to MGMT)"
+    exit
+access-rule ipv6 from OUTSIDE to MGMT action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "WAN6-IN implicit deny (OUTSIDE 5"
+    exit
+access-rule ipv6 from INSIDE to OUTSIDE action allow source address any service name "tcp-80" destination address any
+    name "INSIDE (in): no access list + 18"
+    exit
+access-rule ipv6 from INSIDE to OUTSIDE action allow source address any service name "tcp-443" destination address any
+    name "INSIDE (in): no access list + 19"
+    exit
+access-rule ipv6 from INSIDE to OUTSIDE action allow source address any service group "tcp-53_udp-53" destination address any
+    name "INSIDE (in): no access list + 20"
+    exit
+access-rule ipv6 from INSIDE to OUTSIDE action allow source address any service name "tcp-587" destination address any
+    name "INSIDE (in): no access list + 21"
+    exit
+access-rule ipv6 from INSIDE to OUTSIDE action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "INSIDE (in): no access list + 22"
+    no enable
+    exit
+access-rule ipv6 from INSIDE to OUTSIDE action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "INSIDE (in): no access list + 23"
+    exit
+access-rule ipv6 from INSIDE to INSIDE action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "INSIDE (in): no access list (I 2"
+    exit
+access-rule ipv6 from INSIDE to DMZ action allow source address any service name "tcp-80" destination address group "SERVERS6"
+    name "INSIDE (in): no access list + 13"
+    exit
+access-rule ipv6 from INSIDE to DMZ action allow source address any service name "tcp-443" destination address group "SERVERS6"
+    name "INSIDE (in): no access list + 14"
+    exit
+access-rule ipv6 from INSIDE to DMZ action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "INSIDE (in): no access list + 15"
+    exit
+access-rule ipv6 from INSIDE to LAB action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "INSIDE (in): no access list + 24"
+    exit
+access-rule ipv6 from INSIDE to MGMT action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "INSIDE (in): no access list + 25"
+    exit
+access-rule ipv6 from DMZ to OUTSIDE action allow source address any service group "tcp-53_udp-53" destination address any
+    name "DMZ (in): no access list + no 9"
+    exit
+access-rule ipv6 from DMZ to OUTSIDE action allow source address any service name "tcp-80" destination address any
+    name "DMZ (in): no access list + no 10"
+    exit
+access-rule ipv6 from DMZ to OUTSIDE action allow source address any service name "tcp-443" destination address any
+    name "DMZ (in): no access list + no 11"
+    exit
+access-rule ipv6 from DMZ to OUTSIDE action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "DMZ (in): no access list + no 12"
+    exit
+access-rule ipv6 from DMZ to INSIDE action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "DMZ (in): no access list + no 13"
+    exit
+access-rule ipv6 from DMZ to DMZ action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "DMZ (in): no access list + no 6"
+    exit
+access-rule ipv6 from DMZ to LAB action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "DMZ (in): no access list + no 14"
+    exit
+access-rule ipv6 from DMZ to MGMT action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "DMZ (in): no access list + no 15"
+    exit
+access-rule ipv6 from LAB to OUTSIDE action allow source address any service group "tcp-53_udp-53" destination address any
+    name "LAB (in): no access list + no ou"
+    exit
+access-rule ipv6 from LAB to OUTSIDE action allow source address any service name "tcp-80" destination address any
+    name "LAB (in): no access list + no 2"
+    exit
+access-rule ipv6 from LAB to OUTSIDE action allow source address any service name "tcp-443" destination address any
+    name "LAB (in): no access list + no 3"
+    exit
+access-rule ipv6 from LAB to OUTSIDE action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "LAB (in): no access list + no 4"
+    exit
+access-rule ipv6 from LAB to INSIDE action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "LAB (in): no access list + no 5"
+    exit
+access-rule ipv6 from LAB to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "LAB (in): no access list + no 6"
+    exit
+access-rule ipv6 from LAB to LAB action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "LAB (in): no access list (LAB to"
+    exit
+access-rule ipv6 from LAB to MGMT action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "LAB (in): no access list + no 7"
+    exit
+access-rule ipv6 from MGMT to OUTSIDE action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "MGMT (in): no access list + no 5"
+    exit
+access-rule ipv6 from MGMT to INSIDE action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "MGMT (in): no access list + no 6"
+    exit
+access-rule ipv6 from MGMT to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "MGMT (in): no access list + no 3"
+    exit
+access-rule ipv6 from MGMT to LAB action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "MGMT (in): no access list + no 7"
+    exit
+access-rule ipv6 from MGMT to MGMT action allow source address group "FWSHIFT all IPv6" service any destination address any
     name "MGMT (in): no access list (MGM 2"
-    priority manual 1
     exit
 commit
 exit

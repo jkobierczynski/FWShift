@@ -20,6 +20,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -1148,21 +1149,43 @@ def test_a_question_before_the_prompt_is_answered_once(tmp_path: Path) -> None:
     assert "Access denied" not in out and out.count("ok") == 1
 
 
-def test_the_sonicwall_logs_in_as_management_and_makes_its_zones(tmp_path: Path) -> None:
+def test_the_sonicwall_logs_in_as_management_and_uses_its_own_zones(tmp_path: Path) -> None:
     """The NSv (SonicWall's AWS guide; the first run: `admin` refused, "Only 'management' user is allowed to login"):
     SSH as management with the key, Ctrl+S and a space from the management console to the SonicOS CLI, its own login
-    answered (admin, the instance id); the zones made, trusted, and X0, X2 and X3 put in them before FWShift's commands."""
+    answered (admin, the instance id); X0, X2 and X3 put in SonicOS's own zones LAN, DMZ and WAN (SonicOS 8.2.2 refused
+    the zones the CLI made: the sixth to eighth runs), the policy converted for those names, before FWShift's commands."""
     vendor = tier3.VENDORS["sonicwall"]
     assert vendor.user == "management" and not vendor.password_login and vendor.preamble == "\x13 " and vendor.close_after > 0
-    asks = dict(vendor.answers)
-    assert asks[tier3._ASKS_PASSWORD] == "{password}" and asks[tier3._ASKS_USER] == "admin"
+    assert vendor.preamble_when == tier3._NSV_CORE_PROMPT
+    asked = [question for question, _ in vendor.answers]
+    assert asked.index(tier3._ASKS_OLD_PASSWORD) < asked.index(tier3._ASKS_PASSWORD)  # (the forced change before the logins)
+    assert [a for q, a in vendor.answers if q == tier3._ASKS_PASSWORD] == ["{password}", "{new_password}", "password"]
     assert re.search(tier3._ASKS_USER, "SonicOS CLI\r\nUser: \x1b[0m") and re.search(tier3._ASKS_PASSWORD, "Password:")
     assert not re.search(tier3._ASKS_USER, "User: admin\r\nPassword:")
+    # SonicOS 8 (the fifth run, by hand): "User:" with a line of its boot log after it; "re-enter new password:" is not
+    # the login's "Password:"; the console's "NSv >" is not SonicOS's prompt.
+    assert re.search(tier3._ASKS_USER, "Starting CSE Connector.\r\nUser:delay interval:60, clockrate:1, report interval:15\r\n")
+    assert not re.search(tier3._ASKS_PASSWORD, "Please re-enter new password: ") and re.search(tier3._ASKS_NEW_AGAIN, "Please re-enter new password: ")
+    assert not re.search(vendor.prompt, "NSv >") and re.search(vendor.preamble_when, "Copyright\nNSv >")
+    for prompt in ("admin@0040102111E0E>", "config(0040102111E0E)#", "admin@0040102111E0E> ", "(add-ipv4-address-group[FWSHIFT all IPv4])# ",
+                   "(add-service-group[tcp-web])#", "(edit-DMZ-static[X2])#"):  # fmt: skip
+        assert re.search(vendor.prompt, prompt), prompt
+    password = tier3.nsv_password(tmp_path)
+    assert password == tier3.nsv_password(tmp_path)
+    assert re.fullmatch(r"(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*()])[A-Za-z0-9!@#$%^&*()]{8,}", password)
     done = lab_conversion(tmp_path, "sonicwall", vendor.options)
     lines = vendor.session(done["out"])
-    for zone, port in (("inside", "X0"), ("dmz", "X2"), ("outside", "X3")):
-        assert lines.index(f"zone {zone}") < lines.index(f"interface {port}") < lines.index(f"ip-assignment {zone} static")
-    assert lines.index("commit") < lines.index("configure terminal", 1) and lines[-1] == "exit"
+    assert not any(line.startswith("zone ") for line in lines)
+    # (no command for the pager, which SonicOS 8.2.2 refused, the twelfth run: the lab answers "--MORE--" itself)
+    assert not any(line.startswith(("cli ", "no cli")) for line in lines + vendor.diagnose()) and vendor.pager
+    for zone, port in (("LAN", "X0"), ("DMZ", "X2"), ("WAN", "X3")):
+        assert lines.index(f"interface {port}") + 1 == lines.index(f"ip-assignment {zone} static") < lines.index("commit")
+    assert lines.index("ip 10.20.3.4 netmask 255.255.255.0") == lines.index("ip-assignment WAN static") + 1
+    policy = done["out"].read_text()
+    assert "from LAN to DMZ" in policy and " zone WAN" in policy and "from inside " not in policy
+    for a, b in (("X0", "X3"), ("X2", "X3"), ("X0", "X2"), ("X3", "X2")):  # (the NAT policies SonicOS adds for its WAN interface not used)
+        assert f'name "FWSHIFT no other NAT {a} to {b}"' in policy
+    assert lines[-1] == "exit" and lines.count("commit") >= 2
 
 
 def test_the_askpass_script_gives_the_password(tmp_path: Path) -> None:
@@ -1181,29 +1204,63 @@ def test_the_askpass_script_gives_the_password(tmp_path: Path) -> None:
     assert "BatchMode=yes" not in prefix and "NumberOfPasswordPrompts=1" in prefix
 
 
-_FAKE_NSV = (
-    "import sys, os\n"
-    "sys.stdout.write('\\x1b[2J NSv Management Console '); sys.stdout.flush()\n"
-    "keys = os.read(0, 2)\n"
-    "if keys != b'\\x13 ': sys.stdout.write('not switched'); sys.exit(1)\n"
-    "sys.stdout.write('\\r\\nUser: '); sys.stdout.flush(); user = sys.stdin.readline().strip()\n"
-    "sys.stdout.write('Password: '); sys.stdout.flush(); word = sys.stdin.readline().strip()\n"
-    "sys.stdout.write('admin@NSV> ' if (user, word) == ('admin', 'i-0abc') else 'denied\\n'); sys.stdout.flush()\n"
-    "for line in sys.stdin:\n"
-    "    if line.strip() == 'exit':\n"
-    "        sys.stdout.write('\\r\\n NSv Management Console '); sys.stdout.flush(); continue  # (back to the console: no end)\n"
-    "    sys.stdout.write(line.strip() + '\\r\\nok\\r\\nadmin@NSV> '); sys.stdout.flush()\n"
-)
+# SonicOS 8 on the NSv as the fifth run found it by hand: SSH lands in the window last used; SonicOS's shows its boot log
+# and "User:" with a log line after it; admin with the instance id must change the password (old, new, again; at least 8
+# characters, upper and lower case, a digit and one of !@#$%^&*()); then the prompt admin@SERIAL>. Ctrl+S and a space
+# switch to the SonicCore console, "NSv >", whose `show version` is a syntax error.
+_FAKE_NSV8 = r"""
+import os, re, sys
+window, changed = sys.argv[1], sys.argv[2] == 'changed'
+def out(text):
+    sys.stdout.write(text); sys.stdout.flush()
+def line():
+    data = sys.stdin.readline()
+    if not data:
+        sys.exit(0)
+    return data.rstrip('\n')
+out('SonicCore Console:\r\n')
+if window == 'core':
+    out('\x1b[H\x1b[2JNSv\x1b[C> ')
+    keys = os.read(0, 2)
+    if keys != b'\x13 ':
+        out('Syntax error: Illegal parameter\r\nNSv > '); sys.exit(1)
+out('\x1b[H\x1b[2JStarting CSE Connector.\x1b[22;1HUser:delay interval:60, clockrate:1, report interval:15\x1b[23;1H')
+for attempt in range(3):
+    user = line(); out('\r\nPassword: '); word = line()
+    if user == 'admin' and word == ('Fwabcd#7x' if changed else 'i-0abc'):
+        break
+    out('\r\nAccess denied\r\nUser:')
+else:
+    sys.exit(1)
+if not changed:
+    out('\r\nYour password is too simple and must be changed\r\nPlease enter old password (or hit Enter to cancel): ')
+    old = line(); out('\r\nPlease enter a new password (or hit Enter to cancel): ')
+    new = line(); out('\r\nPlease re-enter new password: '); again = line()
+    if old != 'i-0abc' or new != again or not re.fullmatch(r'(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*()])[A-Za-z0-9!@#$%^&*()]{8,}', new):
+        out('\r\nThe old password is incorrect.\r\n'); sys.exit(1)
+out('\r\nadmin@0040102111E0E> ')
+while True:
+    command = line()
+    if command == 'exit':
+        out('\x1b[H\x1b[2JNSv\x1b[C> '); continue  # (back to the console: no end)
+    out(command + '\r\nfirmware-version "SonicOSX 8.2.2-8015-R9870"\r\nadmin@0040102111E0E> ')
+"""
 
 
-def test_the_nsv_console_is_switched_to_the_cli_and_the_session_closed(tmp_path: Path) -> None:
-    """Ctrl+S and a space once the console is drawn, the CLI's login answered, the lines typed after its prompt; the
-    console that comes back after `exit` does not end the session, so the lab closes it."""
+@pytest.mark.parametrize("window,changed", [("sonicos", "new"), ("core", "changed"), ("sonicos", "changed")])
+def test_the_nsv_logs_in_to_sonicos_whatever_window_it_lands_in(tmp_path: Path, window: str, changed: str) -> None:
+    """The fifth NSv run: the lab switched windows on every try, from SonicOS to the console, and typed show version
+    there. Now the keys go only where the console's prompt shows; SonicOS's login is answered with a log line after
+    "User:", the forced change of a first login with the instance id is answered (the old password the one the login
+    took), and a later session logs in with the run's new password."""
     runner = labrun.Runner(tmp_path, echo=False)
     vendor = tier3.VENDORS["sonicwall"]
-    out = runner.run_paced([sys.executable, "-u", "-c", _FAKE_NSV], ["show version", "exit"], vendor.prompt, step=20,
-                           answers=((tier3._ASKS_USER, "admin"), (tier3._ASKS_PASSWORD, "i-0abc")), preamble=vendor.preamble, close_after=2)
-    assert "denied" not in out and "not switched" not in out and out.count("ok") == 1
+    answers = tuple((q, a.replace("{password}", "i-0abc").replace("{new_password}", "Fwabcd#7x")) for q, a in vendor.answers)
+    out = runner.run_paced([sys.executable, "-u", "-c", _FAKE_NSV8, window, changed], ["show version", "exit"], vendor.prompt, step=20,
+                           answers=answers, preamble=vendor.preamble, preamble_when=vendor.preamble_when, close_after=2, noise=vendor.screen_noise)
+    plain = labrun.screen_text(out, vendor.screen_noise)
+    assert re.search(vendor.ready_answer, plain) and "Syntax error" not in plain and "incorrect" not in plain, plain[-800:]
+
 
 def test_the_image_is_the_newest_of_a_subscribed_product(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """vSRX bundles, VM-Series BYOL and bundles, third-party OPNsense images: one name, several products. Of the images
@@ -1375,10 +1432,59 @@ def test_the_nsv_screen_is_read_as_plain_text_without_its_status_bar() -> None:
     vendor = tier3.VENDORS["sonicwall"]
     plain = labrun.screen_text(_NSV_SCREEN, vendor.screen_noise).rstrip()
     assert plain.endswith("NSv >") and "Firmware Version" in plain and "\x1b" not in plain
-    assert re.search(vendor.prompt, plain) and not re.search(vendor.prompt, _NSV_SCREEN)
+    # (the fifth run: "NSv >" is the SonicCore console's prompt, where the lab's keys had switched to, not SonicOS's)
+    assert re.search(vendor.preamble_when, plain) and not re.search(vendor.prompt, plain)
     assert not re.search(vendor.ready_answer, plain)
     assert not re.search(tier3._ASKS_USER, plain)  # ("User:delay" is the console's log, not a question)
     assert re.search(vendor.ready_answer, 'NSv > show version\r\nfirmware-version "SonicOSX 8.2.2-8015-R9870"\r\nNSv >')
+    # (the ninth run: a line longer than the terminal redrawn with insertions of characters, `ESC [20@`)
+    redrawn = labrun.screen_text("config(004010211E14)# address-object\x1b[20@ ipv4\x1b[23;1H\nconfig(004010211E14)#")
+    assert "\x1b" not in redrawn and "[20@" not in redrawn and re.search(vendor.prompt, redrawn)
+
+
+def test_a_paced_session_pages_through_a_long_answer(tmp_path: Path) -> None:
+    """The eleventh NSv run: the commit's error was below SonicOS's "--MORE--", which waits for a key. Each time it
+    comes, a space; then the prompt, and the next line."""
+    cli = ("import sys, os\n"
+           "sys.stdout.write('config(X)# '); sys.stdout.flush()\n"
+           "line = sys.stdin.readline()\n"
+           "sys.stdout.write('% Error encountered processing command:\\r\\n    access-rule\\r\\n--MORE--'); sys.stdout.flush()\n"
+           "assert os.read(0, 1) == b' '\n"
+           "sys.stdout.write('\\r\\n        name guest\\r\\n--MORE--'); sys.stdout.flush()\n"
+           "assert os.read(0, 1) == b' '\n"
+           "sys.stdout.write('\\r\\n% Error: the reason.\\r\\nconfig(X)# '); sys.stdout.flush()\n"
+           "line = sys.stdin.readline()\n")
+    runner = labrun.Runner(tmp_path, echo=False)
+    vendor = tier3.VENDORS["sonicwall"]
+    out = runner.run_paced([sys.executable, "-u", "-c", cli], ["commit", "exit"], r"# $", step=10, pager=vendor.pager)
+    assert "% Error: the reason." in out and out.count("--MORE--") == 2
+
+
+def test_a_paced_session_takes_a_quiet_screen_for_a_prompt_it_cannot_see(tmp_path: Path) -> None:
+    """The sixteenth NSv run: after a long line SonicOS scrolled its screen 20 columns to the left, and a prompt shorter
+    than that showed not at all. Quiet for `idle` seconds after a line, the session goes on; not after a commit, which
+    may be quiet for longer (six times as long)."""
+    cli = ("import sys, time\n"
+           "sys.stdout.write('config(X)# '); sys.stdout.flush()\n"
+           "for line in sys.stdin:\n"
+           "    if line.strip() == 'exit': break\n"
+           "    if line.strip() == 'commit':\n"
+           "        time.sleep(1.5); sys.stdout.write('\\r\\n% Changes made.')\n"
+           "    sys.stdout.write('\\r\\n\\x1b[20P'); sys.stdout.flush()\n")
+    runner = labrun.Runner(tmp_path, echo=False)
+    vendor = tier3.VENDORS["sonicwall"]
+    started = time.time()
+    out = runner.run_paced([sys.executable, "-u", "-c", cli], ["address-object x", "commit", "exit"], vendor.prompt, step=20, idle=0.5,
+                           slow=vendor.slow, close_after=2)  # fmt: skip
+    assert "% Changes made." in out and time.time() - started < 15
+    assert vendor.idle > 0 and re.search(vendor.slow, "commit") and not re.search(vendor.slow, "commit-ish")
+    # (and what SonicOS says when it refuses a line, not its status lines: the sixteenth run's "refused" was "% User logout.")
+    for status in ("% User logout.", "% Applying changes...", "% Changes made.", "% Error encountered processing command:"):
+        assert not re.search(vendor.errors, status), status
+    for refusal in ("% Error: Policy Action: Rule overlap, rule not added.", "% Error encountered at '^' marker:"):
+        assert re.search(vendor.errors, refusal), refusal
+    # (a prompt that shows only its end, scrolled: "config(004010211E1B)# " 20 columns to the left)
+    assert re.search(vendor.prompt, "0 zone LAN\n# ") and re.search(vendor.prompt, "x\nIPv4])# ")
 
 
 def test_a_paced_session_finds_the_prompt_behind_a_redrawn_status_bar(tmp_path: Path) -> None:
@@ -1392,6 +1498,6 @@ def test_a_paced_session_finds_the_prompt_behind_a_redrawn_status_bar(tmp_path: 
            "    sys.stdout.write('\\r\\nfirmware-version \"SonicOSX 8.2.2\"\\r\\nNSv\\x1b[C>' + bar); sys.stdout.flush()\n")
     runner = labrun.Runner(tmp_path, echo=False)
     vendor = tier3.VENDORS["sonicwall"]
-    out = runner.run_paced([sys.executable, "-u", "-c", cli], ["show version", "exit"], vendor.prompt, step=10, preamble=vendor.preamble,
+    out = runner.run_paced([sys.executable, "-u", "-c", cli], ["show version", "exit"], r"[>#] ?$", step=10, preamble=vendor.preamble,
                            close_after=2, noise=vendor.screen_noise)
     assert re.search(vendor.ready_answer, labrun.screen_text(out, vendor.screen_noise))

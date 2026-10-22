@@ -116,8 +116,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.40.0.pyz --version
-python3 fwshift-0.40.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.40.16.pyz --version
+python3 fwshift-0.40.16.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -1959,6 +1959,9 @@ Notes that only a SonicWall source or target raises:
 | `NO_RULES` | R | Source: the export holds no access rule and no NAT policy. |
 | `SONICWALL_LOAD` | R | Target: how to load the commands (section 10), and which parts of them are not in the documentation FWShift was written from. |
 | `DEFAULT_DENY_ADDED` | I | Target: a rule that denies was added at the end of each pair of zones and IP version, because SonicOS allows some pairs by itself and the source did not. |
+| `NAT_NOTHING_ELSE` | R | Target: the source has NAT rules. SonicOS adds NAT policies of its own: an interface in a WAN zone hides the LAN and DMZ subnets behind its address, one policy per pair of interfaces. The source translated only what its rules say, so a NAT policy that translates nothing (`FWSHIFT no other NAT X2 to X3` and so on) is written after the source's NAT policies, one for each pair of interfaces of the zones. SonicOS orders NAT policies by how much they name (`priority auto`), and its own came above them, so every NAT policy FWShift writes has its place (`priority manual 1`, `2` ... in the order written), above SonicOS's own. A closing policy is for two different interfaces, never for traffic that leaves by the interface it came in by, where SonicOS's own policies are for its management. It is never written for any interface: that policy is SonicOS's own last one, and it is read-only. Without `--interface-map` none is written. Check the order in Network, NAT Policies (Default & Custom). |
+| `CATCH_ALL_AS_GROUP` | I | Target: SonicOS identifies an access rule by what it matches. A rule that matches everything (source, destination and service `any`) would be the default rule of its pair of zones: SonicOS changes that default rule when the action is the same, and refuses the new rule when it differs ("Rule overlap, rule not added"). Such rules name their source as the group `FWSHIFT all IPv4` (or `IPv6`), all addresses in two halves, instead of `any`; the closing denies of `DEFAULT_DENY_ADDED` are among them. |
+| `IPV6_PRIORITY_AUTO` | I or R | Target: IPv6 access rules are written after every IPv4 rule and without a priority, so SonicOS places them. SonicOS keeps one list of priorities for the rules of every pair of zones: IPv4 rules first, including some 80 rules of its own on SonicOS 8.2.2, whose number is not known beforehand. It refused the priorities FWShift gave. R where a pair of zones has more than one IPv6 rule, since SonicOS then decides their order: check it. |
 | `ZONE_NAME_INVALID` | R | Target: zones of the source that no rule names, whose names cannot be SonicOS zone names, were left out: no closing deny is written for them. Rename them with `--zone-map`. |
 | `ICMP_AS_DEFAULT` | I | Target (on the service): ICMP echo request is written as the default service `Ping` of SonicOS. |
 | `ZONES_REQUIRED`, `EXISTING_OBJECTS`, `IP_VERSION_SPLIT`, `GROUP_SPLIT`, `SERVICE_SPLIT`, `NEGATION_EXPANDED`, `NEGATION_NOT_STATIC`, `NAT_INTERFACE`, `NAT_OUTBOUND_INTERFACE`, `NAT_ZONES`, `NAT_DESTINATION_ZONE`, `NAT_DYNAMIC_IP`, `NAT_BIDIRECTIONAL` | | As for Sophos Firewall and ASA: a SonicOS address group and rule are of one IP version, a service object of one protocol and range, and a NAT policy matches one inbound and one outbound interface. |
@@ -4144,9 +4147,12 @@ Forcepoint's documentation and from the clients Forcepoint publishes for the API
 * **Commands** of the SonicOS 7 command line, which enter the configuration
   mode, create objects, NAT policies and access rules, and end with
   `commit`.
-* **Rules.** One per pair of zones and IP version, each with its place in the
-  pair (`priority manual N`): without it SonicOS would order the rules by
-  itself, most specific first. A list of addresses or services becomes a
+* **Rules.** One per pair of zones and IP version. Each IPv4 rule has its
+  place (`priority manual N`): without it SonicOS would order the rules by
+  itself, most specific first. The place is in one list of the rules of
+  every pair, so the rules are numbered 1, 2, 3 and so on in the order
+  written, above SonicOS's own rules. IPv6 rules come after every IPv4 rule,
+  placed by SonicOS (`IPV6_PRIORITY_AUTO`). A list of addresses or services becomes a
   group (`src <rule>`, `dst <rule>`, `svc <rule>`); a negated list, the
   addresses that are left (`NEGATION_EXPANDED`). A rule with zone "any"
   becomes a rule for every pair of zones of the policy. Every pair ends in a

@@ -22,6 +22,10 @@ address-object ipv4 "h 192.168.10.25" host 192.168.10.25 zone External
 address-object ipv6 "h 2001:db8:10::25" host 2001:db8:10::25 zone External
 address-object ipv4 "r 0.0.0.0-192.168.9.255" range 0.0.0.0 192.168.9.255 zone External
 address-object ipv4 "r 192.168.11.0-255.255.255.255" range 192.168.11.0 255.255.255.255 zone External
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone External
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone External
+address-object ipv6 "n ::_1" network :: /1 zone External
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone External
 address-object ipv4 "h 203.0.113.1" host 203.0.113.1 zone External
 address-object ipv4 "h 203.0.113.25" host 203.0.113.25 zone External
 address-group ipv4 "web-01"
@@ -74,6 +78,14 @@ address-group ipv4 "dst not to dmz"
     address-object ipv4 "r 0.0.0.0-192.168.9.255"
     address-object ipv4 "r 192.168.11.0-255.255.255.255"
     exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
+    exit
 service-object "SG Control" TCP 3020 3021
 service-object "DNS (UDP)" UDP 53 53
 service-object "DNS (TCP)" TCP 53 53
@@ -102,21 +114,25 @@ service-group "svc allow web"
     service-object "HTTPS 2"
     service-group "web-services"
     exit
-nat-policy inbound any outbound any source any translated-source original destination name "pub-web" translated-destination name "h 192.168.10.10" service name "HTTPS 2" translated-service name "tcp 8443"
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "pub-web" translated-destination name "h 192.168.10.10" service name "HTTPS 2" translated-service name "tcp 8443"
     name "publish web"
     comment "publish web"
+    priority manual 1
     exit
-nat-policy inbound any outbound any source name "net-lan (in rules)" translated-source original destination name "net-dmz" translated-destination original service any translated-service original
+nat-policy ipv4 inbound any outbound any source name "net-lan (in rules)" translated-source original destination name "net-dmz" translated-destination original service any translated-service original
     name "no nat inside"
     comment "no nat inside"
+    priority manual 2
     exit
-nat-policy inbound any outbound any source name "net-lan (in rules)" translated-source name "h 203.0.113.1" destination any translated-destination original service any translated-service original
+nat-policy ipv4 inbound any outbound any source name "net-lan (in rules)" translated-source name "h 203.0.113.1" destination any translated-destination original service any translated-service original
     name "lan out"
     comment "lan out"
+    priority manual 3
     exit
-nat-policy inbound any outbound any source group "mail-01 IPv4" translated-source name "h 203.0.113.25" destination any translated-destination original service any translated-service original
+nat-policy ipv4 inbound any outbound any source group "mail-01 IPv4" translated-source name "h 203.0.113.25" destination any translated-destination original service any translated-service original
     name "mail static"
     comment "mail static"
+    priority manual 4
     exit
 access-rule ipv4 from External to External action allow source address name "x$$ Management Servers" service name "SG Control" destination address name "x$$ Local Cluster"
     name "Rule @900.0"
@@ -125,526 +141,502 @@ access-rule ipv4 from External to External action allow source address name "x$$
     exit
 access-rule ipv4 from External to Internal action allow source address name "x$$ Management Servers" service name "SG Control" destination address name "x$$ Local Cluster"
     name "Rule @900.0 2"
-    priority manual 1
+    priority manual 2
     no enable
     exit
 access-rule ipv4 from Internal to External action allow source address name "x$$ Management Servers" service name "SG Control" destination address name "x$$ Local Cluster"
     name "Rule @900.0 3"
-    priority manual 1
+    priority manual 3
     no enable
     exit
 access-rule ipv4 from Internal to Internal action allow source address name "x$$ Management Servers" service name "SG Control" destination address name "x$$ Local Cluster"
     name "Rule @900.0 4"
-    priority manual 1
+    priority manual 4
     no enable
     exit
 access-rule ipv4 from External to External action allow source address any service group "DNS" destination address name "dns-01"
     name "dns to resolver"
-    priority manual 2
+    priority manual 5
     exit
 access-rule ipv4 from External to Internal action allow source address any service group "DNS" destination address name "dns-01"
     name "dns to resolver 2"
-    priority manual 2
+    priority manual 6
     exit
 access-rule ipv4 from Internal to External action allow source address any service group "DNS" destination address name "dns-01"
     name "dns to resolver 3"
-    priority manual 2
+    priority manual 7
     exit
 access-rule ipv4 from Internal to Internal action allow source address any service group "DNS" destination address name "dns-01"
     name "dns to resolver 4"
-    priority manual 2
+    priority manual 8
     exit
 access-rule ipv4 from External to External action allow source address any service group "svc allow web" destination address group "grp-web"
     name "allow web"
-    priority manual 3
+    priority manual 9
     exit
 access-rule ipv4 from External to Internal action allow source address any service group "svc allow web" destination address group "grp-web"
     name "allow web 2"
-    priority manual 3
+    priority manual 10
     exit
 access-rule ipv4 from Internal to External action allow source address any service group "svc allow web" destination address group "grp-web"
     name "allow web 3"
-    priority manual 3
+    priority manual 11
     exit
 access-rule ipv4 from Internal to Internal action allow source address any service group "svc allow web" destination address group "grp-web"
     name "allow web 4"
-    priority manual 3
+    priority manual 12
     exit
 access-rule ipv4 from External to External action allow source address name "admins" service name "SSH 2" destination address name "net-dmz"
     name "to admin sub-policy / admins in"
-    priority manual 4
+    priority manual 13
     exit
 access-rule ipv4 from External to Internal action allow source address name "admins" service name "SSH 2" destination address name "net-dmz"
     name "to admin sub-policy / admins i 2"
-    priority manual 4
+    priority manual 14
     exit
 access-rule ipv4 from Internal to External action allow source address name "admins" service name "SSH 2" destination address name "net-dmz"
     name "to admin sub-policy / admins i 3"
-    priority manual 4
+    priority manual 15
     exit
 access-rule ipv4 from Internal to Internal action allow source address name "admins" service name "SSH 2" destination address name "net-dmz"
     name "to admin sub-policy / admins i 4"
-    priority manual 4
+    priority manual 16
     exit
 access-rule ipv4 from External to External action discard source address name "net-lan (in rules)" service name "SSH 2" destination address name "net-dmz"
     name "to admin sub-policy / others out"
-    priority manual 5
+    priority manual 17
     exit
 access-rule ipv4 from External to Internal action discard source address name "net-lan (in rules)" service name "SSH 2" destination address name "net-dmz"
     name "to admin sub-policy / others o 2"
-    priority manual 5
+    priority manual 18
     exit
 access-rule ipv4 from Internal to External action discard source address name "net-lan (in rules)" service name "SSH 2" destination address name "net-dmz"
     name "to admin sub-policy / others o 3"
-    priority manual 5
+    priority manual 19
     exit
 access-rule ipv4 from Internal to Internal action discard source address name "net-lan (in rules)" service name "SSH 2" destination address name "net-dmz"
     name "to admin sub-policy / others o 4"
-    priority manual 5
+    priority manual 20
     exit
 access-rule ipv4 from External to External action deny source address name "admins" service name "tcp-8443" destination address name "pub-web"
     name "refuse admins 8443"
-    priority manual 6
+    priority manual 21
     exit
 access-rule ipv4 from External to Internal action deny source address name "admins" service name "tcp-8443" destination address name "pub-web"
     name "refuse admins 8443 2"
-    priority manual 6
+    priority manual 22
     exit
 access-rule ipv4 from Internal to External action deny source address name "admins" service name "tcp-8443" destination address name "pub-web"
     name "refuse admins 8443 3"
-    priority manual 6
+    priority manual 23
     exit
 access-rule ipv4 from Internal to Internal action deny source address name "admins" service name "tcp-8443" destination address name "pub-web"
     name "refuse admins 8443 4"
-    priority manual 6
+    priority manual 24
     exit
 access-rule ipv4 from External to External action discard source address name "net-lan (in rules)" service any destination address any
     name "old block"
-    priority manual 7
+    priority manual 25
     no enable
     exit
 access-rule ipv4 from External to Internal action discard source address name "net-lan (in rules)" service any destination address any
     name "old block 2"
-    priority manual 7
+    priority manual 26
     no enable
     exit
 access-rule ipv4 from Internal to External action discard source address name "net-lan (in rules)" service any destination address any
     name "old block 3"
-    priority manual 7
+    priority manual 27
     no enable
     exit
 access-rule ipv4 from Internal to Internal action discard source address name "net-lan (in rules)" service any destination address any
     name "old block 4"
-    priority manual 7
+    priority manual 28
     no enable
     exit
 access-rule ipv4 from Internal to External action allow source address name "net-lan (in rules)" service group "web-services" destination address any
     name "internal zone out"
-    priority manual 8
+    priority manual 29
     exit
 access-rule ipv4 from Internal to Internal action allow source address name "net-lan (in rules)" service group "web-services" destination address any
     name "internal zone out 2"
-    priority manual 8
+    priority manual 30
     exit
 access-rule ipv4 from External to External action allow source address name "net-lan (in rules)" service name "HTTPS 2" destination address group "dst not to dmz"
     name "not to dmz"
-    priority manual 8
+    priority manual 31
     exit
 access-rule ipv4 from External to Internal action allow source address name "net-lan (in rules)" service name "HTTPS 2" destination address group "dst not to dmz"
     name "not to dmz 2"
-    priority manual 8
+    priority manual 32
     exit
 access-rule ipv4 from Internal to External action allow source address name "net-lan (in rules)" service name "HTTPS 2" destination address group "dst not to dmz"
     name "not to dmz 3"
-    priority manual 9
+    priority manual 33
     exit
 access-rule ipv4 from Internal to Internal action allow source address name "net-lan (in rules)" service name "HTTPS 2" destination address group "dst not to dmz"
     name "not to dmz 4"
-    priority manual 9
+    priority manual 34
     exit
 access-rule ipv4 from External to External action allow source address name "net-lan (in rules)" service name "HTTPS 2" destination address group "updates.example.com (names)"
     name "updates by name"
-    priority manual 9
+    priority manual 35
     exit
 access-rule ipv4 from External to Internal action allow source address name "net-lan (in rules)" service name "HTTPS 2" destination address group "updates.example.com (names)"
     name "updates by name 2"
-    priority manual 9
+    priority manual 36
     exit
 access-rule ipv4 from Internal to External action allow source address name "net-lan (in rules)" service name "HTTPS 2" destination address group "updates.example.com (names)"
     name "updates by name 3"
-    priority manual 10
+    priority manual 37
     exit
 access-rule ipv4 from Internal to Internal action allow source address name "net-lan (in rules)" service name "HTTPS 2" destination address group "updates.example.com (names)"
     name "updates by name 4"
-    priority manual 10
+    priority manual 38
     exit
 access-rule ipv4 from Internal to External action allow source address any service name "HTTP 2" destination address any
     name "zone or web host out"
-    priority manual 11
+    priority manual 39
     exit
 access-rule ipv4 from External to External action allow source address group "web-01" service name "HTTP 2" destination address any
     name "zone or web host out (2)"
-    priority manual 10
+    priority manual 40
     exit
 access-rule ipv4 from Internal to External action allow source address group "web-01" service name "HTTP 2" destination address any
     name "zone or web host out (2) 2"
-    priority manual 12
+    priority manual 41
     exit
 access-rule ipv4 from External to External action allow source address name "net-lan (in rules)" service any destination address name "net-dmz"
     name "vpn only"
-    priority manual 11
+    priority manual 42
     no enable
     exit
 access-rule ipv4 from External to Internal action allow source address name "net-lan (in rules)" service any destination address name "net-dmz"
     name "vpn only 2"
-    priority manual 10
+    priority manual 43
     no enable
     exit
 access-rule ipv4 from Internal to External action allow source address name "net-lan (in rules)" service any destination address name "net-dmz"
     name "vpn only 3"
-    priority manual 13
+    priority manual 44
     no enable
     exit
 access-rule ipv4 from Internal to Internal action allow source address name "net-lan (in rules)" service any destination address name "net-dmz"
     name "vpn only 4"
-    priority manual 11
+    priority manual 45
     no enable
     exit
 access-rule ipv4 from External to External action allow source address group "grp-inside" service name "Ping" destination address any
     name "ping out"
-    priority manual 12
+    priority manual 46
     exit
 access-rule ipv4 from External to Internal action allow source address group "grp-inside" service name "Ping" destination address any
     name "ping out 2"
-    priority manual 11
+    priority manual 47
     exit
 access-rule ipv4 from Internal to External action allow source address group "grp-inside" service name "Ping" destination address any
     name "ping out 3"
-    priority manual 14
+    priority manual 48
     exit
 access-rule ipv4 from Internal to Internal action allow source address group "grp-inside" service name "Ping" destination address any
     name "ping out 4"
-    priority manual 12
+    priority manual 49
     exit
 access-rule ipv4 from External to External action discard source address name "net-lan (in rules)" service any destination address any
     name "no social"
-    priority manual 13
+    priority manual 50
     no enable
     exit
 access-rule ipv4 from External to Internal action discard source address name "net-lan (in rules)" service any destination address any
     name "no social 2"
-    priority manual 12
+    priority manual 51
     no enable
     exit
 access-rule ipv4 from Internal to External action discard source address name "net-lan (in rules)" service any destination address any
     name "no social 3"
-    priority manual 15
+    priority manual 52
     no enable
     exit
 access-rule ipv4 from Internal to Internal action discard source address name "net-lan (in rules)" service any destination address any
     name "no social 4"
-    priority manual 13
+    priority manual 53
     no enable
     exit
 access-rule ipv4 from External to External action allow source address any service name "SSH 2" destination address name "net-dmz"
     name "helpdesk to dmz"
-    priority manual 14
+    priority manual 54
     no enable
     exit
 access-rule ipv4 from External to Internal action allow source address any service name "SSH 2" destination address name "net-dmz"
     name "helpdesk to dmz 2"
-    priority manual 13
+    priority manual 55
     no enable
     exit
 access-rule ipv4 from Internal to External action allow source address any service name "SSH 2" destination address name "net-dmz"
     name "helpdesk to dmz 3"
-    priority manual 16
+    priority manual 56
     no enable
     exit
 access-rule ipv4 from Internal to Internal action allow source address any service name "SSH 2" destination address name "net-dmz"
     name "helpdesk to dmz 4"
-    priority manual 14
+    priority manual 57
     no enable
     exit
 access-rule ipv4 from External to External action allow source address name "net-lan (in rules)" service name "SSH 2" destination address any
     name "unfinished"
-    priority manual 15
+    priority manual 58
     no enable
     exit
 access-rule ipv4 from External to Internal action allow source address name "net-lan (in rules)" service name "SSH 2" destination address any
     name "unfinished 2"
-    priority manual 14
+    priority manual 59
     no enable
     exit
 access-rule ipv4 from Internal to External action allow source address name "net-lan (in rules)" service name "SSH 2" destination address any
     name "unfinished 3"
-    priority manual 17
+    priority manual 60
     no enable
     exit
 access-rule ipv4 from Internal to Internal action allow source address name "net-lan (in rules)" service name "SSH 2" destination address any
     name "unfinished 4"
-    priority manual 15
+    priority manual 61
     no enable
     exit
 access-rule ipv4 from External to External action allow source address name "net-lan (in rules)" service name "HTTP 2" destination address any
     name "office web"
-    priority manual 16
+    priority manual 62
     no enable
     exit
 access-rule ipv4 from External to Internal action allow source address name "net-lan (in rules)" service name "HTTP 2" destination address any
     name "office web 2"
-    priority manual 15
+    priority manual 63
     no enable
     exit
 access-rule ipv4 from Internal to External action allow source address name "net-lan (in rules)" service name "HTTP 2" destination address any
     name "office web 3"
-    priority manual 18
+    priority manual 64
     no enable
     exit
 access-rule ipv4 from Internal to Internal action allow source address name "net-lan (in rules)" service name "HTTP 2" destination address any
     name "office web 4"
-    priority manual 16
+    priority manual 65
     no enable
     exit
 access-rule ipv4 from External to External action allow source address group "net-guest" service name "HTTPS 2" destination address any
     name "limited guests"
-    priority manual 17
+    priority manual 66
     exit
 access-rule ipv4 from External to Internal action allow source address group "net-guest" service name "HTTPS 2" destination address any
     name "limited guests 2"
-    priority manual 16
+    priority manual 67
     exit
 access-rule ipv4 from Internal to External action allow source address group "net-guest" service name "HTTPS 2" destination address any
     name "limited guests 3"
-    priority manual 19
+    priority manual 68
     exit
 access-rule ipv4 from Internal to Internal action allow source address group "net-guest" service name "HTTPS 2" destination address any
     name "limited guests 4"
-    priority manual 17
+    priority manual 69
     exit
-access-rule ipv4 from External to External action discard source address any service any destination address any
+access-rule ipv4 from External to External action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "block list"
-    priority manual 18
+    priority manual 70
     no enable
     exit
-access-rule ipv4 from External to Internal action discard source address any service any destination address any
+access-rule ipv4 from External to Internal action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "block list 2"
-    priority manual 17
+    priority manual 71
     no enable
     exit
-access-rule ipv4 from Internal to External action discard source address any service any destination address any
+access-rule ipv4 from Internal to External action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "block list 3"
-    priority manual 20
+    priority manual 72
     no enable
     exit
-access-rule ipv4 from Internal to Internal action discard source address any service any destination address any
+access-rule ipv4 from Internal to Internal action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "block list 4"
-    priority manual 18
+    priority manual 73
     no enable
     exit
 access-rule ipv4 from External to External action allow source address name "net-lan (in rules)" service any destination address name "isp-gw"
     name "gre to isp"
-    priority manual 19
+    priority manual 74
     no enable
     exit
 access-rule ipv4 from External to Internal action allow source address name "net-lan (in rules)" service any destination address name "isp-gw"
     name "gre to isp 2"
-    priority manual 18
+    priority manual 75
     no enable
     exit
 access-rule ipv4 from Internal to External action allow source address name "net-lan (in rules)" service any destination address name "isp-gw"
     name "gre to isp 3"
-    priority manual 21
+    priority manual 76
     no enable
     exit
 access-rule ipv4 from Internal to Internal action allow source address name "net-lan (in rules)" service any destination address name "isp-gw"
     name "gre to isp 4"
-    priority manual 19
+    priority manual 77
     no enable
     exit
 access-rule ipv4 from External to External action allow source address group "lan without admins" service name "Ping" destination address group "mail-01"
     name "lan but admins"
-    priority manual 20
+    priority manual 78
     no enable
     exit
 access-rule ipv4 from External to Internal action allow source address group "lan without admins" service name "Ping" destination address group "mail-01"
     name "lan but admins 2"
-    priority manual 19
+    priority manual 79
     no enable
     exit
 access-rule ipv4 from Internal to External action allow source address group "lan without admins" service name "Ping" destination address group "mail-01"
     name "lan but admins 3"
-    priority manual 22
+    priority manual 80
     no enable
     exit
 access-rule ipv4 from Internal to Internal action allow source address group "lan without admins" service name "Ping" destination address group "mail-01"
     name "lan but admins 4"
-    priority manual 20
+    priority manual 81
     no enable
     exit
 access-rule ipv4 from External to External action discard source address group "net-guest" service any destination address name "net-lan (in rules)"
     name "Rule @1021.0"
-    priority manual 21
+    priority manual 82
     exit
 access-rule ipv4 from External to Internal action discard source address group "net-guest" service any destination address name "net-lan (in rules)"
     name "Rule @1021.0 2"
-    priority manual 20
+    priority manual 83
     exit
 access-rule ipv4 from Internal to External action discard source address group "net-guest" service any destination address name "net-lan (in rules)"
     name "Rule @1021.0 3"
-    priority manual 23
+    priority manual 84
     exit
 access-rule ipv4 from Internal to Internal action discard source address group "net-guest" service any destination address name "net-lan (in rules)"
     name "Rule @1021.0 4"
-    priority manual 21
+    priority manual 85
     exit
 access-rule ipv4 from External to External action discard source address any service group "NetBIOS" destination address any
     name "drop netbios"
-    priority manual 22
+    priority manual 86
     exit
 access-rule ipv4 from External to Internal action discard source address any service group "NetBIOS" destination address any
     name "drop netbios 2"
-    priority manual 21
+    priority manual 87
     exit
 access-rule ipv4 from Internal to External action discard source address any service group "NetBIOS" destination address any
     name "drop netbios 3"
-    priority manual 24
+    priority manual 88
     exit
 access-rule ipv4 from Internal to Internal action discard source address any service group "NetBIOS" destination address any
     name "drop netbios 4"
-    priority manual 22
+    priority manual 89
     exit
 access-rule ipv4 from External to External action deny source address any service name "Ident" destination address any
     name "Rule @902.0"
-    priority manual 23
+    priority manual 90
     exit
 access-rule ipv4 from External to Internal action deny source address any service name "Ident" destination address any
     name "Rule @902.0 2"
-    priority manual 22
+    priority manual 91
     exit
 access-rule ipv4 from Internal to External action deny source address any service name "Ident" destination address any
     name "Rule @902.0 3"
-    priority manual 25
+    priority manual 92
     exit
 access-rule ipv4 from Internal to Internal action deny source address any service name "Ident" destination address any
     name "Rule @902.0 4"
-    priority manual 23
+    priority manual 93
     exit
-access-rule ipv4 from External to External action discard source address any service any destination address any
+access-rule ipv4 from External to External action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "Rule @903.0"
-    priority manual 24
+    priority manual 94
     exit
-access-rule ipv4 from External to Internal action discard source address any service any destination address any
+access-rule ipv4 from External to Internal action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "Rule @903.0 2"
-    priority manual 23
+    priority manual 95
     exit
-access-rule ipv4 from Internal to External action discard source address any service any destination address any
+access-rule ipv4 from Internal to External action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "Rule @903.0 3"
-    priority manual 26
+    priority manual 96
     exit
-access-rule ipv4 from Internal to Internal action discard source address any service any destination address any
+access-rule ipv4 from Internal to Internal action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "Rule @903.0 4"
-    priority manual 24
+    priority manual 97
     exit
 access-rule ipv6 from External to External action allow source address name "net-lan-v6" service name "HTTPS 2" destination address name "web-01-v6"
     name "v6 web"
-    priority manual 1
     exit
 access-rule ipv6 from External to Internal action allow source address name "net-lan-v6" service name "HTTPS 2" destination address name "web-01-v6"
     name "v6 web 2"
-    priority manual 1
     exit
 access-rule ipv6 from Internal to External action allow source address name "net-lan-v6" service name "HTTPS 2" destination address name "web-01-v6"
     name "v6 web 3"
-    priority manual 1
     exit
 access-rule ipv6 from Internal to Internal action allow source address name "net-lan-v6" service name "HTTPS 2" destination address name "web-01-v6"
     name "v6 web 4"
-    priority manual 1
     exit
 access-rule ipv6 from External to External action allow source address name "net-lan-v6" service any destination address any
     name "v6 ping"
-    priority manual 2
     no enable
     exit
 access-rule ipv6 from External to Internal action allow source address name "net-lan-v6" service any destination address any
     name "v6 ping 2"
-    priority manual 2
     no enable
     exit
 access-rule ipv6 from Internal to External action allow source address name "net-lan-v6" service any destination address any
     name "v6 ping 3"
-    priority manual 2
     no enable
     exit
 access-rule ipv6 from Internal to Internal action allow source address name "net-lan-v6" service any destination address any
     name "v6 ping 4"
-    priority manual 2
     no enable
     exit
 access-rule ipv6 from External to External action allow source address any service name "HTTPS 2" destination address group "mail-01 v6"
     name "v6 mail"
-    priority manual 3
     exit
 access-rule ipv6 from External to Internal action allow source address any service name "HTTPS 2" destination address group "mail-01 v6"
     name "v6 mail 2"
-    priority manual 3
     exit
 access-rule ipv6 from Internal to External action allow source address any service name "HTTPS 2" destination address group "mail-01 v6"
     name "v6 mail 3"
-    priority manual 3
     exit
 access-rule ipv6 from Internal to Internal action allow source address any service name "HTTPS 2" destination address group "mail-01 v6"
     name "v6 mail 4"
-    priority manual 3
     exit
 access-rule ipv6 from External to External action deny source address group "grp-inside v6" service any destination address name "web-01-v6"
     name "v6 guests"
-    priority manual 4
     exit
 access-rule ipv6 from External to Internal action deny source address group "grp-inside v6" service any destination address name "web-01-v6"
     name "v6 guests 2"
-    priority manual 4
     exit
 access-rule ipv6 from Internal to External action deny source address group "grp-inside v6" service any destination address name "web-01-v6"
     name "v6 guests 3"
-    priority manual 4
     exit
 access-rule ipv6 from Internal to Internal action deny source address group "grp-inside v6" service any destination address name "web-01-v6"
     name "v6 guests 4"
-    priority manual 4
     exit
 access-rule ipv6 from External to External action deny source address any service name "Ident" destination address any
     name "Rule @952.0"
-    priority manual 5
     exit
 access-rule ipv6 from External to Internal action deny source address any service name "Ident" destination address any
     name "Rule @952.0 2"
-    priority manual 5
     exit
 access-rule ipv6 from Internal to External action deny source address any service name "Ident" destination address any
     name "Rule @952.0 3"
-    priority manual 5
     exit
 access-rule ipv6 from Internal to Internal action deny source address any service name "Ident" destination address any
     name "Rule @952.0 4"
-    priority manual 5
     exit
-access-rule ipv6 from External to External action discard source address any service any destination address any
+access-rule ipv6 from External to External action discard source address group "FWSHIFT all IPv6" service any destination address any
     name "Rule @953.0"
-    priority manual 6
     exit
-access-rule ipv6 from External to Internal action discard source address any service any destination address any
+access-rule ipv6 from External to Internal action discard source address group "FWSHIFT all IPv6" service any destination address any
     name "Rule @953.0 2"
-    priority manual 6
     exit
-access-rule ipv6 from Internal to External action discard source address any service any destination address any
+access-rule ipv6 from Internal to External action discard source address group "FWSHIFT all IPv6" service any destination address any
     name "Rule @953.0 3"
-    priority manual 6
     exit
-access-rule ipv6 from Internal to Internal action discard source address any service any destination address any
+access-rule ipv6 from Internal to Internal action discard source address group "FWSHIFT all IPv6" service any destination address any
     name "Rule @953.0 4"
-    priority manual 6
     exit
 commit
 exit

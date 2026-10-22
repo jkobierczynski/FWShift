@@ -343,9 +343,6 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Cataly
   the reload commands of OPNsense and pfSense);
 * the first run of the Check Point vendor of tier 3 (its `mgmt_cli` script was published and verified on an R82.20
   management server by hand; the lab's interfaces, `set simple-gateway` and the install are untried);
-* the first run of the SonicWall NSv in tier 3 (scripted in 0.36.4, never run; pfSense Plus and OPNsense passed): its image
-  name, the NSv's X2 and X3,
-  its zone commands and its login;
 * Sophos Firewall in tier 3: its XML API is switched on in the web console only, so a run would wait for that step;
 * tier 3 on Google Cloud: each firewall's zone interfaces written Google Cloud's way (a `/32` address or DHCP, and the
   subnet through its gateway), per vendor; until then a run there stops (`--untested`);

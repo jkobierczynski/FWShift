@@ -42,17 +42,20 @@ class LabError(Exception):
     pass
 
 
-_ESCAPE = re.compile(r"\x1b\[(\d*)C|\x1b\[[0-9;?]*[A-Za-z]|\x1b[=>]|\x1b[()][0-9A-Za-z]")
+_ESCAPE = re.compile(r"\x1b\[(\d*)C|(\x1b\[[0-9;]*[Hf]|\x1b\[[0-9]*J)|\x1b\[[0-9;?]*[@-~]|\x1b[=>]|\x1b[()][0-9A-Za-z]")
 
 
 def screen_text(raw: str, noise: str = "") -> str:
     """What a full-screen console wrote, as plain text: a cursor move to the right as that many spaces (the NSv writes
-    its spaces so), other escape codes left out, and the noise (a status bar redrawn after every output) taken out."""
+    its spaces so), a move to a place on the screen or a clearing of it as a new line (the NSv writes its lines so: its
+    "User:" and its console's "NSv >" start a line), other escape codes left out, and the noise (a status bar redrawn
+    after every output) taken out. (An insertion of characters, `ESC [20@`, is an escape code too: the NSv writes it
+    when it redraws a line longer than the terminal, the ninth run.)"""
 
     def plain(found: "re.Match[str]") -> str:
         if found.group(1) is not None:  # (only the cursor move to the right has the group)
             return " " * int(found.group(1) or 1)
-        return ""
+        return "\n" if found.group(2) else ""
 
     text = _ESCAPE.sub(plain, raw)
     return re.sub(noise, "", text) if noise else text
@@ -114,7 +117,7 @@ class Runner:
 
     def run_paced(self, args: Sequence[str], lines: Sequence[str], prompt: str, *, fake: str = "", timeout: float = 1200,
                   step: float = 120, answers: Sequence[Tuple[str, str]] = (), preamble: str = "", close_after: float = 0,
-                  noise: str = "") -> str:  # fmt: skip
+                  noise: str = "", preamble_when: str = "", pager: str = "", idle: float = 0, slow: str = "") -> str:  # fmt: skip
         """Types the lines one at a time, each once the command line shows its prompt again, and keeps the input open
         until the command ends: for a CLI that drops a session given its lines ahead of its prompt (the ASA: a single
         "U" of its greeting, and the session closed). Returns all it wrote; fails when a prompt does not come within
@@ -124,7 +127,15 @@ class Runner:
         to the SonicOS CLI); what came before them is not searched for the prompt. close_after: a session that does not
         end by itself after its last line (the NSv's console stays) is closed after that many seconds. noise: for a
         full-screen console, the prompt and the questions are looked for in its plain text (screen_text), without that
-        pattern (the NSv redraws its status bar after every output, so its prompt is never last in what it wrote)."""
+        pattern (the NSv redraws its status bar after every output, so its prompt is never last in what it wrote).
+        preamble_when: the keys only when the screen, drawn, shows this (the NSv's SSH lands in the window it was left
+        in: the keys switch to the other one). A reply "{previous}" is the last one given to a question about a password
+        in this session (an old password asked for again), or Enter where none was given. pager: a long answer stopped
+        at this (SonicOS's "--MORE--") is shown on with a space, as often as it comes (the eleventh NSv run: the commit's
+        error below the pager, which no command switched off). idle: a session quiet for that many seconds after a line
+        (no question, no pager) is taken to be at its prompt, for a console whose prompt may not be seen (the sixteenth
+        NSv run: SonicOS scrolled its screen to the left after a long line, and its prompt showed without its start);
+        six times as long after a line that matches `slow` (a commit, which can be quiet for a while)."""
         shown = " ".join(shlex.quote(a) for a in args) + "  (typed line by line)"
         self.log.append(shown)
         if self.echo:
@@ -152,6 +163,7 @@ class Runner:
         reader.start()
         pattern, deadline, mark = re.compile(prompt), time.time() + timeout, 0
         pending = [(re.compile(question), reply) for question, reply in answers]
+        previous = ""
 
         def view() -> str:
             seen = text()[mark:]
@@ -168,16 +180,34 @@ class Runner:
                 time.sleep(3)  # (the console drawn whole)
                 if proc.poll() is not None:  # (what it wrote was ssh's own error: the firewall not up yet)
                     raise SessionEnded(f"{args[0]} ended before its first keys; what it wrote:\n{text().strip()[-1500:]}", text())
-                mark = len(text())  # (from here on: what came after the keys, a login question among it)
-                self._send(proc, preamble, args[0], text)
+                drawn = screen_text(text(), noise).rstrip() if noise else text()
+                if not preamble_when or re.search(preamble_when, drawn):
+                    mark = len(text())  # (from here on: what came after the keys, a login question among it)
+                    self._send(proc, preamble, args[0], text)
+            sent = ""
             for line in lines:
                 limit = min(deadline, time.time() + step)
+                quiet = idle * (6 if slow and re.search(slow, sent) else 1)
+                seen, changed = len(text()), time.time()
                 while not pattern.search(view()):
+                    if len(text()) != seen:
+                        seen, changed = len(text()), time.time()
+                    elif idle and sent and view().strip() and time.time() - changed >= quiet \
+                            and not any(q.search(view()) for q, _ in pending) and not (pager and re.search(pager, view())):
+                        break  # (quiet at what is taken to be its prompt)
+                    if pager and re.search(pager, view()):
+                        mark = len(text())
+                        self._send(proc, " ", args[0], text)
+                        limit = min(deadline, time.time() + step)
+                        continue
                     asked = next((pair for pair in pending if pair[0].search(view())), None)
                     if asked is not None:  # (a question first: answered, and the prompt awaited again)
                         pending.remove(asked)
                         mark = len(text())
-                        self._send(proc, asked[1] + "\n", args[0], text)
+                        reply = asked[1].replace("{previous}", previous)
+                        if "password" in asked[0].pattern.lower() and "{previous}" not in asked[1]:
+                            previous = reply
+                        self._send(proc, reply + "\n", args[0], text)
                         limit = min(deadline, time.time() + step)
                         continue
                     if proc.poll() is not None:
@@ -189,6 +219,7 @@ class Runner:
                     time.sleep(0.1)
                 mark = len(text())
                 self._send(proc, line + "\n", args[0], text)
+                sent = line
             try:
                 proc.wait(timeout=close_after or max(1.0, min(step, deadline - time.time())))
             except subprocess.TimeoutExpired:

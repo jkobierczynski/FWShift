@@ -14,6 +14,10 @@ address-object ipv4 "nat-pool" range 203.0.113.100 203.0.113.110 zone dmz
 address-object fqdn "updates" domain "updates.example.com" zone outside
 address-object ipv4 "outside-interface" host 203.0.113.2 zone outside
 address-object ipv4 "h 10.20.0.30" host 10.20.0.30 zone dmz
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone dmz
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone dmz
+address-object ipv6 "n ::_1" network :: /1 zone dmz
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone dmz
 address-object ipv4 "r 10.10.0.200-10.10.0.250" range 10.10.0.200 10.10.0.250 zone dmz
 address-object ipv4 "h 10.20.0.53" host 10.20.0.53 zone dmz
 address-object ipv6 "h 2001:db8:20::10" host 2001:db8:20::10 zone dmz
@@ -52,6 +56,14 @@ address-group ipv4 "dst Admin access"
 address-group ipv4 "dst Helpdesk RDP"
     address-group ipv4 "servers"
     address-object ipv4 "mail-srv-pub"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
     exit
 address-group ipv4 "dst Partner service"
     address-object ipv4 "web-srv"
@@ -97,29 +109,35 @@ service-group "svc Uncategorised web"
     service-object "HTTP 2"
     service-object "HTTPS 2"
     exit
-nat-policy inbound any outbound any source name "lan-net" translated-source original destination name "partner-net" translated-destination original service any translated-service original
+nat-policy ipv4 inbound any outbound any source name "lan-net" translated-source original destination name "partner-net" translated-destination original service any translated-service original
     name "nat-1"
     comment "No NAT towards the partner"
+    priority manual 1
     exit
-nat-policy inbound any outbound any source any translated-source original destination name "web-srv-pub" translated-destination name "web-srv" service any translated-service original
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "web-srv-pub" translated-destination name "web-srv" service any translated-service original
     name "nat-2"
     comment "Web server"
+    priority manual 2
     exit
-nat-policy inbound any outbound any source any translated-source original destination name "outside-interface" translated-destination name "web-srv" service name "http-8443" translated-service name "tcp 8080"
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "outside-interface" translated-destination name "web-srv" service name "http-8443" translated-service name "tcp 8080"
     name "nat-3"
     comment "Test site on the interface addre"
+    priority manual 3
     exit
-nat-policy inbound any outbound any source name "lan-net" translated-source name "nat-pool" destination any translated-destination original service any translated-service original
+nat-policy ipv4 inbound any outbound any source name "lan-net" translated-source name "nat-pool" destination any translated-destination original service any translated-service original
     name "nat-4"
     comment "nat-4"
+    priority manual 4
     exit
-nat-policy inbound any outbound any source name "mail-srv" translated-source name "mail-srv-pub" destination any translated-destination original service any translated-service original
+nat-policy ipv4 inbound any outbound any source name "mail-srv" translated-source name "mail-srv-pub" destination any translated-destination original service any translated-service original
     name "nat-mail-srv"
     comment "nat-mail-srv"
+    priority manual 5
     exit
-nat-policy inbound any outbound any source any translated-source original destination name "mail-srv-pub" translated-destination name "mail-srv" service any translated-service original
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "mail-srv-pub" translated-destination name "mail-srv" service any translated-service original
     name "nat-mail-srv in"
     comment "inbound of nat-mail-srv"
+    priority manual 6
     exit
 access-rule ipv4 from inside to dmz action allow source address name "lan-net" service name "backup" destination address group "dst pre-backup"
     name "pre-backup"
@@ -127,295 +145,272 @@ access-rule ipv4 from inside to dmz action allow source address name "lan-net" s
     exit
 access-rule ipv4 from outside to dmz action discard source address name "IPv4-Private-10.0.0.0-8" service any destination address any
     name "pre-spoofed"
-    priority manual 1
+    priority manual 2
     exit
 access-rule ipv4 from outside to inside action discard source address name "IPv4-Private-10.0.0.0-8" service any destination address any
     name "pre-spoofed 2"
-    priority manual 1
+    priority manual 3
     exit
 access-rule ipv4 from outside to outside action discard source address name "IPv4-Private-10.0.0.0-8" service any destination address any
     name "pre-spoofed 3"
-    priority manual 1
+    priority manual 4
     exit
 access-rule ipv4 from outside to dmz action allow source address name "partner-net" service any destination address group "dst pre-partner-gre"
     name "pre-partner-gre"
-    priority manual 2
+    priority manual 5
     no enable
     exit
 access-rule ipv4 from dmz to outside action allow source address name "web-srv" service any destination address name "partner-net"
     name "pre-partner-gre-reverse"
-    priority manual 1
+    priority manual 6
     no enable
     exit
 access-rule ipv4 from dmz to dmz action discard source address any service name "udp-3544" destination address any
     name "prefilter-default-block-tunnels"
-    priority manual 1
-    no enable
-    exit
-access-rule ipv6 from dmz to dmz action discard source address any service name "udp-3544" destination address any
-    name "prefilter-default-block-tunnel 2"
-    priority manual 1
+    priority manual 7
     no enable
     exit
 access-rule ipv4 from dmz to inside action discard source address any service name "udp-3544" destination address any
     name "prefilter-default-block-tunnel 3"
-    priority manual 1
-    no enable
-    exit
-access-rule ipv6 from dmz to inside action discard source address any service name "udp-3544" destination address any
-    name "prefilter-default-block-tunnel 4"
-    priority manual 1
+    priority manual 8
     no enable
     exit
 access-rule ipv4 from dmz to outside action discard source address any service name "udp-3544" destination address any
     name "prefilter-default-block-tunnel 5"
-    priority manual 2
-    no enable
-    exit
-access-rule ipv6 from dmz to outside action discard source address any service name "udp-3544" destination address any
-    name "prefilter-default-block-tunnel 6"
-    priority manual 1
+    priority manual 9
     no enable
     exit
 access-rule ipv4 from inside to dmz action discard source address any service name "udp-3544" destination address any
     name "prefilter-default-block-tunnel 7"
-    priority manual 2
-    no enable
-    exit
-access-rule ipv6 from inside to dmz action discard source address any service name "udp-3544" destination address any
-    name "prefilter-default-block-tunnel 8"
-    priority manual 1
+    priority manual 10
     no enable
     exit
 access-rule ipv4 from inside to inside action discard source address any service name "udp-3544" destination address any
     name "prefilter-default-block-tunnel 9"
-    priority manual 1
-    no enable
-    exit
-access-rule ipv6 from inside to inside action discard source address any service name "udp-3544" destination address any
-    name "prefilter-default-block-tunne 10"
-    priority manual 1
+    priority manual 11
     no enable
     exit
 access-rule ipv4 from inside to outside action discard source address any service name "udp-3544" destination address any
     name "prefilter-default-block-tunne 11"
-    priority manual 1
-    no enable
-    exit
-access-rule ipv6 from inside to outside action discard source address any service name "udp-3544" destination address any
-    name "prefilter-default-block-tunne 12"
-    priority manual 1
+    priority manual 12
     no enable
     exit
 access-rule ipv4 from outside to dmz action discard source address any service name "udp-3544" destination address any
     name "prefilter-default-block-tunne 13"
-    priority manual 3
-    no enable
-    exit
-access-rule ipv6 from outside to dmz action discard source address any service name "udp-3544" destination address any
-    name "prefilter-default-block-tunne 14"
-    priority manual 1
+    priority manual 13
     no enable
     exit
 access-rule ipv4 from outside to inside action discard source address any service name "udp-3544" destination address any
     name "prefilter-default-block-tunne 15"
-    priority manual 2
-    no enable
-    exit
-access-rule ipv6 from outside to inside action discard source address any service name "udp-3544" destination address any
-    name "prefilter-default-block-tunne 16"
-    priority manual 1
+    priority manual 14
     no enable
     exit
 access-rule ipv4 from outside to outside action discard source address any service name "udp-3544" destination address any
     name "prefilter-default-block-tunne 17"
-    priority manual 2
-    no enable
-    exit
-access-rule ipv6 from outside to outside action discard source address any service name "udp-3544" destination address any
-    name "prefilter-default-block-tunne 18"
-    priority manual 1
+    priority manual 15
     no enable
     exit
 access-rule ipv4 from inside to outside action discard source address name "ot-net" service any destination address any
     name "Block OT outbound"
-    priority manual 2
+    priority manual 16
     exit
 access-rule ipv4 from inside to outside action allow source address name "lan-net" service group "web" destination address any
     name "LAN web"
-    priority manual 3
+    priority manual 17
     exit
 access-rule ipv4 from inside to outside action allow source address name "lan-net" service group "svc LAN DNS and NTP" destination address any
     name "LAN DNS and NTP"
-    priority manual 4
+    priority manual 18
     exit
 access-rule ipv4 from inside to outside action allow source address any service name "HTTPS 2" destination address name "updates"
     name "Updates"
-    priority manual 5
-    exit
-access-rule ipv6 from inside to outside action allow source address any service name "HTTPS 2" destination address name "updates"
-    name "Updates 2"
-    priority manual 2
+    priority manual 19
     exit
 access-rule ipv4 from dmz to outside action allow source address any service name "HTTPS 2" destination address name "updates"
     name "Updates 3"
-    priority manual 3
-    exit
-access-rule ipv6 from dmz to outside action allow source address any service name "HTTPS 2" destination address name "updates"
-    name "Updates 4"
-    priority manual 2
+    priority manual 20
     exit
 access-rule ipv4 from outside to dmz action allow source address any service group "svc Inbound web" destination address group "dst Inbound web"
     name "Inbound web"
-    priority manual 4
+    priority manual 21
     exit
 access-rule ipv4 from outside to dmz action allow source address any service name "smtp" destination address group "dst Inbound mail"
     name "Inbound mail"
-    priority manual 5
+    priority manual 22
     exit
 access-rule ipv4 from inside to dmz action allow source address name "admin-pcs" service group "mgmt" destination address group "dst Admin access"
     name "Admin access"
-    priority manual 3
+    priority manual 23
     exit
 access-rule ipv4 from inside to dmz action allow source address any service name "tcp-3389" destination address group "dst Helpdesk RDP"
     name "Helpdesk RDP"
-    priority manual 4
+    priority manual 24
     no enable
     exit
-access-rule ipv4 from inside to outside action discard source address any service any destination address any
+access-rule ipv4 from inside to outside action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "Staff social media"
-    priority manual 6
-    no enable
-    exit
-access-rule ipv6 from inside to outside action discard source address any service any destination address any
-    name "Staff social media 2"
-    priority manual 3
+    priority manual 25
     no enable
     exit
 access-rule ipv4 from outside to dmz action allow source address name "partner-net" service name "tcp-8443" destination address group "dst Partner service"
     name "Partner service"
-    priority manual 6
+    priority manual 26
     no enable
     exit
 access-rule ipv4 from inside to outside action discard source address name "r 10.10.0.200-10.10.0.250" service group "svc Uncategorised web" destination address any
     name "Uncategorised web"
-    priority manual 7
+    priority manual 27
     exit
 access-rule ipv4 from inside to outside action allow source address any service name "tcp-21" destination address any
     name "Old FTP"
-    priority manual 8
-    no enable
-    exit
-access-rule ipv6 from inside to outside action allow source address any service name "tcp-21" destination address any
-    name "Old FTP 2"
-    priority manual 4
+    priority manual 28
     no enable
     exit
 access-rule ipv4 from outside to dmz action allow source address any service any destination address name "h 10.20.0.53"
     name "DNS answers to resolver"
-    priority manual 7
-    no enable
-    exit
-access-rule ipv6 from outside to dmz action allow source address name "branch-v6" service name "HTTPS 2" destination address name "h 2001:db8:20::10"
-    name "Branch IPv6"
-    priority manual 2
+    priority manual 29
     no enable
     exit
 access-rule ipv4 from inside to dmz action allow source address any service name "Ping" destination address any
     name "Ping out"
-    priority manual 5
+    priority manual 30
     exit
 access-rule ipv4 from inside to inside action allow source address any service name "Ping" destination address any
     name "Ping out 2"
-    priority manual 2
+    priority manual 31
     exit
 access-rule ipv4 from inside to outside action allow source address any service name "Ping" destination address any
     name "Ping out 3"
-    priority manual 9
+    priority manual 32
     exit
 access-rule ipv4 from dmz to dmz action allow source address any service name "Ping" destination address any
     name "Ping out 4"
-    priority manual 2
+    priority manual 33
     exit
 access-rule ipv4 from dmz to inside action allow source address any service name "Ping" destination address any
     name "Ping out 5"
-    priority manual 2
+    priority manual 34
     exit
 access-rule ipv4 from dmz to outside action allow source address any service name "Ping" destination address any
     name "Ping out 6"
-    priority manual 4
+    priority manual 35
     exit
-access-rule ipv4 from inside to dmz action deny source address any service any destination address any
+access-rule ipv4 from inside to dmz action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "Reset the rest from inside"
-    priority manual 6
+    priority manual 36
     exit
-access-rule ipv6 from inside to dmz action deny source address any service any destination address any
-    name "Reset the rest from inside 2"
-    priority manual 2
-    exit
-access-rule ipv4 from inside to inside action deny source address any service any destination address any
+access-rule ipv4 from inside to inside action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "Reset the rest from inside 3"
-    priority manual 3
+    priority manual 37
     exit
-access-rule ipv6 from inside to inside action deny source address any service any destination address any
-    name "Reset the rest from inside 4"
-    priority manual 2
-    exit
-access-rule ipv4 from inside to outside action deny source address any service any destination address any
+access-rule ipv4 from inside to outside action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "Reset the rest from inside 5"
-    priority manual 10
+    priority manual 38
     exit
-access-rule ipv6 from inside to outside action deny source address any service any destination address any
-    name "Reset the rest from inside 6"
-    priority manual 5
-    exit
-access-rule ipv4 from dmz to dmz action deny source address any service any destination address any
+access-rule ipv4 from dmz to dmz action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT dmz to dmz"
-    priority manual 3
+    priority manual 39
     exit
-access-rule ipv6 from dmz to dmz action deny source address any service any destination address any
-    name "FWSHIFT dmz to dmz v6"
-    priority manual 2
-    exit
-access-rule ipv4 from dmz to inside action deny source address any service any destination address any
+access-rule ipv4 from dmz to inside action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT dmz to inside"
-    priority manual 3
+    priority manual 40
     exit
-access-rule ipv6 from dmz to inside action deny source address any service any destination address any
-    name "FWSHIFT dmz to inside v6"
-    priority manual 2
-    exit
-access-rule ipv4 from dmz to outside action deny source address any service any destination address any
+access-rule ipv4 from dmz to outside action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT dmz to outside"
-    priority manual 5
+    priority manual 41
     exit
-access-rule ipv6 from dmz to outside action deny source address any service any destination address any
-    name "FWSHIFT dmz to outside v6"
-    priority manual 3
-    exit
-access-rule ipv4 from outside to dmz action deny source address any service any destination address any
+access-rule ipv4 from outside to dmz action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT outside to dmz"
-    priority manual 8
+    priority manual 42
     exit
-access-rule ipv6 from outside to dmz action deny source address any service any destination address any
-    name "FWSHIFT outside to dmz v6"
-    priority manual 3
-    exit
-access-rule ipv4 from outside to inside action deny source address any service any destination address any
+access-rule ipv4 from outside to inside action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT outside to inside"
-    priority manual 3
+    priority manual 43
     exit
-access-rule ipv6 from outside to inside action deny source address any service any destination address any
-    name "FWSHIFT outside to inside v6"
-    priority manual 2
-    exit
-access-rule ipv4 from outside to outside action deny source address any service any destination address any
+access-rule ipv4 from outside to outside action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT outside to outside"
-    priority manual 3
+    priority manual 44
     exit
-access-rule ipv6 from outside to outside action deny source address any service any destination address any
+access-rule ipv6 from dmz to dmz action discard source address any service name "udp-3544" destination address any
+    name "prefilter-default-block-tunnel 2"
+    no enable
+    exit
+access-rule ipv6 from dmz to inside action discard source address any service name "udp-3544" destination address any
+    name "prefilter-default-block-tunnel 4"
+    no enable
+    exit
+access-rule ipv6 from dmz to outside action discard source address any service name "udp-3544" destination address any
+    name "prefilter-default-block-tunnel 6"
+    no enable
+    exit
+access-rule ipv6 from inside to dmz action discard source address any service name "udp-3544" destination address any
+    name "prefilter-default-block-tunnel 8"
+    no enable
+    exit
+access-rule ipv6 from inside to inside action discard source address any service name "udp-3544" destination address any
+    name "prefilter-default-block-tunne 10"
+    no enable
+    exit
+access-rule ipv6 from inside to outside action discard source address any service name "udp-3544" destination address any
+    name "prefilter-default-block-tunne 12"
+    no enable
+    exit
+access-rule ipv6 from outside to dmz action discard source address any service name "udp-3544" destination address any
+    name "prefilter-default-block-tunne 14"
+    no enable
+    exit
+access-rule ipv6 from outside to inside action discard source address any service name "udp-3544" destination address any
+    name "prefilter-default-block-tunne 16"
+    no enable
+    exit
+access-rule ipv6 from outside to outside action discard source address any service name "udp-3544" destination address any
+    name "prefilter-default-block-tunne 18"
+    no enable
+    exit
+access-rule ipv6 from inside to outside action allow source address any service name "HTTPS 2" destination address name "updates"
+    name "Updates 2"
+    exit
+access-rule ipv6 from dmz to outside action allow source address any service name "HTTPS 2" destination address name "updates"
+    name "Updates 4"
+    exit
+access-rule ipv6 from inside to outside action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "Staff social media 2"
+    no enable
+    exit
+access-rule ipv6 from inside to outside action allow source address any service name "tcp-21" destination address any
+    name "Old FTP 2"
+    no enable
+    exit
+access-rule ipv6 from outside to dmz action allow source address name "branch-v6" service name "HTTPS 2" destination address name "h 2001:db8:20::10"
+    name "Branch IPv6"
+    no enable
+    exit
+access-rule ipv6 from inside to dmz action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Reset the rest from inside 2"
+    exit
+access-rule ipv6 from inside to inside action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Reset the rest from inside 4"
+    exit
+access-rule ipv6 from inside to outside action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "Reset the rest from inside 6"
+    exit
+access-rule ipv6 from dmz to dmz action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT dmz to dmz v6"
+    exit
+access-rule ipv6 from dmz to inside action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT dmz to inside v6"
+    exit
+access-rule ipv6 from dmz to outside action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT dmz to outside v6"
+    exit
+access-rule ipv6 from outside to dmz action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT outside to dmz v6"
+    exit
+access-rule ipv6 from outside to inside action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT outside to inside v6"
+    exit
+access-rule ipv6 from outside to outside action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT outside to outside v6"
-    priority manual 2
     exit
 commit
 exit

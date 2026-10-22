@@ -10,8 +10,10 @@ Design rules:
   ``no enable`` and reported.
 * A SonicOS access rule is for one pair of zones and names one source, one destination and one
   service: an object, a group or ``any``. A rule of the model with several zones becomes one rule
-  per pair, a list becomes a group. Rules are first match within their pair; each is given its
-  place in the pair (``priority manual``), so that SonicOS does not order them by itself.
+  per pair, a list becomes a group. Rules are first match within their pair. Each IPv4 rule is given
+  its place (``priority manual``), so that SonicOS does not order them by itself: a place in the one
+  list of every pair's rules, so the rules are numbered 1, 2, 3 ... in the order written, above
+  SonicOS's own. IPv6 rules come after every IPv4 rule, placed by SonicOS.
 * SonicOS has a default rule for every pair of zones, and some of them allow (LAN to WAN). Where the
   model denies what no rule matches, every pair of zones ends in a rule that denies.
 * Address objects and groups are per IP version, and so are access rules. There is no negation:
@@ -174,10 +176,16 @@ class _Emitter:
         self.services: List[str] = []
         self.service_groups: List[str] = []
         self.rules: List[str] = []
+        # IPv6 rules after every IPv4 rule: SonicOS keeps one list of priorities for a pair of zones, IPv4 first, and
+        # refused an IPv6 rule placed before its pair's IPv4 rules (SonicOS 8.2.2, the fifteenth NSv run: "Invalid
+        # priority! IPv4 access rules must be placed before IPv6 rules"), and after them and one default rule too (the
+        # seventeenth): the pair holds IPv4 rules of SonicOS's own, how many is not known. IPv6 rules are placed by it.
+        self.rules6: List[Tuple[Tuple[str, str], int, List[str]]] = []
         self.nat: List[str] = []
         self.kind: Dict[str, Tuple[str, int]] = {_FULL[4]: ("full", 4), _FULL[6]: ("full", 6)}
         self.group_refs: Dict[Tuple[str, int], str] = {}  # (group of the model, IP version) -> group written
         self.literals: Dict[Interval, str] = {}
+        self.everything: Dict[int, str] = {}  # IP version -> 'group "..."' of all its addresses
         self.svc_ref: Dict[str, str] = {}  # service or group of the model -> reference
         self.svc_any: Set[str] = set()
         self.port_services: Dict[Tuple[str, str], str] = {}
@@ -197,6 +205,8 @@ class _Emitter:
             raise FwshiftError(f"the policy has {len(self.universe)} zones; FWShift writes SonicOS rules for {_MAX_ZONES} at most "
                                "(a rule that denies for every pair of them would be a file nobody can load)")  # fmt: skip
         self.priority: Dict[Tuple[str, str, int], int] = {}
+        self.placed = 0  # IPv4 rules written so far: the place of the next one
+        self.nat_names_written: List[str] = []  # NAT policies written so far, in order
         self.last_catch_all: Dict[Tuple[str, str, int], bool] = {}
         self.split = 0
         self.unconfirmed: Set[str] = set()
@@ -212,11 +222,14 @@ class _Emitter:
         self._tails()
         for nat in self.p.nat_rules:
             self._nat(nat)
+        if self.p.nat_rules:
+            self._no_other_nat()
         written = {nat.origin for nat in self.p.nat_rules if not self.report.item("nat", nat.origin).skipped}
         transform.note_nat_order(self.p, self.report, written, "first-match")
+        ipv6 = self._ipv6_rules()
         self._notes()
         out = ["configure terminal"]
-        for block in (self.objects, self.groups, self.services, self.service_groups, self.nat, self.rules):
+        for block in (self.objects, self.groups, self.services, self.service_groups, self.nat, self.rules, ipv6):
             out += block
         out += ["commit", "exit"]
         return "\n".join(out) + "\n"
@@ -683,20 +696,68 @@ class _Emitter:
     def _write_rule(self, name: str, version: int, src_zone: str, dst_zone: str, action: str, src: str, dst: str, service: str,
                     enabled: bool, catch_all: bool) -> None:  # fmt: skip
         key = (src_zone, dst_zone, version)
+        if src == dst == service == "any":
+            src = self._everything(version)
         self.priority[key] = self.priority.get(key, 0) + 1
+        # (the place of an IPv4 rule in the one list of all pairs' rules, not in its pair: the eighteenth NSv run had
+        # each pair numbered from 1, and every rule put at its number pushed down the ones of other pairs, a closing deny
+        # above the rules it closes. Numbered in the order written, each goes after the ones before it.)
+        self.placed += version == 4
         self.last_catch_all[key] = catch_all
         if version == 6:
             self.unconfirmed.add("access-rule ipv6")
         self.unconfirmed.add("priority manual")
-        self.rules += [
+        lines = [
             f"access-rule ipv{version} from {_zq(src_zone)} to {_zq(dst_zone)} action {action} source address {src} service {service} "
             f"destination address {dst}",
             f"    name {_q(name)}",
-            f"    priority manual {self.priority[key]}",
+            f"    priority manual {self.placed}",
         ]
         if not enabled:
-            self.rules.append("    no enable")
-        self.rules.append("    exit")
+            lines.append("    no enable")
+        lines.append("    exit")
+        if version == 6:
+            self.rules6.append(((src_zone, dst_zone), self.priority[key], lines))
+        else:
+            self.rules += lines
+
+    def _ipv6_rules(self) -> List[str]:
+        """The IPv6 rules, without a priority of their own: SonicOS places them after its IPv4 rules of the pair. Where a
+        pair has more than one, their order is SonicOS's (for a rule placed by it: the more specific above), and said."""
+        out: List[str] = []
+        pairs: Dict[Tuple[str, str], int] = {}
+        for pair, _, lines in self.rules6:
+            out += [line for line in lines if not line.startswith("    priority manual ")]
+            pairs[pair] = pairs.get(pair, 0) + 1
+        crowded = [f"{a} to {b}" for (a, b), count in pairs.items() if count > 1]
+        if pairs:
+            self.report.note(
+                Severity.REVIEW if crowded else Severity.INFO, "IPV6_PRIORITY_AUTO",
+                "IPv6 rules are written without a priority, after every IPv4 rule: SonicOS keeps one list of priorities for "
+                "the rules of every pair of zones, IPv4 first and with rules of its own among them, so the place of an IPv6 rule is not known "
+                "beforehand (SonicOS 8.2.2 refused the places FWShift gave). SonicOS places them"
+                + (f". Pairs with more than one IPv6 rule, whose order SonicOS decides: {', '.join(crowded)}: check it" if crowded else ""),
+            )  # fmt: skip
+        return out
+
+    def _everything(self, version: int) -> str:
+        """Every address of the IP version as a group of two halves, for a rule that matches everything. SonicOS knows a
+        rule by what it matches: one that matches everything (source, destination and service any) is the default rule
+        of its pair, changed where the action is the same and refused where it is not (SonicOS 8.2.2, the thirteenth NSv
+        run: "Policy Action: Rule overlap, rule not added", for a rule that denies all from DMZ to WAN)."""
+        if version not in self.everything:
+            bits = 32 if version == 4 else 128
+            halves = [self._literal((version, 0, 2 ** (bits - 1) - 1)), self._literal((version, 2 ** (bits - 1), 2 ** bits - 1))]
+            name = self.names.unique(f"{self.options.object_prefix}FWSHIFT all IPv{version}", self.names.addresses)
+            self._write_group(name, version, halves)
+            self.everything[version] = f"group {_q(name)}"
+            self.report.note(
+                Severity.INFO, "CATCH_ALL_AS_GROUP",
+                "SonicOS knows an access rule by what it matches: a rule that matches everything would be the default rule "
+                "of its pair of zones, changed where the action is the same and refused where it is not (\"Rule overlap\"). "
+                f"Such rules name their source as group '{name}' (all addresses, in two halves) instead of any",
+            )  # fmt: skip
+        return self.everything[version]
 
     def _tails(self) -> None:
         """A rule that denies at the end of every pair of zones, where the model denies what no rule matches."""
@@ -884,16 +945,60 @@ class _Emitter:
     def _write_nat(self, name: str, inbound: str, outbound: str, src: str, trans_src: str, dst: str, trans_dst: str, service: str,
                    trans_service: str, enabled: bool, comment: str) -> None:  # fmt: skip
         self.unconfirmed.add("nat-policy name and comment")
+        self.unconfirmed.add("nat-policy priority manual")
+        # (`ipv4`, as SonicOS 7's API names the table of IPv4 NAT policies: SonicOS 8.2.2 refused `nat-policy inbound`
+        # at `inbound`, the ninth NSv run, and took `nat-policy ipv4 inbound`, the tenth)
         text = " ".join(_NOT_IN_COMMENT.sub(" ", comment).split())[:32].rstrip()  # no expression with a backslash in an f-string: Python 3.9
         self.nat += [
-            f"nat-policy inbound {inbound} outbound {outbound} source {src} translated-source {trans_src} destination {dst} "
+            f"nat-policy ipv4 inbound {inbound} outbound {outbound} source {src} translated-source {trans_src} destination {dst} "
             f"translated-destination {trans_dst} service {service} translated-service {trans_service}",
             f"    name {_q(name)}",
             f"    comment {_q(text)}",
+            # (a place in the one list of NAT policies, in the order written: SonicOS shows every policy as `priority
+            # auto`, ordered by how much it names, and its own hide policies came above those of the source that
+            # translate nothing, the eighteenth and nineteenth NSv runs)
+            f"    priority manual {len(self.nat_names_written) + 1}",
         ]
+        self.nat_names_written.append(name)
         if not enabled:
             self.nat.append("    no enable")
         self.nat.append("    exit")
+
+    def _no_other_nat(self) -> None:
+        """SonicOS adds NAT policies of its own (an interface put in a WAN zone hides the LAN and DMZ subnets behind its
+        address, one policy for each interface traffic comes in by and the WAN one); in the model, what no NAT rule
+        matches is not translated. A policy that translates nothing, after the source's, for each pair of different
+        interfaces traffic comes in and leaves by, each placed (`priority manual`) above SonicOS's own. Not for any
+        interface: that policy is SonicOS's own last one, read-only (the tenth NSv run: "Nat Policy is read-only"); nor for
+        traffic that leaves by the interface it came in by, where SonicOS's own policies are for its management."""
+        known: List[str] = []
+        for zone in self.universe:
+            known += [i for i in self._interfaces([zone]) or [] if re.fullmatch(r"X[0-9]+(:V[0-9]+)?|U[0-9]+|W[0-9]+", i)]
+        ports = sorted(set(known), key=lambda i: (i[0], [int(n) for n in re.findall(r"[0-9]+", i)]))
+        what = ("SonicOS adds NAT policies of its own (an interface in a WAN zone hides the LAN and DMZ subnets behind "
+                "its address), and the source translated only what its NAT rules say")  # fmt: skip
+        if len(ports) < 2:
+            self.report.note(Severity.REVIEW, "NAT_NOTHING_ELSE",
+                             f"{what}. The interfaces of the zones are not known (--interface-map), so no policy that "
+                             "translates nothing was written: disable the policies SonicOS added (Network, NAT Policies, "
+                             "Default & Custom), or check that the source's translations are all it does")  # fmt: skip
+            return
+        names = []
+        for leaving in ports:
+            for arriving in ports:
+                if arriving == leaving:
+                    continue
+                name = self.names.unique(f"FWSHIFT no other NAT {arriving} to {leaving}", self.names.nat_names)
+                self._write_nat(name, arriving, leaving, "any", "original", "any", "original", "any", "original", True,
+                                f"nothing else {arriving} to {leaving}")  # fmt: skip
+                names.append(name)
+        self.report.note(
+            Severity.REVIEW, "NAT_NOTHING_ELSE",
+            f"{len(names)} NAT policies ('{names[0]}' ...) translate nothing, for traffic between the interfaces "
+            f"{', '.join(ports)} that no other policy matches: {what}. Every NAT policy written has its place (priority "
+            "manual), above SonicOS's own, which it orders by how much they name. Check the order (Network, NAT Policies, "
+            "Default & Custom)",
+        )  # fmt: skip
 
     def _reverse(self, nat: NatRule, outbound: List[str], translated_source: str) -> None:
         pair = transform.bidirectional_pair(self.p, nat)

@@ -7,6 +7,10 @@ address-object ipv4 "printers" range 10.40.0.200 10.40.0.220 zone inside_zone
 address-object ipv6 "head-office-v6" network 2001:db8:1:: /48 zone outside_zone
 address-object fqdn "vendor-cloud" domain "telemetry.example.net" zone outside_zone
 address-object ipv4 "outside-interface" host 192.0.2.2 zone inside_zone
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone inside_zone
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone inside_zone
+address-object ipv6 "n ::_1" network :: /1 zone inside_zone
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone inside_zone
 address-group ipv4 "office-devices"
     address-object ipv4 "nas"
     address-object ipv4 "printers"
@@ -19,6 +23,14 @@ address-group ipv4 "dst NAS_from_Internet"
     address-object ipv4 "nas"
     address-object ipv4 "outside-interface"
     address-object ipv4 "nas-public"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
     exit
 service-object "HTTPS 2" TCP 443 443
 service-object "HTTP 2" TCP 80 80
@@ -40,17 +52,20 @@ service-group "svc Head_office_v6"
     service-object "rdp"
     service-object "Ping"
     exit
-nat-policy inbound any outbound any source any translated-source original destination name "outside-interface" translated-destination name "nas" service name "nas-external" translated-service name "tcp 5001"
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "outside-interface" translated-destination name "nas" service name "nas-external" translated-service name "tcp 5001"
     name "NAS_published"
     comment "NAS web interface on the outside"
+    priority manual 1
     exit
-nat-policy inbound any outbound any source name "nas" translated-source name "nas-public" destination any translated-destination original service any translated-service original
+nat-policy ipv4 inbound any outbound any source name "nas" translated-source name "nas-public" destination any translated-destination original service any translated-service original
     name "nas_static"
     comment "nas_static"
+    priority manual 2
     exit
-nat-policy inbound any outbound any source any translated-source original destination name "nas-public" translated-destination name "nas" service any translated-service original
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "nas-public" translated-destination name "nas" service any translated-service original
     name "nas_static in"
     comment "inbound of nas_static"
+    priority manual 3
     exit
 access-rule ipv4 from inside_zone to inside_zone action discard source address name "iot-net" service any destination address group "dst Block_IoT_to_office"
     name "Block_IoT_to_office"
@@ -58,112 +73,101 @@ access-rule ipv4 from inside_zone to inside_zone action discard source address n
     exit
 access-rule ipv4 from inside_zone to outside_zone action allow source address name "office-lan" service group "svc Inside_Outside_web" destination address any
     name "Inside_Outside_web"
-    priority manual 1
+    priority manual 2
     exit
 access-rule ipv4 from inside_zone to outside_zone action allow source address name "iot-net" service name "HTTPS 2" destination address name "vendor-cloud"
     name "IoT_telemetry"
-    priority manual 2
+    priority manual 3
     exit
 access-rule ipv4 from outside_zone to inside_zone action allow source address any service name "nas-web" destination address group "dst NAS_from_Internet"
     name "NAS_from_Internet"
-    priority manual 1
+    priority manual 4
     exit
-access-rule ipv4 from outside_zone to inside_zone action allow source address any service any destination address any
+access-rule ipv4 from outside_zone to inside_zone action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "DNS_answers"
-    priority manual 2
+    priority manual 5
     no enable
     exit
-access-rule ipv6 from outside_zone to inside_zone action allow source address any service any destination address any
-    name "DNS_answers 2"
-    priority manual 1
-    no enable
-    exit
-access-rule ipv4 from inside_zone to outside_zone action discard source address any service any destination address any
+access-rule ipv4 from inside_zone to outside_zone action discard source address group "FWSHIFT all IPv4" service any destination address any
     name "Staff_streaming"
-    priority manual 3
-    no enable
-    exit
-access-rule ipv6 from inside_zone to outside_zone action discard source address any service any destination address any
-    name "Staff_streaming 2"
-    priority manual 1
+    priority manual 6
     no enable
     exit
 access-rule ipv4 from inside_zone to outside_zone action allow source address name "printers" service any destination address any
     name "Guests_by_time"
-    priority manual 4
+    priority manual 7
     no enable
     exit
-access-rule ipv4 from inside_zone to inside_zone action deny source address any service any destination address any
+access-rule ipv4 from inside_zone to inside_zone action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT inside_zone to inside_zo"
-    priority manual 2
+    priority manual 8
     exit
-access-rule ipv6 from inside_zone to inside_zone action deny source address any service any destination address any
-    name "FWSHIFT inside_zone to inside_ 2"
-    priority manual 1
-    exit
-access-rule ipv4 from inside_zone to iot action deny source address any service any destination address any
+access-rule ipv4 from inside_zone to iot action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT inside_zone to iot"
-    priority manual 1
+    priority manual 9
     exit
-access-rule ipv6 from inside_zone to iot action deny source address any service any destination address any
-    name "FWSHIFT inside_zone to iot v6"
-    priority manual 1
-    exit
-access-rule ipv4 from inside_zone to outside_zone action deny source address any service any destination address any
+access-rule ipv4 from inside_zone to outside_zone action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT inside_zone to outside_z"
-    priority manual 5
+    priority manual 10
     exit
-access-rule ipv6 from inside_zone to outside_zone action deny source address any service any destination address any
-    name "FWSHIFT inside_zone to outside 2"
-    priority manual 2
-    exit
-access-rule ipv4 from iot to inside_zone action deny source address any service any destination address any
+access-rule ipv4 from iot to inside_zone action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT iot to inside_zone"
-    priority manual 1
+    priority manual 11
     exit
-access-rule ipv6 from iot to inside_zone action deny source address any service any destination address any
-    name "FWSHIFT iot to inside_zone v6"
-    priority manual 1
-    exit
-access-rule ipv4 from iot to iot action deny source address any service any destination address any
+access-rule ipv4 from iot to iot action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT iot to iot"
-    priority manual 1
+    priority manual 12
     exit
-access-rule ipv6 from iot to iot action deny source address any service any destination address any
-    name "FWSHIFT iot to iot v6"
-    priority manual 1
-    exit
-access-rule ipv4 from iot to outside_zone action deny source address any service any destination address any
+access-rule ipv4 from iot to outside_zone action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT iot to outside_zone"
-    priority manual 1
+    priority manual 13
     exit
-access-rule ipv6 from iot to outside_zone action deny source address any service any destination address any
-    name "FWSHIFT iot to outside_zone v6"
-    priority manual 1
-    exit
-access-rule ipv4 from outside_zone to inside_zone action deny source address any service any destination address any
+access-rule ipv4 from outside_zone to inside_zone action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT outside_zone to inside_z"
-    priority manual 3
+    priority manual 14
     exit
-access-rule ipv6 from outside_zone to inside_zone action deny source address any service any destination address any
-    name "FWSHIFT outside_zone to inside 2"
-    priority manual 2
-    exit
-access-rule ipv4 from outside_zone to iot action deny source address any service any destination address any
+access-rule ipv4 from outside_zone to iot action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT outside_zone to iot"
-    priority manual 1
+    priority manual 15
     exit
-access-rule ipv6 from outside_zone to iot action deny source address any service any destination address any
-    name "FWSHIFT outside_zone to iot v6"
-    priority manual 1
-    exit
-access-rule ipv4 from outside_zone to outside_zone action deny source address any service any destination address any
+access-rule ipv4 from outside_zone to outside_zone action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT outside_zone to outside_"
-    priority manual 1
+    priority manual 16
     exit
-access-rule ipv6 from outside_zone to outside_zone action deny source address any service any destination address any
+access-rule ipv6 from outside_zone to inside_zone action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "DNS_answers 2"
+    no enable
+    exit
+access-rule ipv6 from inside_zone to outside_zone action discard source address group "FWSHIFT all IPv6" service any destination address any
+    name "Staff_streaming 2"
+    no enable
+    exit
+access-rule ipv6 from inside_zone to inside_zone action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT inside_zone to inside_ 2"
+    exit
+access-rule ipv6 from inside_zone to iot action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT inside_zone to iot v6"
+    exit
+access-rule ipv6 from inside_zone to outside_zone action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT inside_zone to outside 2"
+    exit
+access-rule ipv6 from iot to inside_zone action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT iot to inside_zone v6"
+    exit
+access-rule ipv6 from iot to iot action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT iot to iot v6"
+    exit
+access-rule ipv6 from iot to outside_zone action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT iot to outside_zone v6"
+    exit
+access-rule ipv6 from outside_zone to inside_zone action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT outside_zone to inside 2"
+    exit
+access-rule ipv6 from outside_zone to iot action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT outside_zone to iot v6"
+    exit
+access-rule ipv6 from outside_zone to outside_zone action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT outside_zone to outsid 2"
-    priority manual 1
     exit
 commit
 exit

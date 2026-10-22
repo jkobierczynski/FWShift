@@ -14,6 +14,10 @@ address-object ipv4 "h 10.10.0.1" host 10.10.0.1 zone DMZ
 address-object ipv4 "h 10.20.0.1" host 10.20.0.1 zone DMZ
 address-object ipv4 "h 10.30.0.1" host 10.30.0.1 zone DMZ
 address-object ipv4 "h 10.40.0.1" host 10.40.0.1 zone DMZ
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone DMZ
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone DMZ
+address-object ipv6 "n ::_1" network :: /1 zone DMZ
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone DMZ
 address-group ipv4 "Update-Site.1.alm"
     address-object fqdn "Update-Site.1.alm updates.exampl"
     exit
@@ -30,6 +34,14 @@ address-group ipv4 "Firebox"
 address-group ipv4 "dst Block Bad"
     address-object ipv4 "Bad-Nets.1.alm"
     address-object ipv4 "Bad-Nets.2.alm"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
     exit
 service-object "SSH 2" TCP 22 22
 service-object "Web Out tcp 80" TCP 80 80
@@ -50,13 +62,15 @@ service-group "DNS"
     service-object "DNS udp 53"
     exit
 service-object "tcp 2525" TCP 2525 2525
-nat-policy inbound any outbound any source any translated-source original destination name "Web-Public.1.snat" translated-destination name "Web-Public.2.snat" service name "HTTPS 2" translated-service original
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "Web-Public.1.snat" translated-destination name "Web-Public.2.snat" service name "HTTPS 2" translated-service original
     name "Web-Public (Web In)"
     comment "static NAT action Web-Public of"
+    priority manual 1
     exit
-nat-policy inbound any outbound any source any translated-source original destination name "Mail-Public.1.snat" translated-destination name "Mail-Public.2.snat" service name "SMTP" translated-service name "tcp 2525"
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "Mail-Public.1.snat" translated-destination name "Mail-Public.2.snat" service name "SMTP" translated-service name "tcp 2525"
     name "Mail-Public (Mail In)"
     comment "static NAT action Mail-Public of"
+    priority manual 2
     exit
 access-rule ipv4 from Trusted to DMZ action deny source address any service any destination address group "dst Block Bad"
     name "Block Bad"
@@ -64,442 +78,407 @@ access-rule ipv4 from Trusted to DMZ action deny source address any service any 
     exit
 access-rule ipv4 from Trusted to External action deny source address any service any destination address group "dst Block Bad"
     name "Block Bad 2"
-    priority manual 1
+    priority manual 2
     exit
 access-rule ipv4 from Trusted to Guests action deny source address any service any destination address group "dst Block Bad"
     name "Block Bad 3"
-    priority manual 1
+    priority manual 3
     exit
 access-rule ipv4 from Trusted to Lab action deny source address any service any destination address group "dst Block Bad"
     name "Block Bad 4"
-    priority manual 1
+    priority manual 4
     exit
 access-rule ipv4 from Trusted to Trusted action deny source address any service any destination address group "dst Block Bad"
     name "Block Bad 5"
-    priority manual 1
+    priority manual 5
     exit
 access-rule ipv4 from Guests to DMZ action deny source address any service any destination address group "dst Block Bad"
     name "Block Bad 6"
-    priority manual 1
+    priority manual 6
     exit
 access-rule ipv4 from Guests to External action deny source address any service any destination address group "dst Block Bad"
     name "Block Bad 7"
-    priority manual 1
+    priority manual 7
     exit
 access-rule ipv4 from Guests to Guests action deny source address any service any destination address group "dst Block Bad"
     name "Block Bad 8"
-    priority manual 1
+    priority manual 8
     exit
 access-rule ipv4 from Guests to Lab action deny source address any service any destination address group "dst Block Bad"
     name "Block Bad 9"
-    priority manual 1
+    priority manual 9
     exit
 access-rule ipv4 from Guests to Trusted action deny source address any service any destination address group "dst Block Bad"
     name "Block Bad 10"
-    priority manual 1
+    priority manual 10
     exit
 access-rule ipv4 from Trusted to External action allow source address name "Admins.1.alm" service name "SSH 2" destination address any
     name "Admin SSH"
-    priority manual 2
+    priority manual 11
     exit
 access-rule ipv4 from Trusted to External action allow source address any service group "Web Out" destination address any
     name "Web Out"
-    priority manual 3
-    exit
-access-rule ipv6 from Trusted to External action allow source address any service group "Web Out" destination address any
-    name "Web Out 2"
-    priority manual 1
+    priority manual 12
     exit
 access-rule ipv4 from Guests to External action allow source address any service group "Web Out" destination address any
     name "Web Out 3"
-    priority manual 2
-    exit
-access-rule ipv6 from Guests to External action allow source address any service group "Web Out" destination address any
-    name "Web Out 4"
-    priority manual 1
+    priority manual 13
     exit
 access-rule ipv4 from DMZ to External action allow source address any service group "Web Out" destination address any
     name "Web Out 5"
-    priority manual 1
-    exit
-access-rule ipv6 from DMZ to External action allow source address any service group "Web Out" destination address any
-    name "Web Out 6"
-    priority manual 1
+    priority manual 14
     exit
 access-rule ipv4 from External to DMZ action allow source address any service name "HTTPS 2" destination address name "Web-Public.1.snat"
     name "Web In"
-    priority manual 1
+    priority manual 15
     exit
 access-rule ipv4 from External to External action allow source address any service name "HTTPS 2" destination address name "Web-Public.1.snat"
     name "Web In 2"
-    priority manual 1
+    priority manual 16
     exit
 access-rule ipv4 from External to Guests action allow source address any service name "HTTPS 2" destination address name "Web-Public.1.snat"
     name "Web In 3"
-    priority manual 1
+    priority manual 17
     exit
 access-rule ipv4 from External to Lab action allow source address any service name "HTTPS 2" destination address name "Web-Public.1.snat"
     name "Web In 4"
-    priority manual 1
+    priority manual 18
     exit
 access-rule ipv4 from External to Trusted action allow source address any service name "HTTPS 2" destination address name "Web-Public.1.snat"
     name "Web In 5"
-    priority manual 1
+    priority manual 19
     exit
 access-rule ipv4 from External to DMZ action allow source address any service name "SMTP" destination address name "Mail-Public.1.snat"
     name "Mail In"
-    priority manual 2
+    priority manual 20
     exit
 access-rule ipv4 from External to External action allow source address any service name "SMTP" destination address name "Mail-Public.1.snat"
     name "Mail In 2"
-    priority manual 2
+    priority manual 21
     exit
 access-rule ipv4 from External to Guests action allow source address any service name "SMTP" destination address name "Mail-Public.1.snat"
     name "Mail In 3"
-    priority manual 2
+    priority manual 22
     exit
 access-rule ipv4 from External to Lab action allow source address any service name "SMTP" destination address name "Mail-Public.1.snat"
     name "Mail In 4"
-    priority manual 2
+    priority manual 23
     exit
 access-rule ipv4 from External to Trusted action allow source address any service name "SMTP" destination address name "Mail-Public.1.snat"
     name "Mail In 5"
-    priority manual 2
+    priority manual 24
     exit
 access-rule ipv4 from DMZ to DMZ action allow source address any service name "HTTPS 2" destination address group "Update-Site.1.alm"
     name "DMZ Updates"
-    priority manual 1
-    no enable
-    exit
-access-rule ipv6 from DMZ to DMZ action allow source address any service name "HTTPS 2" destination address group "Update-Site.1.alm v6"
-    name "DMZ Updates 2"
-    priority manual 1
+    priority manual 25
     no enable
     exit
 access-rule ipv4 from DMZ to External action allow source address any service name "HTTPS 2" destination address group "Update-Site.1.alm"
     name "DMZ Updates 3"
-    priority manual 2
-    no enable
-    exit
-access-rule ipv6 from DMZ to External action allow source address any service name "HTTPS 2" destination address group "Update-Site.1.alm v6"
-    name "DMZ Updates 4"
-    priority manual 2
+    priority manual 26
     no enable
     exit
 access-rule ipv4 from DMZ to Guests action allow source address any service name "HTTPS 2" destination address group "Update-Site.1.alm"
     name "DMZ Updates 5"
-    priority manual 1
-    no enable
-    exit
-access-rule ipv6 from DMZ to Guests action allow source address any service name "HTTPS 2" destination address group "Update-Site.1.alm v6"
-    name "DMZ Updates 6"
-    priority manual 1
+    priority manual 27
     no enable
     exit
 access-rule ipv4 from DMZ to Lab action allow source address any service name "HTTPS 2" destination address group "Update-Site.1.alm"
     name "DMZ Updates 7"
-    priority manual 1
-    no enable
-    exit
-access-rule ipv6 from DMZ to Lab action allow source address any service name "HTTPS 2" destination address group "Update-Site.1.alm v6"
-    name "DMZ Updates 8"
-    priority manual 1
+    priority manual 28
     no enable
     exit
 access-rule ipv4 from DMZ to Trusted action allow source address any service name "HTTPS 2" destination address group "Update-Site.1.alm"
     name "DMZ Updates 9"
-    priority manual 1
-    no enable
-    exit
-access-rule ipv6 from DMZ to Trusted action allow source address any service name "HTTPS 2" destination address group "Update-Site.1.alm v6"
-    name "DMZ Updates 10"
-    priority manual 1
+    priority manual 29
     no enable
     exit
 access-rule ipv4 from Guests to External action allow source address any service group "DNS" destination address any
     name "Guests Out"
-    priority manual 3
-    no enable
-    exit
-access-rule ipv6 from Guests to External action allow source address any service group "DNS" destination address any
-    name "Guests Out 2"
-    priority manual 2
+    priority manual 30
     no enable
     exit
 access-rule ipv4 from Trusted to DMZ action allow source address any service name "Staff Only" destination address name "Web-Server.1.alm"
     name "Staff Only"
-    priority manual 2
+    priority manual 31
     no enable
     exit
 access-rule ipv4 from Trusted to External action allow source address any service name "Staff Only" destination address name "Web-Server.1.alm"
     name "Staff Only 2"
-    priority manual 4
+    priority manual 32
     no enable
     exit
 access-rule ipv4 from Trusted to Guests action allow source address any service name "Staff Only" destination address name "Web-Server.1.alm"
     name "Staff Only 3"
-    priority manual 2
+    priority manual 33
     no enable
     exit
 access-rule ipv4 from Trusted to Lab action allow source address any service name "Staff Only" destination address name "Web-Server.1.alm"
     name "Staff Only 4"
-    priority manual 2
+    priority manual 34
     no enable
     exit
 access-rule ipv4 from Trusted to Trusted action allow source address any service name "Staff Only" destination address name "Web-Server.1.alm"
     name "Staff Only 5"
-    priority manual 2
+    priority manual 35
     no enable
     exit
 access-rule ipv4 from Trusted to DMZ action allow source address any service name "Ping" destination address any
     name "Ping"
-    priority manual 3
+    priority manual 36
     exit
 access-rule ipv4 from Trusted to External action allow source address any service name "Ping" destination address any
     name "Ping 2"
-    priority manual 5
+    priority manual 37
     exit
 access-rule ipv4 from Trusted to Guests action allow source address any service name "Ping" destination address any
     name "Ping 3"
-    priority manual 3
+    priority manual 38
     exit
 access-rule ipv4 from Trusted to Lab action allow source address any service name "Ping" destination address any
     name "Ping 4"
-    priority manual 3
+    priority manual 39
     exit
 access-rule ipv4 from Trusted to Trusted action allow source address any service name "Ping" destination address any
     name "Ping 5"
-    priority manual 3
+    priority manual 40
     exit
 access-rule ipv4 from Guests to DMZ action allow source address any service name "Ping" destination address any
     name "Ping 6"
-    priority manual 2
+    priority manual 41
     exit
 access-rule ipv4 from Guests to External action allow source address any service name "Ping" destination address any
     name "Ping 7"
-    priority manual 4
+    priority manual 42
     exit
 access-rule ipv4 from Guests to Guests action allow source address any service name "Ping" destination address any
     name "Ping 8"
-    priority manual 2
+    priority manual 43
     exit
 access-rule ipv4 from Guests to Lab action allow source address any service name "Ping" destination address any
     name "Ping 9"
-    priority manual 2
+    priority manual 44
     exit
 access-rule ipv4 from Guests to Trusted action allow source address any service name "Ping" destination address any
     name "Ping 10"
-    priority manual 2
+    priority manual 45
     exit
-access-rule ipv4 from Lab to External action allow source address any service any destination address any
+access-rule ipv4 from Lab to External action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Lab Tunnel"
-    priority manual 1
+    priority manual 46
     no enable
     exit
-access-rule ipv6 from Lab to External action allow source address any service any destination address any
-    name "Lab Tunnel 2"
-    priority manual 1
-    no enable
-    exit
-access-rule ipv4 from DMZ to DMZ action deny source address any service any destination address any
+access-rule ipv4 from DMZ to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT DMZ to DMZ"
-    priority manual 2
+    priority manual 47
     exit
-access-rule ipv6 from DMZ to DMZ action deny source address any service any destination address any
-    name "FWSHIFT DMZ to DMZ v6"
-    priority manual 2
-    exit
-access-rule ipv4 from DMZ to External action deny source address any service any destination address any
+access-rule ipv4 from DMZ to External action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT DMZ to External"
-    priority manual 3
+    priority manual 48
     exit
-access-rule ipv6 from DMZ to External action deny source address any service any destination address any
-    name "FWSHIFT DMZ to External v6"
-    priority manual 3
-    exit
-access-rule ipv4 from DMZ to Guests action deny source address any service any destination address any
+access-rule ipv4 from DMZ to Guests action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT DMZ to Guests"
-    priority manual 2
+    priority manual 49
     exit
-access-rule ipv6 from DMZ to Guests action deny source address any service any destination address any
-    name "FWSHIFT DMZ to Guests v6"
-    priority manual 2
-    exit
-access-rule ipv4 from DMZ to Lab action deny source address any service any destination address any
+access-rule ipv4 from DMZ to Lab action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT DMZ to Lab"
-    priority manual 2
+    priority manual 50
     exit
-access-rule ipv6 from DMZ to Lab action deny source address any service any destination address any
-    name "FWSHIFT DMZ to Lab v6"
-    priority manual 2
-    exit
-access-rule ipv4 from DMZ to Trusted action deny source address any service any destination address any
+access-rule ipv4 from DMZ to Trusted action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT DMZ to Trusted"
-    priority manual 2
+    priority manual 51
     exit
-access-rule ipv6 from DMZ to Trusted action deny source address any service any destination address any
-    name "FWSHIFT DMZ to Trusted v6"
-    priority manual 2
-    exit
-access-rule ipv4 from External to DMZ action deny source address any service any destination address any
+access-rule ipv4 from External to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT External to DMZ"
-    priority manual 3
+    priority manual 52
     exit
-access-rule ipv6 from External to DMZ action deny source address any service any destination address any
-    name "FWSHIFT External to DMZ v6"
-    priority manual 1
-    exit
-access-rule ipv4 from External to External action deny source address any service any destination address any
+access-rule ipv4 from External to External action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT External to External"
-    priority manual 3
+    priority manual 53
     exit
-access-rule ipv6 from External to External action deny source address any service any destination address any
-    name "FWSHIFT External to External v6"
-    priority manual 1
-    exit
-access-rule ipv4 from External to Guests action deny source address any service any destination address any
+access-rule ipv4 from External to Guests action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT External to Guests"
-    priority manual 3
+    priority manual 54
     exit
-access-rule ipv6 from External to Guests action deny source address any service any destination address any
-    name "FWSHIFT External to Guests v6"
-    priority manual 1
-    exit
-access-rule ipv4 from External to Lab action deny source address any service any destination address any
+access-rule ipv4 from External to Lab action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT External to Lab"
-    priority manual 3
+    priority manual 55
     exit
-access-rule ipv6 from External to Lab action deny source address any service any destination address any
-    name "FWSHIFT External to Lab v6"
-    priority manual 1
-    exit
-access-rule ipv4 from External to Trusted action deny source address any service any destination address any
+access-rule ipv4 from External to Trusted action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT External to Trusted"
-    priority manual 3
+    priority manual 56
     exit
-access-rule ipv6 from External to Trusted action deny source address any service any destination address any
-    name "FWSHIFT External to Trusted v6"
-    priority manual 1
-    exit
-access-rule ipv4 from Guests to DMZ action deny source address any service any destination address any
+access-rule ipv4 from Guests to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT Guests to DMZ"
-    priority manual 3
+    priority manual 57
     exit
-access-rule ipv6 from Guests to DMZ action deny source address any service any destination address any
-    name "FWSHIFT Guests to DMZ v6"
-    priority manual 1
-    exit
-access-rule ipv4 from Guests to External action deny source address any service any destination address any
+access-rule ipv4 from Guests to External action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT Guests to External"
-    priority manual 5
+    priority manual 58
     exit
-access-rule ipv6 from Guests to External action deny source address any service any destination address any
-    name "FWSHIFT Guests to External v6"
-    priority manual 3
-    exit
-access-rule ipv4 from Guests to Guests action deny source address any service any destination address any
+access-rule ipv4 from Guests to Guests action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT Guests to Guests"
-    priority manual 3
+    priority manual 59
     exit
-access-rule ipv6 from Guests to Guests action deny source address any service any destination address any
-    name "FWSHIFT Guests to Guests v6"
-    priority manual 1
-    exit
-access-rule ipv4 from Guests to Lab action deny source address any service any destination address any
+access-rule ipv4 from Guests to Lab action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT Guests to Lab"
-    priority manual 3
+    priority manual 60
     exit
-access-rule ipv6 from Guests to Lab action deny source address any service any destination address any
-    name "FWSHIFT Guests to Lab v6"
-    priority manual 1
-    exit
-access-rule ipv4 from Guests to Trusted action deny source address any service any destination address any
+access-rule ipv4 from Guests to Trusted action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT Guests to Trusted"
-    priority manual 3
+    priority manual 61
     exit
-access-rule ipv6 from Guests to Trusted action deny source address any service any destination address any
-    name "FWSHIFT Guests to Trusted v6"
-    priority manual 1
-    exit
-access-rule ipv4 from Lab to DMZ action deny source address any service any destination address any
+access-rule ipv4 from Lab to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT Lab to DMZ"
-    priority manual 1
+    priority manual 62
     exit
-access-rule ipv6 from Lab to DMZ action deny source address any service any destination address any
-    name "FWSHIFT Lab to DMZ v6"
-    priority manual 1
-    exit
-access-rule ipv4 from Lab to External action deny source address any service any destination address any
+access-rule ipv4 from Lab to External action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT Lab to External"
-    priority manual 2
+    priority manual 63
     exit
-access-rule ipv6 from Lab to External action deny source address any service any destination address any
-    name "FWSHIFT Lab to External v6"
-    priority manual 2
-    exit
-access-rule ipv4 from Lab to Guests action deny source address any service any destination address any
+access-rule ipv4 from Lab to Guests action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT Lab to Guests"
-    priority manual 1
+    priority manual 64
     exit
-access-rule ipv6 from Lab to Guests action deny source address any service any destination address any
-    name "FWSHIFT Lab to Guests v6"
-    priority manual 1
-    exit
-access-rule ipv4 from Lab to Lab action deny source address any service any destination address any
+access-rule ipv4 from Lab to Lab action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT Lab to Lab"
-    priority manual 1
+    priority manual 65
     exit
-access-rule ipv6 from Lab to Lab action deny source address any service any destination address any
-    name "FWSHIFT Lab to Lab v6"
-    priority manual 1
-    exit
-access-rule ipv4 from Lab to Trusted action deny source address any service any destination address any
+access-rule ipv4 from Lab to Trusted action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT Lab to Trusted"
-    priority manual 1
+    priority manual 66
     exit
-access-rule ipv6 from Lab to Trusted action deny source address any service any destination address any
-    name "FWSHIFT Lab to Trusted v6"
-    priority manual 1
-    exit
-access-rule ipv4 from Trusted to DMZ action deny source address any service any destination address any
+access-rule ipv4 from Trusted to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT Trusted to DMZ"
-    priority manual 4
+    priority manual 67
     exit
-access-rule ipv6 from Trusted to DMZ action deny source address any service any destination address any
-    name "FWSHIFT Trusted to DMZ v6"
-    priority manual 1
-    exit
-access-rule ipv4 from Trusted to External action deny source address any service any destination address any
+access-rule ipv4 from Trusted to External action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT Trusted to External"
-    priority manual 6
+    priority manual 68
     exit
-access-rule ipv6 from Trusted to External action deny source address any service any destination address any
-    name "FWSHIFT Trusted to External v6"
-    priority manual 2
-    exit
-access-rule ipv4 from Trusted to Guests action deny source address any service any destination address any
+access-rule ipv4 from Trusted to Guests action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT Trusted to Guests"
-    priority manual 4
+    priority manual 69
     exit
-access-rule ipv6 from Trusted to Guests action deny source address any service any destination address any
-    name "FWSHIFT Trusted to Guests v6"
-    priority manual 1
-    exit
-access-rule ipv4 from Trusted to Lab action deny source address any service any destination address any
+access-rule ipv4 from Trusted to Lab action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT Trusted to Lab"
-    priority manual 4
+    priority manual 70
     exit
-access-rule ipv6 from Trusted to Lab action deny source address any service any destination address any
-    name "FWSHIFT Trusted to Lab v6"
-    priority manual 1
-    exit
-access-rule ipv4 from Trusted to Trusted action deny source address any service any destination address any
+access-rule ipv4 from Trusted to Trusted action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT Trusted to Trusted"
-    priority manual 4
+    priority manual 71
     exit
-access-rule ipv6 from Trusted to Trusted action deny source address any service any destination address any
+access-rule ipv6 from Trusted to External action allow source address any service group "Web Out" destination address any
+    name "Web Out 2"
+    exit
+access-rule ipv6 from Guests to External action allow source address any service group "Web Out" destination address any
+    name "Web Out 4"
+    exit
+access-rule ipv6 from DMZ to External action allow source address any service group "Web Out" destination address any
+    name "Web Out 6"
+    exit
+access-rule ipv6 from DMZ to DMZ action allow source address any service name "HTTPS 2" destination address group "Update-Site.1.alm v6"
+    name "DMZ Updates 2"
+    no enable
+    exit
+access-rule ipv6 from DMZ to External action allow source address any service name "HTTPS 2" destination address group "Update-Site.1.alm v6"
+    name "DMZ Updates 4"
+    no enable
+    exit
+access-rule ipv6 from DMZ to Guests action allow source address any service name "HTTPS 2" destination address group "Update-Site.1.alm v6"
+    name "DMZ Updates 6"
+    no enable
+    exit
+access-rule ipv6 from DMZ to Lab action allow source address any service name "HTTPS 2" destination address group "Update-Site.1.alm v6"
+    name "DMZ Updates 8"
+    no enable
+    exit
+access-rule ipv6 from DMZ to Trusted action allow source address any service name "HTTPS 2" destination address group "Update-Site.1.alm v6"
+    name "DMZ Updates 10"
+    no enable
+    exit
+access-rule ipv6 from Guests to External action allow source address any service group "DNS" destination address any
+    name "Guests Out 2"
+    no enable
+    exit
+access-rule ipv6 from Lab to External action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Lab Tunnel 2"
+    no enable
+    exit
+access-rule ipv6 from DMZ to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT DMZ to DMZ v6"
+    exit
+access-rule ipv6 from DMZ to External action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT DMZ to External v6"
+    exit
+access-rule ipv6 from DMZ to Guests action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT DMZ to Guests v6"
+    exit
+access-rule ipv6 from DMZ to Lab action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT DMZ to Lab v6"
+    exit
+access-rule ipv6 from DMZ to Trusted action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT DMZ to Trusted v6"
+    exit
+access-rule ipv6 from External to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT External to DMZ v6"
+    exit
+access-rule ipv6 from External to External action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT External to External v6"
+    exit
+access-rule ipv6 from External to Guests action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT External to Guests v6"
+    exit
+access-rule ipv6 from External to Lab action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT External to Lab v6"
+    exit
+access-rule ipv6 from External to Trusted action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT External to Trusted v6"
+    exit
+access-rule ipv6 from Guests to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Guests to DMZ v6"
+    exit
+access-rule ipv6 from Guests to External action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Guests to External v6"
+    exit
+access-rule ipv6 from Guests to Guests action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Guests to Guests v6"
+    exit
+access-rule ipv6 from Guests to Lab action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Guests to Lab v6"
+    exit
+access-rule ipv6 from Guests to Trusted action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Guests to Trusted v6"
+    exit
+access-rule ipv6 from Lab to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Lab to DMZ v6"
+    exit
+access-rule ipv6 from Lab to External action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Lab to External v6"
+    exit
+access-rule ipv6 from Lab to Guests action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Lab to Guests v6"
+    exit
+access-rule ipv6 from Lab to Lab action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Lab to Lab v6"
+    exit
+access-rule ipv6 from Lab to Trusted action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Lab to Trusted v6"
+    exit
+access-rule ipv6 from Trusted to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Trusted to DMZ v6"
+    exit
+access-rule ipv6 from Trusted to External action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Trusted to External v6"
+    exit
+access-rule ipv6 from Trusted to Guests action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Trusted to Guests v6"
+    exit
+access-rule ipv6 from Trusted to Lab action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT Trusted to Lab v6"
+    exit
+access-rule ipv6 from Trusted to Trusted action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT Trusted to Trusted v6"
-    priority manual 1
     exit
 commit
 exit

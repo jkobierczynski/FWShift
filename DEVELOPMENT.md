@@ -8,10 +8,10 @@ and a log of what has been done. For using the tool, see the
 
 | | |
 |---|---|
-| Version | 0.40.0 (alpha) |
+| Version | 0.40.16 (alpha) |
 | Platforms | PAN-OS and Panorama (read XML, write `set` commands); FortiOS (read and write CLI configuration); Check Point (read Management API JSON, write a `mgmt_cli` script); Cisco ASA (read `show running-config`, also of an FTD; write ASA commands); Cisco IOS and IOS XE routers (read `show running-config`: interface access lists, object groups, the zone-based firewall, NAT; write commands for the zone-based firewall); Huawei USG (read `display current-configuration`: security zones, address and service sets, `security-policy`, `nat server`, `nat-policy`; write commands for the system view); Stormshield SNS (read the ConfigFiles as a `.tgz`: interfaces, objects, the active filter slot and the global one; write a script of serverd commands); Cisco Meraki MX (read the answers of the Dashboard API for one network: VLANs, objects, the outbound and layer 7 rules, port forwarding, 1:1 and 1:many NAT, the inbound table with NAT exceptions; write a curl script that puts the outbound and NAT tables); Cisco Secure Firewall managed by a Management Center (read the JSON of its REST API; write a Python script that loads a new policy through that API) or by its Device Manager (read the configuration export or the JSON of its API; write a file for the configuration import); Sophos Firewall, SFOS 18 and later (read and write the `Entities.xml` of *Import export*, plain or in its `.tar`); pfSense 2.6 and later (read `config.xml`; write the areas Aliases, NAT and Firewall Rules for a restore, for 2.7 and later); OPNsense 24.7 to 26.7 (read `config.xml`, both kinds of rule; write the areas Aliases, NAT and Firewall Rules for one series); SonicWall, SonicOS 6.5 and 7 (read the settings export `.exp`; write commands of the SonicOS 7 command line); WatchGuard, Fireware 12 (read the configuration file of Policy Manager; write its policy part, to merge into a configuration of the target); Barracuda CloudGen Firewall, 8.0 and later (read saved answers of its REST API; write a shell script that creates the rules through that API); Juniper SRX, Junos OS (read `display set` or the configuration in braces; write set commands for `load set`); iptables and ip6tables (read `iptables-save`, write `iptables-restore` files); nftables (read `nft list ruleset` text or JSON, write one table for `nft -f`); VMware NSX distributed firewall (read the JSON of the Policy API, hierarchical or list answers; write the body of one hierarchical `PATCH`); AWS EC2 security groups and network ACLs (read the JSON of the AWS CLI for one VPC; write a shell script of AWS CLI calls that creates new security groups); Azure network security groups (read the JSON of the Azure CLI, the REST API, an ARM template or Resource Graph; write an ARM template with a group per zone); MikroTik RouterOS 6 and 7 (read the output of `/export`; write a script for `/import` whose chains one change switches on); Forcepoint NGFW (read the answers of the SMC REST API for one policy, fetched by a read-only program FWShift writes; write a Python script that creates a new policy through that API); Google Cloud (read the JSON of gcloud for one VPC network: VPC firewall rules, global and regional network firewall policies, hierarchical ones when added, the instances; write a gcloud script that creates a new global network firewall policy); Terraform for AWS, Azure and Google Cloud (read `terraform show -json` of a state or a plan, or the raw state: the security groups, network ACLs and members of hashicorp/aws, the network security groups of hashicorp/azurerm, the firewall rules and policies of hashicorp/google; write HCL that creates the groups or the policy) |
-| Tests | 6699, all passing (a dozen of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
-| Verified on devices | **iptables and nftables**: rulesets loaded into a Linux kernel and real packets forwarded through it (below; and the lab of 0.32.0, also on the author's machine). **AWS, Azure and Google Cloud**: the lab policy's conversion loaded into a real account by the lab, and real connections between instances checked (0.32.1, below). **FortiOS**: the lab policy's conversion loaded on a FortiGate-VM (FortiOS 8.0.1, AWS Marketplace) and real connections through it checked (0.32.1, below). **PAN-OS**: the same on a VM-Series (PAN-OS 11.2.15, AWS Marketplace). Nothing has been loaded on an ASA, an IOS router, a Huawei USG, a Stormshield firewall, a Meraki MX, a Sophos Firewall, a pfSense, a SonicWall, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
+| Tests | 6703, all passing (a dozen of them need root, and iptables or nft, and are skipped elsewhere); `mypy --strict` clean |
+| Verified on devices | **iptables and nftables**: rulesets loaded into a Linux kernel and real packets forwarded through it (below; and the lab of 0.32.0, also on the author's machine). **AWS, Azure and Google Cloud**: the lab policy's conversion loaded into a real account by the lab, and real connections between instances checked (0.32.1, below). **FortiOS**: the lab policy's conversion loaded on a FortiGate-VM (FortiOS 8.0.1, AWS Marketplace) and real connections through it checked (0.32.1, below). **PAN-OS**: the same on a VM-Series (PAN-OS 11.2.15, AWS Marketplace). **SonicWall**: the same on a SonicWall NSv (SonicOSX 8.2.2-8015, AWS Marketplace), NAT included (0.40.16, below). Nothing has been loaded on an ASA, an IOS router, a Huawei USG, a Stormshield firewall, a Meraki MX, a Sophos Firewall, a pfSense, a Firebox, a CloudGen Firewall, an SRX, an NSX Manager, a MikroTik router, an OPNsense, a Forcepoint SMC, a Check Point management server, a Cisco Management Center or a Device Manager, and no Terraform output was applied with Terraform |
 | Analysis | the audit, the zone matrix, rule usage from hit counters and logs, the zone and conduit model as a gate (`fwshift conduits`), the equivalence check (`fwshift compare`, `convert --compare`) |
 | Security | an outside review (ChatGPT, October 2026) and the measures taken: `docs/security/SECURITY_REVIEW.md` |
 | Next | the networks behind a zone from the source, NAT in the comparison, more targets read back; lab validation of the sample conversions (see `TODO.md`) |
@@ -2165,6 +2165,383 @@ were not reviewed again; they have tests (the last section of
   are spelled so; the limits of names; whether the API resolves names with
   regard to case; what `expand=true` holds for rule lists; the JSON of Dst
   NAT, Map and connection objects.
+
+### 2026-10-22: version 0.40.16
+
+**The SonicWall NSv passed.** The twentieth NSv run (0.40.15, SonicOSX 8.2.2-8015 on AWS, pay as you go) committed the
+conversion with every NAT policy placed and probed: local 32, ok 129; NAT: ok 16; result PASSED. Every connection
+through the NSv was passed or blocked as the source decides. The addresses each host saw were also as the source's NAT
+decides: the published web server, the inside hidden behind the firewall, and the DMZ seen from its own addresses with
+SonicOS's own hide policy below the conversion's. That is the first SonicWall output verified on a device.
+
+What the nineteen runs before it changed, in order: the login and the forced password change (0.40.1); SonicOS's own
+zones LAN, DMZ and WAN, which `ip-assignment` takes where it refused the CLI's own (0.40.4); `nat-policy ipv4`
+(0.40.5); the policies that translate nothing per pair of interfaces, never `any` (0.40.6, 0.40.14); a rule that
+matches everything named with all addresses as a group, so as not to be the pair's default rule (0.40.9); IPv6 rules
+placed by SonicOS after its some 80 rules of its own (0.40.13); every IPv4 rule's and NAT policy's place in one list
+across all zone pairs, in the order written (0.40.14, 0.40.15). In the lab: the pager, the scrolled screen, the
+prompts and the refusals read as SonicOS writes them (0.40.8, 0.40.10, 0.40.12).
+
+**Built**
+
+* The documents say so: README.md, the status above, lab/README.md, TODO.md and the book.
+
+**Verified**
+
+* The suite (6,703 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: the read-back of a SonicWall (its settings export is had from the web console only), the NSv on
+  Azure (not offered there pay as you go), and SonicOS 7.
+
+### 2026-10-22: version 0.40.15
+
+**The NSv filters as the source does; one NAT check left.** The nineteenth NSv run (0.40.14) committed the conversion
+with the IPv4 rules numbered across every pair, and probed: FAIL 2, local 32, ok 127; NAT: FAIL 2, ok 14. Every flow
+was passed or blocked as the source decides, the published web server and the inside hidden behind the firewall
+among them. The two failures were DMZ to outside (`dmz10>out10:tcp/8005`, `dmz11>out10:tcp/8005`), seen from
+10.20.3.4 and not from the DMZ host's own address: SonicOS's own hide policy `inbound X2 outbound X3` still came first.
+The eighteenth run's list showed every NAT policy as `priority auto`: SonicOS orders them by how much they name, and the
+policies of the source that translate nothing name no more than its own.
+
+**Built**
+
+* The SonicWall target gives every NAT policy its place, `priority manual 1`, `2` ... in the order written, as it does
+  the IPv4 access rules: the source's NAT policies, then the ones that translate nothing, above SonicOS's own. The
+  closing policies stay for two different interfaces each, never for traffic that leaves by the interface it came in
+  by (SonicOS's own policies there are for its management).
+
+**Verified**
+
+* The output and its judge in the tests (the judge checks each NAT policy's place); every SonicWall golden output
+  regenerated.
+* The suite (6,703 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: on the NSv (the next run): `priority manual` in a NAT policy, and the DMZ seen from its own addresses.
+
+### 2026-10-22: version 0.40.14
+
+**The NSv's first probes: everything denied, a rule's place is in one list of all pairs.** The eighteenth NSv run
+(0.40.13) committed the whole conversion ("Changes made"). SonicOS placed the IPv6 rules itself, at priorities 78 to
+86, and probed: FAIL 22, local 32, ok 107. Every flow that should pass was refused (a TCP reset) or not answered, and
+every one that should be blocked was blocked. The NSv's own list (`show access-rules`, diagnose.txt) showed why:
+`priority manual N` is a place in one list of the rules of every pair, not in the pair. FWShift numbered each pair
+from 1, and each rule the commit put at its number pushed down those of other pairs. LAN to DMZ ended as
+`FWSHIFT LAN to DMZ` (deny all) at 7, above `guest-not-to-dmz` at 12, `web-to-dmz` at 13 and `admin-ssh` at 14; LAN to
+WAN as `FWSHIFT LAN to WAN` at 5, above `no-dns-out` at 8 and `inside-out` at 9. Each pair holds some 80 rules of
+SonicOS's own (its defaults at 19 to 30 for IPv4, 79 to 89 for IPv6).
+
+The NAT policies (`show nat-policies`): SonicOS orders them by how much they name, not as made. The lab's `web-publish`
+and `inside-hide` sat above SonicOS's own hide policies (`inbound X2 outbound X3`, translated to `X3 IP`), but the three
+policies that translate nothing (`inbound any outbound X3` ...) below them, in the reverse of the order they were made.
+
+**Built**
+
+* The SonicWall target numbers the IPv4 rules 1, 2, 3 ... in the order written, across every pair: each goes after the
+  ones before it and above SonicOS's own, and a pair keeps its order.
+* The policies that translate nothing are written for each pair of interfaces of the zones (`FWSHIFT no other NAT X2
+  to X3`, `inbound X2 outbound X3`), source any: as much as SonicOS's own hide policies name, the newer above, and below
+  a policy of the source that names its source.
+* The lab's diagnose step: `show interfaces ipv4` and `show routing` (`show interfaces ip` and `show route` were
+  ambiguous on SonicOS 8.2.2).
+
+**Verified**
+
+* The output and its judge in the tests (the judge numbers the IPv4 rules across every pair); every SonicWall golden
+  output regenerated.
+* The suite (6,703 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: on the NSv (the next run): the probes with the rules in order, and the NAT policies that translate
+  nothing above SonicOS's own.
+
+### 2026-10-22: version 0.40.13
+
+**The NSv's whole policy typed in; IPv6 rules placed by SonicOS.** The seventeenth NSv run (0.40.12) typed every line
+of the conversion through the scrolled screen (the lab's quiet-screen fallback and the end of a prompt), and the commit
+added all fourteen IPv4 rules again. It refused the first IPv6 rule as the fifteenth did, at `priority manual 3`, after
+the pair's one IPv4 rule of FWShift and one default: "IPv4 access rules must be placed before IPv6 rules." The pair
+holds more IPv4 rules than that, rules SonicOS adds by itself (for the management of an interface, perhaps), and how many
+cannot be known from the policy.
+
+**Built**
+
+* The SonicWall target writes IPv6 rules without `priority manual`, after every IPv4 rule: SonicOS places them.
+  `IPV6_PRIORITY_AUTO` says so; it needs review where a pair has more than one IPv6 rule, whose order SonicOS then decides.
+
+**Verified**
+
+* The output and its judge in the tests; every SonicWall golden output regenerated.
+* The suite (6,703 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: on the NSv (the next run): the IPv6 rules placed by SonicOS (its "Rule added at priority N" will
+  show where), the whole commit, and the probes after it.
+
+### 2026-10-22: version 0.40.12
+
+**The lab lost SonicOS's prompt in a scrolled screen, and took its status lines for refusals.** The sixteenth NSv run
+(0.40.11) set up the interfaces and entered the address objects, until the half `n 0.0.0.0_1`. After that long line
+SonicOS scrolled its whole screen 20 columns to the left (`ESC [20P` on every line) and left it so. Its prompt,
+`config(004010211E1B)# `, showed as `# `, and the lab waited for a prompt it did not see until the session timed out.
+It then reported "refused 4 lines, the first: % User logout.": its pattern for refusals took every line that starts
+with `% `, and SonicOS starts its status lines so. The earlier runs' reports named the same wrong line.
+
+**Built**
+
+* The lab's pattern for SonicOS's prompts also takes the end of one alone, for a scrolled screen (`# `, `IPv4])# `).
+* A paced session quiet for `idle` seconds after a line, without a question or a pager on the screen, is taken to be
+  at its prompt: 15 seconds for the NSv, 90 after `commit` (`slow`). A sub-mode's prompt shorter than the scroll, such
+  as `(add-access-rule)# `, shows nothing at all.
+* The NSv's refusals are `% Error:` and `% Error encountered at` (the marker), not every line that starts with `%`.
+  `% Error encountered processing command:` is no refusal either: the commit writes it above every rule it adds.
+
+**Verified**
+
+* A fake CLI whose prompt does not show, and that is quiet for a while after a commit, in the tests; the prompts and
+  the refusals against the lines of the NSv's runs.
+* The suite (6,703 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: on the NSv (the next run).
+
+### 2026-10-22: version 0.40.11
+
+**The NSv commits every IPv4 rule; IPv6 rules go after them.** The fifteenth NSv run (0.40.10) committed all fourteen
+IPv4 rules: the lab's eight, and the six closing denies with group `FWSHIFT all IPv4` as their source. No overlap with
+the default rules, so SonicOS compares rules by their objects. It then refused the first IPv6 rule, `FWSHIFT DMZ to LAN
+v6` at `priority manual 1`: "Action in IPv6: Invalid priority! IPv4 access rules must be placed before IPv6 rules." A
+pair of zones has one list of priorities, its IPv4 rules first. SonicOS processed the commit's IPv4 rules first.
+
+**Built**
+
+* The SonicWall target writes every IPv6 rule after every IPv4 rule. Their order among themselves is kept, and the two
+  versions match no packet in common. An IPv6 rule's priority comes after its pair's IPv4 rules and one more, SonicOS's
+  default IPv4 rule of the pair, taken to sit below the rules created. That count is not in the documentation FWShift
+  was written from; `SONICWALL_LOAD` names it.
+
+**Verified**
+
+* The output and its judge in the tests (the judge numbers a pair's IPv6 rules after its IPv4 rules and their default);
+  every SonicWall golden output regenerated.
+* The suite (6,702 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: on the NSv (the next run): whether the pair's default IPv4 rule counts.
+
+### 2026-10-22: version 0.40.10
+
+**The lab waited at a prompt with spaces in it.** The fourteenth NSv run (0.40.9) took the halves of all addresses
+(`network 0.0.0.0 128.0.0.0`, `network :: /1`, and their other halves) and entered the group of them, and SonicOS
+answered with the group's prompt, `(add-ipv4-address-group[FWSHIFT all IPv4])#`. The lab's pattern for SonicOS's prompts
+took no space, and it waited until the session timed out. Nothing was committed.
+
+**Built**
+
+* The lab's pattern for SonicOS's prompts takes a name in brackets with spaces in it (a sub-mode's prompt names its
+  object so); the console's `NSv >` still does not match it.
+
+**Verified**
+
+* The prompts seen so far, the group's among them, in the tests.
+* The suite (6,702 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: on the NSv (the next run): the group as a rule's source, and whether SonicOS takes it as a rule of its
+  own beside the default rule of the pair.
+
+### 2026-10-22: version 0.40.9
+
+**The NSv commits the lab's own rules; a rule that matches everything is its pair's default rule.** The thirteenth NSv
+run (0.40.8) paged through the commit (the lab's space at each "--MORE--") and showed what it did. SonicOS writes
+"Error encountered processing command:" and every setting of each rule it processes, then "Rule added at priority N":
+the eight rules of the lab policy went in at the priorities FWShift gave them. The commit stopped at the closing deny
+from DMZ to WAN: "Policy Action: Rule overlap, rule not added". SonicOS knows a rule by what it matches. A rule that
+denies all (source, destination, service any) matches what the pair's default rule matches (DMZ to WAN: allow all), and
+is refused. Where the default rule denies too, the same command changes that default rule (`edit-access-rule`: DMZ to
+LAN, WAN to DMZ, WAN to LAN in the eleventh to thirteenth runs).
+
+**Built**
+
+* The SonicWall target: a rule that matches everything names its source as group `FWSHIFT all IPv4` (`0.0.0.0/1` and
+  `128.0.0.0/1`; `FWSHIFT all IPv6`: `::/1` and `8000::/1`) instead of `any`. It is a rule of its own, above the default
+  rule of its pair; the closing denies (`DEFAULT_DENY_ADDED`) are written so, and so is a rule of the source that matches
+  everything (`CATCH_ALL_AS_GROUP`).
+
+**Verified**
+
+* The output in the tests; every SonicWall golden output regenerated.
+* The suite (6,702 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: on the NSv (the next run): whether SonicOS compares rules by their objects (as FWShift takes it) or by
+  the addresses in them.
+
+### 2026-10-21: version 0.40.8
+
+**The NSv's pager answered, not switched off.** The twelfth NSv run (0.40.7) refused `cli screen length session 1600`
+at `screen` (SonicOS 8.2.2; the command is from SonicWall's article for SonicOS 7), took every other command as the
+eleventh did, and its commit stopped at "--MORE--" again, the reason below it.
+
+**Built**
+
+* A paced session answers a pager with a space, as often as it comes (`pager`, a field of the vendor: SonicOS's
+  "--MORE--"), on the load and the diagnose; the command for the pager is gone from both.
+
+**Verified**
+
+* A fake CLI that pages twice before its error and its prompt, in the tests.
+* The suite (6,702 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: on the NSv (the next run): the commit's reason.
+
+### 2026-10-21: version 0.40.7
+
+**The NSv takes every command; the commit refuses, its reason below the pager.** The eleventh NSv run (0.40.6) took
+everything the conversion writes: the three NAT policies that translate nothing (one per interface), and every access
+rule with its name and `priority manual`. Each rule went into `add-access-rule` (`add-access-rule-ipv6` for IPv6),
+except the closing denies of DMZ to LAN, WAN to DMZ and WAN to LAN: those went into `edit-access-rule`. The same rule
+already exists as the default rule of those pairs, and the name and priority were set on it. The commit then failed:
+"Error encountered processing command:" with the first access rule (`guest-not-to-dmz`) shown in full, and SonicOS's
+pager stopped at "--MORE--" before the reason.
+
+**Built**
+
+* The lab's SonicWall session starts with `cli screen length session 1600` in configure mode, SonicWall's command for
+  SonicOS 7 (1,600 lines is the most it takes), committed with the interfaces before FWShift's commands. The diagnose
+  step does the same instead of SonicOS 5.9's `no cli pager session`, and also asks for the NAT policies.
+
+**Verified**
+
+* The session's order in the tests.
+* The suite (6,701 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: on the NSv (the next run): the commit's reason, and whether the default rules of a pair may be renamed
+  and given a priority.
+
+### 2026-10-21: version 0.40.6
+
+**The NSv takes the NAT policies; not one that translates nothing for any interface.** The tenth NSv run (0.40.5) took
+`nat-policy ipv4 inbound ...` and both NAT policies of the lab (each into its sub-mode, `add-nat-policy`, with its name
+and comment): the form is confirmed. It refused the policy that translates nothing, `inbound any outbound any` with
+everything `any` and `original`: "Nat Policy is read-only". That policy is SonicOS's own, its last one.
+
+**Built**
+
+* The SonicWall target writes a policy that translates nothing for each interface traffic leaves by
+  (`FWSHIFT no other NAT X3`, `outbound X3`), the interfaces those of the zones (`--interface-map`, or a SonicWall
+  source's own); never for any interface. Without the interfaces none is written, and `NAT_NOTHING_ELSE` says to
+  disable the policies SonicOS added.
+* `nat-policy ipv4` is no longer among the parts of the commands not confirmed.
+
+**Verified**
+
+* The output in the tests (the policies per interface, none for any interface); every SonicWall golden output
+  regenerated.
+* The suite (6,701 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: on the NSv (the next run): whether the policies SonicOS adds come before the ones created; the
+  access rules, which no run has reached.
+
+### 2026-10-21: version 0.40.5
+
+**The NSv takes its interfaces; NAT policies next.** The ninth NSv run (0.40.4) put X0, X2 and X3 in LAN, DMZ and WAN
+(`ip-assignment LAN static` entered its sub-mode, `edit-LAN-static[X0]`; the WAN one without a gateway was accepted),
+committed them ("Changes made"), and took every address and service object of the conversion. SonicOS 8.2.2 then
+refused the first NAT policy, "No matching command found" with the marker at `inbound`: `nat-policy` is a command,
+and something else comes first.
+
+**Built**
+
+* The SonicWall target writes `nat-policy ipv4 inbound ...`. SonicOS 7's API keeps its NAT policies in three tables,
+  `ipv4`, `ipv6` and `nat64`, and the CLI's `access-rule` takes the IP version in the same place. Not in the documentation
+  FWShift was written from: `SONICWALL_LOAD` names it.
+* The lab's reading of the screen takes every escape code's last character (`ESC [20@`, an insertion of characters,
+  was left in the text): the NSv redraws a line longer than the terminal so.
+
+**Verified**
+
+* The output and its judge in the tests; every SonicWall golden output regenerated.
+* The suite (6,701 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: on the NSv (the next run), nor the access rules after the NAT policies, which no run has reached.
+
+### 2026-10-21: version 0.40.4
+
+**The NSv: SonicOS's own zones, and the NAT policies it adds.** The eighth NSv run (0.40.3) logged in by itself, made
+and committed the three zones, left configure mode and entered it again, and SonicOS still refused `ip-assignment inside
+static`, the marker at `inside`: the other reading of 0.40.3 holds, `ip-assignment` does not take the zones the CLI made.
+
+**Built**
+
+* The lab puts X0, X2 and X3 in SonicOS's own zones LAN, DMZ and WAN and makes none: the policy is converted with
+  `--zone-map inside=LAN dmz=DMZ outside=WAN` and the zone networks under those names. Their default rules (LAN to WAN
+  allowed, and others) end in the rules that deny the conversion adds already (`DEFAULT_DENY_ADDED`).
+* The SonicWall target: SonicOS adds NAT policies of its own (an interface in a WAN zone hides the LAN and DMZ subnets
+  behind its address), and the model translates only what its NAT rules say. A policy with NAT rules now ends in a
+  NAT policy that translates nothing, `FWSHIFT no other NAT` (`NAT_NOTHING_ELSE`, needs review: whether SonicOS puts
+  the policies it adds before the ones created is not in what FWShift was written from). In the lab, the DMZ's
+  connections to the outside are checked for the address they come from: the NSv run will tell.
+
+**Verified**
+
+* The session and the conversion in the tests; the NAT policy last, and none without NAT rules; every SonicWall
+  golden output regenerated and read (one policy more at the end of the NAT policies, the note in the report).
+* The suite (6,701 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: on the NSv (the next run).
+
+### 2026-10-19: version 0.40.3
+
+**The NSv: configure mode entered again after the zones.** The seventh NSv run (0.40.2) committed the three zones
+("Changes made") and SonicOS still refused `ip-assignment inside static`, the marker at `inside`. SonicWall's own
+SonicOS 8 example has the same command with a built-in zone (`ip-assignment LAN static`).
+
+**Built**
+
+* After the zones' commit the session leaves configure mode and enters it again before the interfaces: the cheaper
+  of the two readings (the CLI knows the zones it had when configure mode began). Should the next run still refuse
+  `inside`, the other reading holds (`ip-assignment` takes the built-in zones only), and the lab will put X0, X2 and
+  X3 in LAN, DMZ and WAN, with the policy converted for those names and their own default rules looked at.
+
+**Verified**
+
+* The session's order in the tests; every dry run.
+* The suite (6,701 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: on the NSv (the next run).
+
+### 2026-10-19: version 0.40.2
+
+**The SonicWall NSv logs in and takes its zones; the interfaces next.** The sixth NSv run (0.40.1) logged in to SonicOS
+by itself (the forced change of the first login answered, `admin@SERIAL>`, `configure terminal`, the three zones made)
+and stopped at the first interface.
+
+**Built**
+
+* The zones are committed before the interfaces name them: `ip-assignment inside static` was refused ("No matching
+  command found", the marker at `inside`), the zone made in the same session and not committed; the `ip` and
+  `management ping` errors after it came from the interface's sub-mode never entered.
+* Seen in the NSv's own console (AWS's serial output): on its first boot it installs its services, reboots, registers
+  with SonicWall's provisioning service (pay as you go), reboots again, and once more after its first settings; SSH
+  answers between them. The ready check waits for SonicOS's own answer to `show version`, which none of them gives.
+
+**Verified**
+
+* The session's order in the tests; every dry run.
+* The suite (6,701 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: the interfaces and the policy on the NSv (the next run).
+
+### 2026-10-19: version 0.40.1
+
+**The SonicWall NSv's login, from a run looked at by hand.** The fifth NSv run (SonicOSX 8.2.2-8015, us-east-1, the
+lab of 0.36.4) waited 45 minutes at a prompt that took none of its commands. Logged in by hand, the NSv showed why, and
+the lab now does what it showed.
+
+**Built**
+
+* Two windows, and SSH lands in the one last used. `NSv >` is the SonicCore console's prompt (its commands: `show
+  system`, `show sonicos`, `show status` ...; `show version` there is "Syntax error: Illegal parameter"), not SonicOS's.
+  The first session landed in SonicOS's window, and the lab's Ctrl+S and space switched it to the console; every later
+  try did the same. The keys now go only where the console's prompt shows (`preamble_when`), and the lab waits for
+  SonicOS's own prompt (`admin@SERIAL>`, `config(SERIAL)#`; no space before the `>`).
+* SonicOS's `User:` comes with a line of its boot log written after it ("User:delay interval:60, clockrate:1, report
+  interval:15"): a login question is now the last line that starts with it, not only the end of the screen.
+* The first login as admin (the instance id, which SonicOS takes) must change the password: "Your password is too
+  simple and must be changed", the old password, a new one, again. Answered: the old one as the login took it, the new
+  one made for the run and kept in the work folder (`sonicwall_password.txt`): at least 8 characters, upper and lower
+  case, a digit and one of `!@#$%^&*()` (a dash is refused, as the hand-made tries showed). A later session logs in with
+  it; the instance id and `password` (SonicWall's SonicOS 8 guides) are tried too, once each a session.
+* A full-screen console's text: a move of the cursor to a place on the screen, or a clearing of it, is now a new line
+  (its lines and prompts start lines, which the questions and the console's prompt are recognised by).
+
+**Verified**
+
+* A fake NSv in the tests, as the run showed it: landing in SonicOS's window on a first login (the forced change), in
+  the console (switched once), and in SonicOS's window after the change (the run's password): show version answered by
+  SonicOS each time.
+* The suite (6,701 tests, on Python 3.13 and 3.9; mypy, on both, and pyflakes clean).
+* **Not verified**: on the NSv; that SonicOS 8's CLI answers `show version` with `firmware-version` (as SonicOS 7's
+  does) and that its prompt is `admin@SERIAL>` are from SonicOS 7's reference.
 
 ### 2026-10-19: version 0.40.0
 

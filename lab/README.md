@@ -219,7 +219,7 @@ booting.
 | Check Point All-In-One (PAYG: gateway and management on one instance; the subscribed product among the images named Check Point or CloudGuard; m5.xlarge, 16 GB for the management API) | `checkpoint` | eth1-eth3, addresses set with `clish`; one `set simple-gateway` names every interface (eth0 too: it replaces the list), each data interface in its security zone, anti-spoofing off | `admin`, the run's key; bash, by the first-time setup (the image's `/etc/cloud_config.py`, as Check Point's Terraform module for a standalone calls it); ready when `api status` says the API is; FWShift's `mgmt_cli` script and the lab's `fwlab_load.sh` are copied over and run, then publish and install of `Standard`; boot allowed 60 minutes |
 | Netgate pfSense Plus Firewall/VPN/Router (hourly; the x86 AMI, `pfSense-plus-ec2-*-RELEASE-amd64*`) | `pfsense`, zones mapped to OPT1-OPT3 | ena1-ena3 as OPT1-OPT3 with the lab's addresses, put into the image's `/conf/config.xml` with the areas of the conversion (the merge of tier 2), then a reboot; ready once ena3 has its address and pf a rule for the lab's web server. WAN (the first card, DHCP) is management | `admin`, the run's key; commands given to ssh (`admin` gets a menu with a terminal) |
 | OPNsense, Deciso's image (hourly; the subscribed product among the images named OPNsense) | `opnsense`, zones mapped to OPT1-OPT3 | as pfSense | `ec2-user`, the run's key, `sudo` for root |
-| SonicWall NSv (PAYG; the subscribed product among the images named SonicWall or NSv) | `sonicwall` | X0, X2, X3 (AWS's second to fourth card: X0 is SonicWall's documented LAN; X2 and X3 assumed), in zones `inside`, `dmz`, `outside` made in the same session, security type trusted | `management`, the run's key (SonicWall's AWS guide); Ctrl+S and a space switch its management console to the SonicOS CLI, whose own `User:` (`admin`) and `Password:` (the instance id) are answered; lines typed after the prompt; the session closed by the lab, as leaving the CLI goes back to the console |
+| SonicWall NSv (PAYG; the subscribed product among the images named SonicWall or NSv) | `sonicwall` | X0, X2, X3 (AWS's second to fourth card: X0 is SonicWall's documented LAN; X2 and X3 assumed), in SonicOS's own zones LAN, DMZ and WAN (SonicOS 8.2.2 refused the zones its CLI made in `ip-assignment`), the policy converted for those names with `--zone-map`; every rule and NAT policy given its place (`priority manual`, one list of all zone pairs), so the NAT policies SonicOS adds for a WAN interface come below the conversion's, which translate nothing between two interfaces | `management`, the run's key (SonicWall's AWS guide). SSH lands in the window last used: only where the SonicCore console's `NSv >` shows do Ctrl+S and a space switch to SonicOS. Its `User:` (with a line of its boot log after it, SonicOS 8.2.2) is answered `admin`, its `Password:` the instance id, then the run's own password, then `password`; the first login must change the password: the old one, then the run's own (`sonicwall_password.txt` in the work folder: SonicOS wants upper and lower case, a digit and one of `!@#$%^&*()`, no dash), twice. Lines typed after SonicOS's prompt (`admin@SERIAL>`, never the console's `NSv >`); the session closed by the lab, as leaving the CLI goes back to the console |
 
 **Which image.** Each image is looked up by its names in the run's region: of the x86 Marketplace images whose name
 matches, the newest of a product the account is subscribed to (VM-Series: of PAYG Bundle 1, by its product code). One
@@ -233,7 +233,7 @@ the try does not tell (an account without a default VPC). An image id belongs to
 m6i.xlarge, r5.xlarge, ...) with the same dry-run launch, which answers `UnsupportedOperation` for a type the product
 does not take, and starts the first it takes (`instance-types.txt`).
 
-pfSense and OPNsense passed on AWS (0.36.4); SonicWall is scripted from its vendor's documentation and has never run. Not scripted, with the reason, in `python3 lab/lab.py list`: Stormshield, Sophos, Barracuda, WatchGuard,
+pfSense and OPNsense passed on AWS (0.36.4), the SonicWall NSv in 0.40.16 (twenty runs, NAT included). Not scripted, with the reason, in `python3 lab/lab.py list`: Stormshield, Sophos, Barracuda, WatchGuard,
 Forcepoint, Meraki.
 
 ### Tier 3 on Azure and Google Cloud (0.39.0)
@@ -268,7 +268,7 @@ Every vendor of tier 3 on every cloud (`python3 lab/lab.py list` shows the same)
 | Check Point | scripted (published and verified by hand) | scripted: `checkpoint:check-point-cg-r82:sg-ngtp` (PAYG); `/etc/cloud_config.py` as the custom data's interpreter, a standalone, as CloudGuardIaaS writes it | image found, not ready (below): the newest `check-point-r8210-gw-payg-single-*` of `checkpoint-public`; the startup script and `instanceSSHKey` as CloudGuardIaaS writes them |
 | pfSense Plus | passed | not scripted: the image is there (`netgate:pfsense-plus-public-cloud-fw-vpn-router`), its plan not found; Netgate: several NICs cannot be set up from the portal | not offered |
 | OPNsense | passed | not scripted: Deciso's image is there (`decisosalesbv:opnsense`), one NIC in its guide, its plan not found | no image |
-| SonicWall NSv | scripted | not scripted: BYOL only, the offer's id not found | not offered |
+| SonicWall NSv | passed (0.40.16, NAT included) | not scripted: BYOL only, the offer's id not found | not offered |
 
 **Google Cloud is not ready** (found by the review of 0.40.0): Google Cloud delivers through each subnet's gateway, not
 to a neighbour found by ARP (tier 1 found it for the test hosts, which route their own subnet through the gateway
@@ -329,9 +329,9 @@ Terraform state (to destroy by hand if even that failed) and without the run's p
   decides but the published port; a ruleset with a rule taken out is seen (`tests/test_lab.py`). On the devices, at
   their next run.
 * **NAT on the devices**: the runs above were made before the lab policy had NAT (0.37.0). The NAT of tier 3
-  (FortiGate, VM-Series, ASAv, vSRX, Catalyst 8000V, pfSense Plus, OPNsense, Check Point, SonicWall) is what the next
-  run of each will test.
-* **Not verified**: no run of tier 3 on Azure or Google Cloud (0.39.0), nor of the VMs of tier 2 or of two images of tier 3 (Check Point, SonicWall) has been
+  (FortiGate, VM-Series, ASAv, vSRX, Catalyst 8000V, pfSense Plus, OPNsense, Check Point) is what the next run of
+  each will test. The SonicWall NSv's first pass (0.40.16) included it: the 16 checks of the addresses seen.
+* **Not verified**: no run of tier 3 on Azure or Google Cloud (0.39.0), nor of the VMs of tier 2 or of the Check Point image of tier 3 has been
   made, nor a run of the workflow in GitHub. Their image names, logins and first boot, and the reload
   commands of OPNsense and pfSense, are taken from documentation. The first real run of each will find what is wrong.
   The Check Point script itself (FWShift's output for the lab policy) was loaded by hand on an R82.20 management

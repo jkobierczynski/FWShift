@@ -82,11 +82,15 @@ Pure Python, standard library only, Python 3.9 or newer.
 > * **pfSense** and **OPNsense** output passed the same way on Netgate's pfSense Plus 26.07 and on OPNsense 26.1.5 (AWS
 >   Marketplace), the areas put into each firewall's `config.xml` by the lab as a restore of each area does (not through
 >   the web console's restore).
+> * **SonicWall** output passed the same way on a SonicWall NSv (SonicOSX 8.2.2-8015, AWS Marketplace, pay as you go),
+>   NAT included: all 129 connections and the 16 checks of the addresses seen as the source decides (0.40.15, after
+>   nineteen runs that shaped the commands: `nat-policy ipv4`, every rule's place in one list of all zone pairs,
+>   IPv6 rules placed by SonicOS, SonicOS's own zones and NAT policies; DEVELOPMENT.md has each step).
 > * **Check Point** output for the same policy was loaded on a management server by hand (R82.20, a standalone
 >   installation): every call accepted, published, and the policy package verified. It has not been installed on a
 >   gateway with traffic through it.
 > * **Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall,
->   Sophos Firewall, SonicWall, WatchGuard, Barracuda, VMware NSX, RouterOS and Forcepoint** output has **not been loaded on a
+>   Sophos Firewall, WatchGuard, Barracuda, VMware NSX, RouterOS and Forcepoint** output has **not been loaded on a
 >   device**, and the **Terraform** output has not been applied with Terraform. The Check Point input format is taken from the API
 >   documentation, not from a real export, the FTD syntax from Cisco's
 >   command references, and the Sophos format from the documentation of its
@@ -202,8 +206,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.40.0.pyz --version
-python3 fwshift-0.40.0.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.40.16.pyz --version
+python3 fwshift-0.40.16.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start

@@ -14,6 +14,10 @@ address-object ipv4 "h 203.0.113.25" host 203.0.113.25 zone dmz
 address-object ipv4 "r 0.0.0.0-10.20.0.24" range 0.0.0.0 10.20.0.24 zone dmz
 address-object ipv4 "r 10.20.0.26-10.20.0.79" range 10.20.0.26 10.20.0.79 zone dmz
 address-object ipv4 "r 10.20.0.81-255.255.255.255" range 10.20.0.81 255.255.255.255 zone dmz
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone dmz
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone dmz
+address-object ipv6 "n ::_1" network :: /1 zone dmz
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone dmz
 address-object ipv4 "r 203.0.113.50-203.0.113.59" range 203.0.113.50 203.0.113.59 zone dmz
 address-object ipv4 "n 10.30.0.0_16" network 10.30.0.0 255.255.0.0 zone dmz
 address-group ipv4 "bad"
@@ -43,6 +47,14 @@ address-group ipv4 "src not-servers"
     address-object ipv4 "r 0.0.0.0-10.20.0.24"
     address-object ipv4 "r 10.20.0.26-10.20.0.79"
     address-object ipv4 "r 10.20.0.81-255.255.255.255"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
     exit
 service-object "junos-http" TCP 80 80
 service-object "junos-https" TCP 443 443
@@ -76,24 +88,23 @@ service-group "svc dmz-out"
     service-object "junos-dns-udp"
     service-object "app-ntp"
     exit
-nat-policy inbound any outbound any source any translated-source original destination name "h 203.0.113.25" translated-destination name "mail-srv" service any translated-service original
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "h 203.0.113.25" translated-destination name "mail-srv" service any translated-service original
     name "inbound static-mail"
     comment "inbound static-mail"
+    priority manual 1
     exit
-nat-policy inbound any outbound any source name "mail-srv" translated-source name "h 203.0.113.25" destination any translated-destination original service any translated-service original
+nat-policy ipv4 inbound any outbound any source name "mail-srv" translated-source name "h 203.0.113.25" destination any translated-destination original service any translated-service original
     name "inbound static-mail (outbound)"
     comment "inbound static-mail (outbound)"
+    priority manual 2
     exit
-nat-policy inbound any outbound any source name "dmz-net (dmz-book)" translated-source name "r 203.0.113.50-203.0.113.59" destination any translated-destination original service any translated-service original
+nat-policy ipv4 inbound any outbound any source name "dmz-net (dmz-book)" translated-source name "r 203.0.113.50-203.0.113.59" destination any translated-destination original service any translated-service original
     name "dmz-out snat-dmz"
     comment "dmz-out snat-dmz"
+    priority manual 3
     exit
 access-rule ipv4 from trust to untrust action discard source address any service any destination address group "watched"
     name "block-bad"
-    priority manual 1
-    exit
-access-rule ipv6 from trust to untrust action discard source address any service any destination address group "watched v6"
-    name "block-bad 2"
     priority manual 1
     exit
 access-rule ipv4 from trust to untrust action allow source address name "lan-net" service group "web-all" destination address any
@@ -110,246 +121,231 @@ access-rule ipv4 from trust to untrust action allow source address any service n
     exit
 access-rule ipv4 from untrust to dmz action allow source address any service name "app-web-alt" destination address group "dst web-in"
     name "web-in"
-    priority manual 1
+    priority manual 5
     exit
 access-rule ipv4 from untrust to dmz action allow source address any service group "svc mail-in" destination address group "dst mail-in"
     name "mail-in"
-    priority manual 2
+    priority manual 6
     exit
 access-rule ipv4 from trust to dmz action allow source address name "admin-range" service name "junos-ssh" destination address name "dmz-net (dmz-book)"
     name "admin"
-    priority manual 1
+    priority manual 7
     exit
 access-rule ipv4 from trust to dmz action allow source address group "src not-servers" service any destination address name "lan-net (dmz-book)"
     name "not-servers"
-    priority manual 2
+    priority manual 8
     no enable
     exit
 access-rule ipv4 from dmz to untrust action allow source address name "dmz-net (dmz-book)" service group "svc dmz-out" destination address any
     name "dmz-out"
-    priority manual 1
+    priority manual 9
     no enable
     exit
 access-rule ipv4 from guest to untrust action allow source address any service name "junos-http" destination address any
     name "guest-web"
-    priority manual 1
+    priority manual 10
     no enable
     exit
-access-rule ipv4 from guest to untrust action allow source address any service any destination address any
+access-rule ipv4 from guest to untrust action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "guest-ping"
-    priority manual 2
+    priority manual 11
     no enable
     exit
-access-rule ipv6 from guest to untrust action allow source address any service any destination address any
-    name "guest-ping 2"
-    priority manual 1
-    no enable
-    exit
-access-rule ipv4 from trust to trust action allow source address any service any destination address any
+access-rule ipv4 from trust to trust action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "intra"
-    priority manual 1
-    exit
-access-rule ipv6 from trust to trust action allow source address any service any destination address any
-    name "intra 2"
-    priority manual 1
+    priority manual 12
     exit
 access-rule ipv4 from dmz to dmz action deny source address group "bad" service any destination address any
     name "global-block"
-    priority manual 1
+    priority manual 13
     exit
 access-rule ipv4 from dmz to guest action deny source address group "bad" service any destination address any
     name "global-block 2"
-    priority manual 1
+    priority manual 14
     exit
 access-rule ipv4 from dmz to trust action deny source address group "bad" service any destination address any
     name "global-block 3"
-    priority manual 1
+    priority manual 15
     exit
 access-rule ipv4 from dmz to untrust action deny source address group "bad" service any destination address any
     name "global-block 4"
-    priority manual 2
+    priority manual 16
     exit
 access-rule ipv4 from guest to dmz action deny source address group "bad" service any destination address any
     name "global-block 5"
-    priority manual 1
+    priority manual 17
     exit
 access-rule ipv4 from guest to guest action deny source address group "bad" service any destination address any
     name "global-block 6"
-    priority manual 1
+    priority manual 18
     exit
 access-rule ipv4 from guest to trust action deny source address group "bad" service any destination address any
     name "global-block 7"
-    priority manual 1
+    priority manual 19
     exit
 access-rule ipv4 from guest to untrust action deny source address group "bad" service any destination address any
     name "global-block 8"
-    priority manual 3
+    priority manual 20
     exit
 access-rule ipv4 from trust to dmz action deny source address group "bad" service any destination address any
     name "global-block 9"
-    priority manual 3
+    priority manual 21
     exit
 access-rule ipv4 from trust to guest action deny source address group "bad" service any destination address any
     name "global-block 10"
-    priority manual 1
+    priority manual 22
     exit
 access-rule ipv4 from trust to trust action deny source address group "bad" service any destination address any
     name "global-block 11"
-    priority manual 2
+    priority manual 23
     exit
 access-rule ipv4 from trust to untrust action deny source address group "bad" service any destination address any
     name "global-block 12"
-    priority manual 5
+    priority manual 24
     exit
 access-rule ipv4 from untrust to dmz action deny source address group "bad" service any destination address any
     name "global-block 13"
-    priority manual 3
+    priority manual 25
     exit
 access-rule ipv4 from untrust to guest action deny source address group "bad" service any destination address any
     name "global-block 14"
-    priority manual 1
+    priority manual 26
     exit
 access-rule ipv4 from untrust to trust action deny source address group "bad" service any destination address any
     name "global-block 15"
-    priority manual 1
+    priority manual 27
     exit
 access-rule ipv4 from untrust to untrust action deny source address group "bad" service any destination address any
     name "global-block 16"
-    priority manual 1
+    priority manual 28
     exit
 access-rule ipv4 from trust to untrust action allow source address any service name "app-ntp" destination address any
     name "global-ntp"
-    priority manual 6
+    priority manual 29
     no enable
+    exit
+access-rule ipv4 from dmz to dmz action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT dmz to dmz"
+    priority manual 30
+    exit
+access-rule ipv4 from dmz to guest action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT dmz to guest"
+    priority manual 31
+    exit
+access-rule ipv4 from dmz to trust action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT dmz to trust"
+    priority manual 32
+    exit
+access-rule ipv4 from dmz to untrust action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT dmz to untrust"
+    priority manual 33
+    exit
+access-rule ipv4 from guest to dmz action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT guest to dmz"
+    priority manual 34
+    exit
+access-rule ipv4 from guest to guest action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT guest to guest"
+    priority manual 35
+    exit
+access-rule ipv4 from guest to trust action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT guest to trust"
+    priority manual 36
+    exit
+access-rule ipv4 from guest to untrust action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT guest to untrust"
+    priority manual 37
+    exit
+access-rule ipv4 from trust to dmz action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT trust to dmz"
+    priority manual 38
+    exit
+access-rule ipv4 from trust to guest action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT trust to guest"
+    priority manual 39
+    exit
+access-rule ipv4 from trust to trust action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT trust to trust"
+    priority manual 40
+    exit
+access-rule ipv4 from trust to untrust action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT trust to untrust"
+    priority manual 41
+    exit
+access-rule ipv4 from untrust to dmz action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT untrust to dmz"
+    priority manual 42
+    exit
+access-rule ipv4 from untrust to guest action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT untrust to guest"
+    priority manual 43
+    exit
+access-rule ipv4 from untrust to trust action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT untrust to trust"
+    priority manual 44
+    exit
+access-rule ipv4 from untrust to untrust action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT untrust to untrust"
+    priority manual 45
+    exit
+access-rule ipv6 from trust to untrust action discard source address any service any destination address group "watched v6"
+    name "block-bad 2"
+    exit
+access-rule ipv6 from guest to untrust action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "guest-ping 2"
+    no enable
+    exit
+access-rule ipv6 from trust to trust action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "intra 2"
     exit
 access-rule ipv6 from trust to untrust action allow source address any service name "app-ntp" destination address any
     name "global-ntp 2"
-    priority manual 2
     no enable
     exit
-access-rule ipv4 from dmz to dmz action deny source address any service any destination address any
-    name "FWSHIFT dmz to dmz"
-    priority manual 2
-    exit
-access-rule ipv6 from dmz to dmz action deny source address any service any destination address any
+access-rule ipv6 from dmz to dmz action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT dmz to dmz v6"
-    priority manual 1
     exit
-access-rule ipv4 from dmz to guest action deny source address any service any destination address any
-    name "FWSHIFT dmz to guest"
-    priority manual 2
-    exit
-access-rule ipv6 from dmz to guest action deny source address any service any destination address any
+access-rule ipv6 from dmz to guest action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT dmz to guest v6"
-    priority manual 1
     exit
-access-rule ipv4 from dmz to trust action deny source address any service any destination address any
-    name "FWSHIFT dmz to trust"
-    priority manual 2
-    exit
-access-rule ipv6 from dmz to trust action deny source address any service any destination address any
+access-rule ipv6 from dmz to trust action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT dmz to trust v6"
-    priority manual 1
     exit
-access-rule ipv4 from dmz to untrust action deny source address any service any destination address any
-    name "FWSHIFT dmz to untrust"
-    priority manual 3
-    exit
-access-rule ipv6 from dmz to untrust action deny source address any service any destination address any
+access-rule ipv6 from dmz to untrust action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT dmz to untrust v6"
-    priority manual 1
     exit
-access-rule ipv4 from guest to dmz action deny source address any service any destination address any
-    name "FWSHIFT guest to dmz"
-    priority manual 2
-    exit
-access-rule ipv6 from guest to dmz action deny source address any service any destination address any
+access-rule ipv6 from guest to dmz action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT guest to dmz v6"
-    priority manual 1
     exit
-access-rule ipv4 from guest to guest action deny source address any service any destination address any
-    name "FWSHIFT guest to guest"
-    priority manual 2
-    exit
-access-rule ipv6 from guest to guest action deny source address any service any destination address any
+access-rule ipv6 from guest to guest action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT guest to guest v6"
-    priority manual 1
     exit
-access-rule ipv4 from guest to trust action deny source address any service any destination address any
-    name "FWSHIFT guest to trust"
-    priority manual 2
-    exit
-access-rule ipv6 from guest to trust action deny source address any service any destination address any
+access-rule ipv6 from guest to trust action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT guest to trust v6"
-    priority manual 1
     exit
-access-rule ipv4 from guest to untrust action deny source address any service any destination address any
-    name "FWSHIFT guest to untrust"
-    priority manual 4
-    exit
-access-rule ipv6 from guest to untrust action deny source address any service any destination address any
+access-rule ipv6 from guest to untrust action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT guest to untrust v6"
-    priority manual 2
     exit
-access-rule ipv4 from trust to dmz action deny source address any service any destination address any
-    name "FWSHIFT trust to dmz"
-    priority manual 4
-    exit
-access-rule ipv6 from trust to dmz action deny source address any service any destination address any
+access-rule ipv6 from trust to dmz action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT trust to dmz v6"
-    priority manual 1
     exit
-access-rule ipv4 from trust to guest action deny source address any service any destination address any
-    name "FWSHIFT trust to guest"
-    priority manual 2
-    exit
-access-rule ipv6 from trust to guest action deny source address any service any destination address any
+access-rule ipv6 from trust to guest action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT trust to guest v6"
-    priority manual 1
     exit
-access-rule ipv4 from trust to trust action deny source address any service any destination address any
-    name "FWSHIFT trust to trust"
-    priority manual 3
-    exit
-access-rule ipv4 from trust to untrust action deny source address any service any destination address any
-    name "FWSHIFT trust to untrust"
-    priority manual 7
-    exit
-access-rule ipv6 from trust to untrust action deny source address any service any destination address any
+access-rule ipv6 from trust to untrust action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT trust to untrust v6"
-    priority manual 3
     exit
-access-rule ipv4 from untrust to dmz action deny source address any service any destination address any
-    name "FWSHIFT untrust to dmz"
-    priority manual 4
-    exit
-access-rule ipv6 from untrust to dmz action deny source address any service any destination address any
+access-rule ipv6 from untrust to dmz action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT untrust to dmz v6"
-    priority manual 1
     exit
-access-rule ipv4 from untrust to guest action deny source address any service any destination address any
-    name "FWSHIFT untrust to guest"
-    priority manual 2
-    exit
-access-rule ipv6 from untrust to guest action deny source address any service any destination address any
+access-rule ipv6 from untrust to guest action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT untrust to guest v6"
-    priority manual 1
     exit
-access-rule ipv4 from untrust to trust action deny source address any service any destination address any
-    name "FWSHIFT untrust to trust"
-    priority manual 2
-    exit
-access-rule ipv6 from untrust to trust action deny source address any service any destination address any
+access-rule ipv6 from untrust to trust action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT untrust to trust v6"
-    priority manual 1
     exit
-access-rule ipv4 from untrust to untrust action deny source address any service any destination address any
-    name "FWSHIFT untrust to untrust"
-    priority manual 2
-    exit
-access-rule ipv6 from untrust to untrust action deny source address any service any destination address any
+access-rule ipv6 from untrust to untrust action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT untrust to untrust v6"
-    priority manual 1
     exit
 commit
 exit

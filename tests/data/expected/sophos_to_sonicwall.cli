@@ -19,6 +19,10 @@ address-object ipv4 "r 0.0.0.0-10.20.0.24" range 0.0.0.0 10.20.0.24 zone LAN
 address-object ipv4 "r 10.20.0.26-255.255.255.255" range 10.20.0.26 255.255.255.255 zone LAN
 address-object ipv4 "r 10.10.0.0-10.10.5.9" range 10.10.0.0 10.10.5.9 zone LAN
 address-object ipv4 "r 10.10.5.21-10.11.255.255" range 10.10.5.21 10.11.255.255 zone LAN
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone LAN
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone LAN
+address-object ipv6 "n ::_1" network :: /1 zone LAN
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone LAN
 address-group ipv4 "dns-servers"
     address-object ipv4 "h 10.10.0.53"
     address-object ipv4 "h 10.11.0.53"
@@ -42,6 +46,14 @@ address-group ipv4 "dst LAN to DMZ web not mail"
 address-group ipv4 "src LAN SSH out-2"
     address-object ipv4 "r 10.10.0.0-10.10.5.9"
     address-object ipv4 "r 10.10.5.21-10.11.255.255"
+    exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
     exit
 service-object "HTTP 2" TCP 80 80
 service-object "HTTPS 2" TCP 443 443
@@ -84,21 +96,25 @@ service-group "svc Admins to DMZ"
     service-object "SSH 2"
     service-object "Ping"
     exit
-nat-policy inbound any outbound any source any translated-source original destination name "web-public" translated-destination name "web-1" service name "HTTPS 2" translated-service original
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "web-public" translated-destination name "web-1" service name "HTTPS 2" translated-service original
     name "Publish web"
     comment "Publish web"
+    priority manual 1
     exit
-nat-policy inbound any outbound any source any translated-source original destination name "mail-public" translated-destination name "mail-1" service name "smtp-alt" translated-service name "tcp 25"
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "mail-public" translated-destination name "mail-1" service name "smtp-alt" translated-service name "tcp 25"
     name "Publish mail"
     comment "Port 2525 outside, 25 on the ser"
+    priority manual 2
     exit
-nat-policy inbound any outbound any source name "mail-1" translated-source name "mail-public" destination any translated-destination original service any translated-service original
+nat-policy ipv4 inbound any outbound any source name "mail-1" translated-source name "mail-public" destination any translated-destination original service any translated-service original
     name "Mail server out"
     comment "Mail server out"
+    priority manual 3
     exit
-nat-policy inbound any outbound any source name "lan-net" translated-source original destination name "partner-net" translated-destination original service any translated-service original
+nat-policy ipv4 inbound any outbound any source name "lan-net" translated-source original destination name "partner-net" translated-destination original service any translated-service original
     name "No NAT to partner"
     comment "Reached through a tunnel"
+    priority manual 4
     exit
 access-rule ipv4 from WAN to DMZ action discard source address name "Blocked countries" service any destination address any
     name "Block countries"
@@ -107,408 +123,382 @@ access-rule ipv4 from WAN to DMZ action discard source address name "Blocked cou
     exit
 access-rule ipv4 from WAN to LAN action discard source address name "Blocked countries" service any destination address any
     name "Block countries 2"
-    priority manual 1
+    priority manual 2
     no enable
     exit
 access-rule ipv4 from WAN to OT action discard source address name "Blocked countries" service any destination address any
     name "Block countries 3"
-    priority manual 1
+    priority manual 3
     no enable
     exit
 access-rule ipv4 from WAN to VPN action discard source address name "Blocked countries" service any destination address any
     name "Block countries 4"
-    priority manual 1
+    priority manual 4
     no enable
     exit
 access-rule ipv4 from WAN to WAN action discard source address name "Blocked countries" service any destination address any
     name "Block countries 5"
-    priority manual 1
+    priority manual 5
     no enable
     exit
 access-rule ipv4 from LAN to WAN action allow source address name "lan-net" service group "svc LAN to Internet web" destination address any
     name "LAN to Internet web"
-    priority manual 1
+    priority manual 6
     exit
 access-rule ipv4 from LAN to WAN action allow source address name "lan-net" service name "HTTP 2" destination address any
     name "LAN web again"
-    priority manual 2
+    priority manual 7
     exit
 access-rule ipv4 from LAN to DMZ action allow source address name "admin-range" service group "svc Admins to DMZ" destination address group "dmz-servers"
     name "Admins to DMZ"
-    priority manual 1
+    priority manual 8
     exit
 access-rule ipv4 from LAN to DMZ action allow source address name "lan-net" service group "Web Access" destination address group "dst LAN to DMZ web not mail"
     name "LAN to DMZ web not mail"
-    priority manual 2
+    priority manual 9
     exit
 access-rule ipv4 from LAN to OT action allow source address name "lan-net" service name "SSH 2" destination address any
     name "LAN SSH out"
-    priority manual 1
+    priority manual 10
     exit
 access-rule ipv4 from LAN to DMZ action allow source address group "src LAN SSH out-2" service name "SSH 2" destination address any
     name "LAN SSH out-2"
-    priority manual 3
+    priority manual 11
     exit
 access-rule ipv4 from LAN to OT action allow source address group "src LAN SSH out-2" service name "SSH 2" destination address any
     name "LAN SSH out-2 2"
-    priority manual 2
+    priority manual 12
     exit
 access-rule ipv4 from WAN to DMZ action allow source address any service name "HTTPS 2" destination address name "web-public"
     name "Internet to web"
-    priority manual 2
+    priority manual 13
     exit
 access-rule ipv4 from WAN to DMZ action allow source address any service name "smtp-alt" destination address name "mail-public"
     name "Internet to mail"
-    priority manual 3
+    priority manual 14
     exit
 access-rule ipv4 from OT to LAN action allow source address name "plc-net" service name "MODBUS" destination address name "scada-server"
     name "OT to SCADA"
-    priority manual 1
+    priority manual 15
     no enable
     exit
 access-rule ipv4 from DMZ to WAN action allow source address group "dmz-servers" service name "HTTPS 2" destination address group "update-sites"
     name "DMZ updates"
-    priority manual 1
+    priority manual 16
     exit
 access-rule ipv4 from LAN to DMZ action allow source address any service group "app-ports" destination address name "web-1"
     name "Finance to app"
-    priority manual 4
+    priority manual 17
     no enable
     exit
 access-rule ipv4 from OT to LAN action allow source address any service group "basic-net" destination address group "dns-servers"
     name "DNS in office hours"
-    priority manual 2
+    priority manual 18
     no enable
     exit
-access-rule ipv4 from DMZ to DMZ action allow source address any service any destination address any
+access-rule ipv4 from DMZ to DMZ action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule"
-    priority manual 1
+    priority manual 19
     no enable
     exit
-access-rule ipv4 from DMZ to LAN action allow source address any service any destination address any
+access-rule ipv4 from DMZ to LAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 2"
-    priority manual 1
+    priority manual 20
     no enable
     exit
-access-rule ipv4 from DMZ to OT action allow source address any service any destination address any
+access-rule ipv4 from DMZ to OT action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 3"
-    priority manual 1
+    priority manual 21
     no enable
     exit
-access-rule ipv4 from DMZ to VPN action allow source address any service any destination address any
+access-rule ipv4 from DMZ to VPN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 4"
-    priority manual 1
+    priority manual 22
     no enable
     exit
-access-rule ipv4 from DMZ to WAN action allow source address any service any destination address any
+access-rule ipv4 from DMZ to WAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 5"
-    priority manual 2
+    priority manual 23
     no enable
     exit
-access-rule ipv4 from LAN to DMZ action allow source address any service any destination address any
+access-rule ipv4 from LAN to DMZ action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 6"
-    priority manual 5
+    priority manual 24
     no enable
     exit
-access-rule ipv4 from LAN to LAN action allow source address any service any destination address any
+access-rule ipv4 from LAN to LAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 7"
-    priority manual 1
+    priority manual 25
     no enable
     exit
-access-rule ipv4 from LAN to OT action allow source address any service any destination address any
+access-rule ipv4 from LAN to OT action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 8"
-    priority manual 3
+    priority manual 26
     no enable
     exit
-access-rule ipv4 from LAN to VPN action allow source address any service any destination address any
+access-rule ipv4 from LAN to VPN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 9"
-    priority manual 1
+    priority manual 27
     no enable
     exit
-access-rule ipv4 from LAN to WAN action allow source address any service any destination address any
+access-rule ipv4 from LAN to WAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 10"
-    priority manual 3
+    priority manual 28
     no enable
     exit
-access-rule ipv4 from OT to DMZ action allow source address any service any destination address any
+access-rule ipv4 from OT to DMZ action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 11"
-    priority manual 1
+    priority manual 29
     no enable
     exit
-access-rule ipv4 from OT to LAN action allow source address any service any destination address any
+access-rule ipv4 from OT to LAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 12"
-    priority manual 3
+    priority manual 30
     no enable
     exit
-access-rule ipv4 from OT to OT action allow source address any service any destination address any
+access-rule ipv4 from OT to OT action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 13"
-    priority manual 1
+    priority manual 31
     no enable
     exit
-access-rule ipv4 from OT to VPN action allow source address any service any destination address any
+access-rule ipv4 from OT to VPN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 14"
-    priority manual 1
+    priority manual 32
     no enable
     exit
-access-rule ipv4 from OT to WAN action allow source address any service any destination address any
+access-rule ipv4 from OT to WAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 15"
-    priority manual 1
+    priority manual 33
     no enable
     exit
-access-rule ipv4 from VPN to DMZ action allow source address any service any destination address any
+access-rule ipv4 from VPN to DMZ action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 16"
-    priority manual 1
+    priority manual 34
     no enable
     exit
-access-rule ipv4 from VPN to LAN action allow source address any service any destination address any
+access-rule ipv4 from VPN to LAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 17"
-    priority manual 1
+    priority manual 35
     no enable
     exit
-access-rule ipv4 from VPN to OT action allow source address any service any destination address any
+access-rule ipv4 from VPN to OT action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 18"
-    priority manual 1
+    priority manual 36
     no enable
     exit
-access-rule ipv4 from VPN to VPN action allow source address any service any destination address any
+access-rule ipv4 from VPN to VPN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 19"
-    priority manual 1
+    priority manual 37
     no enable
     exit
-access-rule ipv4 from VPN to WAN action allow source address any service any destination address any
+access-rule ipv4 from VPN to WAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 20"
-    priority manual 1
+    priority manual 38
     no enable
     exit
-access-rule ipv4 from WAN to DMZ action allow source address any service any destination address any
+access-rule ipv4 from WAN to DMZ action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 21"
-    priority manual 4
+    priority manual 39
     no enable
     exit
-access-rule ipv4 from WAN to LAN action allow source address any service any destination address any
+access-rule ipv4 from WAN to LAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 22"
-    priority manual 2
+    priority manual 40
     no enable
     exit
-access-rule ipv4 from WAN to OT action allow source address any service any destination address any
+access-rule ipv4 from WAN to OT action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 23"
-    priority manual 2
+    priority manual 41
     no enable
     exit
-access-rule ipv4 from WAN to VPN action allow source address any service any destination address any
+access-rule ipv4 from WAN to VPN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 24"
-    priority manual 2
+    priority manual 42
     no enable
     exit
-access-rule ipv4 from WAN to WAN action allow source address any service any destination address any
+access-rule ipv4 from WAN to WAN action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Old test rule 25"
-    priority manual 2
+    priority manual 43
     no enable
     exit
-access-rule ipv4 from LAN to DMZ action deny source address any service any destination address any
+access-rule ipv4 from LAN to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "Reject the rest from LAN"
-    priority manual 6
+    priority manual 44
     exit
-access-rule ipv4 from LAN to LAN action deny source address any service any destination address any
+access-rule ipv4 from LAN to LAN action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "Reject the rest from LAN 2"
-    priority manual 2
+    priority manual 45
     exit
-access-rule ipv4 from LAN to OT action deny source address any service any destination address any
+access-rule ipv4 from LAN to OT action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "Reject the rest from LAN 3"
-    priority manual 4
+    priority manual 46
     exit
-access-rule ipv4 from LAN to VPN action deny source address any service any destination address any
+access-rule ipv4 from LAN to VPN action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "Reject the rest from LAN 4"
-    priority manual 2
+    priority manual 47
     exit
-access-rule ipv4 from LAN to WAN action deny source address any service any destination address any
+access-rule ipv4 from LAN to WAN action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "Reject the rest from LAN 5"
-    priority manual 4
+    priority manual 48
+    exit
+access-rule ipv4 from DMZ to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT DMZ to DMZ"
+    priority manual 49
+    exit
+access-rule ipv4 from DMZ to LAN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT DMZ to LAN"
+    priority manual 50
+    exit
+access-rule ipv4 from DMZ to OT action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT DMZ to OT"
+    priority manual 51
+    exit
+access-rule ipv4 from DMZ to VPN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT DMZ to VPN"
+    priority manual 52
+    exit
+access-rule ipv4 from DMZ to WAN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT DMZ to WAN"
+    priority manual 53
+    exit
+access-rule ipv4 from OT to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT OT to DMZ"
+    priority manual 54
+    exit
+access-rule ipv4 from OT to LAN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT OT to LAN"
+    priority manual 55
+    exit
+access-rule ipv4 from OT to OT action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT OT to OT"
+    priority manual 56
+    exit
+access-rule ipv4 from OT to VPN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT OT to VPN"
+    priority manual 57
+    exit
+access-rule ipv4 from OT to WAN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT OT to WAN"
+    priority manual 58
+    exit
+access-rule ipv4 from VPN to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT VPN to DMZ"
+    priority manual 59
+    exit
+access-rule ipv4 from VPN to LAN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT VPN to LAN"
+    priority manual 60
+    exit
+access-rule ipv4 from VPN to OT action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT VPN to OT"
+    priority manual 61
+    exit
+access-rule ipv4 from VPN to VPN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT VPN to VPN"
+    priority manual 62
+    exit
+access-rule ipv4 from VPN to WAN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT VPN to WAN"
+    priority manual 63
+    exit
+access-rule ipv4 from WAN to DMZ action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT WAN to DMZ"
+    priority manual 64
+    exit
+access-rule ipv4 from WAN to LAN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT WAN to LAN"
+    priority manual 65
+    exit
+access-rule ipv4 from WAN to OT action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT WAN to OT"
+    priority manual 66
+    exit
+access-rule ipv4 from WAN to VPN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT WAN to VPN"
+    priority manual 67
+    exit
+access-rule ipv4 from WAN to WAN action deny source address group "FWSHIFT all IPv4" service any destination address any
+    name "FWSHIFT WAN to WAN"
+    priority manual 68
     exit
 access-rule ipv6 from LAN to WAN action allow source address name "lan6-net" service group "Web Access" destination address any
     name "LAN6 to Internet"
-    priority manual 1
     no enable
     exit
-access-rule ipv4 from DMZ to DMZ action deny source address any service any destination address any
-    name "FWSHIFT DMZ to DMZ"
-    priority manual 2
-    exit
-access-rule ipv6 from DMZ to DMZ action deny source address any service any destination address any
+access-rule ipv6 from DMZ to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT DMZ to DMZ v6"
-    priority manual 1
     exit
-access-rule ipv4 from DMZ to LAN action deny source address any service any destination address any
-    name "FWSHIFT DMZ to LAN"
-    priority manual 2
-    exit
-access-rule ipv6 from DMZ to LAN action deny source address any service any destination address any
+access-rule ipv6 from DMZ to LAN action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT DMZ to LAN v6"
-    priority manual 1
     exit
-access-rule ipv4 from DMZ to OT action deny source address any service any destination address any
-    name "FWSHIFT DMZ to OT"
-    priority manual 2
-    exit
-access-rule ipv6 from DMZ to OT action deny source address any service any destination address any
+access-rule ipv6 from DMZ to OT action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT DMZ to OT v6"
-    priority manual 1
     exit
-access-rule ipv4 from DMZ to VPN action deny source address any service any destination address any
-    name "FWSHIFT DMZ to VPN"
-    priority manual 2
-    exit
-access-rule ipv6 from DMZ to VPN action deny source address any service any destination address any
+access-rule ipv6 from DMZ to VPN action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT DMZ to VPN v6"
-    priority manual 1
     exit
-access-rule ipv4 from DMZ to WAN action deny source address any service any destination address any
-    name "FWSHIFT DMZ to WAN"
-    priority manual 3
-    exit
-access-rule ipv6 from DMZ to WAN action deny source address any service any destination address any
+access-rule ipv6 from DMZ to WAN action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT DMZ to WAN v6"
-    priority manual 1
     exit
-access-rule ipv6 from LAN to DMZ action deny source address any service any destination address any
+access-rule ipv6 from LAN to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT LAN to DMZ v6"
-    priority manual 1
     exit
-access-rule ipv6 from LAN to LAN action deny source address any service any destination address any
+access-rule ipv6 from LAN to LAN action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT LAN to LAN v6"
-    priority manual 1
     exit
-access-rule ipv6 from LAN to OT action deny source address any service any destination address any
+access-rule ipv6 from LAN to OT action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT LAN to OT v6"
-    priority manual 1
     exit
-access-rule ipv6 from LAN to VPN action deny source address any service any destination address any
+access-rule ipv6 from LAN to VPN action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT LAN to VPN v6"
-    priority manual 1
     exit
-access-rule ipv6 from LAN to WAN action deny source address any service any destination address any
+access-rule ipv6 from LAN to WAN action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT LAN to WAN v6"
-    priority manual 2
     exit
-access-rule ipv4 from OT to DMZ action deny source address any service any destination address any
-    name "FWSHIFT OT to DMZ"
-    priority manual 2
-    exit
-access-rule ipv6 from OT to DMZ action deny source address any service any destination address any
+access-rule ipv6 from OT to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT OT to DMZ v6"
-    priority manual 1
     exit
-access-rule ipv4 from OT to LAN action deny source address any service any destination address any
-    name "FWSHIFT OT to LAN"
-    priority manual 4
-    exit
-access-rule ipv6 from OT to LAN action deny source address any service any destination address any
+access-rule ipv6 from OT to LAN action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT OT to LAN v6"
-    priority manual 1
     exit
-access-rule ipv4 from OT to OT action deny source address any service any destination address any
-    name "FWSHIFT OT to OT"
-    priority manual 2
-    exit
-access-rule ipv6 from OT to OT action deny source address any service any destination address any
+access-rule ipv6 from OT to OT action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT OT to OT v6"
-    priority manual 1
     exit
-access-rule ipv4 from OT to VPN action deny source address any service any destination address any
-    name "FWSHIFT OT to VPN"
-    priority manual 2
-    exit
-access-rule ipv6 from OT to VPN action deny source address any service any destination address any
+access-rule ipv6 from OT to VPN action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT OT to VPN v6"
-    priority manual 1
     exit
-access-rule ipv4 from OT to WAN action deny source address any service any destination address any
-    name "FWSHIFT OT to WAN"
-    priority manual 2
-    exit
-access-rule ipv6 from OT to WAN action deny source address any service any destination address any
+access-rule ipv6 from OT to WAN action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT OT to WAN v6"
-    priority manual 1
     exit
-access-rule ipv4 from VPN to DMZ action deny source address any service any destination address any
-    name "FWSHIFT VPN to DMZ"
-    priority manual 2
-    exit
-access-rule ipv6 from VPN to DMZ action deny source address any service any destination address any
+access-rule ipv6 from VPN to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT VPN to DMZ v6"
-    priority manual 1
     exit
-access-rule ipv4 from VPN to LAN action deny source address any service any destination address any
-    name "FWSHIFT VPN to LAN"
-    priority manual 2
-    exit
-access-rule ipv6 from VPN to LAN action deny source address any service any destination address any
+access-rule ipv6 from VPN to LAN action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT VPN to LAN v6"
-    priority manual 1
     exit
-access-rule ipv4 from VPN to OT action deny source address any service any destination address any
-    name "FWSHIFT VPN to OT"
-    priority manual 2
-    exit
-access-rule ipv6 from VPN to OT action deny source address any service any destination address any
+access-rule ipv6 from VPN to OT action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT VPN to OT v6"
-    priority manual 1
     exit
-access-rule ipv4 from VPN to VPN action deny source address any service any destination address any
-    name "FWSHIFT VPN to VPN"
-    priority manual 2
-    exit
-access-rule ipv6 from VPN to VPN action deny source address any service any destination address any
+access-rule ipv6 from VPN to VPN action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT VPN to VPN v6"
-    priority manual 1
     exit
-access-rule ipv4 from VPN to WAN action deny source address any service any destination address any
-    name "FWSHIFT VPN to WAN"
-    priority manual 2
-    exit
-access-rule ipv6 from VPN to WAN action deny source address any service any destination address any
+access-rule ipv6 from VPN to WAN action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT VPN to WAN v6"
-    priority manual 1
     exit
-access-rule ipv4 from WAN to DMZ action deny source address any service any destination address any
-    name "FWSHIFT WAN to DMZ"
-    priority manual 5
-    exit
-access-rule ipv6 from WAN to DMZ action deny source address any service any destination address any
+access-rule ipv6 from WAN to DMZ action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT WAN to DMZ v6"
-    priority manual 1
     exit
-access-rule ipv4 from WAN to LAN action deny source address any service any destination address any
-    name "FWSHIFT WAN to LAN"
-    priority manual 3
-    exit
-access-rule ipv6 from WAN to LAN action deny source address any service any destination address any
+access-rule ipv6 from WAN to LAN action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT WAN to LAN v6"
-    priority manual 1
     exit
-access-rule ipv4 from WAN to OT action deny source address any service any destination address any
-    name "FWSHIFT WAN to OT"
-    priority manual 3
-    exit
-access-rule ipv6 from WAN to OT action deny source address any service any destination address any
+access-rule ipv6 from WAN to OT action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT WAN to OT v6"
-    priority manual 1
     exit
-access-rule ipv4 from WAN to VPN action deny source address any service any destination address any
-    name "FWSHIFT WAN to VPN"
-    priority manual 3
-    exit
-access-rule ipv6 from WAN to VPN action deny source address any service any destination address any
+access-rule ipv6 from WAN to VPN action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT WAN to VPN v6"
-    priority manual 1
     exit
-access-rule ipv4 from WAN to WAN action deny source address any service any destination address any
-    name "FWSHIFT WAN to WAN"
-    priority manual 3
-    exit
-access-rule ipv6 from WAN to WAN action deny source address any service any destination address any
+access-rule ipv6 from WAN to WAN action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT WAN to WAN v6"
-    priority manual 1
     exit
 commit
 exit

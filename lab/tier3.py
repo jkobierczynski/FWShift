@@ -94,6 +94,14 @@ class Vendor:
     # console to the SonicOS CLI), and a session closed by the lab after its last line, for a CLI that does not end it.
     preamble: str = ""
     close_after: float = 0
+    # The preamble only when the screen, once drawn, shows this (the NSv's SSH lands in the window it was left in).
+    preamble_when: str = ""
+    # A long answer stopped at this is shown on with a space (SonicOS's pager).
+    pager: str = ""
+    # A session quiet this long after a line is taken to be at its prompt, six times as long after a line that matches
+    # slow (SonicOS's screen scrolled to the left hides the start of its prompt).
+    idle: float = 0
+    slow: str = ""
     # A full-screen console: its answers read as plain text, without this pattern (the NSv's status bar).
     screen_noise: str = ""
     load: Optional[Callable[["Runner", "Vendor", Path, str, Path], None]] = None
@@ -320,26 +328,55 @@ def _c8000v_diagnose() -> List[str]:
 # -- SonicWall NSv (SonicOS 7) ------------------------------------------------------------------------------------
 
 # AWS's first card is X1 (WAN: management, by DHCP) and the second X0 (LAN), as SonicWall's AWS guide says; the third
-# and fourth are taken to be X2 and X3 (not documented: the first run will tell). The zones are made in SonicOS, of
-# security type trusted (a WAN zone would add NAT policies of its own), and the interfaces put in them.
+# and fourth are taken to be X2 and X3. The interfaces go in SonicOS's own zones, LAN, DMZ and WAN, and the policy is
+# converted for those names (--zone-map): SonicOS 8.2.2 (the sixth to eighth runs) refused `ip-assignment inside static`
+# at `inside`, the zone made by the CLI and committed, with configure mode left and entered again. Their default rules
+# (LAN to WAN allowed, ...) end in the rules that deny the conversion adds, and the NAT policies SonicOS adds for a WAN
+# interface in the NAT policy that translates nothing.
 _SW_PORTS = {"inside": "X0", "dmz": "X2", "outside": "X3"}
+# What SonicOS says when it refuses a line: "% Error: ..." with the reason, or the marker under the word it did not take.
+# Not every line that starts with "%" (its status: "% User logout.", "% Applying changes...", "% Changes made."), nor
+# "% Error encountered processing command:", which a commit writes above every rule it adds (the thirteenth run).
+_NSV_REFUSED = r"% Error:|% Error encountered at|Unknown command|Invalid input|not allowed"
+_SW_ZONES = {"inside": "LAN", "dmz": "DMZ", "outside": "WAN"}
+
+
+# SonicOS's pager stops a long answer at "--MORE--" and waits for a key: the eleventh run's commit failed, and its
+# reason was below the pager. No command switched it off (`cli screen length session 1600`, from SonicWall's article for
+# SonicOS 7, refused at `screen` by SonicOS 8.2.2, the twelfth run): the lab answers it with a space.
+_SW_PAGER = r"--MORE--\s*$"
 
 
 def _sonicwall_session(out: Path) -> List[str]:
     base = ["configure terminal"]
-    for zone in ORDER:
-        base += [f"zone {zone}", "security-type trusted", "exit"]
     for zone, port in _SW_PORTS.items():
-        base += [f"interface {port}", f"ip-assignment {zone} static", f"ip {_addr(zone)} netmask 255.255.255.0", "exit",
+        base += [f"interface {port}", f"ip-assignment {_SW_ZONES[zone]} static", f"ip {_addr(zone)} netmask 255.255.255.0", "exit",
                  "management ping", "exit"]  # fmt: skip
     base += ["commit", "exit"]
     return [*base, *_lines(out, "#"), "exit"]
 
 
-# A login question at the end of what the session wrote, perhaps followed by a terminal's escape codes.
+# A login question at the end of what the session wrote, perhaps followed by a terminal's escape codes. SonicOS 8 on the
+# NSv (the fifth run, by hand): its window shows the boot log, and "User:" with a line of that log written after it
+# ("User:delay interval:60, clockrate:1, report interval:15"): the question is the last line that starts with it.
 _ESCAPES = r"(?:\x1b\[[0-9;?]*[A-Za-z]|\s)*$"
-_ASKS_USER = r"(?i)(?:user|login)(?:name)?: ?" + _ESCAPES
-_ASKS_PASSWORD = r"(?i)password: ?" + _ESCAPES
+_ASKS_USER = r"(?i)(?:^|\n)\s*(?:user|login)(?:name)?:[^\n]*" + _ESCAPES
+_ASKS_PASSWORD = r"(?i)(?:^|\n)\s*password: ?" + _ESCAPES
+# SonicOS's first login as admin: "Your password is too simple and must be changed", then the old password, a new one
+# (at least 8 characters, an upper and a lower case letter, a digit and one of !@#$%^&*(); a dash refused) and again.
+_ASKS_OLD_PASSWORD = r"(?i)enter old password[^\n]*: ?" + _ESCAPES
+_ASKS_NEW_PASSWORD = r"(?i)enter a new password[^\n]*: ?" + _ESCAPES
+_ASKS_NEW_AGAIN = r"(?i)re-enter new password[^\n]*: ?" + _ESCAPES
+# The NSv's two windows, switched between with Ctrl+S and a space: the SonicCore console (prompt "NSv >": show
+# system|sonicos|status..., no show version) and SonicOS. SSH lands in the window last used; the fifth run's tries after
+# its first all switched from SonicOS to the console, and typed show version there ("Syntax error: Illegal parameter").
+_NSV_CORE_PROMPT = r"(?:^|\n)NSv\s*>\s*$"
+# SonicOS's own prompts (admin@SERIAL>, config(SERIAL)#): no space before > or #, which the console's "NSv >" has. A
+# sub-mode's prompt names its object in brackets, with the spaces of its name (the fourteenth run waited at
+# "(add-ipv4-address-group[FWSHIFT all IPv4])#"). Or only the end of one: after a line longer than the terminal, SonicOS
+# scrolls its screen to the left and leaves it so, and the prompt shows without its first characters (the sixteenth
+# run: "config(004010211E1B)# " scrolled 20 columns, "# ").
+_NSV_PROMPT = r"(?:^|[\n@])(?:[^\s>#@\[]|\[[^\]\n]*\]|[^\s>#@\[]*\])*(?:\([^)\s]*\))?\)?[>#] ?$"
 
 
 # What only the SonicOS CLI's `show version` answers: its fields. The third NSv run took "Please wait for SonicOS to
@@ -353,9 +390,31 @@ _NSV_READY = r"firmware-version|rom-version|serial-number|system-uptime"
 _NSV_STATUS_BAR = r"SonicWall \(c\) \d{4} \|\s*\[Ctrl-s spacebar\] to switch console"
 
 
+# The answers, in the order they are looked for: the forced change first (the old password is the one this session
+# logged in with), then the logins: the instance id (SonicWall's AWS guide; the fifth run, by hand: taken, and "too
+# simple"), the run's own password (set by an earlier session), "password" (SonicWall's SonicOS 8 guides), each tried
+# once a session.
+_NSV_ANSWERS = ((_ASKS_OLD_PASSWORD, "{previous}"), (_ASKS_NEW_PASSWORD, "{new_password}"), (_ASKS_NEW_AGAIN, "{new_password}"),
+                (_ASKS_USER, "admin"), (_ASKS_PASSWORD, "{password}"), (_ASKS_USER, "admin"), (_ASKS_PASSWORD, "{new_password}"),
+                (_ASKS_USER, "admin"), (_ASKS_PASSWORD, "password"))  # fmt: skip
+
+
+def nsv_password(work: Path) -> str:
+    """SonicOS's new admin password for the run, made once and kept in the work folder (later sessions log in with it):
+    what SonicOS 8 takes, at least 8 characters with an upper and a lower case letter, a digit and one of !@#$%^&*()."""
+    path = work / "sonicwall_password.txt"
+    if path.exists():
+        return path.read_text(encoding="utf-8").strip()
+    password = "Fw" + secrets.token_hex(8) + "#7"
+    path.write_text(password + "\n", encoding="utf-8")
+    os.chmod(path, 0o600)
+    return password
+
+
 def _sonicwall_diagnose() -> List[str]:
     """The interfaces, zones, access rules and connections as SonicOS shows them."""
-    return ["no cli pager session", "show interfaces ip", "show zones", "show access-rules", "show connections", "show route", "exit"]
+    # (`show interfaces ip` and `show route` ambiguous on SonicOS 8.2.2, the eighteenth run)
+    return ["show interfaces ipv4", "show zones", "show access-rules", "show nat-policies", "show connections", "show routing", "exit"]
 
 
 # -- pfSense Plus and OPNsense (config.xml over SSH) -------------------------------------------------------------
@@ -580,6 +639,7 @@ _ZONE_NETWORKS = labplan.zone_options()
 # The SonicWall's interfaces for the PAN-OS ones (inside X0, dmz X2, outside X3; X1 is the management): the hide NAT
 # names the interface it leaves by.
 _SONICWALL_INTERFACES = ["--interface-map", "ethernet1/2=X0", "--interface-map", "ethernet1/3=X2", "--interface-map", "ethernet1/1=X3"]
+_SONICWALL_ZONES = [*(x for z, n in _SW_ZONES.items() for x in ("--zone-map", f"{z}={n}")), *labplan.zone_options(_SW_ZONES)]
 
 VENDORS: Dict[str, Vendor] = {
     "fortigate": Vendor("fortigate", "FortiGate-VM (pay as you go)", "fortios", "FortiGate-VM64-AWSONDEMAND*", "c5.xlarge", "admin",
@@ -627,14 +687,16 @@ VENDORS: Dict[str, Vendor] = {
                        _PF_AWS_OPTIONS, ready_answer=r"ena3:", as_command=True, sudo="sudo ", load=load_pf_config, diagnose=_pf_diagnose,
                        status="run: passed (OPNsense 26.1.5, 0.36.4)"),  # fmt: skip
     # SonicWall NSv, pay as you go (the subscribed product among the images named SonicWall or NSv, find_ami). SonicWall's
-    # AWS guide: SSH as `management` with the key pair opens the NSv Management Console; Ctrl+S and a space switch to the
+    # AWS guide: SSH as `management` with the key pair; Ctrl+S and a space switch between the SonicCore console and the
     # SonicOS CLI, which asks for its own user (admin) and password (the instance id). The first run: `admin` refused,
-    # "Only 'management' user is allowed to login". Leaving the CLI goes back to the console: the lab closes the session.
+    # "Only 'management' user is allowed to login". The fifth (SonicOS 8.2.2, by hand): SSH lands in the window last
+    # used, SonicOS's "User:" has a log line after it, and the first login must change the password. Leaving the CLI goes
+    # back to the console: the lab closes the session.
     "sonicwall": Vendor("sonicwall", "SonicWall NSv (pay as you go)", "sonicwall", "*SonicWall*,*Sonicwall*,*sonicwall*,*NSv*", "c5.xlarge", "management", "show version",
-                        r"^% |% Error|Error:|Unknown command|Invalid input|not allowed", [*_ZONE_NETWORKS, *_SONICWALL_INTERFACES], "", _sonicwall_session,
-                        ready_answer=_NSV_READY, prompt=r"[>#] ?$", preamble="\x13 ", close_after=15, boot_minutes=45, screen_noise=_NSV_STATUS_BAR,
-                        answers=((_ASKS_USER, "admin"), (_ASKS_PASSWORD, "{password}")), diagnose=_sonicwall_diagnose,
-                        status="scripted from SonicWall's AWS guide and knowledge base; first run: the login corrected"),  # fmt: skip
+                        _NSV_REFUSED, [*_SONICWALL_ZONES, *_SONICWALL_INTERFACES], "", _sonicwall_session,
+                        ready_answer=_NSV_READY, prompt=_NSV_PROMPT, preamble="\x13 ", preamble_when=_NSV_CORE_PROMPT, pager=_SW_PAGER, idle=15, slow=r"^commit$", close_after=15, boot_minutes=45,
+                        screen_noise=_NSV_STATUS_BAR, answers=_NSV_ANSWERS, diagnose=_sonicwall_diagnose,
+                        status="scripted from SonicWall's AWS guide; passed on AWS (0.40.16, SonicOSX 8.2.2, NAT included) after twenty runs"),  # fmt: skip
     "asav": Vendor("asav", "Cisco ASAv (pay as you go)", "asa", "asav*,*ASAv*", "c5.xlarge", "admin", "show version | include up",
                    r"ERROR:|% Invalid input|% Incomplete command", list(_ZONE_NETWORKS), _asav_user_data(), _asav_session,
                    "run: passed (ASAv 9.24.10, 0.36.1)",
@@ -862,7 +924,7 @@ def describe_ami(runner: Runner, region: str, ami: str) -> None:
 
 def session(runner: Runner, key: Path, user: str, host: str, lines: List[str], errors: str, name: str, success: str = "",
             options: Sequence[str] = (), prompt: str = "", answers: Sequence[Tuple[str, str]] = (), batch: bool = True,
-            preamble: str = "", close_after: float = 0, noise: str = "") -> str:  # fmt: skip
+            preamble: str = "", close_after: float = 0, noise: str = "", preamble_when: str = "", pager: str = "", idle: float = 0, slow: str = "") -> str:  # fmt: skip
     """Types the lines into the CLI over SSH (with a terminal: the CLIs want one) and checks what it answered: no line
     refused, and the success line where the CLI writes one. A session that hangs (a failed commit asks before it lets
     the CLI exit) ends after 20 minutes."""
@@ -872,8 +934,8 @@ def session(runner: Runner, key: Path, user: str, host: str, lines: List[str], e
     ended = None
     if prompt:
         try:
-            out = runner.run_paced(args, lines, prompt, timeout=1200, fake=f"(dry run) {success}", answers=answers, preamble=preamble,
-                                   close_after=close_after, noise=noise)
+            out = runner.run_paced(args, lines, prompt, timeout=1200, fake=f"(dry run) {success}", answers=answers, preamble=preamble, preamble_when=preamble_when,
+                                   close_after=close_after, noise=noise, pager=pager, idle=idle, slow=slow)
         except labrun.SessionEnded as error:  # (what it wrote till then: the refused lines are the likelier reason)
             out, ended = error.output, error
     else:
@@ -905,7 +967,8 @@ _SSH_AUTH_LINES = r"Offering|Server accepts|Authentications that can continue|se
 
 def wait_cli(runner: Runner, key: Path, user: str, host: str, command: str, answer: str, minutes: float,
              options: Sequence[str] = (), as_command: bool = False, prompt: str = "", answers: Sequence[Tuple[str, str]] = (),
-             batch: bool = True, preamble: str = "", close_after: float = 0, noise: str = "") -> None:  # fmt: skip
+             batch: bool = True, preamble: str = "", close_after: float = 0, noise: str = "", preamble_when: str = "", pager: str = "",
+             idle: float = 0, slow: str = "") -> None:  # fmt: skip
     """Until the CLI answers the ready command as it should (PAN-OS: chassis ready, after its first commit). Every try is
     kept in boot.txt: when the CLI never answers, it says whether SSH was refused, the key not taken, or what came back.
     A try that finds no algorithm in common with the firewall ends the wait at once."""
@@ -921,7 +984,7 @@ def wait_cli(runner: Runner, key: Path, user: str, host: str, command: str, answ
             elif answers:  # (a CLI with a login of its own: the questions answered, then the command typed after the prompt)
                 try:
                     out = runner.run_paced(prefix[:1] + ["-tt"] + prefix[1:], [command, "exit"], prompt, timeout=150, step=60, answers=answers,
-                                           preamble=preamble, close_after=close_after, noise=noise)
+                                           preamble=preamble, close_after=close_after, noise=noise, preamble_when=preamble_when, pager=pager, idle=idle, slow=slow)
                 except labrun.SessionEnded as error:
                     out = error.output
                 if noise:
@@ -1094,15 +1157,24 @@ def run_vendor(runner: Runner, args: Any) -> bool:
                 teardown(runner, tf)
 
 
+def _filled(text: str, values: Dict[str, str]) -> str:
+    for name, value in values.items():
+        text = text.replace(name, value)
+    return text
+
+
 def _boot_load_probe(runner: Runner, vendor: Vendor, key: Path, outputs: Dict[str, Any], out: Path, data: Dict[str, Any], args: Any,
                      console: Callable[[], None]) -> bool:  # fmt: skip
     """Once the firewall exists, on any cloud: wait for its CLI, load the policy, probe, and look at it afterwards
     (diagnose.txt, the read-back). console: keeps its boot messages, for a firewall that did not come up."""
     if vendor.password_login:
         labrun.askpass(runner.work, outputs["firewall_instance"])
-    login: Dict[str, Any] = {"answers": tuple((q, a.replace("{password}", outputs["firewall_instance"])) for q, a in vendor.answers),
-             "batch": not vendor.password_login, "preamble": vendor.preamble, "close_after": vendor.close_after,
-             "noise": vendor.screen_noise}  # fmt: skip
+    fill = {"{password}": outputs["firewall_instance"]}
+    if any("{new_password}" in a for _, a in vendor.answers):
+        fill["{new_password}"] = nsv_password(runner.work)
+    login: Dict[str, Any] = {"answers": tuple((q, _filled(a, fill)) for q, a in vendor.answers), "batch": not vendor.password_login,
+                             "preamble": vendor.preamble, "preamble_when": vendor.preamble_when, "pager": vendor.pager, "idle": vendor.idle, "slow": vendor.slow, "close_after": vendor.close_after,
+                             "noise": vendor.screen_noise}  # fmt: skip
     if not runner.dry_run:
         try:
             wait_cli(runner, key, vendor.user, outputs["firewall_ip"], vendor.ready, vendor.ready_answer,

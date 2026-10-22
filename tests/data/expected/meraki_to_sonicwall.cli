@@ -15,6 +15,10 @@ address-object ipv4 "r 10.10.31.0-172.16.39.255" range 10.10.31.0 172.16.39.255 
 address-object ipv4 "r 172.16.41.0-255.255.255.255" range 172.16.41.0 255.255.255.255 zone internet
 address-object ipv6 "r ::-2001:db8:f:ffff:ffff:ffff:f" range :: 2001:db8:f:ffff:ffff:ffff:ffff:ffff zone internet
 address-object ipv6 "r 2001:db8:10:1::-ffff:ffff:ffff" range 2001:db8:10:1:: ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff zone internet
+address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0 zone internet
+address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0 zone internet
+address-object ipv6 "n ::_1" network :: /1 zone internet
+address-object ipv6 "n 8000::_1" network 8000:: /1 zone internet
 address-object ipv4 "n 198.51.100.0_24" network 198.51.100.0 255.255.255.0 zone internet
 address-object ipv4 "h 10.10.20.15" host 10.10.20.15 zone internet
 address-object ipv4 "h 10.10.20.53" host 10.10.20.53 zone internet
@@ -67,6 +71,14 @@ address-group ipv4 "VLAN(30)"
 address-group ipv4 "VLAN(20)"
     address-object ipv4 "n 10.10.20.0_24"
     exit
+address-group ipv4 "FWSHIFT all IPv4"
+    address-object ipv4 "n 0.0.0.0_1"
+    address-object ipv4 "n 128.0.0.0_1"
+    exit
+address-group ipv6 "FWSHIFT all IPv6"
+    address-object ipv6 "n ::_1"
+    address-object ipv6 "n 8000::_1"
+    exit
 address-group ipv4 "dst historian"
     address-group ipv4 "VLAN(30)"
     address-object ipv4 "n 172.16.40.0_24"
@@ -100,877 +112,839 @@ service-group "svc layer 7 rule 2"
     service-object "tcp/23"
     service-object "udp/23"
     exit
-nat-policy inbound any outbound any source any translated-source original destination name "h 203.0.113.2" translated-destination name "h 10.10.20.30" service name "tcp/8443" translated-service name "tcp 443"
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "h 203.0.113.2" translated-destination name "h 10.10.20.30" service name "tcp/8443" translated-service name "tcp 443"
     name "NAT vpn-portal"
     comment "NAT vpn-portal"
+    priority manual 1
     exit
-nat-policy inbound any outbound any source name "h 10.10.20.25" translated-source name "h 203.0.113.25" destination any translated-destination original service any translated-service original
+nat-policy ipv4 inbound any outbound any source name "h 10.10.20.25" translated-source name "h 203.0.113.25" destination any translated-destination original service any translated-service original
     name "NAT mail"
     comment "NAT mail"
+    priority manual 2
     exit
-nat-policy inbound any outbound any source any translated-source original destination name "h 203.0.113.25" translated-destination name "h 10.10.20.25" service any translated-service original
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "h 203.0.113.25" translated-destination name "h 10.10.20.25" service any translated-service original
     name "NAT mail in"
     comment "inbound of NAT mail"
+    priority manual 3
     exit
-nat-policy inbound any outbound any source any translated-source original destination name "h 203.0.113.30" translated-destination name "h 10.10.20.40" service name "tcp/9443" translated-service name "tcp 443"
+nat-policy ipv4 inbound any outbound any source any translated-source original destination name "h 203.0.113.30" translated-destination name "h 10.10.20.40" service name "tcp/9443" translated-service name "tcp 443"
     name "NAT scada-view"
     comment "NAT scada-view"
+    priority manual 4
     exit
-access-rule ipv4 from vlan10-office to vlan10-office action allow source address any service any destination address any
+access-rule ipv4 from vlan10-office to vlan10-office action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "inside a VLAN"
     priority manual 1
     exit
-access-rule ipv6 from vlan10-office to vlan10-office action allow source address any service any destination address any
-    name "inside a VLAN 2"
-    priority manual 1
-    exit
-access-rule ipv4 from vlan20-servers to vlan20-servers action allow source address any service any destination address any
+access-rule ipv4 from vlan20-servers to vlan20-servers action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "inside a VLAN 3"
-    priority manual 1
+    priority manual 2
     exit
-access-rule ipv6 from vlan20-servers to vlan20-servers action allow source address any service any destination address any
-    name "inside a VLAN 4"
-    priority manual 1
-    exit
-access-rule ipv4 from vlan30-ot-cell to vlan30-ot-cell action allow source address any service any destination address any
+access-rule ipv4 from vlan30-ot-cell to vlan30-ot-cell action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "inside a VLAN 5"
-    priority manual 1
-    exit
-access-rule ipv6 from vlan30-ot-cell to vlan30-ot-cell action allow source address any service any destination address any
-    name "inside a VLAN 6"
-    priority manual 1
+    priority manual 3
     exit
 access-rule ipv4 from vlan10-office to internet action deny source address any service group "svc layer 7 rule 2" destination address any
     name "layer 7 rule 2"
-    priority manual 1
-    exit
-access-rule ipv6 from vlan10-office to internet action deny source address any service group "svc layer 7 rule 2" destination address any
-    name "layer 7 rule 2 2"
-    priority manual 1
+    priority manual 4
     exit
 access-rule ipv4 from vlan10-office to vlan10-office action deny source address any service group "svc layer 7 rule 2" destination address any
     name "layer 7 rule 2 3"
-    priority manual 2
-    exit
-access-rule ipv6 from vlan10-office to vlan10-office action deny source address any service group "svc layer 7 rule 2" destination address any
-    name "layer 7 rule 2 4"
-    priority manual 2
+    priority manual 5
     exit
 access-rule ipv4 from vlan10-office to vlan20-servers action deny source address any service group "svc layer 7 rule 2" destination address any
     name "layer 7 rule 2 5"
-    priority manual 1
-    exit
-access-rule ipv6 from vlan10-office to vlan20-servers action deny source address any service group "svc layer 7 rule 2" destination address any
-    name "layer 7 rule 2 6"
-    priority manual 1
+    priority manual 6
     exit
 access-rule ipv4 from vlan10-office to vlan30-ot-cell action deny source address any service group "svc layer 7 rule 2" destination address any
     name "layer 7 rule 2 7"
-    priority manual 1
-    exit
-access-rule ipv6 from vlan10-office to vlan30-ot-cell action deny source address any service group "svc layer 7 rule 2" destination address any
-    name "layer 7 rule 2 8"
-    priority manual 1
+    priority manual 7
     exit
 access-rule ipv4 from vlan20-servers to internet action deny source address any service group "svc layer 7 rule 2" destination address any
     name "layer 7 rule 2 9"
-    priority manual 1
-    exit
-access-rule ipv6 from vlan20-servers to internet action deny source address any service group "svc layer 7 rule 2" destination address any
-    name "layer 7 rule 2 10"
-    priority manual 1
+    priority manual 8
     exit
 access-rule ipv4 from vlan20-servers to vlan10-office action deny source address any service group "svc layer 7 rule 2" destination address any
     name "layer 7 rule 2 11"
-    priority manual 1
-    exit
-access-rule ipv6 from vlan20-servers to vlan10-office action deny source address any service group "svc layer 7 rule 2" destination address any
-    name "layer 7 rule 2 12"
-    priority manual 1
+    priority manual 9
     exit
 access-rule ipv4 from vlan20-servers to vlan20-servers action deny source address any service group "svc layer 7 rule 2" destination address any
     name "layer 7 rule 2 13"
-    priority manual 2
-    exit
-access-rule ipv6 from vlan20-servers to vlan20-servers action deny source address any service group "svc layer 7 rule 2" destination address any
-    name "layer 7 rule 2 14"
-    priority manual 2
+    priority manual 10
     exit
 access-rule ipv4 from vlan20-servers to vlan30-ot-cell action deny source address any service group "svc layer 7 rule 2" destination address any
     name "layer 7 rule 2 15"
-    priority manual 1
-    exit
-access-rule ipv6 from vlan20-servers to vlan30-ot-cell action deny source address any service group "svc layer 7 rule 2" destination address any
-    name "layer 7 rule 2 16"
-    priority manual 1
+    priority manual 11
     exit
 access-rule ipv4 from vlan30-ot-cell to internet action deny source address any service group "svc layer 7 rule 2" destination address any
     name "layer 7 rule 2 17"
-    priority manual 1
-    exit
-access-rule ipv6 from vlan30-ot-cell to internet action deny source address any service group "svc layer 7 rule 2" destination address any
-    name "layer 7 rule 2 18"
-    priority manual 1
+    priority manual 12
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan10-office action deny source address any service group "svc layer 7 rule 2" destination address any
     name "layer 7 rule 2 19"
-    priority manual 1
-    exit
-access-rule ipv6 from vlan30-ot-cell to vlan10-office action deny source address any service group "svc layer 7 rule 2" destination address any
-    name "layer 7 rule 2 20"
-    priority manual 1
+    priority manual 13
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan20-servers action deny source address any service group "svc layer 7 rule 2" destination address any
     name "layer 7 rule 2 21"
-    priority manual 1
-    exit
-access-rule ipv6 from vlan30-ot-cell to vlan20-servers action deny source address any service group "svc layer 7 rule 2" destination address any
-    name "layer 7 rule 2 22"
-    priority manual 1
+    priority manual 14
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan30-ot-cell action deny source address any service group "svc layer 7 rule 2" destination address any
     name "layer 7 rule 2 23"
-    priority manual 2
-    exit
-access-rule ipv6 from vlan30-ot-cell to vlan30-ot-cell action deny source address any service group "svc layer 7 rule 2" destination address any
-    name "layer 7 rule 2 24"
-    priority manual 2
+    priority manual 15
     exit
 access-rule ipv4 from vlan10-office to internet action deny source address any service any destination address name "n 198.51.100.0_24"
     name "layer 7 rule 3"
-    priority manual 2
+    priority manual 16
     exit
 access-rule ipv4 from vlan10-office to vlan10-office action deny source address any service any destination address name "n 198.51.100.0_24"
     name "layer 7 rule 3 2"
-    priority manual 3
+    priority manual 17
     exit
 access-rule ipv4 from vlan10-office to vlan20-servers action deny source address any service any destination address name "n 198.51.100.0_24"
     name "layer 7 rule 3 3"
-    priority manual 2
+    priority manual 18
     exit
 access-rule ipv4 from vlan10-office to vlan30-ot-cell action deny source address any service any destination address name "n 198.51.100.0_24"
     name "layer 7 rule 3 4"
-    priority manual 2
+    priority manual 19
     exit
 access-rule ipv4 from vlan20-servers to internet action deny source address any service any destination address name "n 198.51.100.0_24"
     name "layer 7 rule 3 5"
-    priority manual 2
+    priority manual 20
     exit
 access-rule ipv4 from vlan20-servers to vlan10-office action deny source address any service any destination address name "n 198.51.100.0_24"
     name "layer 7 rule 3 6"
-    priority manual 2
+    priority manual 21
     exit
 access-rule ipv4 from vlan20-servers to vlan20-servers action deny source address any service any destination address name "n 198.51.100.0_24"
     name "layer 7 rule 3 7"
-    priority manual 3
+    priority manual 22
     exit
 access-rule ipv4 from vlan20-servers to vlan30-ot-cell action deny source address any service any destination address name "n 198.51.100.0_24"
     name "layer 7 rule 3 8"
-    priority manual 2
+    priority manual 23
     exit
 access-rule ipv4 from vlan30-ot-cell to internet action deny source address any service any destination address name "n 198.51.100.0_24"
     name "layer 7 rule 3 9"
-    priority manual 2
+    priority manual 24
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan10-office action deny source address any service any destination address name "n 198.51.100.0_24"
     name "layer 7 rule 3 10"
-    priority manual 2
+    priority manual 25
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan20-servers action deny source address any service any destination address name "n 198.51.100.0_24"
     name "layer 7 rule 3 11"
-    priority manual 2
+    priority manual 26
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan30-ot-cell action deny source address any service any destination address name "n 198.51.100.0_24"
     name "layer 7 rule 3 12"
-    priority manual 3
+    priority manual 27
     exit
 access-rule ipv4 from vlan10-office to internet action allow source address group "VLAN(10)" service group "tcp/80,443" destination address name "n 10.10.20.0_24"
     name "office to servers web"
-    priority manual 3
+    priority manual 28
     exit
 access-rule ipv4 from vlan10-office to vlan10-office action allow source address group "VLAN(10)" service group "tcp/80,443" destination address name "n 10.10.20.0_24"
     name "office to servers web 2"
-    priority manual 4
+    priority manual 29
     exit
 access-rule ipv4 from vlan10-office to vlan20-servers action allow source address group "VLAN(10)" service group "tcp/80,443" destination address name "n 10.10.20.0_24"
     name "office to servers web 3"
-    priority manual 3
+    priority manual 30
     exit
 access-rule ipv4 from vlan10-office to vlan30-ot-cell action allow source address group "VLAN(10)" service group "tcp/80,443" destination address name "n 10.10.20.0_24"
     name "office to servers web 4"
-    priority manual 3
+    priority manual 31
     exit
 access-rule ipv4 from vlan20-servers to internet action allow source address group "VLAN(10)" service group "tcp/80,443" destination address name "n 10.10.20.0_24"
     name "office to servers web 5"
-    priority manual 3
+    priority manual 32
     exit
 access-rule ipv4 from vlan20-servers to vlan10-office action allow source address group "VLAN(10)" service group "tcp/80,443" destination address name "n 10.10.20.0_24"
     name "office to servers web 6"
-    priority manual 3
+    priority manual 33
     exit
 access-rule ipv4 from vlan20-servers to vlan20-servers action allow source address group "VLAN(10)" service group "tcp/80,443" destination address name "n 10.10.20.0_24"
     name "office to servers web 7"
-    priority manual 4
+    priority manual 34
     exit
 access-rule ipv4 from vlan20-servers to vlan30-ot-cell action allow source address group "VLAN(10)" service group "tcp/80,443" destination address name "n 10.10.20.0_24"
     name "office to servers web 8"
-    priority manual 3
+    priority manual 35
     exit
 access-rule ipv4 from vlan30-ot-cell to internet action allow source address group "VLAN(10)" service group "tcp/80,443" destination address name "n 10.10.20.0_24"
     name "office to servers web 9"
-    priority manual 3
+    priority manual 36
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan10-office action allow source address group "VLAN(10)" service group "tcp/80,443" destination address name "n 10.10.20.0_24"
     name "office to servers web 10"
-    priority manual 3
+    priority manual 37
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan20-servers action allow source address group "VLAN(10)" service group "tcp/80,443" destination address name "n 10.10.20.0_24"
     name "office to servers web 11"
-    priority manual 3
+    priority manual 38
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan30-ot-cell action allow source address group "VLAN(10)" service group "tcp/80,443" destination address name "n 10.10.20.0_24"
     name "office to servers web 12"
-    priority manual 4
+    priority manual 39
     exit
 access-rule ipv4 from vlan10-office to internet action allow source address name "h 10.10.20.15" service name "tcp/4840" destination address group "dst historian"
     name "historian"
-    priority manual 4
+    priority manual 40
     exit
 access-rule ipv4 from vlan10-office to vlan10-office action allow source address name "h 10.10.20.15" service name "tcp/4840" destination address group "dst historian"
     name "historian 2"
-    priority manual 5
+    priority manual 41
     exit
 access-rule ipv4 from vlan10-office to vlan20-servers action allow source address name "h 10.10.20.15" service name "tcp/4840" destination address group "dst historian"
     name "historian 3"
-    priority manual 4
+    priority manual 42
     exit
 access-rule ipv4 from vlan10-office to vlan30-ot-cell action allow source address name "h 10.10.20.15" service name "tcp/4840" destination address group "dst historian"
     name "historian 4"
-    priority manual 4
+    priority manual 43
     exit
 access-rule ipv4 from vlan20-servers to internet action allow source address name "h 10.10.20.15" service name "tcp/4840" destination address group "dst historian"
     name "historian 5"
-    priority manual 4
+    priority manual 44
     exit
 access-rule ipv4 from vlan20-servers to vlan10-office action allow source address name "h 10.10.20.15" service name "tcp/4840" destination address group "dst historian"
     name "historian 6"
-    priority manual 4
+    priority manual 45
     exit
 access-rule ipv4 from vlan20-servers to vlan20-servers action allow source address name "h 10.10.20.15" service name "tcp/4840" destination address group "dst historian"
     name "historian 7"
-    priority manual 5
+    priority manual 46
     exit
 access-rule ipv4 from vlan20-servers to vlan30-ot-cell action allow source address name "h 10.10.20.15" service name "tcp/4840" destination address group "dst historian"
     name "historian 8"
-    priority manual 4
+    priority manual 47
     exit
 access-rule ipv4 from vlan30-ot-cell to internet action allow source address name "h 10.10.20.15" service name "tcp/4840" destination address group "dst historian"
     name "historian 9"
-    priority manual 4
+    priority manual 48
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan10-office action allow source address name "h 10.10.20.15" service name "tcp/4840" destination address group "dst historian"
     name "historian 10"
-    priority manual 4
+    priority manual 49
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan20-servers action allow source address name "h 10.10.20.15" service name "tcp/4840" destination address group "dst historian"
     name "historian 11"
-    priority manual 4
+    priority manual 50
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan30-ot-cell action allow source address name "h 10.10.20.15" service name "tcp/4840" destination address group "dst historian"
     name "historian 12"
-    priority manual 5
+    priority manual 51
     exit
 access-rule ipv4 from vlan10-office to internet action allow source address name "eng-ws" service name "tcp/102" destination address group "plcs"
     name "eng ws to plc"
-    priority manual 5
+    priority manual 52
     exit
 access-rule ipv4 from vlan10-office to vlan10-office action allow source address name "eng-ws" service name "tcp/102" destination address group "plcs"
     name "eng ws to plc 2"
-    priority manual 6
+    priority manual 53
     exit
 access-rule ipv4 from vlan10-office to vlan20-servers action allow source address name "eng-ws" service name "tcp/102" destination address group "plcs"
     name "eng ws to plc 3"
-    priority manual 5
+    priority manual 54
     exit
 access-rule ipv4 from vlan10-office to vlan30-ot-cell action allow source address name "eng-ws" service name "tcp/102" destination address group "plcs"
     name "eng ws to plc 4"
-    priority manual 5
+    priority manual 55
     exit
 access-rule ipv4 from vlan20-servers to internet action allow source address name "eng-ws" service name "tcp/102" destination address group "plcs"
     name "eng ws to plc 5"
-    priority manual 5
+    priority manual 56
     exit
 access-rule ipv4 from vlan20-servers to vlan10-office action allow source address name "eng-ws" service name "tcp/102" destination address group "plcs"
     name "eng ws to plc 6"
-    priority manual 5
+    priority manual 57
     exit
 access-rule ipv4 from vlan20-servers to vlan20-servers action allow source address name "eng-ws" service name "tcp/102" destination address group "plcs"
     name "eng ws to plc 7"
-    priority manual 6
+    priority manual 58
     exit
 access-rule ipv4 from vlan20-servers to vlan30-ot-cell action allow source address name "eng-ws" service name "tcp/102" destination address group "plcs"
     name "eng ws to plc 8"
-    priority manual 5
+    priority manual 59
     exit
 access-rule ipv4 from vlan30-ot-cell to internet action allow source address name "eng-ws" service name "tcp/102" destination address group "plcs"
     name "eng ws to plc 9"
-    priority manual 5
+    priority manual 60
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan10-office action allow source address name "eng-ws" service name "tcp/102" destination address group "plcs"
     name "eng ws to plc 10"
-    priority manual 5
+    priority manual 61
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan20-servers action allow source address name "eng-ws" service name "tcp/102" destination address group "plcs"
     name "eng ws to plc 11"
-    priority manual 5
+    priority manual 62
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan30-ot-cell action allow source address name "eng-ws" service name "tcp/102" destination address group "plcs"
     name "eng ws to plc 12"
-    priority manual 6
+    priority manual 63
     exit
 access-rule ipv4 from vlan10-office to internet action deny source address any service any destination address group "dst ot cell isolated"
     name "ot cell isolated"
-    priority manual 6
+    priority manual 64
     exit
 access-rule ipv4 from vlan10-office to vlan10-office action deny source address any service any destination address group "dst ot cell isolated"
     name "ot cell isolated 2"
-    priority manual 7
+    priority manual 65
     exit
 access-rule ipv4 from vlan10-office to vlan20-servers action deny source address any service any destination address group "dst ot cell isolated"
     name "ot cell isolated 3"
-    priority manual 6
+    priority manual 66
     exit
 access-rule ipv4 from vlan10-office to vlan30-ot-cell action deny source address any service any destination address group "dst ot cell isolated"
     name "ot cell isolated 4"
-    priority manual 6
+    priority manual 67
     exit
 access-rule ipv4 from vlan20-servers to internet action deny source address any service any destination address group "dst ot cell isolated"
     name "ot cell isolated 5"
-    priority manual 6
+    priority manual 68
     exit
 access-rule ipv4 from vlan20-servers to vlan10-office action deny source address any service any destination address group "dst ot cell isolated"
     name "ot cell isolated 6"
-    priority manual 6
+    priority manual 69
     exit
 access-rule ipv4 from vlan20-servers to vlan20-servers action deny source address any service any destination address group "dst ot cell isolated"
     name "ot cell isolated 7"
-    priority manual 7
+    priority manual 70
     exit
 access-rule ipv4 from vlan20-servers to vlan30-ot-cell action deny source address any service any destination address group "dst ot cell isolated"
     name "ot cell isolated 8"
-    priority manual 6
+    priority manual 71
     exit
 access-rule ipv4 from vlan30-ot-cell to internet action deny source address any service any destination address group "dst ot cell isolated"
     name "ot cell isolated 9"
-    priority manual 6
+    priority manual 72
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan10-office action deny source address any service any destination address group "dst ot cell isolated"
     name "ot cell isolated 10"
-    priority manual 6
+    priority manual 73
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan20-servers action deny source address any service any destination address group "dst ot cell isolated"
     name "ot cell isolated 11"
-    priority manual 6
+    priority manual 74
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan30-ot-cell action deny source address any service any destination address group "dst ot cell isolated"
     name "ot cell isolated 12"
-    priority manual 7
+    priority manual 75
     exit
 access-rule ipv4 from vlan10-office to internet action deny source address group "src ot no internet" service any destination address any
     name "ot no internet"
-    priority manual 7
+    priority manual 76
     exit
 access-rule ipv4 from vlan10-office to vlan10-office action deny source address group "src ot no internet" service any destination address any
     name "ot no internet 2"
-    priority manual 8
+    priority manual 77
     exit
 access-rule ipv4 from vlan10-office to vlan20-servers action deny source address group "src ot no internet" service any destination address any
     name "ot no internet 3"
-    priority manual 7
+    priority manual 78
     exit
 access-rule ipv4 from vlan10-office to vlan30-ot-cell action deny source address group "src ot no internet" service any destination address any
     name "ot no internet 4"
-    priority manual 7
+    priority manual 79
     exit
 access-rule ipv4 from vlan20-servers to internet action deny source address group "src ot no internet" service any destination address any
     name "ot no internet 5"
-    priority manual 7
+    priority manual 80
     exit
 access-rule ipv4 from vlan20-servers to vlan10-office action deny source address group "src ot no internet" service any destination address any
     name "ot no internet 6"
-    priority manual 7
+    priority manual 81
     exit
 access-rule ipv4 from vlan20-servers to vlan20-servers action deny source address group "src ot no internet" service any destination address any
     name "ot no internet 7"
-    priority manual 8
+    priority manual 82
     exit
 access-rule ipv4 from vlan20-servers to vlan30-ot-cell action deny source address group "src ot no internet" service any destination address any
     name "ot no internet 8"
-    priority manual 7
+    priority manual 83
     exit
 access-rule ipv4 from vlan30-ot-cell to internet action deny source address group "src ot no internet" service any destination address any
     name "ot no internet 9"
-    priority manual 7
+    priority manual 84
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan10-office action deny source address group "src ot no internet" service any destination address any
     name "ot no internet 10"
-    priority manual 7
+    priority manual 85
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan20-servers action deny source address group "src ot no internet" service any destination address any
     name "ot no internet 11"
-    priority manual 7
+    priority manual 86
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan30-ot-cell action deny source address group "src ot no internet" service any destination address any
     name "ot no internet 12"
-    priority manual 8
+    priority manual 87
     exit
 access-rule ipv4 from vlan10-office to internet action deny source address name "n 10.10.10.0_24" service name "tcp/443" destination address name "fqdn updates.example.com"
     name "block update site"
-    priority manual 8
+    priority manual 88
     exit
 access-rule ipv4 from vlan10-office to vlan10-office action deny source address name "n 10.10.10.0_24" service name "tcp/443" destination address name "fqdn updates.example.com"
     name "block update site 2"
-    priority manual 9
+    priority manual 89
     exit
 access-rule ipv4 from vlan10-office to vlan20-servers action deny source address name "n 10.10.10.0_24" service name "tcp/443" destination address name "fqdn updates.example.com"
     name "block update site 3"
-    priority manual 8
+    priority manual 90
     exit
 access-rule ipv4 from vlan10-office to vlan30-ot-cell action deny source address name "n 10.10.10.0_24" service name "tcp/443" destination address name "fqdn updates.example.com"
     name "block update site 4"
-    priority manual 8
+    priority manual 91
     exit
 access-rule ipv4 from vlan20-servers to internet action deny source address name "n 10.10.10.0_24" service name "tcp/443" destination address name "fqdn updates.example.com"
     name "block update site 5"
-    priority manual 8
+    priority manual 92
     exit
 access-rule ipv4 from vlan20-servers to vlan10-office action deny source address name "n 10.10.10.0_24" service name "tcp/443" destination address name "fqdn updates.example.com"
     name "block update site 6"
-    priority manual 8
+    priority manual 93
     exit
 access-rule ipv4 from vlan20-servers to vlan20-servers action deny source address name "n 10.10.10.0_24" service name "tcp/443" destination address name "fqdn updates.example.com"
     name "block update site 7"
-    priority manual 9
+    priority manual 94
     exit
 access-rule ipv4 from vlan20-servers to vlan30-ot-cell action deny source address name "n 10.10.10.0_24" service name "tcp/443" destination address name "fqdn updates.example.com"
     name "block update site 8"
-    priority manual 8
+    priority manual 95
     exit
 access-rule ipv4 from vlan30-ot-cell to internet action deny source address name "n 10.10.10.0_24" service name "tcp/443" destination address name "fqdn updates.example.com"
     name "block update site 9"
-    priority manual 8
+    priority manual 96
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan10-office action deny source address name "n 10.10.10.0_24" service name "tcp/443" destination address name "fqdn updates.example.com"
     name "block update site 10"
-    priority manual 8
+    priority manual 97
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan20-servers action deny source address name "n 10.10.10.0_24" service name "tcp/443" destination address name "fqdn updates.example.com"
     name "block update site 11"
-    priority manual 8
+    priority manual 98
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan30-ot-cell action deny source address name "n 10.10.10.0_24" service name "tcp/443" destination address name "fqdn updates.example.com"
     name "block update site 12"
-    priority manual 9
+    priority manual 99
     exit
 access-rule ipv4 from vlan10-office to internet action allow source address any service name "udp/53" destination address name "h 10.10.20.53"
     name "dns to servers"
-    priority manual 9
+    priority manual 100
     exit
 access-rule ipv4 from vlan10-office to vlan10-office action allow source address any service name "udp/53" destination address name "h 10.10.20.53"
     name "dns to servers 2"
-    priority manual 10
+    priority manual 101
     exit
 access-rule ipv4 from vlan10-office to vlan20-servers action allow source address any service name "udp/53" destination address name "h 10.10.20.53"
     name "dns to servers 3"
-    priority manual 9
+    priority manual 102
     exit
 access-rule ipv4 from vlan10-office to vlan30-ot-cell action allow source address any service name "udp/53" destination address name "h 10.10.20.53"
     name "dns to servers 4"
-    priority manual 9
+    priority manual 103
     exit
 access-rule ipv4 from vlan20-servers to internet action allow source address any service name "udp/53" destination address name "h 10.10.20.53"
     name "dns to servers 5"
-    priority manual 9
+    priority manual 104
     exit
 access-rule ipv4 from vlan20-servers to vlan10-office action allow source address any service name "udp/53" destination address name "h 10.10.20.53"
     name "dns to servers 6"
-    priority manual 9
+    priority manual 105
     exit
 access-rule ipv4 from vlan20-servers to vlan20-servers action allow source address any service name "udp/53" destination address name "h 10.10.20.53"
     name "dns to servers 7"
-    priority manual 10
+    priority manual 106
     exit
 access-rule ipv4 from vlan20-servers to vlan30-ot-cell action allow source address any service name "udp/53" destination address name "h 10.10.20.53"
     name "dns to servers 8"
-    priority manual 9
+    priority manual 107
     exit
 access-rule ipv4 from vlan30-ot-cell to internet action allow source address any service name "udp/53" destination address name "h 10.10.20.53"
     name "dns to servers 9"
-    priority manual 9
+    priority manual 108
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan10-office action allow source address any service name "udp/53" destination address name "h 10.10.20.53"
     name "dns to servers 10"
-    priority manual 9
+    priority manual 109
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan20-servers action allow source address any service name "udp/53" destination address name "h 10.10.20.53"
     name "dns to servers 11"
-    priority manual 9
+    priority manual 110
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan30-ot-cell action allow source address any service name "udp/53" destination address name "h 10.10.20.53"
     name "dns to servers 12"
-    priority manual 10
+    priority manual 111
     exit
 access-rule ipv4 from vlan10-office to internet action allow source address group "VLAN(10)" service any destination address group "VLAN(20)"
     name "ping servers"
-    priority manual 10
+    priority manual 112
     no enable
     exit
 access-rule ipv4 from vlan10-office to vlan10-office action allow source address group "VLAN(10)" service any destination address group "VLAN(20)"
     name "ping servers 2"
-    priority manual 11
+    priority manual 113
     no enable
     exit
 access-rule ipv4 from vlan10-office to vlan20-servers action allow source address group "VLAN(10)" service any destination address group "VLAN(20)"
     name "ping servers 3"
-    priority manual 10
+    priority manual 114
     no enable
     exit
 access-rule ipv4 from vlan10-office to vlan30-ot-cell action allow source address group "VLAN(10)" service any destination address group "VLAN(20)"
     name "ping servers 4"
-    priority manual 10
+    priority manual 115
     no enable
     exit
 access-rule ipv4 from vlan20-servers to internet action allow source address group "VLAN(10)" service any destination address group "VLAN(20)"
     name "ping servers 5"
-    priority manual 10
+    priority manual 116
     no enable
     exit
 access-rule ipv4 from vlan20-servers to vlan10-office action allow source address group "VLAN(10)" service any destination address group "VLAN(20)"
     name "ping servers 6"
-    priority manual 10
+    priority manual 117
     no enable
     exit
 access-rule ipv4 from vlan20-servers to vlan20-servers action allow source address group "VLAN(10)" service any destination address group "VLAN(20)"
     name "ping servers 7"
-    priority manual 11
+    priority manual 118
     no enable
     exit
 access-rule ipv4 from vlan20-servers to vlan30-ot-cell action allow source address group "VLAN(10)" service any destination address group "VLAN(20)"
     name "ping servers 8"
-    priority manual 10
+    priority manual 119
     no enable
     exit
 access-rule ipv4 from vlan30-ot-cell to internet action allow source address group "VLAN(10)" service any destination address group "VLAN(20)"
     name "ping servers 9"
-    priority manual 10
+    priority manual 120
     no enable
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan10-office action allow source address group "VLAN(10)" service any destination address group "VLAN(20)"
     name "ping servers 10"
-    priority manual 10
+    priority manual 121
     no enable
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan20-servers action allow source address group "VLAN(10)" service any destination address group "VLAN(20)"
     name "ping servers 11"
-    priority manual 10
+    priority manual 122
     no enable
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan30-ot-cell action allow source address group "VLAN(10)" service any destination address group "VLAN(20)"
     name "ping servers 12"
-    priority manual 11
+    priority manual 123
     no enable
-    exit
-access-rule ipv6 from vlan10-office to internet action allow source address name "n 2001:db8:10::_64" service any destination address any
-    name "office ipv6 out"
-    priority manual 2
-    exit
-access-rule ipv6 from vlan10-office to vlan10-office action allow source address name "n 2001:db8:10::_64" service any destination address any
-    name "office ipv6 out 2"
-    priority manual 3
-    exit
-access-rule ipv6 from vlan10-office to vlan20-servers action allow source address name "n 2001:db8:10::_64" service any destination address any
-    name "office ipv6 out 3"
-    priority manual 2
-    exit
-access-rule ipv6 from vlan10-office to vlan30-ot-cell action allow source address name "n 2001:db8:10::_64" service any destination address any
-    name "office ipv6 out 4"
-    priority manual 2
-    exit
-access-rule ipv6 from vlan20-servers to internet action allow source address name "n 2001:db8:10::_64" service any destination address any
-    name "office ipv6 out 5"
-    priority manual 2
-    exit
-access-rule ipv6 from vlan20-servers to vlan10-office action allow source address name "n 2001:db8:10::_64" service any destination address any
-    name "office ipv6 out 6"
-    priority manual 2
-    exit
-access-rule ipv6 from vlan20-servers to vlan20-servers action allow source address name "n 2001:db8:10::_64" service any destination address any
-    name "office ipv6 out 7"
-    priority manual 3
-    exit
-access-rule ipv6 from vlan20-servers to vlan30-ot-cell action allow source address name "n 2001:db8:10::_64" service any destination address any
-    name "office ipv6 out 8"
-    priority manual 2
-    exit
-access-rule ipv6 from vlan30-ot-cell to internet action allow source address name "n 2001:db8:10::_64" service any destination address any
-    name "office ipv6 out 9"
-    priority manual 2
-    exit
-access-rule ipv6 from vlan30-ot-cell to vlan10-office action allow source address name "n 2001:db8:10::_64" service any destination address any
-    name "office ipv6 out 10"
-    priority manual 2
-    exit
-access-rule ipv6 from vlan30-ot-cell to vlan20-servers action allow source address name "n 2001:db8:10::_64" service any destination address any
-    name "office ipv6 out 11"
-    priority manual 2
-    exit
-access-rule ipv6 from vlan30-ot-cell to vlan30-ot-cell action allow source address name "n 2001:db8:10::_64" service any destination address any
-    name "office ipv6 out 12"
-    priority manual 3
     exit
 access-rule ipv4 from vlan10-office to internet action allow source address name "n 10.10.10.0_24" service name "tcp/50000-50100" destination address name "h 10.10.20.21"
     name "passive ftp"
-    priority manual 11
+    priority manual 124
     exit
 access-rule ipv4 from vlan10-office to vlan10-office action allow source address name "n 10.10.10.0_24" service name "tcp/50000-50100" destination address name "h 10.10.20.21"
     name "passive ftp 2"
-    priority manual 12
+    priority manual 125
     exit
 access-rule ipv4 from vlan10-office to vlan20-servers action allow source address name "n 10.10.10.0_24" service name "tcp/50000-50100" destination address name "h 10.10.20.21"
     name "passive ftp 3"
-    priority manual 11
+    priority manual 126
     exit
 access-rule ipv4 from vlan10-office to vlan30-ot-cell action allow source address name "n 10.10.10.0_24" service name "tcp/50000-50100" destination address name "h 10.10.20.21"
     name "passive ftp 4"
-    priority manual 11
+    priority manual 127
     exit
 access-rule ipv4 from vlan20-servers to internet action allow source address name "n 10.10.10.0_24" service name "tcp/50000-50100" destination address name "h 10.10.20.21"
     name "passive ftp 5"
-    priority manual 11
+    priority manual 128
     exit
 access-rule ipv4 from vlan20-servers to vlan10-office action allow source address name "n 10.10.10.0_24" service name "tcp/50000-50100" destination address name "h 10.10.20.21"
     name "passive ftp 6"
-    priority manual 11
+    priority manual 129
     exit
 access-rule ipv4 from vlan20-servers to vlan20-servers action allow source address name "n 10.10.10.0_24" service name "tcp/50000-50100" destination address name "h 10.10.20.21"
     name "passive ftp 7"
-    priority manual 12
+    priority manual 130
     exit
 access-rule ipv4 from vlan20-servers to vlan30-ot-cell action allow source address name "n 10.10.10.0_24" service name "tcp/50000-50100" destination address name "h 10.10.20.21"
     name "passive ftp 8"
-    priority manual 11
+    priority manual 131
     exit
 access-rule ipv4 from vlan30-ot-cell to internet action allow source address name "n 10.10.10.0_24" service name "tcp/50000-50100" destination address name "h 10.10.20.21"
     name "passive ftp 9"
-    priority manual 11
+    priority manual 132
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan10-office action allow source address name "n 10.10.10.0_24" service name "tcp/50000-50100" destination address name "h 10.10.20.21"
     name "passive ftp 10"
-    priority manual 11
+    priority manual 133
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan20-servers action allow source address name "n 10.10.10.0_24" service name "tcp/50000-50100" destination address name "h 10.10.20.21"
     name "passive ftp 11"
-    priority manual 11
+    priority manual 134
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan30-ot-cell action allow source address name "n 10.10.10.0_24" service name "tcp/50000-50100" destination address name "h 10.10.20.21"
     name "passive ftp 12"
-    priority manual 12
+    priority manual 135
     exit
 access-rule ipv4 from vlan10-office to internet action allow source address name "n 10.10.10.0_24" service any destination address any
     name "bad ports"
-    priority manual 12
+    priority manual 136
     no enable
     exit
 access-rule ipv4 from vlan10-office to vlan10-office action allow source address name "n 10.10.10.0_24" service any destination address any
     name "bad ports 2"
-    priority manual 13
+    priority manual 137
     no enable
     exit
 access-rule ipv4 from vlan10-office to vlan20-servers action allow source address name "n 10.10.10.0_24" service any destination address any
     name "bad ports 3"
-    priority manual 12
+    priority manual 138
     no enable
     exit
 access-rule ipv4 from vlan10-office to vlan30-ot-cell action allow source address name "n 10.10.10.0_24" service any destination address any
     name "bad ports 4"
-    priority manual 12
+    priority manual 139
     no enable
     exit
 access-rule ipv4 from vlan20-servers to internet action allow source address name "n 10.10.10.0_24" service any destination address any
     name "bad ports 5"
-    priority manual 12
+    priority manual 140
     no enable
     exit
 access-rule ipv4 from vlan20-servers to vlan10-office action allow source address name "n 10.10.10.0_24" service any destination address any
     name "bad ports 6"
-    priority manual 12
+    priority manual 141
     no enable
     exit
 access-rule ipv4 from vlan20-servers to vlan20-servers action allow source address name "n 10.10.10.0_24" service any destination address any
     name "bad ports 7"
-    priority manual 13
+    priority manual 142
     no enable
     exit
 access-rule ipv4 from vlan20-servers to vlan30-ot-cell action allow source address name "n 10.10.10.0_24" service any destination address any
     name "bad ports 8"
-    priority manual 12
+    priority manual 143
     no enable
     exit
 access-rule ipv4 from vlan30-ot-cell to internet action allow source address name "n 10.10.10.0_24" service any destination address any
     name "bad ports 9"
-    priority manual 12
+    priority manual 144
     no enable
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan10-office action allow source address name "n 10.10.10.0_24" service any destination address any
     name "bad ports 10"
-    priority manual 12
+    priority manual 145
     no enable
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan20-servers action allow source address name "n 10.10.10.0_24" service any destination address any
     name "bad ports 11"
-    priority manual 12
+    priority manual 146
     no enable
     exit
 access-rule ipv4 from vlan30-ot-cell to vlan30-ot-cell action allow source address name "n 10.10.10.0_24" service any destination address any
     name "bad ports 12"
-    priority manual 13
+    priority manual 147
     no enable
     exit
-access-rule ipv4 from vlan10-office to internet action allow source address any service any destination address any
+access-rule ipv4 from vlan10-office to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Default rule"
-    priority manual 13
+    priority manual 148
     exit
-access-rule ipv6 from vlan10-office to internet action allow source address any service any destination address any
-    name "Default rule 2"
-    priority manual 3
-    exit
-access-rule ipv4 from vlan10-office to vlan10-office action allow source address any service any destination address any
+access-rule ipv4 from vlan10-office to vlan10-office action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Default rule 3"
-    priority manual 14
+    priority manual 149
     exit
-access-rule ipv6 from vlan10-office to vlan10-office action allow source address any service any destination address any
-    name "Default rule 4"
-    priority manual 4
-    exit
-access-rule ipv4 from vlan10-office to vlan20-servers action allow source address any service any destination address any
+access-rule ipv4 from vlan10-office to vlan20-servers action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Default rule 5"
-    priority manual 13
+    priority manual 150
     exit
-access-rule ipv6 from vlan10-office to vlan20-servers action allow source address any service any destination address any
-    name "Default rule 6"
-    priority manual 3
-    exit
-access-rule ipv4 from vlan10-office to vlan30-ot-cell action allow source address any service any destination address any
+access-rule ipv4 from vlan10-office to vlan30-ot-cell action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Default rule 7"
-    priority manual 13
+    priority manual 151
     exit
-access-rule ipv6 from vlan10-office to vlan30-ot-cell action allow source address any service any destination address any
-    name "Default rule 8"
-    priority manual 3
-    exit
-access-rule ipv4 from vlan20-servers to internet action allow source address any service any destination address any
+access-rule ipv4 from vlan20-servers to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Default rule 9"
-    priority manual 13
+    priority manual 152
     exit
-access-rule ipv6 from vlan20-servers to internet action allow source address any service any destination address any
-    name "Default rule 10"
-    priority manual 3
-    exit
-access-rule ipv4 from vlan20-servers to vlan10-office action allow source address any service any destination address any
+access-rule ipv4 from vlan20-servers to vlan10-office action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Default rule 11"
-    priority manual 13
+    priority manual 153
     exit
-access-rule ipv6 from vlan20-servers to vlan10-office action allow source address any service any destination address any
-    name "Default rule 12"
-    priority manual 3
-    exit
-access-rule ipv4 from vlan20-servers to vlan20-servers action allow source address any service any destination address any
+access-rule ipv4 from vlan20-servers to vlan20-servers action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Default rule 13"
-    priority manual 14
+    priority manual 154
     exit
-access-rule ipv6 from vlan20-servers to vlan20-servers action allow source address any service any destination address any
-    name "Default rule 14"
-    priority manual 4
-    exit
-access-rule ipv4 from vlan20-servers to vlan30-ot-cell action allow source address any service any destination address any
+access-rule ipv4 from vlan20-servers to vlan30-ot-cell action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Default rule 15"
-    priority manual 13
+    priority manual 155
     exit
-access-rule ipv6 from vlan20-servers to vlan30-ot-cell action allow source address any service any destination address any
-    name "Default rule 16"
-    priority manual 3
-    exit
-access-rule ipv4 from vlan30-ot-cell to internet action allow source address any service any destination address any
+access-rule ipv4 from vlan30-ot-cell to internet action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Default rule 17"
-    priority manual 13
+    priority manual 156
     exit
-access-rule ipv6 from vlan30-ot-cell to internet action allow source address any service any destination address any
-    name "Default rule 18"
-    priority manual 3
-    exit
-access-rule ipv4 from vlan30-ot-cell to vlan10-office action allow source address any service any destination address any
+access-rule ipv4 from vlan30-ot-cell to vlan10-office action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Default rule 19"
-    priority manual 13
+    priority manual 157
     exit
-access-rule ipv6 from vlan30-ot-cell to vlan10-office action allow source address any service any destination address any
-    name "Default rule 20"
-    priority manual 3
-    exit
-access-rule ipv4 from vlan30-ot-cell to vlan20-servers action allow source address any service any destination address any
+access-rule ipv4 from vlan30-ot-cell to vlan20-servers action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Default rule 21"
-    priority manual 13
+    priority manual 158
     exit
-access-rule ipv6 from vlan30-ot-cell to vlan20-servers action allow source address any service any destination address any
-    name "Default rule 22"
-    priority manual 3
-    exit
-access-rule ipv4 from vlan30-ot-cell to vlan30-ot-cell action allow source address any service any destination address any
+access-rule ipv4 from vlan30-ot-cell to vlan30-ot-cell action allow source address group "FWSHIFT all IPv4" service any destination address any
     name "Default rule 23"
-    priority manual 14
-    exit
-access-rule ipv6 from vlan30-ot-cell to vlan30-ot-cell action allow source address any service any destination address any
-    name "Default rule 24"
-    priority manual 4
+    priority manual 159
     exit
 access-rule ipv4 from internet to vlan20-servers action allow source address name "n 198.51.100.0_24" service name "tcp/8443" destination address name "h 203.0.113.2"
     name "vpn-portal"
-    priority manual 1
+    priority manual 160
     exit
 access-rule ipv4 from internet to vlan20-servers action allow source address any service name "tcp/25" destination address name "h 203.0.113.25"
     name "mail (1)"
-    priority manual 2
+    priority manual 161
     exit
 access-rule ipv4 from internet to vlan20-servers action allow source address name "n 192.0.2.0_24" service name "Ping" destination address name "h 203.0.113.25"
     name "mail (2)"
-    priority manual 3
+    priority manual 162
     exit
 access-rule ipv4 from internet to vlan20-servers action allow source address name "h 192.0.2.10" service name "tcp/9443" destination address name "h 203.0.113.30"
     name "scada-view"
-    priority manual 4
+    priority manual 163
     exit
-access-rule ipv4 from internet to vlan10-office action deny source address any service any destination address any
+access-rule ipv4 from internet to vlan10-office action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT internet to vlan10-offic"
-    priority manual 1
+    priority manual 164
     exit
-access-rule ipv6 from internet to vlan10-office action deny source address any service any destination address any
-    name "FWSHIFT internet to vlan10-off 2"
-    priority manual 1
-    exit
-access-rule ipv4 from internet to vlan20-servers action deny source address any service any destination address any
+access-rule ipv4 from internet to vlan20-servers action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT internet to vlan20-serve"
-    priority manual 5
+    priority manual 165
     exit
-access-rule ipv6 from internet to vlan20-servers action deny source address any service any destination address any
-    name "FWSHIFT internet to vlan20-ser 2"
-    priority manual 1
-    exit
-access-rule ipv4 from internet to vlan30-ot-cell action deny source address any service any destination address any
+access-rule ipv4 from internet to vlan30-ot-cell action deny source address group "FWSHIFT all IPv4" service any destination address any
     name "FWSHIFT internet to vlan30-ot-ce"
-    priority manual 1
+    priority manual 166
     exit
-access-rule ipv6 from internet to vlan30-ot-cell action deny source address any service any destination address any
+access-rule ipv6 from vlan10-office to vlan10-office action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "inside a VLAN 2"
+    exit
+access-rule ipv6 from vlan20-servers to vlan20-servers action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "inside a VLAN 4"
+    exit
+access-rule ipv6 from vlan30-ot-cell to vlan30-ot-cell action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "inside a VLAN 6"
+    exit
+access-rule ipv6 from vlan10-office to internet action deny source address any service group "svc layer 7 rule 2" destination address any
+    name "layer 7 rule 2 2"
+    exit
+access-rule ipv6 from vlan10-office to vlan10-office action deny source address any service group "svc layer 7 rule 2" destination address any
+    name "layer 7 rule 2 4"
+    exit
+access-rule ipv6 from vlan10-office to vlan20-servers action deny source address any service group "svc layer 7 rule 2" destination address any
+    name "layer 7 rule 2 6"
+    exit
+access-rule ipv6 from vlan10-office to vlan30-ot-cell action deny source address any service group "svc layer 7 rule 2" destination address any
+    name "layer 7 rule 2 8"
+    exit
+access-rule ipv6 from vlan20-servers to internet action deny source address any service group "svc layer 7 rule 2" destination address any
+    name "layer 7 rule 2 10"
+    exit
+access-rule ipv6 from vlan20-servers to vlan10-office action deny source address any service group "svc layer 7 rule 2" destination address any
+    name "layer 7 rule 2 12"
+    exit
+access-rule ipv6 from vlan20-servers to vlan20-servers action deny source address any service group "svc layer 7 rule 2" destination address any
+    name "layer 7 rule 2 14"
+    exit
+access-rule ipv6 from vlan20-servers to vlan30-ot-cell action deny source address any service group "svc layer 7 rule 2" destination address any
+    name "layer 7 rule 2 16"
+    exit
+access-rule ipv6 from vlan30-ot-cell to internet action deny source address any service group "svc layer 7 rule 2" destination address any
+    name "layer 7 rule 2 18"
+    exit
+access-rule ipv6 from vlan30-ot-cell to vlan10-office action deny source address any service group "svc layer 7 rule 2" destination address any
+    name "layer 7 rule 2 20"
+    exit
+access-rule ipv6 from vlan30-ot-cell to vlan20-servers action deny source address any service group "svc layer 7 rule 2" destination address any
+    name "layer 7 rule 2 22"
+    exit
+access-rule ipv6 from vlan30-ot-cell to vlan30-ot-cell action deny source address any service group "svc layer 7 rule 2" destination address any
+    name "layer 7 rule 2 24"
+    exit
+access-rule ipv6 from vlan10-office to internet action allow source address name "n 2001:db8:10::_64" service any destination address any
+    name "office ipv6 out"
+    exit
+access-rule ipv6 from vlan10-office to vlan10-office action allow source address name "n 2001:db8:10::_64" service any destination address any
+    name "office ipv6 out 2"
+    exit
+access-rule ipv6 from vlan10-office to vlan20-servers action allow source address name "n 2001:db8:10::_64" service any destination address any
+    name "office ipv6 out 3"
+    exit
+access-rule ipv6 from vlan10-office to vlan30-ot-cell action allow source address name "n 2001:db8:10::_64" service any destination address any
+    name "office ipv6 out 4"
+    exit
+access-rule ipv6 from vlan20-servers to internet action allow source address name "n 2001:db8:10::_64" service any destination address any
+    name "office ipv6 out 5"
+    exit
+access-rule ipv6 from vlan20-servers to vlan10-office action allow source address name "n 2001:db8:10::_64" service any destination address any
+    name "office ipv6 out 6"
+    exit
+access-rule ipv6 from vlan20-servers to vlan20-servers action allow source address name "n 2001:db8:10::_64" service any destination address any
+    name "office ipv6 out 7"
+    exit
+access-rule ipv6 from vlan20-servers to vlan30-ot-cell action allow source address name "n 2001:db8:10::_64" service any destination address any
+    name "office ipv6 out 8"
+    exit
+access-rule ipv6 from vlan30-ot-cell to internet action allow source address name "n 2001:db8:10::_64" service any destination address any
+    name "office ipv6 out 9"
+    exit
+access-rule ipv6 from vlan30-ot-cell to vlan10-office action allow source address name "n 2001:db8:10::_64" service any destination address any
+    name "office ipv6 out 10"
+    exit
+access-rule ipv6 from vlan30-ot-cell to vlan20-servers action allow source address name "n 2001:db8:10::_64" service any destination address any
+    name "office ipv6 out 11"
+    exit
+access-rule ipv6 from vlan30-ot-cell to vlan30-ot-cell action allow source address name "n 2001:db8:10::_64" service any destination address any
+    name "office ipv6 out 12"
+    exit
+access-rule ipv6 from vlan10-office to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default rule 2"
+    exit
+access-rule ipv6 from vlan10-office to vlan10-office action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default rule 4"
+    exit
+access-rule ipv6 from vlan10-office to vlan20-servers action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default rule 6"
+    exit
+access-rule ipv6 from vlan10-office to vlan30-ot-cell action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default rule 8"
+    exit
+access-rule ipv6 from vlan20-servers to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default rule 10"
+    exit
+access-rule ipv6 from vlan20-servers to vlan10-office action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default rule 12"
+    exit
+access-rule ipv6 from vlan20-servers to vlan20-servers action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default rule 14"
+    exit
+access-rule ipv6 from vlan20-servers to vlan30-ot-cell action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default rule 16"
+    exit
+access-rule ipv6 from vlan30-ot-cell to internet action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default rule 18"
+    exit
+access-rule ipv6 from vlan30-ot-cell to vlan10-office action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default rule 20"
+    exit
+access-rule ipv6 from vlan30-ot-cell to vlan20-servers action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default rule 22"
+    exit
+access-rule ipv6 from vlan30-ot-cell to vlan30-ot-cell action allow source address group "FWSHIFT all IPv6" service any destination address any
+    name "Default rule 24"
+    exit
+access-rule ipv6 from internet to vlan10-office action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to vlan10-off 2"
+    exit
+access-rule ipv6 from internet to vlan20-servers action deny source address group "FWSHIFT all IPv6" service any destination address any
+    name "FWSHIFT internet to vlan20-ser 2"
+    exit
+access-rule ipv6 from internet to vlan30-ot-cell action deny source address group "FWSHIFT all IPv6" service any destination address any
     name "FWSHIFT internet to vlan30-ot- 2"
-    priority manual 1
     exit
 commit
 exit

@@ -479,14 +479,31 @@ def test_nat_as_sonicos_has_it() -> None:
         NatRule("pool", origin="pool", dst_zones=["untrust"], sources=["net"], source_translation=SourceNat(SnatKind.DYNAMIC_PORT, ["site"])),
     ]  # fmt: skip
     text, report = emitted(p, Options(interface_map={"ethernet1/1": "X1", "ethernet1/3": "X2"}))
-    assert ('nat-policy inbound X1 outbound any source any translated-source original destination name "pub" translated-destination '
+    assert ('nat-policy ipv4 inbound X1 outbound any source any translated-source original destination name "pub" translated-destination '
             'name "web" service name "https 2" translated-service name "tcp 8443"') in text  # fmt: skip
-    assert 'nat-policy inbound X2 outbound X1 source name "web" translated-source name "X1 IP" destination any' in text
+    assert 'nat-policy ipv4 inbound X2 outbound X1 source name "web" translated-source name "X1 IP" destination any' in text
     assert report.item("nat", "static").emitted_as == ["static", "static in"] and "NAT_BIDIRECTIONAL" in codes(report, "nat", "static")
     assert report.item("nat", "pool").skipped and "translated source site" in report.item("nat", "pool").findings[0].message
     _, report = emitted(p)
     assert report.item("nat", "hide").skipped and "--interface-map" in report.item("nat", "hide").findings[0].message
     assert "NAT_ZONES" in codes(report, "nat", "publish")
+    # The NAT policies SonicOS adds by itself (a WAN interface hides the LAN and DMZ subnets) not used: the last ones
+    # written translate nothing, one for each pair of interfaces. Not for any interface: SonicOS's own last policy,
+    # read-only (the tenth NSv run); none without the interfaces, nor without NAT rules.
+    written = [line for line in text.splitlines() if line.startswith("nat-policy ")]
+    assert written[-2:] == [f"nat-policy ipv4 inbound {a} outbound {b} source any translated-source original destination any "
+                            "translated-destination original service any translated-service original" for a, b in (("X2", "X1"), ("X1", "X2"))]  # fmt: skip
+    assert 'name "FWSHIFT no other NAT X2 to X1"' in text  # (each pair of different interfaces)
+    # Each NAT policy placed in the order written, above SonicOS's own (shown as `priority auto`, ordered by how much
+    # they name: its hide policies came above the closing ones, the eighteenth and nineteenth NSv runs)
+    places = [line for line in text.splitlines() if line.startswith("    priority manual ")]
+    nat_places = places[:len(written)] if text.index("nat-policy") < text.index("access-rule") else places
+    assert nat_places == [f"    priority manual {i}" for i in range(1, len(written) + 1)]
+    assert not any(line.startswith("nat-policy ipv4 inbound any outbound X") and "translated-source original destination any" in line for line in written)
+    assert "NAT_NOTHING_ELSE" in codes(report)  # (the second emitted, without --interface-map: a note, no policy)
+    p.nat_rules = []
+    text, report = emitted(p)
+    assert "nat-policy" not in text and "NAT_NOTHING_ELSE" not in codes(report)
 
 
 def test_rule_types_and_defaults() -> None:
@@ -497,6 +514,23 @@ def test_rule_types_and_defaults() -> None:
     text, report = emitted(p)
     assert "from trust to trust action allow" in text and "from trust to dmz action allow" in text and "from dmz to dmz action allow" in text
     assert 'name "FWSHIFT untrust to untrust"' in text and "FWSHIFT trust to trust" not in text and "FWSHIFT dmz to dmz" not in text
+    # A rule that matches everything names its source as all addresses in two halves, not any: SonicOS knows a rule by
+    # what it matches, and refused one like its pair's default rule (the thirteenth NSv run: "Rule overlap").
+    assert "source address any service any destination address any" not in text and "CATCH_ALL_AS_GROUP" in codes(report)
+    assert 'access-rule ipv4 from untrust to untrust action deny source address group "FWSHIFT all IPv4" service any destination address any' in text
+    assert 'address-object ipv4 "n 0.0.0.0_1" network 0.0.0.0 128.0.0.0' in text and 'address-object ipv4 "n 128.0.0.0_1" network 128.0.0.0 128.0.0.0' in text
+    assert 'from trust to trust action allow source address group "FWSHIFT all IPv4"' in text
+    # IPv6 rules after every IPv4 rule (the fifteenth NSv run: "IPv4 access rules must be placed before IPv6 rules")
+    lines = text.splitlines()
+    rules = [i for i, line in enumerate(lines) if line.startswith("access-rule ")]
+    assert max(i for i in rules if " ipv4 " in lines[i]) < min(i for i in rules if " ipv6 " in lines[i])
+    six = next(i for i in rules if lines[i].startswith("access-rule ipv6 from untrust to untrust "))
+    assert lines[six + 1].startswith("    name ") and lines[six + 2] == "    exit"  # (no priority: SonicOS places it, the seventeenth run)
+    assert "IPV6_PRIORITY_AUTO" in codes(report)
+    # The IPv4 rules numbered 1, 2, 3 ... in the order written: the place in one list of every pair's rules (the
+    # eighteenth NSv run: each pair numbered from 1, and a closing deny ended up above the rules it closes)
+    places = [int(line.split()[-1]) for line in lines if line.startswith("    priority manual ")]
+    assert places == list(range(1, len(places) + 1)) and len(places) == sum(1 for i in rules if " ipv4 " in lines[i])
     assert "FWSHIFT trust to dmz" not in text
     assert "INTERZONE_DEFAULT" in codes(report)
 
