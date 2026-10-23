@@ -147,7 +147,8 @@ def test_panos_to_fortios_nat() -> None:
     assert policies["Inbound-Web"].list("dstaddr") == ["web-1"]
     assert policies["Inbound-Mail"].list("dstaddr") == ["mail-1"]
     assert "NAT_DESTINATION_REWRITTEN" in codes(report, "rule", "Inbound-Web")
-    assert "NAT_PORT_TRANSLATION" in codes(report, "rule", "Inbound-Web")
+    # (and the port it is translated to: the FortiGate of the lab blocked the published server on the pre-NAT port)
+    assert "NAT_PORT_REWRITTEN" in codes(report, "rule", "Inbound-Web") and policies["Inbound-Web"].list("service") == ["tcp-8443"]
     assert any(n.code == "CENTRAL_NAT" for n in report.notes)
     assert any(n.code == "INTRAZONE_DEFAULT" for n in report.notes)
 

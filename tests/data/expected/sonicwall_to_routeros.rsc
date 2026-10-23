@@ -30,7 +30,7 @@
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-LAN out-interface-list=fws-WAN protocol=gre action=accept comment="LAN to WAN #4" disabled=yes
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-LAN out-interface-list=fws-WAN action=accept comment="LAN to WAN #5"
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-WAN out-interface-list=fws-DMZ dst-address=10.20.0.10 protocol=tcp dst-port=443 action=accept comment="Web server from the internet"
-/ip firewall filter add chain=fwshift-forward in-interface-list=fws-WAN out-interface-list=fws-DMZ src-address-list=fws-Partners dst-address=10.20.0.25 protocol=tcp dst-port=2525 action=accept comment="Mail from partners"
+/ip firewall filter add chain=fwshift-forward in-interface-list=fws-WAN out-interface-list=fws-DMZ src-address-list=fws-Partners dst-address=10.20.0.25 protocol=tcp dst-port=25 action=accept comment="Mail from partners"
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-WAN out-interface-list=fws-DMZ action=reject comment="WAN to DMZ #3"
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-WAN out-interface-list=fws-LAN action=reject comment="WAN to LAN #1"
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-DMZ out-interface-list=fws-Servers src-address=10.20.0.10 dst-address=10.30.0.5 protocol=udp dst-port=16384-16484 action=accept comment="Web server to the database"

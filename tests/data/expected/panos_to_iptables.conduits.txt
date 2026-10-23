@@ -2,19 +2,21 @@ FWShift zone and conduit check
   model: zone_model.json (Example plant: office, DMZ and the filling line), 4 zones, 6 conduits
   policy: expected/panos_to_iptables.rules (iptables, IPv4)
 
-Result: the policy allows what the model does not, in 8 place(s).
-  findings: high 8, medium 0, low 2, info 0
+Result: the policy allows what the model does not, in 9 place(s).
+  findings: high 9, medium 0, low 3, info 0
 
 Findings
   high    NO_CONDUIT        dmz -> internet: rule 'Allow-DNS-5' allows tcp/53; the model has no conduit from dmz to internet
   high    NO_CONDUIT        dmz -> internet: rule 'Allow-DNS-6' allows udp/53; the model has no conduit from dmz to internet
   high    NO_CONDUIT        dmz -> internet: rule 'Allow-DNS-7' allows tcp/53; the model has no conduit from dmz to internet
   high    NO_CONDUIT        dmz -> internet: rule 'Allow-DNS-8' allows udp/53; the model has no conduit from dmz to internet
+  high    CONDUIT_EXCEEDED  internet -> dmz: rule 'Inbound-Web' allows tcp/8443 beyond conduit 'published'
   high    NOT_IN_MODEL      office -> (dmz: other addresses): rule 'Not-From-Guests-3' allows icmp type 8; (dmz: other addresses) is in no zone of the model
   high    NOT_IN_MODEL      office -> (dmz: other addresses): rule 'Not-From-Guests-4' allows icmp type 8; (dmz: other addresses) is in no zone of the model
   high    CONDUIT_EXCEEDED  office -> control: rule 'Engineering to PLCs' allows tcp/502 beyond conduit 'engineering'
   high    CONDUIT_EXCEEDED  office -> dmz: rule 'App-Server-Ports' allows tcp/80, tcp/443, tcp/8080, tcp/8443, tcp/9000-9010 beyond conduit 'admin'
   low     CONDUIT_CLOSED    control -> dmz: conduit 'historian': the policy allows none of it: tcp/443 (traffic the model expects is blocked)
+  low     CONDUIT_CLOSED    internet -> dmz: conduit 'published': the policy allows not all of it: tcp/443, app:ssl (traffic the model expects is blocked)
   low     CONDUIT_CLOSED    office -> dmz: conduit 'admin': the policy allows not all of it: tcp/22, app:ssh (traffic the model expects is blocked)
 
 Conduits
@@ -26,7 +28,8 @@ Conduits
     policy allows: tcp/53, udp/53, app:dns
   published: internet -> dmz
     model: tcp/443, tcp/25, app:ssl, app:smtp
-    policy allows: tcp/25, tcp/443, app:smtp, app:ssl
+    policy allows: tcp/25, app:smtp
+    closed by the policy: tcp/443, app:ssl
   admin: office -> dmz
     model: tcp/22, icmp/8, app:ssh, app:ping
     policy allows: icmp type 8, app:ping

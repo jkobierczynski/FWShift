@@ -660,9 +660,10 @@ def test_a_real_run_through_the_kernel(tmp_path: Path, name: str, tool: str) -> 
     assert rows["in10>dmz10:tcp/80"]["nat_seen"] == {"seen_from": "10.20.1.10"}
     assert rows["out10>10.20.3.100:tcp/8080"]["nat_seen"] == {"seen_from": "10.20.3.10", "answered_by": "10.20.2.10"}
     assert rows["out10>10.20.3.100:tcp/8080"]["nat"] == "ok"
-    # Read back from the kernel: the ruleset as loaded, and as the source decides but the published port.
+    # Read back from the kernel: the ruleset as loaded, and as the source decides (the published port too, since its
+    # rule names the port the traffic is translated to, 0.40.17).
     assert summary["readback"]["status"] == "read" and summary["readback"]["against_output"] == {"certain": 0, "possible": 0}, summary["readback"]
-    assert summary["readback"]["against_source"]["certain"] == 1 and "holds the policy as converted" in (work / "summary.txt").read_text()
+    assert summary["readback"]["against_source"]["certain"] == 0 and "holds the policy as converted" in (work / "summary.txt").read_text()
     assert not subprocess.run(["ip", "netns", "list"], capture_output=True, text=True).stdout.count("fwl-")  # (all taken down)
     if before:
         assert Path("/proc/sys/net/bridge/bridge-nf-call-iptables").read_text() == before  # (the host's setting was not touched)
@@ -1501,3 +1502,16 @@ def test_a_paced_session_finds_the_prompt_behind_a_redrawn_status_bar(tmp_path: 
     out = runner.run_paced([sys.executable, "-u", "-c", cli], ["show version", "exit"], r"[>#] ?$", step=10, preamble=vendor.preamble,
                            close_after=2, noise=vendor.screen_noise)
     assert re.search(vendor.ready_answer, labrun.screen_text(out, vendor.screen_noise))
+
+
+def test_the_fortigate_turns_central_nat_on_before_the_output(tmp_path: Path) -> None:
+    """The first FortiGate run with NAT (0.40.16): the central-snat-map was taken and the inside not hidden, central NAT
+    being off by default. The session turns it on first, as the report's CENTRAL_NAT says."""
+    vendor = tier3.VENDORS["fortigate"]
+    done = lab_conversion(tmp_path, vendor.target, vendor.options)
+    lines = vendor.session(done["out"])
+    assert lines[:3] == ["config system settings", "set central-nat enable", "end"]
+    assert lines.index("config firewall central-snat-map") > 3
+    # (and the published web server's rule on the port its traffic arrives on, after the translation: 0.40.17)
+    policy = done["out"].read_text()
+    assert 'set service "tcp-80"' in policy.split('set name "outside-web-published"')[1].split("next")[0]

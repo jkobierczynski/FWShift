@@ -3,7 +3,7 @@ FWShift conversion report
   target: asa
 
 Summary
-  Security rules:     10   exact 2, approximated 1, needs review 7 (6 emitted disabled), skipped 0
+  Security rules:     10   exact 2, approximated 2, needs review 6 (6 emitted disabled), skipped 0
   NAT rules:           2   exact 2, approximated 0, needs review 0, skipped 0
   Addresses:          10   exact 10, approximated 0, needs review 0, skipped 0
   Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
@@ -25,9 +25,9 @@ Security rules
       [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by External, to any address. An ASA access list cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind DMZ, Guests, Lab, External, Trusted with --zone-network.
   Web In  ->  approximated  (emitted as External_access_in)
       [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Web-Public.1.snat' with post-NAT 'Web-Public.2.snat' because of NAT rule 'Web-Public__Web_In_'; check that this rule is meant to cover the translated traffic
-  Mail In  ->  needs-review  (emitted as External_access_in)
+  Mail In  ->  approximated  (emitted as External_access_in)
       [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Mail-Public.1.snat' with post-NAT 'Mail-Public.2.snat' because of NAT rule 'Mail-Public__Mail_In_'; check that this rule is meant to cover the translated traffic
-      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Mail-Public__Mail_In_' also translates the port to 2525; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'Mail-Public__Mail_In_' also translates the port to 2525: the service of this rule (SMTP) named the pre-NAT port only, and now names 2525, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
   DMZ Updates  ->  needs-review, emitted disabled  (emitted as DMZ_access_in)
       [needs-review] SCHEDULE: schedule 'Business Hours' is not converted; the rule would apply at all times.
   Guests Out  ->  needs-review, emitted disabled  (emitted as Guests_access_in)

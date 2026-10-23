@@ -141,7 +141,10 @@ def _fortigate_user_data() -> str:
 
 
 def _fortigate_session(out: Path) -> List[str]:
-    return [*_lines(out, "#"), "exit"]
+    # Central NAT on before the output, as its report says (CENTRAL_NAT): FWShift writes the source NAT as central NAT,
+    # and a FortiGate in its default mode (NAT per policy) took the central-snat-map and did not hide the inside (the
+    # first run with NAT, 0.40.16).
+    return ["config system settings", "set central-nat enable", "end", *_lines(out, "#"), "exit"]
 
 
 # -- PAN-OS ------------------------------------------------------------------------------------------------------

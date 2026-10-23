@@ -3,7 +3,7 @@ FWShift conversion report
   target: pfsense
 
 Summary
-  Security rules:     14   exact 0, approximated 5, needs review 9 (8 emitted disabled), skipped 0
+  Security rules:     14   exact 0, approximated 6, needs review 8 (8 emitted disabled), skipped 0
   NAT rules:           5   exact 2, approximated 2, needs review 1, skipped 0
   Addresses:          16   exact 14, approximated 0, needs review 2, skipped 0
   Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
@@ -24,9 +24,9 @@ Security rules
   Allow-DNS  ->  approximated  (emitted as trust, dmz)
       [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
       [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by untrust. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
-  Inbound-Web  ->  needs-review  (emitted as untrust)
+  Inbound-Web  ->  approximated  (emitted as untrust)
       [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web_public' with post-NAT 'web_1' because of NAT rule 'Inbound-Web-DNAT'; check that this rule is meant to cover the translated traffic
-      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Inbound-Web-DNAT' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'Inbound-Web-DNAT' also translates the port to 8443: the service of this rule (service-https) named the pre-NAT port only, and now names 8443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
       [approximated] APP_FILTER_DROPPED: application match ssl dropped; the rule now matches everything on its services
       [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by dmz. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
   Inbound-Mail  ->  approximated  (emitted as untrust)

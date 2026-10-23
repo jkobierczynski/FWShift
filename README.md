@@ -206,8 +206,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.40.16.pyz --version
-python3 fwshift-0.40.16.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.40.17.pyz --version
+python3 fwshift-0.40.17.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start

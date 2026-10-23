@@ -214,29 +214,35 @@ back and compared with the source): items 1, 2, 5 and 10 of the list before.
    matrix and the conduit check; from the templates of Panorama; from the
    other sources that hold interfaces (Junos, Huawei, IOS, Sophos, pfSense,
    OPNsense, RouterOS, SonicWall).
-2. **NAT in the comparison**: compare the NAT rules too, and the rules of a
+2. **A policy compared with itself shows no difference.** The read-back of the first FortiGate run with NAT
+   (0.40.16) found 4 possible differences that `fwshift compare` also finds between the FortiOS output and itself:
+   `guest-not-to-dmz` (deny, destination `all`) "may match" beside a virtual IP (`DENY_AND_VIP`) on both sides, and
+   the uncertainty is counted as a difference both ways. Uncertainty both sides hold alike must decide alike.
+3. **NAT in the comparison**: compare the NAT rules too, and the rules of a
    source that matches after destination NAT with the connection as it
    arrives, so that a published service is compared as a client sees it.
-3. **More targets read back** for `convert --compare`: the Check Point script,
+4. **More targets read back** for `convert --compare`: the Check Point script,
    SonicWall commands, the AWS and Barracuda scripts, the pfSense areas (with
    the interfaces of the configuration they go into).
-4. **What labels hold**: schedules, custom URL categories and user groups are
+5. **What labels hold**: schedules, custom URL categories and user groups are
    compared by name; read their definitions where the source has them.
-5. **Ports of applications in the matrix**: an entry `app:ssl` could show the
+6. **Ports of applications in the matrix**: an entry `app:ssl` could show the
    ports of the application map next to the name.
-6. **Zone ranks** from a configuration file, so that "any source" from the
+7. **Zone ranks** from a configuration file, so that "any source" from the
    Internet weighs more than from the server network.
-7. **NAT audit beyond shadowing**: overlapping translations, a published
+8. **NAT audit beyond shadowing**: overlapping translations, a published
    service without a rule that allows it, a rule for a published address
    whose NAT rule is gone.
-8. **The conduit model, further**: security levels weighed against what a
+9. **The conduit model, further**: security levels weighed against what a
    conduit carries (cleartext and remote administration into a zone of a high
    level), conduits of a site spread over several firewalls (one model, the
    policies of each), and a check of the replies a stateless target needs.
 
 ## Conversion
 
-1. Correct services for port-translating destination NAT.
+1. Correct services for port-translating destination NAT: done in 0.40.17 where a rule is for the translated
+   traffic of one destination NAT alone and its services lie within the ports translated (`NAT_PORT_REWRITTEN`);
+   still open where a rule also names other services or addresses (`NAT_PORT_TRANSLATION`).
 2. FortiOS output with per-policy NAT as an option.
 3. Schedule objects (ASA time ranges, FortiOS and PAN-OS schedules); a
    user and group mapping file.

@@ -29,7 +29,7 @@
 /ipv6 firewall filter add chain=fwshift-forward in-interface-list=fws-Guests out-interface-list=fws-External protocol=tcp dst-port=80,443,8000-8010 action=accept comment="Web Out"
 /ipv6 firewall filter add chain=fwshift-forward in-interface-list=fws-DMZ out-interface-list=fws-External protocol=tcp dst-port=80,443,8000-8010 action=accept comment="Web Out"
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-External dst-address=10.20.0.10 protocol=tcp dst-port=443 action=accept comment="Web In"
-/ip firewall filter add chain=fwshift-forward in-interface-list=fws-External dst-address=10.20.0.25 protocol=tcp dst-port=25 action=accept comment="Mail In"
+/ip firewall filter add chain=fwshift-forward in-interface-list=fws-External dst-address=10.20.0.25 protocol=tcp dst-port=2525 action=accept comment="Mail In"
 # FWSHIFT disabled, see the report: "DMZ Updates" from DMZ to any; source any; destination Update-Site.1.alm; service HTTPS; action allow
 # disabled in the source: "Guests Out" from Guests to External; source any; destination any; service DNS; action allow
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-Guests out-interface-list=fws-External protocol=tcp dst-port=53 action=accept comment="Guests Out" disabled=yes

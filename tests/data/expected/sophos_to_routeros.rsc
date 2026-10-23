@@ -35,7 +35,7 @@
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-LAN out-interface-list=fws-DMZ src-address-list=fws-r7-src protocol=tcp dst-port=22 action=accept comment="LAN SSH out-2"
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-LAN out-interface-list=fws-OT src-address-list=fws-r7-src protocol=tcp dst-port=22 action=accept comment="LAN SSH out-2"
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-WAN out-interface-list=fws-DMZ dst-address=10.20.0.10 protocol=tcp dst-port=443 action=accept comment="Internet to web"
-/ip firewall filter add chain=fwshift-forward in-interface-list=fws-WAN out-interface-list=fws-DMZ dst-address=10.20.0.25 protocol=tcp dst-port=2525 action=accept comment="Internet to mail"
+/ip firewall filter add chain=fwshift-forward in-interface-list=fws-WAN out-interface-list=fws-DMZ dst-address=10.20.0.25 protocol=tcp dst-port=25 action=accept comment="Internet to mail"
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-OT out-interface-list=fws-LAN src-address=10.30.1.0/24 dst-address=10.10.7.15 protocol=tcp dst-port=502 action=accept comment="OT to SCADA"
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-OT out-interface-list=fws-LAN src-address=10.30.1.0/24 dst-address=10.10.7.15 protocol=udp dst-port=514 src-port=1024-65535 action=accept comment="OT to SCADA"
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-DMZ out-interface-list=fws-WAN src-address-list=fws-dmz-servers dst-address-list=fws-update-sites protocol=tcp dst-port=443 action=accept comment="DMZ updates"

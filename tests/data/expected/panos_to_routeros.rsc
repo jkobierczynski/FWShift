@@ -26,7 +26,7 @@
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-trust out-interface-list=fws-untrust dst-address-list=fws-dns-servers protocol=udp dst-port=53 action=accept comment="Allow-DNS"
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-dmz out-interface-list=fws-untrust dst-address-list=fws-dns-servers protocol=tcp dst-port=53 action=accept comment="Allow-DNS"
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-dmz out-interface-list=fws-untrust dst-address-list=fws-dns-servers protocol=udp dst-port=53 action=accept comment="Allow-DNS"
-/ip firewall filter add chain=fwshift-forward in-interface-list=fws-untrust out-interface-list=fws-dmz dst-address=10.20.0.10 protocol=tcp dst-port=443 action=accept log=yes log-prefix="Inbound-Web" comment="Inbound-Web"
+/ip firewall filter add chain=fwshift-forward in-interface-list=fws-untrust out-interface-list=fws-dmz dst-address=10.20.0.10 protocol=tcp dst-port=8443 action=accept log=yes log-prefix="Inbound-Web" comment="Inbound-Web"
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-untrust out-interface-list=fws-dmz dst-address=10.20.0.25 protocol=tcp dst-port=25 action=accept comment="Inbound-Mail"
 # FWSHIFT disabled, see the report: "Admin-SSH" from trust to dmz; source admin-range; destination dmz-servers; service application-default; application ssh; action allow
 /ip firewall filter add chain=fwshift-forward in-interface-list=fws-trust out-interface-list=fws-ot src-address=10.10.7.15 dst-address=10.30.1.0/24 protocol=tcp dst-port=502,102 action=accept comment="Engineering to PLCs"

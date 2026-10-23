@@ -1431,8 +1431,14 @@ def test_rules_name_the_real_address_of_a_translated_destination() -> None:
     p.rules.append(Rule("in", src_zones=["outside"], dst_zones=["dmz"], destinations=["pub"], services=["https"]))
     p.rules[0].origin = "in"
     config, report, text = _convert(p)
-    assert "access-list outside_access_in extended permit object https any object web log" in text
-    assert {"NAT_DESTINATION_REWRITTEN", "NAT_PORT_TRANSLATION"} <= set(codes(report, "rule", "in"))
+    # (the real address, and the real port: the ASA looks the access list up after the translation, 0.40.17)
+    assert "access-list outside_access_in extended permit object tcp-8443 any object web log" in text
+    assert {"NAT_DESTINATION_REWRITTEN", "NAT_PORT_REWRITTEN"} <= set(codes(report, "rule", "in"))
+    # A service beyond the ports the NAT rule translates stays, and is reported
+    p.services["ssh"] = Service("ssh", [ServiceEntry(Protocol.TCP, "22")])
+    p.rules[0].services = ["https", "ssh"]
+    config, report, text = _convert(p)
+    assert "NAT_PORT_TRANSLATION" in codes(report, "rule", "in") and "NAT_PORT_REWRITTEN" not in codes(report, "rule", "in")
 
 
 def test_nat_order_when_a_rule_above_names_no_destination() -> None:

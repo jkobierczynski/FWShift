@@ -116,8 +116,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.40.16.pyz --version
-python3 fwshift-0.40.16.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.40.17.pyz --version
+python3 fwshift-0.40.17.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -1521,7 +1521,8 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `UNKNOWN_ATTRIBUTES` | R | FortiOS or Check Point source: the rule has attributes or fields FWShift does not know. If one of them narrows the match, the converted rule is wider. Check them. |
 | `NAT_ADDRESS_EXPOSED` | R | The rule covers addresses on one side of a destination NAT without the addresses that go with them on the other side, and the two platforms look rules up on different sides of the translation (section 8). The message names the addresses. The rule matches traffic it did not match on the source, or the other way round for a deny. Also raised for a rule that names both sides, for the part that has no counterpart. |
 | `NAT_PORT_EXPOSED` | R | The same for ports: the service of the rule covers the port on one side of a port translation and not the port on the other, so the rule applies to traffic it did not apply to on the source. Looked at for rules to any destination too. Withdrawn where the target looks rules up as the source did and gets the NAT rule. |
-| `NAT_PORT_TRANSLATION` | R | A destination NAT used by this rule also changes the port, and the service of the rule names the port of one side only. FortiOS policies, ASA access lists and iptables rules name the mapped port, PAN-OS and Check Point rules the original one; correct the service by hand. Not raised for a service that holds both ports. |
+| `NAT_PORT_TRANSLATION` | R | A destination NAT used by this rule also changes the port, and the service of the rule names the port of one side only. FortiOS policies, ASA access lists and iptables rules name the mapped port, PAN-OS and Check Point rules the original one; correct the service by hand. Not raised for a service that holds both ports, nor where the service was rewritten (`NAT_PORT_REWRITTEN`). |
+| `NAT_PORT_REWRITTEN` | A | To a target that looks rules up after the translation: the rule's destination is now only the post-NAT address of one destination NAT that also changes the port, and its services lie within the ports that NAT rule translates. The services became the port they are translated to, the port the target sees. The rule now also matches traffic sent to that port of the post-NAT address directly, which it did not allow on the source (as `NAT_DESTINATION_REWRITTEN` says for the address). |
 | `NAT_DESTINATION_WIDENED` | R | The rule names part of what a destination NAT translates, and that NAT does not map address for address (several addresses to one, or to a pool). On the other side of the translation the part cannot be told apart: the rule now covers all of it. Or, for a target that looks rules up after destination NAT, the NAT rule translates only some of the services of the rule: for the others the rule now names the translated address, reached directly. |
 | `NAT_REDIRECT` | R | iptables source: a DNAT rule without a destination address sends traffic for every destination to one address, and this rule matched it there. A platform that looks rules up before NAT cannot match that traffic with the converted rule: write the rule for the original destinations. |
 | `NAT_DESTINATION_REWRITTEN` | A | The destination was changed, or extended, to the address on the other side of a destination NAT. A rule for part of a translated network gets the same part of the other side. Check that the rule is meant to cover that traffic. |

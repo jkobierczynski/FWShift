@@ -3,7 +3,7 @@ FWShift conversion report
   target: pfsense
 
 Summary
-  Security rules:     18   exact 0, approximated 3, needs review 15 (14 emitted disabled), skipped 0
+  Security rules:     18   exact 0, approximated 4, needs review 14 (14 emitted disabled), skipped 0
   NAT rules:           6   exact 0, approximated 3, needs review 2, skipped 1
   Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
   Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
@@ -32,9 +32,9 @@ Security rules
   Web server from the internet  ->  approximated  (emitted as wan)
       [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Web_Public' with post-NAT 'Web_Server' because of NAT rule 'Web server'; check that this rule is meant to cover the translated traffic
       [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
-  Mail from partners  ->  needs-review  (emitted as wan)
+  Mail from partners  ->  approximated  (emitted as wan)
       [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Mail_Public' with post-NAT 'Mail_Server' because of NAT rule 'Mail on another port'; check that this rule is meant to cover the translated traffic
-      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Mail on another port' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'Mail on another port' also translates the port to 25: the service of this rule (SMTP Alt) named the pre-NAT port only, and now names 25, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
       [approximated] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ. A rule of pfSense cannot name the interface traffic leaves by: it applies to its destination addresses by whatever interface they are reached
   WAN to DMZ #3  ->  needs-review, emitted disabled  (emitted as wan)
       [needs-review] EGRESS_INTERFACE: the rule is for traffic that leaves by DMZ, to any address. A rule of pfSense cannot name the interface traffic leaves by: give the rule the networks behind it as destination. Or name the networks behind LAN, WAN, Servers, VPN, DMZ with --zone-network. This deny rule is NOT enforced until fixed; allow rules below it may match more traffic.

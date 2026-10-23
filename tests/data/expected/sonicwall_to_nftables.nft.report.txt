@@ -3,7 +3,7 @@ FWShift conversion report
   target: nftables
 
 Summary
-  Security rules:     18   exact 9, approximated 5, needs review 4 (3 emitted disabled), skipped 0
+  Security rules:     18   exact 9, approximated 6, needs review 3 (3 emitted disabled), skipped 0
   NAT rules:           6   exact 0, approximated 3, needs review 3, skipped 0
   Addresses:          13   exact 13, approximated 0, needs review 0, skipped 0
   Address groups:      2   exact 2, approximated 0, needs review 0, skipped 0
@@ -21,9 +21,9 @@ Notes for the whole policy
 Security rules
   Web server from the internet  ->  approximated  (emitted as 1 forward rule)
       [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Web Public' with post-NAT 'Web Server' because of NAT rule 'Web server'; check that this rule is meant to cover the translated traffic
-  Mail from partners  ->  needs-review  (emitted as 1 forward rule)
+  Mail from partners  ->  approximated  (emitted as 1 forward rule)
       [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'Mail Public' with post-NAT 'Mail Server' because of NAT rule 'Mail on another port'; check that this rule is meant to cover the translated traffic
-      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Mail on another port' also translates the port to 25; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'Mail on another port' also translates the port to 25: the service of this rule (SMTP Alt) named the pre-NAT port only, and now names 25, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
   Mail server pings the LAN  ->  needs-review, emitted disabled
       [needs-review] UNCONVERTIBLE_OBJECT: references 'Echo Object': ICMP type and code of a service object: how the export stores them is not known.
   Administrators to the DMZ  ->  needs-review, emitted disabled

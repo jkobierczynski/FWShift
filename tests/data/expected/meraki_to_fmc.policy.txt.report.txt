@@ -3,7 +3,7 @@ FWShift conversion report
   target: fmc
 
 Summary
-  Security rules:     20   exact 10, approximated 2, needs review 7 (1 emitted disabled), skipped 1
+  Security rules:     20   exact 10, approximated 4, needs review 5 (1 emitted disabled), skipped 1
   NAT rules:           4   exact 4, approximated 0, needs review 0, skipped 0
   Addresses:           4   exact 4, approximated 0, needs review 0, skipped 0
   Address groups:      8   exact 8, approximated 0, needs review 0, skipped 0
@@ -35,16 +35,16 @@ Security rules
       [needs-review] NAT_ADDRESS_EXPOSED: the destination covers '10.10.20.25', the address NAT rule 'NAT mail' translates '203.0.113.25' to. The target looks rules up after that translation, so traffic sent to '203.0.113.25' now matches this rule; on the source it did not
   bad ports  ->  needs-review, emitted disabled
       [needs-review] UNSUPPORTED_MATCH: not converted: destination port '1024-5000,5004' cannot be read (one range, or a list of single ports).
-  vpn-portal  ->  needs-review
+  vpn-portal  ->  approximated
       [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.2' with post-NAT '10.10.20.30' because of NAT rule 'NAT vpn-portal'; check that this rule is meant to cover the translated traffic
-      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'NAT vpn-portal' also translates the port to 443; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'NAT vpn-portal' also translates the port to 443: the service of this rule (tcp_8443) named the pre-NAT port only, and now names 443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
   mail (1)  ->  approximated  (emitted as mail _1_)
       [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.10.20.25' because of NAT rule 'NAT mail'; check that this rule is meant to cover the translated traffic
   mail (2)  ->  approximated  (emitted as mail _2_)
       [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.25' with post-NAT '10.10.20.25' because of NAT rule 'NAT mail'; check that this rule is meant to cover the translated traffic
-  scada-view  ->  needs-review
+  scada-view  ->  approximated
       [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination '203.0.113.30' with post-NAT '10.10.20.40' because of NAT rule 'NAT scada-view'; check that this rule is meant to cover the translated traffic
-      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'NAT scada-view' also translates the port to 443; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'NAT scada-view' also translates the port to 443: the service of this rule (tcp_9443) named the pre-NAT port only, and now names 443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
   layer 7 rule 1  ->  skipped
       [needs-review] MERAKI_L7: layer 7 rule of applicationCategory: applications, categories, host names and countries have no ports or addresses; what it blocks after the layer 3 rules is not converted
 

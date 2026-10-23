@@ -1315,6 +1315,8 @@ def _report_ports(p: Policy, report: Report, rule: Rule, translation: Destinatio
     original, translated, known = _service_sides(p, rule, nat, port)
     names_old = original if to_post_nat else translated
     names_new = translated if to_post_nat else original
+    if to_post_nat and names_old and not names_new and known and _port_to_post_nat(p, report, rule, translation):
+        return
     if names_old and (not names_new or not known):
         report.add(
             "rule",
@@ -1604,6 +1606,48 @@ def _services_within(p: Policy, rule: Rule, nat: NatRule) -> bool:
         return False
     return all(any(low <= first and last <= high for low, high in nat_ports.get(protocol, []))
                for protocol, ranges in rule_ports.items() for first, last in ranges)  # fmt: skip
+
+
+def _port_to_post_nat(p: Policy, report: Report, rule: Rule, translation: DestinationTranslation) -> bool:
+    """A rule for the translated traffic of one destination NAT alone, its destination now the post-NAT address, and its
+    services within the ports the NAT rule translates: the services become the port they are translated to, which is
+    what the target, looking rules up after the translation, sees (the FortiGate of the FWShift lab blocked the published
+    web server while the rule still named the pre-NAT port, 0.40.17). Whether it was done."""
+    nat, port = translation.nat, translation.port
+    nat_ports = _l4_ranges(p, [nat.service]) if nat.service != ANY else None
+    rule_ports = _l4_ranges(p, rule.services)
+    post = address_intervals(p, translation.post) or []
+    final = [interval for member in rule.destinations for interval in known_intervals(p, member)[0]]
+    if not nat_ports or not rule_ports or rule.negate_service or rule.negate_destination or not final or not post:
+        return False
+    if not set(rule_ports) <= set(nat_ports) or not all(
+        any(first <= low and high <= last for first, last in nat_ports[protocol]) for protocol, ranges in rule_ports.items() for low, high in ranges
+    ):
+        return False  # (a service beyond the ports the NAT rule translates)
+    if normalize(intersect(final, post)) != normalize(final):
+        return False  # (the rule also names addresses no translation takes it to)
+    names = []
+    for protocol in sorted(rule_ports, key=lambda x: x.value):
+        name = f"{protocol.value}-{port}"
+        existing = p.services.get(name)
+        wanted = [ServiceEntry(protocol, port)]
+        if existing is not None and existing.entries != wanted:
+            name = next(f"{protocol.value}-{port}-{n}" for n in range(2, 1000) if f"{protocol.value}-{port}-{n}" not in p.services)
+        p.services.setdefault(name, Service(name, wanted, description=f"the port NAT rule {nat.name} translates to"))
+        names.append(name)
+    before = ", ".join(rule.services)
+    rule.services = names
+    report.add(
+        "rule",
+        rule.origin,
+        Severity.APPROX,
+        "NAT_PORT_REWRITTEN",
+        f"NAT rule '{nat.name}' also translates the port to {port}: the service of this rule ({before}) named the pre-NAT "
+        f"port only, and now names {port}, as the target sees the translated traffic. It also matches traffic sent to that "
+        "port of the post-NAT address directly, which this rule did not allow on the source",
+        nat.origin,
+    )
+    return True
 
 
 def _service_sides(p: Policy, rule: Rule, nat: NatRule, port: str) -> Tuple[bool, bool, bool]:

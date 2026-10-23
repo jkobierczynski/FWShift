@@ -3,7 +3,7 @@ FWShift conversion report
   target: iptables
 
 Summary
-  Security rules:     14   exact 3, approximated 5, needs review 6 (5 emitted disabled), skipped 0
+  Security rules:     14   exact 3, approximated 6, needs review 5 (5 emitted disabled), skipped 0
   NAT rules:           5   exact 1, approximated 3, needs review 1, skipped 0
   Addresses:          16   exact 14, approximated 0, needs review 2, skipped 0
   Address groups:      4   exact 4, approximated 0, needs review 0, skipped 0
@@ -23,9 +23,9 @@ Security rules
       [approximated] APP_TO_PORTS: applications web-browsing, ssl reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
   Allow-DNS  ->  approximated  (emitted as 8 FORWARD rules)
       [approximated] APP_TO_PORTS: applications dns reduced to their well-known ports; layer-7 identification is lost, add application control if it is needed
-  Inbound-Web  ->  needs-review  (emitted as 1 FORWARD rule)
+  Inbound-Web  ->  approximated  (emitted as 1 FORWARD rule)
       [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'web-public' with post-NAT 'web-1' because of NAT rule 'Inbound-Web-DNAT'; check that this rule is meant to cover the translated traffic
-      [needs-review] NAT_PORT_TRANSLATION: NAT rule 'Inbound-Web-DNAT' also translates the port to 8443; the service of this rule still names the pre-NAT port and must be adjusted
+      [approximated] NAT_PORT_REWRITTEN: NAT rule 'Inbound-Web-DNAT' also translates the port to 8443: the service of this rule (service-https) named the pre-NAT port only, and now names 8443, as the target sees the translated traffic. It also matches traffic sent to that port of the post-NAT address directly, which this rule did not allow on the source
       [approximated] APP_FILTER_DROPPED: application match ssl dropped; the rule now matches everything on its services
   Inbound-Mail  ->  approximated  (emitted as 1 FORWARD rule)
       [approximated] NAT_DESTINATION_REWRITTEN: replaced pre-NAT destination 'mail-public' with post-NAT 'mail-1' because of NAT rule 'Mail-Static'; check that this rule is meant to cover the translated traffic
