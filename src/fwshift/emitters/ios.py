@@ -93,6 +93,17 @@ def _ports(low: int, high: int) -> str:
     return f" range {low} {high}"
 
 
+def _covers(ports: str, port: int) -> bool:
+    """Whether a port list ("80", "8000-8010", "80,443"; empty: every port) holds the port."""
+    if not ports:
+        return True
+    for part in ports.split(","):
+        first, _, last = part.partition("-")
+        if first.isdigit() and int(first) <= port <= int(last or first):
+            return True
+    return False
+
+
 @dataclass
 class _Class:
     """A class map and the access lists it matches."""
@@ -397,6 +408,60 @@ class _Emitter:
                 outside += [z for z in nat.dst_zones if z != ANY]
         return transform.dedupe(inside), transform.dedupe(outside), transform.dedupe(toward)
 
+    def _static_replies(self) -> None:
+        """Rules that let the outside reach the real address of a host IOS publishes with static NAT. `ip nat inside
+        source static` translates both ways: what the host sends from that address (and port) out through an interface
+        with ip nat outside leaves with the published address, its replies too. A connection from the outside to the
+        real address gets its answer from another address, and fails (the Catalyst 8000V of the FWShift lab, 0.40.17:
+        out10 to dmz10 port 80 blocked while 10.20.3.100:8080 was published as it)."""
+        published: List[Tuple[NatRule, Interval, Optional[Tuple[str, int]], List[str]]] = []
+        for nat in self.p.nat_rules:
+            lines = self.nat_lines(nat)
+            if not lines or not lines[-1].startswith("ip nat inside source static"):
+                continue
+            pair = transform.bidirectional_pair(self.p, nat)
+            if pair is not None:  # (a static source NAT both ways: the outside is where it translates to)
+                published.append((nat, pair[0], None, [z for z in nat.dst_zones if z != ANY]))
+                continue
+            dnat = nat.destination_translation
+            inner = transform.known_intervals(self.p, dnat.address)[0] if dnat is not None and dnat.address else []
+            words = lines[-1].split()
+            if dnat is None or len(inner) != 1:
+                continue
+            port = (words[5], int(words[7])) if len(words) > 8 and words[5] in ("tcp", "udp") else None  # (static tcp LOCAL PORT ...)
+            published.append((nat, inner[0], port, [z for z in nat.src_zones if z != ANY]))  # (a published host: from where it is reached)
+        if self.p.vendor == "ios":
+            return  # (the source translated the same way: nothing that differs)
+        for nat, host, port, outside in published:
+            if not outside:
+                continue  # (where the outside is, is not known: a source without zones)
+            for rule in self.p.rules:
+                if not rule.enabled or rule.action != Action.ALLOW or rule.negate_destination or rule.scope == RuleScope.INTRAZONE:
+                    continue
+                item = self.report.item("rule", rule.origin)
+                rewritten = ("NAT_DESTINATION_REWRITTEN", "NAT_DESTINATION_WIDENED", "NAT_PORT_REWRITTEN")
+                if any(f.subject == nat.origin and f.code in rewritten for f in item.findings) \
+                        or any(nat.origin in origins for origins in rule.nat_added.values()):
+                    continue  # (a rule for the translated traffic: its replies go back translated, as they should)
+                if ANY not in rule.src_zones and not set(rule.src_zones) & set(outside):
+                    continue
+                # (what the rule names, not any address: a rule for every destination is not one for this host)
+                reached = [i for m in rule.destinations if m != ANY for i in transform.known_intervals(self.p, m)[0] if i != FULL_V4]
+                if not any(i[0] == 4 and i[1] <= host[1] and host[1] <= i[2] for i in reached):
+                    continue
+                if port is not None and ANY not in rule.services:
+                    entries = [e for s in rule.services for e in (transform.flatten_services(self.p, s) or [])]
+                    if entries and not any(e.protocol.value == port[0] and _covers(e.dst_ports, port[1]) for e in entries):
+                        continue
+                what = f"{port[0]}/{port[1]} of " if port else ""
+                self.report.add(
+                    "rule", rule.origin, Severity.REVIEW, "IOS_STATIC_NAT_REPLIES",
+                    f"it lets the outside reach {what}{int_to_ip(4, host[1])}, which NAT rule '{nat.name}' publishes with "
+                    "`ip nat inside source static`: IOS translates that both ways, so the host's replies leave through the "
+                    "outside with the published address, and a connection made to the real address fails",
+                    nat.origin,
+                )  # fmt: skip
+
     def _zones_of(self, name: str) -> List[str]:
         """The zones whose networks (--zone-network, or the source's interfaces and routes) hold all of an address object;
         empty when none is known."""
@@ -584,6 +649,7 @@ class _Emitter:
             for interface in interfaces:
                 tail += [f"! interface {_printable(interface)}", f"!  zone-member security {self.zone_names[zone]}"]
         if nat_lines:
+            self._static_replies()
             inside, outside, toward = self._nat_sides()
             tail += ["!", "! NAT, which changes traffic at once on interfaces with ip nat inside or outside:"]
             tail += [f"! {line}" for line in nat_lines]

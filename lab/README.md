@@ -212,7 +212,7 @@ booting.
 | Image | Target | Interfaces | Login |
 |---|---|---|---|
 | FortiGate-VM (PAYG) | `fortios`, zones mapped to port2-4 | port2, port3, port4 | `admin`, the run's key; addresses from the user data |
-| Palo Alto VM-Series (PAYG Bundle 1, chosen by its product code: BYOL and the bundles share their name; Bundle 2 by `--ami`) | `panos` | ethernet1/1-1/3 (the example of older images deleted first, in a session whose answers do not count) | `admin` |
+| Palo Alto VM-Series (PAYG Bundle 1, now named "VM-Series Next-Gen Virtual Firewall w/ Advanced Threat Prevention", chosen by its product code: BYOL and the bundles share their name; Bundle 2 by `--ami`) | `panos` | ethernet1/1-1/3 (the example of older images deleted first, in a session whose answers do not count) | `admin` |
 | Juniper vSRX (PAYG) | `junos` | ge-0/0/0-2 (the default zones are deleted first); ready once the forwarding engine has made them | `ec2-user` |
 | Cisco Catalyst 8000V (IOS XE; the PAYG image with DNA Essentials, `Cisco-C8K-PAYG-ESS-*`) | `ios`, interfaces mapped to Gi2-4 | GigabitEthernet2-4, zone members from the output's comments | `ec2-user`; Day 0 in the user data gives the run's key as a `key-string` and allows the RSA signatures (IOS XE 26.02 takes no ssh-rsa by default) |
 | Cisco ASAv | `asa` | the three data interfaces, by the names the ASAv gives them (read with `show interface ip brief`; on c5 not GigabitEthernet0/0-0/2), `inspect icmp` added; a Day 0 configuration turns on SSH on Management0/0 with the run's key (RSA 2048: the ASA's lines hold 511 characters); ssh allows its `ssh-rsa` host key | `admin` (privileged at login, by the Day 0 configuration, which also sets an enable password made for the run: `enable_password.txt` in the work folder) |
@@ -329,8 +329,9 @@ Terraform state (to destroy by hand if even that failed) and without the run's p
   decides but the published port; a ruleset with a rule taken out is seen (`tests/test_lab.py`). On the devices, at
   their next run.
 * **NAT on the devices**: the runs above were made before the lab policy had NAT (0.37.0). The NAT of tier 3
-  (FortiGate, VM-Series, ASAv, vSRX, Catalyst 8000V, pfSense Plus, OPNsense, Check Point) is what the next run of
-  each will test. The SonicWall NSv's first pass (0.40.16) included it: the 16 checks of the addresses seen.
+  (ASAv, vSRX, pfSense Plus, OPNsense, Check Point) is what the next run of each will test. The SonicWall NSv's first
+  pass (0.40.16) included it, and the FortiGate (central NAT turned on by the lab), the VM-Series and the Catalyst
+  8000V passed it in 0.40.17: every check of the addresses seen each time.
 * **Not verified**: no run of tier 3 on Azure or Google Cloud (0.39.0), nor of the VMs of tier 2 or of the Check Point image of tier 3 has been
   made, nor a run of the workflow in GitHub. Their image names, logins and first boot, and the reload
   commands of OPNsense and pfSense, are taken from documentation. The first real run of each will find what is wrong.

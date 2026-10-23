@@ -74,7 +74,9 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   26.02.1, the zone-based firewall), the AWS Marketplace images, by the lab,
 >   for the same policy: all 128 connections through each as the source decides. The policy then had security rules
 >   only; since 0.37.0 it has NAT as well (a hide NAT and a published web server), which the lab checks: through the
->   Linux kernel for nftables and iptables so far, on these devices at their next run. Since 0.38.0 every run of tiers
+>   Linux kernel for nftables and iptables, and on the FortiGate-VM, the VM-Series and the Catalyst 8000V, which passed
+>   it in 0.40.17 (every check of the addresses seen; the FortiGate with central NAT; the 8000V with one connection
+>   blocked as announced, to the real address of the host its static NAT publishes); on the others at their next run. Since 0.38.0 every run of tiers
 >   2 and 3 also exports the policy from the firewall afterwards, reads it with FWShift and compares it with what was
 >   loaded and with the source (the read-back). Since 0.39.0 tier 3 runs on Azure as well, for the images it offers
 >   (scripted from the vendors' documentation, never run there); on Google Cloud the images are found, and a run waits
@@ -206,8 +208,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.40.17.pyz --version
-python3 fwshift-0.40.17.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.40.18.pyz --version
+python3 fwshift-0.40.18.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start

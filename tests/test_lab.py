@@ -1515,3 +1515,14 @@ def test_the_fortigate_turns_central_nat_on_before_the_output(tmp_path: Path) ->
     # (and the published web server's rule on the port its traffic arrives on, after the translation: 0.40.17)
     policy = done["out"].read_text()
     assert 'set service "tcp-80"' in policy.split('set name "outside-web-published"')[1].split("next")[0]
+
+
+def test_the_8000v_report_names_the_replies_its_static_nat_translates(tmp_path: Path) -> None:
+    """The first Catalyst 8000V run with NAT (0.40.17) blocked out10 to dmz10 port 80, the real address of the web server
+    published as 10.20.3.100:8080: `ip nat inside source static` translates the server's replies too. The report says
+    so on the rule that reaches the real address, not on the one for the translated traffic."""
+    vendor = tier3.VENDORS["c8000v"]
+    report = lab_conversion(tmp_path, vendor.target, vendor.options)["report"]
+    rules = {r["name"]: [f["code"] for f in r["findings"]] for r in report["items"] if r["kind"] == "rule"}
+    assert "IOS_STATIC_NAT_REPLIES" in rules.get("outside-web", []), rules
+    assert "IOS_STATIC_NAT_REPLIES" not in rules.get("outside-web-published", [])

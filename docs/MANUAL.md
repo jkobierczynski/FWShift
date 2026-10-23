@@ -116,8 +116,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.40.17.pyz --version
-python3 fwshift-0.40.17.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.40.18.pyz --version
+python3 fwshift-0.40.18.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -2187,6 +2187,7 @@ Findings and notes that only an IOS source or target raises:
 | `IOS_LOAD` | R | Target: the output is configuration commands (section 10); nothing changes until interfaces are put in the zones. Names start with `FWS-` (or the prefix): IOS adds entries to a list or class map of the same name, so check that none is taken. |
 | `IOS_ZONE_MEMBERS` | R | Target: an interface in a zone passes only what the zone pairs let through, and nothing to an interface in no zone; traffic to and from the router itself is not written. Put every interface that forwards traffic in a zone. |
 | `IOS_INTRAZONE` | I | Target: zone pairs from a zone to itself decide traffic inside a zone (IOS 15.0(1)M and IOS XE); IOS passes it otherwise. |
+| `IOS_STATIC_NAT_REPLIES` | R | Target (on the rule): the rule lets the outside reach the real address (and port) of a host that a NAT rule publishes with `ip nat inside source static`. IOS translates that both ways: the host's replies leave through the `ip nat outside` interfaces with the published address, so a connection made to the real address fails. Not raised for a rule written for the translated traffic, a rule for any destination, a rule inside one zone, a source without zones (where the outside is not known), nor an IOS source (it translated the same way). Reach the host by its published address, or keep the source's direct access some other way. |
 | `IOS_LOG_ALLOW` | I | Target (on the rule): logging of what an allow rule inspects is not written (inspection logs through a parameter map); drop and pass log. |
 | `DISABLED_NOT_WRITTEN` | I, skipped | Target (on the rule): disabled in the source; a zone-based firewall has no disabled class, so it is not written. |
 | `SERVICE_NOT_WRITTEN` | R, disabled | Target (on the rule): its services are too many for one list, SCTP with ports (which IOS does not filter) or protocol 0. |
