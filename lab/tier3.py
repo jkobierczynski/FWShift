@@ -685,7 +685,7 @@ VENDORS: Dict[str, Vendor] = {
                          "api status", r"FWLAB-FAILED|FAILED: mgmt_cli", ["--target-gateway", _CP_HOSTNAME], _checkpoint_user_data(), _checkpoint_session,
                          ready_answer=r"API readiness test SUCCESSFUL", success=r"FWLAB-LOADED-42", diagnose=_checkpoint_diagnose,
                          uploads=_checkpoint_uploads, boot_minutes=60,
-                         status="scripted from Check Point's templates and API reference; the first run booted and lost its session at the install (0.40.19)"),  # fmt: skip
+                         status="scripted from Check Point's templates and API reference; two runs: loaded, installed and probed; the inside's hide NAT corrected (0.40.20)"),  # fmt: skip
     # Ready once its data interfaces are listed (the vSRX had none for a while after its CLI answered); lines typed one at
     # a time after the prompt (the ASAv lost what was typed ahead); a 2048-bit key (the ASAv's limit; the size AWS makes).
     # The image: "Cisco Catalyst 8000V SD-WAN & Router - PAYG - DNA Essentials", named Cisco-C8K-PAYG-ESS-<version>-<id>

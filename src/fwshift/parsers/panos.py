@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -167,6 +168,7 @@ def parse(data: bytes, report: Report, vsys: str = "", device_group: str = "") -
 
     if not panorama:
         _zone_networks(config, policy, report)
+        _interface_addresses(config, policy)
     if panorama:
         report.note(
             Severity.INFO,
@@ -175,6 +177,30 @@ def parse(data: bytes, report: Report, vsys: str = "", device_group: str = "") -
             "firewall are not part of this policy",
         )
     return policy
+
+
+def _interface_addresses(config: ET.Element, policy: Policy) -> None:
+    """The address of the interface a source NAT hides behind (interface-address without an ip of its own): the first
+    IPv4 address of that layer 3 interface or unit, as the configuration gives it. A target that cannot name the
+    outgoing interface hides behind it (Check Point: the gateway object stands for its main address, not the outgoing
+    interface's, which the FWShift lab found in 0.40.19)."""
+    found: Dict[str, str] = {}
+    for kind in ("ethernet", "aggregate-ethernet"):
+        for interface in config.findall(f"devices/entry/network/interface/{kind}/entry"):
+            holders = [(interface.get("name", ""), interface.find("layer3"))]
+            holders += [(unit.get("name", ""), unit) for unit in interface.findall("layer3/units/entry")]
+            for name, holder in holders:
+                for address in holder.findall("ip/entry") if holder is not None else []:
+                    text = address.get("name", "").split("/")[0]
+                    try:
+                        if ipaddress.ip_address(text).version == 4 and name not in found:
+                            found[name] = text
+                    except ValueError:
+                        continue  # (an address object's name: not looked up here)
+    for nat in policy.nat_rules:
+        snat = nat.source_translation
+        if snat is not None and snat.kind == SnatKind.INTERFACE and not snat.addresses and snat.interface in found:
+            snat.interface_address = found[snat.interface]
 
 
 def _zone_networks(config: ET.Element, policy: Policy, report: Report) -> None:

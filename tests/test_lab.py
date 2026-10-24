@@ -1533,3 +1533,22 @@ def test_the_8000v_report_names_the_replies_its_static_nat_translates(tmp_path: 
     rules = {r["name"]: [f["code"] for f in r["findings"]] for r in report["items"] if r["kind"] == "rule"}
     assert "IOS_STATIC_NAT_REPLIES" in rules.get("outside-web", []), rules
     assert "IOS_STATIC_NAT_REPLIES" not in rules.get("outside-web-published", [])
+
+
+def test_the_check_point_hide_nat_hides_behind_the_outside_address_towards_the_outside(tmp_path: Path) -> None:
+    """The first Check Point run with probes (0.40.19): every connection from the inside failed. Its hide NAT hid behind
+    the gateway object, which is the gateway's main address (eth0), towards every destination, the DMZ too. The lab
+    policy now gives its interfaces' addresses, as a real configuration does: the hide NAT hides behind ethernet1/1's,
+    10.20.3.4, and only towards the outside zone's networks (NAT_ZONE_NETWORKS)."""
+    vendor = tier3.VENDORS["checkpoint"]
+    done = lab_conversion(tmp_path, vendor.target, vendor.options)
+    nat = [line for line in done["out"].read_text().splitlines() if "add nat-rule" in line and "inside-hide" in line][0]
+    assert "original-destination outside-net" in nat and "translated-source h-10.20.3.4" in nat and "method hide" in nat
+    rules = {r["name"]: [f["code"] for f in r["findings"]] for r in done["report"]["items"] if r["kind"] == "nat"}
+    assert "NAT_ZONE_NETWORKS" in rules["inside-hide"] and "NAT_GATEWAY_ADDRESS" not in rules["inside-hide"]
+    # (the PAN-OS reader gives the address of the interface a hide NAT names)
+    from fwshift import cli as fwcli
+    from fwshift.report import Report as FwReport
+    policy = fwcli.load((tier3.labplan.POLICY).read_bytes(), "panos", FwReport())
+    hide = next(n for n in policy.nat_rules if n.name == "inside-hide").source_translation
+    assert hide is not None and hide.interface == "ethernet1/1" and hide.interface_address == "10.20.3.4"

@@ -140,6 +140,9 @@ m add nat-rule package Standard position bottom original-source Any original-des
 m add nat-rule package Standard position bottom original-source Any original-destination vip-mail original-service Any translated-source Original translated-destination mail-1 translated-service Original method static comments vip-mail ignore-warnings true
 m add host name h-198.51.100.1 ip-address 198.51.100.1 ignore-warnings true
 m add nat-rule package Standard position bottom original-source lan-net original-destination Any original-service Any translated-source h-198.51.100.1 translated-destination Original translated-service Original method hide comments 'snat-1: from FortiOS policy 1 (LAN to Internet)' ignore-warnings true
-m add nat-rule package Standard position bottom original-source Any original-destination Any original-service Any translated-source h-198.51.100.1 translated-destination Original translated-service Original method hide comments 'snat-2: from FortiOS policy 2 (LAN basics)' ignore-warnings true
+m add network name n-10.10.0.0_16 subnet 10.10.0.0 mask-length 16 ignore-warnings true
+m add network name n-10.11.0.0_16 subnet 10.11.0.0 mask-length 16 ignore-warnings true
+m add group name snat-2-src members.1 n-10.10.0.0_16 members.2 n-10.11.0.0_16 ignore-warnings true
+m add nat-rule package Standard position bottom original-source snat-2-src original-destination Any original-service Any translated-source h-198.51.100.1 translated-destination Original translated-service Original method hide comments 'snat-2: from FortiOS policy 2 (LAN basics)' ignore-warnings true
 
 echo 'Done. Review the session, then publish or discard it.'

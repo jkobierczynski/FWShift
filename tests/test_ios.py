@@ -1132,14 +1132,17 @@ def test_nat_sides_name_where_the_published_host_is(tmp_path: Any) -> None:
     from pathlib import Path
 
     lab = Path(__file__).resolve().parent.parent / "lab" / "policy" / "lab_panos.xml"
+    # (a copy without the interfaces' addresses, which the lab policy gives since 0.40.20: then no zone network is known)
+    bare = tmp_path / "bare.xml"
+    bare.write_text(re.sub(r"<network>.*?</network>\s*", "", lab.read_text(encoding="utf-8"), count=1, flags=re.S), encoding="utf-8")
     nets = ["--zone-network", "inside=10.20.1.0/24", "--zone-network", "dmz=10.20.2.0/24", "--zone-network", "outside=10.20.3.0/24"]
-    for extra, inside in ((nets, ["FWS-dmz", "FWS-inside"]), ([], ["FWS-inside"])):
+    for source, extra, inside in ((lab, nets, ["FWS-dmz", "FWS-inside"]), (lab, [], ["FWS-dmz", "FWS-inside"]), (bare, [], ["FWS-inside"])):
         out = tmp_path / "o.ios"
-        assert _run(["convert", str(lab), "--to", "ios", "-o", str(out), "-q", *extra]) in (0, 3)
+        assert _run(["convert", str(source), "--to", "ios", "-o", str(out), "-q", *extra]) in (0, 3)
         text = out.read_text(encoding="utf-8")
         found = re.findall(r"^! \(the interfaces of zone (\S+): ip nat (inside|outside)\)$", text, re.M)
         assert sorted(z for z, side in found if side == "inside") == inside and [z for z, side in found if side == "outside"] == ["FWS-outside"], found
-        assert ("the interfaces toward 10.20.2.10" in text) == (not extra)
+        assert ("the interfaces toward 10.20.2.10" in text) == (source == bare)
 
 
 def test_ios_output_is_read_back(tmp_path: Any) -> None:

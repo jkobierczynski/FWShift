@@ -717,6 +717,18 @@ class _Emitter:
         )
         return name
 
+    def _zone_networks(self, zones: List[str]) -> List[str]:
+        """The networks behind every one of these zones (--zone-network, else the source's interfaces and routes);
+        empty when one of them has none known."""
+        out: List[str] = []
+        for zone in zones:
+            given = self.options.zone_networks.get(self.options.zone_map.get(zone, zone), self.options.zone_networks.get(zone, []))
+            nets = list(given or getattr(self.p, "zone_networks", {}).get(zone, []))
+            if not nets or any(parse_literal(n) in (FULL_V4, FULL_V6) for n in nets):
+                return []  # (none known, or every address: the zone behind the default route is no limit written so)
+            out += nets
+        return transform.dedupe(out)
+
     def _single_address(self, ref: str) -> Optional[Interval]:
         intervals = transform.address_intervals(self.p, ref)
         return intervals[0] if intervals and len(intervals) == 1 else None
@@ -746,15 +758,25 @@ class _Emitter:
                     hide_behind = source.addresses[0]
                     if hide_behind not in self.p.addresses:
                         hide_behind = hide_behind.split("/")[0]  # PAN-OS writes an interface address with its mask
-                elif self.options.target_gateway or (self.native and source.interface):
+                elif self.native and source.interface:
                     # A Check Point source names the gateway object it hides behind.
-                    gateway = self.options.target_gateway or source.interface
+                    gateway = source.interface
                 elif source.interface_address:
+                    # (before the gateway object: for a manual rule that is the gateway's main address, not the outgoing
+                    # interface's; the FWShift lab's R82.20 standalone hid the inside behind eth0, 0.40.19)
                     hide_behind = source.interface_address
                     findings.append(
                         (Severity.APPROX, "NAT_INTERFACE_ADDRESS", f"hides behind {hide_behind}, the address "
-                         f"interface '{source.interface}' has today; name the gateway object with --target-gateway "
-                         "to hide behind the gateway instead")  # fmt: skip
+                         f"interface '{source.interface}' has in the source; check it is the address of the interface "
+                         "the traffic leaves by on the gateway")  # fmt: skip
+                    )
+                elif self.options.target_gateway:
+                    gateway = self.options.target_gateway
+                    findings.append(
+                        (Severity.REVIEW, "NAT_GATEWAY_ADDRESS", f"hides behind gateway object '{gateway}': in a manual NAT "
+                         "rule that is the gateway's main address, not the address of the interface the traffic leaves by, "
+                         f"which the source hid behind (interface '{source.interface}', whose address the source does not "
+                         "give). Check that the hosts reached answer to the main address by way of the gateway")  # fmt: skip
                     )
                 else:
                     problems.append(
@@ -788,14 +810,25 @@ class _Emitter:
             return
         # Zones are left out. With explicit addresses on that side a zone adds little; where the
         # addresses are "any", the zone was the only limit.
-        if nat.src_zones != [ANY]:
+        sources, destinations = list(nat.sources), list(nat.destinations)
+        if nat.src_zones != [ANY] and ANY in sources and self._zone_networks(nat.src_zones):
+            sources = self._zone_networks(nat.src_zones)
+            findings.append((Severity.APPROX, "NAT_ZONE_NETWORKS", "the rule applied to traffic from " + ", ".join(nat.src_zones)
+                             + " only: written for the networks of that zone (" + ", ".join(sources) + "), as the source's "
+                             "interfaces and routes or --zone-network give them"))  # fmt: skip
+        elif nat.src_zones != [ANY]:
             unlimited = ANY in nat.sources and ANY in nat.destinations
             findings.append(
                 (Severity.REVIEW if unlimited else Severity.APPROX, "NAT_ZONES", "the rule applied to traffic from "
                  + ", ".join(nat.src_zones) + " only; it is written without zones and applies whatever the zone "
                  "the traffic comes from")  # fmt: skip
             )
-        if nat.dst_zones != [ANY]:
+        if nat.dst_zones != [ANY] and ANY in destinations and destination is None and self._zone_networks(nat.dst_zones):
+            destinations = self._zone_networks(nat.dst_zones)
+            findings.append((Severity.APPROX, "NAT_ZONE_NETWORKS", "the rule applied to traffic to " + ", ".join(nat.dst_zones)
+                             + " only: written for the networks of that zone (" + ", ".join(destinations) + "), as the source's "
+                             "interfaces and routes or --zone-network give them"))  # fmt: skip
+        elif nat.dst_zones != [ANY]:
             unlimited = ANY in nat.destinations
             findings.append(
                 (Severity.REVIEW if unlimited else Severity.APPROX, "NAT_ZONES", "the rule applied to traffic to "
@@ -807,8 +840,8 @@ class _Emitter:
             report.add("nat", nat.origin, severity, code, message)
 
         words: List[str] = []
-        original_source = self._cell(nat, nat.sources, "src")
-        original_destination = self._cell(nat, nat.destinations, "dst")
+        original_source = self._cell(nat, sources, "src")
+        original_destination = self._cell(nat, destinations, "dst")
         words += ["original-source", q(original_source)] if original_source else []
         words += ["original-destination", q(original_destination)] if original_destination else []
         words += ["original-service", q(self.service_ref[nat.service])] if nat.service != ANY else []

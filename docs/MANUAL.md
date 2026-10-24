@@ -116,8 +116,8 @@ Python and nothing else, and can be copied to a machine that has no pip and
 no network:
 
 ```sh
-python3 fwshift-0.40.19.pyz --version
-python3 fwshift-0.40.19.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.40.20.pyz --version
+python3 fwshift-0.40.20.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 Wherever this manual writes `fwshift`, `python3 fwshift-X.Y.Z.pyz` does the
@@ -1594,7 +1594,9 @@ the rule is emitted switched off; "skipped" means it is not emitted.
 | `NAT_SOURCE_DROPPED` | A | To FortiOS: the destination NAT applied to some sources only; the virtual IP applies to all. |
 | `NAT_BIDIRECTIONAL` | I, A or R | Bi-directional static NAT is written as two parts: a central SNAT entry plus a virtual IP on FortiOS, an SNAT and a DNAT rule on iptables, two NAT rules on Check Point and on Sophos (`name` and `name-in`). R when the inbound half could not be written. |
 | `NAT_STATIC_RANGE` | A | To FortiOS: static NAT of several addresses becomes a one-to-one pool, which does not promise the same translated address per host. To Sophos: it becomes source NAT to a range, which does not promise it either. |
-| `NAT_INTERFACE_ADDRESS` | A | To PAN-OS or Check Point: source NAT to an interface address was written with the address that interface has in the backup. Use `--interface-map` (PAN-OS) or `--target-gateway` (Check Point) to follow the interface instead. ASA, Management Center or Device Manager source: a rule that publishes a port on the address of an interface is converted with the address the interface has in the input; to an ASA, a Management Center or a Device Manager it is written as "the interface" again, and the finding is withdrawn. |
+| `NAT_GATEWAY_ADDRESS` | R | To Check Point: source NAT to the address of the outgoing interface, whose address the source does not give, written behind the gateway object named by `--target-gateway`. In a manual NAT rule that object is the gateway's main address (on a cloud standalone: the management interface), not the address of the interface the traffic leaves by. The FWShift lab's R82.20 standalone hid the inside behind eth0 this way, and the hosts reached could not answer. Give the interface's address in the source, or check that the hosts reach the main address through the gateway. |
+| `NAT_ZONE_NETWORKS` | A | To Check Point, whose NAT rules name no zones: a rule limited to a zone on a side where it names any address is written for the networks of that zone, from `--zone-network` or the source's interfaces and routes. Before, it applied to every zone (`NAT_ZONES`). Addresses behind the zone that are not among those networks are not translated. Not done for a zone whose networks hold every address (the zone behind the default route). |
+| `NAT_INTERFACE_ADDRESS` | A | To PAN-OS or Check Point: source NAT to an interface address was written with the address that interface has in the backup. Use `--interface-map` (PAN-OS) to follow the interface instead. To Check Point the address goes before `--target-gateway`: in a manual NAT rule the gateway object stands for the gateway's main address, not the outgoing interface's (`NAT_GATEWAY_ADDRESS`). A PAN-OS source gives the address of a layer 3 interface since 0.40.20. ASA, Management Center or Device Manager source: a rule that publishes a port on the address of an interface is converted with the address the interface has in the input; to an ASA, a Management Center or a Device Manager it is written as "the interface" again, and the finding is withdrawn. |
 | `VIP_REVERSE_NAT` | A | FortiOS source: a static virtual IP also translates sessions the mapped host opens, when the outgoing policy has NAT. That direction is not converted. |
 | `NAT_MERGED` | I | FortiOS source: several policies had identical source NAT and share one rule. |
 | `NAT_REFLECTION` | I | pfSense source: the port forward has NAT reflection, so it also applies to what arrives on the inside interfaces named in the finding. It is converted for those interfaces too. |
