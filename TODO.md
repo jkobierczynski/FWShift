@@ -347,8 +347,8 @@ FortiGate and the VM-Series (0.32.1), the ASAv and the vSRX (0.36.1), the Cataly
 
 * the first real run of each of the others, and correcting what it finds (the Marketplace image names, the logins,
   the reload commands of OPNsense and pfSense);
-* the first run of the Check Point vendor of tier 3 (its `mgmt_cli` script was published and verified on an R82.20
-  management server by hand; the lab's interfaces, `set simple-gateway` and the install are untried);
+* the NAT of tier 3 on the ASAv, the vSRX, pfSense Plus and OPNsense (each passed before the lab policy had NAT):
+  one run each;
 * Sophos Firewall in tier 3: its XML API is switched on in the web console only, so a run would wait for that step;
 * tier 3 on Google Cloud: each firewall's zone interfaces written Google Cloud's way (a `/32` address or DHCP, and the
   subnet through its gateway), per vendor; until then a run there stops (`--untested`);

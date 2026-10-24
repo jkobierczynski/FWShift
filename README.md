@@ -88,9 +88,11 @@ Pure Python, standard library only, Python 3.9 or newer.
 >   NAT included: all 129 connections and the 16 checks of the addresses seen as the source decides (0.40.15, after
 >   nineteen runs that shaped the commands: `nat-policy ipv4`, every rule's place in one list of all zone pairs,
 >   IPv6 rules placed by SonicOS, SonicOS's own zones and NAT policies; DEVELOPMENT.md has each step).
-> * **Check Point** output for the same policy was loaded on a management server by hand (R82.20, a standalone
->   installation): every call accepted, published, and the policy package verified. It has not been installed on a
->   gateway with traffic through it.
+> * **Check Point** output passed the same way on Check Point's All-In-One (R82.20, a standalone gateway and
+>   management, AWS Marketplace) in 0.40.21: FWShift's `mgmt_cli` script loaded, the policy published and installed on
+>   the gateway, every connection through it as the source decides, NAT included, and the rulebase read back through
+>   the Management API. It took three runs; the last changed the hide NAT (behind the outgoing interface's address,
+>   towards its zone's networks).
 > * **Huawei USG, Stormshield SNS, Cisco Meraki MX, Cisco Secure Firewall,
 >   Sophos Firewall, WatchGuard, Barracuda, VMware NSX, RouterOS and Forcepoint** output has **not been loaded on a
 >   device**, and the **Terraform** output has not been applied with Terraform. The Check Point input format is taken from the API
@@ -208,8 +210,8 @@ project as tagged; a wheel for `pip install`; and `fwshift-X.Y.Z.pyz`, one
 file that needs nothing but Python 3.9 or newer:
 
 ```sh
-python3 fwshift-0.40.20.pyz --version
-python3 fwshift-0.40.20.pyz convert running-config.xml --to fortios -o fortigate.conf
+python3 fwshift-0.40.21.pyz --version
+python3 fwshift-0.40.21.pyz convert running-config.xml --to fortios -o fortigate.conf
 ```
 
 ## Quick start
