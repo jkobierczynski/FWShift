@@ -553,8 +553,15 @@ def _checkpoint_user_data() -> str:
 def checkpoint_driver() -> str:
     """The lab's load on the standalone, run in bash after FWShift's script and it are copied over: the data interfaces'
     addresses (clish), FWShift's script in a session of its own, the interfaces' topology and security zones (one
-    `set simple-gateway` naming every interface, eth0 too: it replaces the list), publish, and the install of the
-    policy package. It prints FWLAB-FAILED and why at the first step that fails, and FWLAB-LOADED-42 at the end."""
+    `set simple-gateway` naming every interface, eth0 too: it replaces the list), a rule that lets the lab manage the
+    gateway, publish, and the install of the policy package. It prints FWLAB-FAILED and why at the first step that
+    fails, and FWLAB-LOADED-42 at the end.
+
+    The management rule: on a standalone the management interface (eth0) is under the policy too, and the converted
+    policy ends its layer in FWShift's cleanup rule (drop): the first run (0.40.18) lost its SSH session to eth0 at the
+    install ("Timeout, server not responding"), and with it the load's output. SSH and HTTPS (the Management API) from
+    the address the lab's session comes from ($SSH_CLIENT) to the gateway, at the top of layer Network; the AWS security
+    group lets only that address reach eth0 anyway, and the rule names none of the lab's zones."""
     lines = ["#!/bin/bash", "# The FWShift lab: the converted policy onto a Check Point standalone (gateway and management on one instance).",
              '[ -r /etc/profile.d/CP.sh ] && . /etc/profile.d/CP.sh', 'cd "$HOME" || exit 2',
              'step() { echo "== $*"; }',
@@ -592,6 +599,14 @@ def checkpoint_driver() -> str:
                           f"{prefix}anti-spoofing false {prefix}security-zone true {prefix}security-zone-settings.auto-calculated false "
                           f"{prefix}security-zone-settings.specific-zone {zone}")  # fmt: skip
     lines += ['mgmt_cli set simple-gateway name "$GW" ' + " ".join(interfaces) + ' ignore-warnings true -s fwshift.sid || fail "set simple-gateway (interfaces and zones)"',
+              'step "the lab\'s management of the gateway"',
+              'ADMIN=${SSH_CLIENT%% *}',
+              '[ -n "$ADMIN" ] || fail "no SSH_CLIENT: the address the lab manages from is not known"',
+              'echo "managed from: $ADMIN"',
+              'mgmt_cli add host name fwlab-admin ip-address "$ADMIN" ignore-warnings true -s fwshift.sid || fail "the host the lab manages from"',
+              'mgmt_cli add access-rule layer Network position 1 name "FWLAB management" source.1 fwlab-admin destination.1 "$GW" '
+              'service.1 ssh service.2 https action Accept track.type Log comments "The FWShift lab: its own access to the gateway, not the converted policy" '
+              'ignore-warnings true -s fwshift.sid || fail "the management rule"',
               'step "publish"', 'mgmt_cli publish -s fwshift.sid || fail "publish"',
               'step "install"',
               'mgmt_cli install-policy policy-package Standard access true threat-prevention false targets.1 "$GW" -s fwshift.sid || fail "install-policy"',
@@ -607,12 +622,14 @@ def _checkpoint_uploads(out: Path) -> List[Path]:
 
 
 def _checkpoint_session(out: Path) -> List[str]:
-    return ["bash ./fwlab_load.sh 2>&1", "exit"]
+    # (its output kept on the gateway as well: the first run's SSH session died at the install, and what the script had
+    # said died with it; the diagnose step shows the file)
+    return ["bash ./fwlab_load.sh 2>&1 | tee fwlab_load.log", "exit"]
 
 
 def _checkpoint_diagnose() -> List[str]:
     """The gateway's policy and interfaces, the management's rulebase, and the end of the first-time setup's log."""
-    return ["fw stat", "ip -4 -o addr show", "ip route", "clish -c 'show interfaces all'", "cpstat fw -f policy",
+    return ["tail -n 80 fwlab_load.log", "fw stat", "ip -4 -o addr show", "ip route", "clish -c 'show interfaces all'", "cpstat fw -f policy",
             "mgmt_cli -r true show access-rulebase name Network details-level standard -f json | head -c 40000",
             "tail -n 60 /opt/CPcge/log/boot.log 2>/dev/null || tail -n 60 \"$CGEDIR/log/boot.log\"", "exit"]  # fmt: skip
 
@@ -668,7 +685,7 @@ VENDORS: Dict[str, Vendor] = {
                          "api status", r"FWLAB-FAILED|FAILED: mgmt_cli", ["--target-gateway", _CP_HOSTNAME], _checkpoint_user_data(), _checkpoint_session,
                          ready_answer=r"API readiness test SUCCESSFUL", success=r"FWLAB-LOADED-42", diagnose=_checkpoint_diagnose,
                          uploads=_checkpoint_uploads, boot_minutes=60,
-                         status="scripted from Check Point's templates and API reference, never run"),  # fmt: skip
+                         status="scripted from Check Point's templates and API reference; the first run booted and lost its session at the install (0.40.19)"),  # fmt: skip
     # Ready once its data interfaces are listed (the vSRX had none for a while after its CLI answered); lines typed one at
     # a time after the prompt (the ASAv lost what was typed ahead); a 2048-bit key (the ASAv's limit; the size AWS makes).
     # The image: "Cisco Catalyst 8000V SD-WAN & Router - PAYG - DNA Essentials", named Cisco-C8K-PAYG-ESS-<version>-<id>

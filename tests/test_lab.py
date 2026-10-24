@@ -962,9 +962,16 @@ def test_the_check_point_load_names_every_interface_in_one_call_and_installs(tmp
         assert f" {name} " in sets[0]
     for zone in ("inside", "dmz", "outside"):
         assert f"security-zone-settings.specific-zone {zone}" in sets[0]
-    order = [driver.index(x) for x in ("SID=fwshift.sid sh ./policy.checkpoint", "mgmt_cli set simple-gateway", "mgmt_cli publish",
-                                       "mgmt_cli install-policy", 'FWLAB-LOADED-$((40 + 2))')]
+    order = [driver.index(x) for x in ("SID=fwshift.sid sh ./policy.checkpoint", "mgmt_cli set simple-gateway", "FWLAB management",
+                                       "mgmt_cli publish", "mgmt_cli install-policy", 'FWLAB-LOADED-$((40 + 2))')]
     assert order == sorted(order)
+    # The lab's own access to the gateway, above the converted rules (the first run lost its SSH session to eth0 at the
+    # install: the policy ends in FWShift's cleanup rule): from the address the session comes from, SSH and HTTPS.
+    rule = next(line for line in driver.splitlines() if "FWLAB management" in line)
+    assert "layer Network position 1" in rule and "source.1 fwlab-admin" in rule and "service.1 ssh service.2 https" in rule
+    assert 'ADMIN=${SSH_CLIENT%% *}' in driver and "action Accept" in rule
+    assert tier3.VENDORS["checkpoint"].session(tmp_path / "policy.checkpoint")[0].endswith("| tee fwlab_load.log")
+    assert tier3.VENDORS["checkpoint"].diagnose()[0] == "tail -n 80 fwlab_load.log"
     vendor = tier3.VENDORS["checkpoint"]
     files = vendor.uploads(tmp_path / "policy.checkpoint")
     assert [f.name for f in files] == ["policy.checkpoint", "fwlab_load.sh"] and (tmp_path / "fwlab_load.sh").read_text() == driver
